@@ -9,10 +9,12 @@
         "preview": "nuxt preview",
         "postinstall": "nuxt prepare",
         "lint": "eslint .",
-        "lint:fix": "eslint . --fix"
+        "lint:fix": "eslint . --fix",
+        "typecheck": "vue-tsc --noEmit"
     },
     "devDependencies": {
         "@antfu/eslint-config": "^2.6.3",
+        "@nuxtjs/color-mode": "^3.3.2",
         "@pinia/nuxt": "^0.5.1",
         "@unocss/eslint-config": "^0.58.3",
         "@unocss/nuxt": "^0.58.3",
@@ -24,6 +26,7 @@
         "nuxt": "^3.9.3",
         "nuxt-module-eslint-config": "^0.1.0",
         "vue": "^3.4.14",
-        "vue-router": "^4.2.5"
+        "vue-router": "^4.2.5",
+        "vue-tsc": "^1.8.27"
     }
 }
