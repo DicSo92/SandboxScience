@@ -47,10 +47,10 @@ export default defineNuxtConfig({
     ],
 
     colorMode: {
-        // preference: 'system', // default value of $colorMode.preference
+        preference: 'dark', // default value of $colorMode.preference (system)
         fallback: 'dark', // fallback value if not system preference found
 
-        // classSuffix: '-mode',
+        classSuffix: '' // default '-mode',
     },
 
     features: {
