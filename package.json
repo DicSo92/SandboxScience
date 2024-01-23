@@ -11,6 +11,7 @@
   },
   "devDependencies": {
     "@pinia/nuxt": "^0.5.1",
+    "@unocss/nuxt": "^0.58.3",
     "@vueuse/core": "^10.7.2",
     "@vueuse/nuxt": "^10.7.2",
     "nuxt": "^3.9.3",
