@@ -4,7 +4,7 @@ export default defineNuxtConfig({
     modules: [
         '@vueuse/nuxt',
         '@unocss/nuxt',
-        ['@pinia/nuxt', {autoImports: ['defineStore']}],
+        ['@pinia/nuxt', { autoImports: ['defineStore'] }],
         'nuxt-module-eslint-config',
     ],
     alias: {

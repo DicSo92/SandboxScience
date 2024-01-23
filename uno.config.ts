@@ -18,19 +18,19 @@ export default defineConfig({
         presetUno(),
         presetAttributify(),
         presetIcons({
-            scale: 1.2
+            scale: 1.2,
         }),
         presetTypography(),
         presetWebFonts({
             fonts: {
                 sans: 'DM Sans',
                 serif: 'DM Serif Display',
-                mono: 'DM Mono'
+                mono: 'DM Mono',
             },
         }),
     ],
     transformers: [
         transformerDirectives(),
-        transformerVariantGroup()
-    ]
+        transformerVariantGroup(),
+    ],
 })
