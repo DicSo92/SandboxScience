@@ -1,4 +1,5 @@
-// https://nuxt.com/docs/api/configuration/nuxt-config
+import { appDescription } from './constants/index'
+
 export default defineNuxtConfig({
     devtools: { enabled: true },
     modules: [
@@ -8,8 +9,21 @@ export default defineNuxtConfig({
         'nuxt-module-eslint-config',
         '@nuxtjs/color-mode',
     ],
-    alias: {
-        pinia: process.env.NODE_ENV === 'production' ? '/node_modules/pinia/dist/pinia.mjs' : '/node_modules/@pinia/nuxt/node_modules/pinia/dist/pinia.mjs',
+
+    app: {
+        head: {
+            viewport: 'width=device-width,initial-scale=1',
+            link: [
+                { rel: 'icon', href: '/favicon.ico', sizes: 'any' },
+                { rel: 'icon', type: 'image/svg+xml', href: '/nuxt.svg' },
+                { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
+            ],
+            meta: [
+                { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+                { name: 'description', content: appDescription },
+                { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
+            ],
+        },
     },
 
     experimental: {
@@ -18,6 +32,14 @@ export default defineNuxtConfig({
         payloadExtraction: false,
         renderJsonPayloads: true,
         typedPages: true,
+    },
+
+    nitro: {
+        esbuild: {
+            options: {
+                target: 'esnext',
+            },
+        },
     },
 
     css: [
@@ -38,5 +60,9 @@ export default defineNuxtConfig({
 
     eslintConfig: {
         setup: false,
+    },
+
+    alias: {
+        pinia: process.env.NODE_ENV === 'production' ? '/node_modules/pinia/dist/pinia.mjs' : '/node_modules/@pinia/nuxt/node_modules/pinia/dist/pinia.mjs',
     },
 })
