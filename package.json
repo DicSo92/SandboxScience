@@ -7,14 +7,22 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "devDependencies": {
+    "@antfu/eslint-config": "^2.6.3",
     "@pinia/nuxt": "^0.5.1",
+    "@unocss/eslint-config": "^0.58.3",
     "@unocss/nuxt": "^0.58.3",
     "@vueuse/core": "^10.7.2",
     "@vueuse/nuxt": "^10.7.2",
+    "eslint": "npm:eslint-ts-patch@^8.56.0-0",
+    "eslint-plugin-format": "^0.1.0",
+    "eslint-ts-patch": "^8.56.0-0",
     "nuxt": "^3.9.3",
+    "nuxt-module-eslint-config": "^0.1.0",
     "vue": "^3.4.14",
     "vue-router": "^4.2.5"
   }

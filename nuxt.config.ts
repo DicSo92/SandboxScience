@@ -5,8 +5,19 @@ export default defineNuxtConfig({
         '@vueuse/nuxt',
         '@unocss/nuxt',
         ['@pinia/nuxt', {autoImports: ['defineStore']}],
-
+        'nuxt-module-eslint-config',
     ],
+    alias: {
+        pinia: process.env.NODE_ENV === 'production' ? '/node_modules/pinia/dist/pinia.mjs' : '/node_modules/@pinia/nuxt/node_modules/pinia/dist/pinia.mjs',
+    },
+
+    experimental: {
+        // when using generate, payload js assets included in sw precache manifest
+        // but missing on offline, disabling extraction it until fixed
+        payloadExtraction: false,
+        renderJsonPayloads: true,
+        typedPages: true,
+    },
 
     css: [
         '@unocss/reset/tailwind.css', // Maybe need @unocss/reset package
@@ -16,7 +27,7 @@ export default defineNuxtConfig({
         inlineStyles: false,
     },
 
-    alias: {
-        pinia: process.env.NODE_ENV === 'production' ? '/node_modules/pinia/dist/pinia.mjs' : '/node_modules/@pinia/nuxt/node_modules/pinia/dist/pinia.mjs',
+    eslintConfig: {
+        setup: false,
     },
 })
