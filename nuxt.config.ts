@@ -1,14 +1,24 @@
 import { appDescription } from './constants/index'
 
 export default defineNuxtConfig({
-    devtools: { enabled: true },
+    devtools: {
+      enabled: true,
+      timeline: {
+        enabled: false,
+      },
+    },
     modules: [
         '@vueuse/nuxt',
         '@unocss/nuxt',
-        ['@pinia/nuxt', { autoImports: ['defineStore'] }],
+        // ['@pinia/nuxt', { autoImports: ['defineStore'] }],
+        '@pinia/nuxt',
         'nuxt-module-eslint-config',
         '@nuxtjs/color-mode',
     ],
+
+    alias: {
+        pinia: process.env.NODE_ENV === 'production' ? '/node_modules/pinia/dist/pinia.mjs' : '/node_modules/@pinia/nuxt/node_modules/pinia/dist/pinia.mjs',
+    },
 
     app: {
         head: {
@@ -59,9 +69,5 @@ export default defineNuxtConfig({
 
     eslintConfig: {
         setup: false,
-    },
-
-    alias: {
-        pinia: process.env.NODE_ENV === 'production' ? '/node_modules/pinia/dist/pinia.mjs' : '/node_modules/@pinia/nuxt/node_modules/pinia/dist/pinia.mjs',
     },
 })
