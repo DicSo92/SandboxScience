@@ -1,16 +1,20 @@
 <template>
     <section flex justify-center>
+        <button @click="randomCells(8)">Random</button>
         <canvas ref="canvas"></canvas>
+        <button @click="killRandom(20)">kill</button>
     </section>
 </template>
 
 <script lang="ts">
     import { defineComponent } from 'vue'
-
+    
     export default defineComponent({
         setup() {
             const canvas: Ref<HTMLCanvasElement | undefined> = ref();
             const ctx: Ref<CanvasRenderingContext2D | undefined> = ref();
+            // const cellsArray: Cell[] = ref([])
+            const cellsArray = reactive([] as Cell[])
 
             onMounted(() => {
                 ctx.value = canvas.value?.getContext('2d') || undefined;
@@ -29,7 +33,8 @@
                 let cols = 12; //number of columns
 
                 // initiate the cells array
-                let cells = new Array(cols*rows);
+                // let cells = new Array(cols*rows);
+                let cells = []
 
                 // fill the cells array with values
                 for (let y = 0; y <= rows; y++) {
@@ -46,14 +51,66 @@
                 console.log(cells)
 
                 //draw every cell in the grid of cells
-                cells.forEach((c,i)=>{
-                    ctx.value!.beginPath();
-                    ctx.value!.strokeRect(c.x, c.y, size, size);
+                cells.forEach((c, i) => {
+                    cellsArray.push(new Cell(c.x, c.y, size))
                 })
+
+                console.log(cellsArray)
+            }
+
+            const randomCells = (num: number) => {
+                const shuffled = [...cellsArray].sort(() => 0.5 - Math.random())
+
+                const rCells = shuffled.slice(0, num)
+
+                rCells.forEach((cell) => {
+                    cell.makeAlive()
+                })
+            }
+            const killRandom = (num: number) => {
+                const shuffled = [...cellsArray].sort(() => 0.5 - Math.random())
+
+                const rCells = shuffled.slice(0, num)
+
+                rCells.forEach((cell) => {
+                    cell.kill()
+                })
+            }
+            class Cell {
+                x: number
+                y: number
+                size: number
+                alive: boolean = false
+
+                constructor(x: number, y: number, size: number) {
+                    this.x = x
+                    this.y = y
+                    this.size = size
+
+                    this.init()
+                }
+
+                private init () {
+                    ctx.value!.beginPath();
+                    ctx.value!.strokeRect(this.x, this.y, this.size, this.size);
+                }
+
+                public makeAlive () {
+                    ctx.value!.fillRect(this.x, this.y, this.size, this.size)
+                    this.alive = true
+                }
+                public kill () {
+                    if (!this.alive) {
+                        return console.log(this.x + '-' + this.y + ' not alive (cant remove)')
+                    }
+                    ctx.value!.clearRect(this.x, this.y, this.size, this.size);
+                    ctx.value!.strokeRect(this.x, this.y, this.size, this.size);
+                    this.alive = false
+                }
             }
 
             return {
-                canvas, ctx
+                canvas, ctx, cellsArray, randomCells, killRandom
             }
         },
     })
