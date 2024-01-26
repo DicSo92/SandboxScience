@@ -7,14 +7,14 @@
 </template>
 
 <script lang="ts">
-    import { defineComponent } from 'vue'
-    
-    export default defineComponent({
+import {defineComponent} from 'vue'
+
+export default defineComponent({
         setup() {
             const canvas: Ref<HTMLCanvasElement | undefined> = ref();
             const ctx: Ref<CanvasRenderingContext2D | undefined> = ref();
             // const cellsArray: Cell[] = ref([])
-            const cellsArray = reactive([] as Cell[])
+            let cellsArray = reactive([] as Cell[])
 
             onMounted(() => {
                 ctx.value = canvas.value?.getContext('2d') || undefined;
@@ -32,28 +32,14 @@
                 let rows = 12; //number of rows
                 let cols = 12; //number of columns
 
-                // initiate the cells array
-                // let cells = new Array(cols*rows);
-                let cells = []
-
                 // fill the cells array with values
                 for (let y = 0; y <= rows; y++) {
                     for (let x = 0; x < cols; x++) {
                         let index = x + y * cols;
-                        let cell = { x, y }
-                        cell.x = x * size;
-                        cell.y = y * size;
 
-                        cells[index] = cell;
+                        cellsArray[index] = new Cell(x, y, size)
                     }
                 }
-
-                console.log(cells)
-
-                //draw every cell in the grid of cells
-                cells.forEach((c, i) => {
-                    cellsArray.push(new Cell(c.x, c.y, size))
-                })
 
                 console.log(cellsArray)
             }
@@ -76,11 +62,12 @@
                     cell.kill()
                 })
             }
+
             class Cell {
                 x: number
                 y: number
                 size: number
-                alive: boolean = false
+                isAlive: boolean = false
 
                 constructor(x: number, y: number, size: number) {
                     this.x = x
@@ -92,20 +79,31 @@
 
                 private init () {
                     ctx.value!.beginPath();
-                    ctx.value!.strokeRect(this.x, this.y, this.size, this.size);
+                    this.clear()
                 }
 
                 public makeAlive () {
-                    ctx.value!.fillRect(this.x, this.y, this.size, this.size)
-                    this.alive = true
+                    ctx.value!.fillRect(this.coordinates.x, this.coordinates.y, this.size, this.size)
+                    this.isAlive = true
                 }
                 public kill () {
-                    if (!this.alive) {
-                        return console.log(this.x + '-' + this.y + ' not alive (cant remove)')
+                    if (!this.isAlive) {
+                        return console.log(this.coordinates.x + '-' + this.coordinates.y + ' not alive (cant remove)')
                     }
-                    ctx.value!.clearRect(this.x, this.y, this.size, this.size);
-                    ctx.value!.strokeRect(this.x, this.y, this.size, this.size);
-                    this.alive = false
+                    this.clear()
+                }
+
+                public get coordinates (): { x: number, y: number } {
+                    return {
+                        x: this.x * this.size,
+                        y: this.y * this.size
+                    }
+                }
+
+                private clear () {
+                    ctx.value!.clearRect(this.coordinates.x, this.coordinates.y, this.size, this.size);
+                    ctx.value!.strokeRect(this.coordinates.x, this.coordinates.y, this.size, this.size);
+                    this.isAlive = false
                 }
             }
 
