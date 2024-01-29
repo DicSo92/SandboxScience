@@ -1,6 +1,6 @@
 <template>
     <section flex justify-center>
-        <button @click="randomCells(50)" p2 mx-1>Random</button>
+        <button @click="randomCells(150)" p2 mx-1>Random</button>
         <canvas ref="canvas"></canvas>
         <button @click="killRandom(20)" bg-red-900 p2 mx-1>Kill</button>
         <button @click="newCycle" bg-red-600 p2 mx-1>Cycle</button>
@@ -66,18 +66,35 @@ export default defineComponent({
                 })
             }
 
-            function startLoop() {
-                // setInterval(() => {
-                //     newCycle()
-                // }, SPEED)
+            const executionTime = ref<number>()
+            let startExecutionTime: number // for calculating execution time
+            let lastTime: number | null
 
-                animate(Date.now())
+            function startLoop() {
+                lastTime = Number(document.timeline.currentTime) || null
+                if (!lastTime) {
+                    console.log("Can't get document.timeline.currentTime")
+                    return
+                }
+
+                startExecutionTime = performance.now()
+                requestAnimationFrame(animate)
             }
 
-            function animate(currentTime: number) {
-                newCycle()
 
-                requestAnimationFrame(animate)
+            function animate(currentTime: number) {
+                const elapsedTime = currentTime - lastTime!
+
+                if (elapsedTime >= SPEED) {
+                    newCycle()
+                    lastTime = currentTime - (elapsedTime % SPEED)
+
+                    executionTime.value = performance.now() - startExecutionTime
+                    console.log(`Execution Time : ${executionTime.value} ms`)
+                }
+
+                startExecutionTime = performance.now()
+                requestAnimationFrame(animate);
             }
 
             function newCycle() {
