@@ -20,9 +20,9 @@ export default defineComponent({
             const ctx: Ref<CanvasRenderingContext2D | undefined> = ref();
             let cellsArray = reactive([] as Cell[])
 
-            const cw = 800 // the width of the canvas
+            const cw = 1200 // the width of the canvas
             const ch = 800 // the height of the canvas
-            const size = 40 // the size of every cell
+            const size = 20 // the size of every cell
             const rows = ch / size // number of rows
             const cols = cw / size // number of columns
 
@@ -84,8 +84,8 @@ export default defineComponent({
                 console.log(cellsArray)
                 let changedCells = [] as ICell[]
                 cellsArray.forEach((cell, index) => {
-                    const aliveNeighbours = surroundingsWithDeadEdges(cellsArray, index, rows).reduce((acc, cur) => acc += cur?.isAlive ? 1 : 0 , 0);
-                    // const aliveNeighbours = surroundingsWithMirrorEdges(cellsArray, index, rows, cols).reduce((acc, cur) => acc += cur?.isAlive ? 1 : 0 , 0);
+                    // const aliveNeighbours = surroundingsWithDeadEdges(cellsArray, index, cols).reduce((acc, cur) => acc += cur?.isAlive ? 1 : 0 , 0);
+                    const aliveNeighbours = surroundingsWithMirrorEdges(cellsArray, index, rows, cols).reduce((acc, cur) => acc += cur?.isAlive ? 1 : 0 , 0);
 
                     const hasChanged = processRules(cell, aliveNeighbours)
                     if (hasChanged) changedCells.push(cell)
