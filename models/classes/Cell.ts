@@ -24,7 +24,7 @@ export class Cell implements ICell {
 
     public makeAlive (isInit: boolean = false) {
         if (this.isAlive) {
-            // console.log(this.x + '-' + this.y + ' alive (cant revive)')
+            console.log(this.x + '-' + this.y + ' alive (cant revive)')
             return
         }
         this.ctx!.fillStyle = "black";
@@ -34,7 +34,7 @@ export class Cell implements ICell {
     }
     public kill (isInit: boolean = false) {
         if (!this.isAlive) {
-            // console.log(this.coordinates.x + '-' + this.coordinates.y + ' not alive (cant remove)')
+            console.log(this.coordinates.x + '-' + this.coordinates.y + ' not alive (cant remove)')
             return
         }
         this.clear()

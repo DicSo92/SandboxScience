@@ -1,10 +1,10 @@
 <template>
     <section flex justify-center>
-        <button @click="randomCells(100)" p2 mx-1>Random</button>
+        <button @click="randomCells(50)" p2 mx-1>Random</button>
         <canvas ref="canvas"></canvas>
         <button @click="killRandom(20)" bg-red-900 p2 mx-1>Kill</button>
         <button @click="newCycle" bg-red-600 p2 mx-1>Cycle</button>
-        <button @click="loop" bg-black text-white p2 mx-1>Loop</button>
+        <button @click="startLoop" bg-black text-white p2 mx-1>Start Loop</button>
     </section>
 </template>
 
@@ -18,16 +18,15 @@ export default defineComponent({
         setup() {
             const canvas: Ref<HTMLCanvasElement | undefined> = ref();
             const ctx: Ref<CanvasRenderingContext2D | undefined> = ref();
-            // const cellsArray = ref<Cell[]>([])
             let cellsArray = reactive([] as Cell[])
 
             const cw = 800 // the width of the canvas
             const ch = 800 // the height of the canvas
-            const size = 20 // the size of every cell
+            const size = 40 // the size of every cell
             const rows = ch / size // number of rows
             const cols = cw / size // number of columns
 
-            const speed = 80 // the speed of the animation
+            const SPEED = 80 // the speed of the animation (ms)
 
             onMounted(() => {
                 ctx.value = canvas.value?.getContext('2d') || undefined;
@@ -67,37 +66,52 @@ export default defineComponent({
                 })
             }
 
-            function loop() {
-                setInterval(() => {
-                    newCycle()
-                }, speed)
+            function startLoop() {
+                // setInterval(() => {
+                //     newCycle()
+                // }, SPEED)
+
+                animate(Date.now())
+            }
+
+            function animate(currentTime: number) {
+                newCycle()
+
+                requestAnimationFrame(animate)
             }
 
             function newCycle() {
                 console.log(cellsArray)
+                let changedCells = [] as ICell[]
                 cellsArray.forEach((cell, index) => {
-                    // const aliveNeighbours = surroundingsWithDeadEdges(index, rows).reduce((acc, cur) => acc += cur?.isAlive ? 1 : 0 , 0);
-                    const aliveNeighbours = surroundingsWithMirrorEdges(cellsArray, index, rows, cols).reduce((acc, cur) => acc += cur?.isAlive ? 1 : 0 , 0);
+                    const aliveNeighbours = surroundingsWithDeadEdges(cellsArray, index, rows).reduce((acc, cur) => acc += cur?.isAlive ? 1 : 0 , 0);
+                    // const aliveNeighbours = surroundingsWithMirrorEdges(cellsArray, index, rows, cols).reduce((acc, cur) => acc += cur?.isAlive ? 1 : 0 , 0);
 
-                    processRules(cell, aliveNeighbours)
+                    const hasChanged = processRules(cell, aliveNeighbours)
+                    if (hasChanged) changedCells.push(cell)
                 })
-                cellsArray.forEach((cell, index) => {
+                changedCells.forEach((cell, index) => {
                     cell.isAlive = cell.nextAlive
                 })
             }
 
-            function processRules(cell: ICell, aliveNeighbours: number) {
+            function processRules(cell: ICell, aliveNeighbours: number): boolean { // return if cell has changed
                 if (cell.isAlive && (aliveNeighbours === 2 || aliveNeighbours === 3)) {
-                    cell.makeAlive()
+                    // Survives
+                    return false
                 } else if (!cell.isAlive && aliveNeighbours === 3) {
+                    // Born
                     cell.makeAlive()
+                    return true
                 } else {
-                    cell.kill()
+                    // Dies
+                    if (cell.isAlive) cell.kill()
+                    return true
                 }
             }
 
             return {
-                canvas, ctx, cellsArray, randomCells, killRandom, newCycle, loop
+                canvas, ctx, cellsArray, randomCells, killRandom, newCycle, startLoop
             }
         },
     })
