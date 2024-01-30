@@ -18,7 +18,8 @@ export default defineComponent({
         setup() {
             const canvas: Ref<HTMLCanvasElement | undefined> = ref();
             const ctx: Ref<CanvasRenderingContext2D | undefined> = ref();
-            let cellsArray = reactive([] as Cell[])
+            let cellsArray = reactive([] as Cell[]) // array of cells
+            const SPEED = 1200 // the speed of the animation (ms)
 
             const cw = 1200 // the width of the canvas
             const ch = 800 // the height of the canvas
@@ -26,11 +27,12 @@ export default defineComponent({
             const rows = ch / size // number of rows
             const cols = cw / size // number of columns
 
-            const SPEED = 80 // the speed of the animation (ms)
+            const executionTime = ref<number>() // cycle execution time
+            let startExecutionTime: number // for calculating execution time
+            let lastTime: number | null // for calculating elapsed time
 
             onMounted(() => {
                 ctx.value = canvas.value?.getContext('2d') || undefined;
-
                 drawCanvas();
             })
 
@@ -38,7 +40,6 @@ export default defineComponent({
                 canvas.value!.width = cw
                 canvas.value!.height = ch
 
-                // fill the cells array with values
                 for (let y = 0; y < rows; y++) {
                     for (let x = 0; x < cols; x++) {
                         let index = x + y * cols;
@@ -51,24 +52,17 @@ export default defineComponent({
             const randomCells = (num: number) => {
                 for (let i = 0; i < num; i++) {
                     const random = Math.floor(Math.random() * cellsArray.length)
-                    console.log(random)
                     cellsArray[random].makeAlive(true)
                 }
                 console.log(cellsArray)
             }
             const killRandom = (num: number) => {
                 const shuffled = [...cellsArray].sort(() => 0.5 - Math.random())
-
                 const rCells = shuffled.slice(0, num)
-
                 rCells.forEach((cell) => {
                     cell.kill(true)
                 })
             }
-
-            const executionTime = ref<number>()
-            let startExecutionTime: number // for calculating execution time
-            let lastTime: number | null
 
             function startLoop() {
                 lastTime = Number(document.timeline.currentTime) || null
@@ -77,6 +71,7 @@ export default defineComponent({
                     return
                 }
 
+                lastTime = lastTime - SPEED // to start a cycle immediately
                 startExecutionTime = performance.now()
                 requestAnimationFrame(animate)
             }
@@ -84,8 +79,10 @@ export default defineComponent({
 
             function animate(currentTime: number) {
                 const elapsedTime = currentTime - lastTime!
+                console.log(elapsedTime)
 
                 if (elapsedTime >= SPEED) {
+                    console.log("entered")
                     newCycle()
                     lastTime = currentTime - (elapsedTime % SPEED)
 
