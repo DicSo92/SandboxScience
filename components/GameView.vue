@@ -19,7 +19,7 @@ export default defineComponent({
             const canvas: Ref<HTMLCanvasElement | undefined> = ref();
             const ctx: Ref<CanvasRenderingContext2D | undefined> = ref();
             let cellsArray = reactive([] as Cell[]) // array of cells
-            const SPEED = 1200 // the speed of the animation (ms)
+            const SPEED = 50 // the speed of the animation (ms)
 
             const cw = 1200 // the width of the canvas
             const ch = 800 // the height of the canvas
@@ -99,7 +99,8 @@ export default defineComponent({
                 let changedCells = [] as ICell[]
                 cellsArray.forEach((cell, index) => {
                     // const aliveNeighbours = surroundingsWithDeadEdges(cellsArray, index, cols).reduce((acc, cur) => acc += cur?.isAlive ? 1 : 0 , 0);
-                    const aliveNeighbours = surroundingsWithMirrorEdges(cellsArray, index, rows, cols).reduce((acc, cur) => acc += cur?.isAlive ? 1 : 0 , 0);
+                    // const aliveNeighbours = surroundingsWithMirrorEdges(cellsArray, index, rows, cols).reduce((acc, cur) => acc += cur?.isAlive ? 1 : 0 , 0);
+                    const aliveNeighbours = surroundingsWithNewPrinciple(cell.x, cell.y)
 
                     const hasChanged = processRules(cell, aliveNeighbours)
                     if (hasChanged) changedCells.push(cell)
@@ -107,6 +108,35 @@ export default defineComponent({
                 changedCells.forEach((cell, index) => {
                     cell.isAlive = cell.nextAlive
                 })
+            }
+
+            const neighbourCellsMap = [
+                [-1, -1], [0, -1], [1, -1],
+                [-1, 0],           [1, 0],
+                [-1, 1],  [0, 1],  [1, 1]
+            ]
+
+            const surroundingsWithNewPrinciple = (x: number, y: number) => {
+                return neighbourCellsMap.reduce((numNeighbours, [dx, dy]) => {
+                    return numNeighbours + (isCellAlive(x + dx, y + dy) ? 1 : 0);
+                }, 0);
+            }
+
+            const isCellAlive = (x: number, y: number) => {
+                // Dead Edges
+                // if (x < 0 || x >= cols || y < 0 || y >= rows){
+                //     return false;
+                // }
+
+                // Mirror Edges
+                const modX = (x + cols) % cols
+                const modY = (y + rows) % rows
+
+                return cellsArray[gridToIndex(modX, modY, cols)].isAlive
+            }
+
+            const gridToIndex = (x: number, y: number, cols: number) => {
+                return x + (y * cols);
             }
 
             function processRules(cell: ICell, aliveNeighbours: number): boolean { // return if cell has changed
