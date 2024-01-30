@@ -16,16 +16,10 @@ import type { ICell } from '~/models/interfaces/ICell.interface';
 
 export default defineComponent({
         setup() {
+            const game = useGameStore()
             const canvas: Ref<HTMLCanvasElement | undefined> = ref();
             const ctx: Ref<CanvasRenderingContext2D | undefined> = ref();
             let cellsArray = reactive([] as Cell[]) // array of cells
-            const SPEED = 50 // the speed of the animation (ms)
-
-            const cw = 1200 // the width of the canvas
-            const ch = 800 // the height of the canvas
-            const size = 20 // the size of every cell
-            const rows = ch / size // number of rows
-            const cols = cw / size // number of columns
 
             const executionTime = ref<number>() // cycle execution time
             let startExecutionTime: number // for calculating execution time
@@ -37,13 +31,13 @@ export default defineComponent({
             })
 
             function drawCanvas() {
-                canvas.value!.width = cw
-                canvas.value!.height = ch
+                canvas.value!.width = game.canvasWidth
+                canvas.value!.height = game.canvasHeight
 
-                for (let y = 0; y < rows; y++) {
-                    for (let x = 0; x < cols; x++) {
-                        let index = x + y * cols;
-                        cellsArray[index] = reactive(new Cell(x, y, size, ctx.value))
+                for (let y = 0; y < game.rows; y++) {
+                    for (let x = 0; x < game.cols; x++) {
+                        let index = x + y * game.cols;
+                        cellsArray[index] = reactive(new Cell(x, y, game.size, ctx.value))
                     }
                 }
                 console.log(cellsArray)
@@ -71,7 +65,7 @@ export default defineComponent({
                     return
                 }
 
-                lastTime = lastTime - SPEED // to start a cycle immediately
+                lastTime = lastTime - game.SPEED // to start a cycle immediately
                 startExecutionTime = performance.now()
                 requestAnimationFrame(animate)
             }
@@ -79,13 +73,11 @@ export default defineComponent({
 
             function animate(currentTime: number) {
                 const elapsedTime = currentTime - lastTime!
-                console.log(elapsedTime)
 
-                if (elapsedTime >= SPEED) {
-                    console.log("entered")
+                if (elapsedTime >= game.SPEED) {
                     newCycle()
-                    lastTime = currentTime - (elapsedTime % SPEED)
 
+                    lastTime = currentTime - (elapsedTime % game.SPEED)
                     executionTime.value = performance.now() - startExecutionTime
                     console.log(`Execution Time : ${executionTime.value} ms`)
                 }
@@ -129,10 +121,10 @@ export default defineComponent({
                 // }
 
                 // Mirror Edges
-                const modX = (x + cols) % cols
-                const modY = (y + rows) % rows
+                const modX = (x + game.cols) % game.cols
+                const modY = (y + game.rows) % game.rows
 
-                return cellsArray[gridToIndex(modX, modY, cols)].isAlive
+                return cellsArray[gridToIndex(modX, modY, game.cols)].isAlive
             }
 
             const gridToIndex = (x: number, y: number, cols: number) => {
