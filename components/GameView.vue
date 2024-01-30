@@ -1,10 +1,26 @@
 <template>
-    <section flex justify-center>
-        <button @click="randomCells(150)" p2 mx-1>Random</button>
+    <section flex flex-col justify-center>
         <canvas ref="canvas"></canvas>
-        <button @click="killRandom(20)" bg-red-900 p2 mx-1>Kill</button>
-        <button @click="newCycle" bg-red-600 p2 mx-1>Cycle</button>
-        <button @click="startLoop" bg-black text-white p2 mx-1>Start Loop</button>
+        <div flex flex-col>
+            <div flex justify-between>
+                <div flex>
+                    <div mx-2>Rows: {{game.rows}}</div>
+                    <div mx-2>Cols: {{game.cols}}</div>
+                    <div mx-2>Cell Size: {{game.size}}</div>
+                    <div mx-2>Speed: {{game.SPEED}}</div>
+                </div>
+                <div mx-2>Execution Time: {{ Math.round(executionTime) }} ms</div>
+            </div>
+            <div flex>
+                <div btn @click="randomCells(((game.rows * game.cols) * 20) / 100)" class="bg-orange-700 hover:bg-orange-800 p2 mx-1">Random</div>
+                <div btn @click="killRandom(20)" class="bg-red-700 hover:bg-red-900 p2 mx-1">Kill</div>
+                <div btn @click="newCycle" class="bg-green-900 hover:bg-green-800 p2 mx-1">Cycle</div>
+                <div btn @click="startLoop" class="bg-green-700 hover:bg-green-900 flex items-center mx-1">
+                    <div i-carbon-play mr-1></div>
+                    Start Loop
+                </div>
+            </div>
+        </div>
     </section>
 </template>
 
@@ -20,7 +36,7 @@ export default defineComponent({
             const canvas: Ref<HTMLCanvasElement | undefined> = ref()
             const ctx: Ref<CanvasRenderingContext2D | undefined> = ref()
 
-            const executionTime = ref<number>() // cycle execution time
+            const executionTime = ref<number>(0) // cycle execution time
             let startExecutionTime: number // for calculating execution time
             let lastTime: number | null // for calculating elapsed time
 
@@ -113,7 +129,7 @@ export default defineComponent({
             }
 
             return {
-                canvas, ctx, randomCells, killRandom, newCycle, startLoop
+                game, ctx, canvas, newCycle, randomCells, killRandom, startLoop, executionTime
             }
         },
     })
