@@ -10,24 +10,23 @@
 
 <script lang="ts">
 import {defineComponent} from 'vue'
-import { surroundingsWithMirrorEdges, surroundingsWithDeadEdges } from '~/helpers/utils/surroundings';
-import { Cell } from '~/models/classes/Cell';
-import type { ICell } from '~/models/interfaces/ICell.interface';
+import { aliveNeighbours } from '~/helpers/utils/neighbours'
+import { Cell } from '~/models/classes/Cell'
+import type { ICell } from '~/models/interfaces/ICell.interface'
 
 export default defineComponent({
         setup() {
             const game = useGameStore()
-            const canvas: Ref<HTMLCanvasElement | undefined> = ref();
-            const ctx: Ref<CanvasRenderingContext2D | undefined> = ref();
-            let cellsArray = reactive([] as Cell[]) // array of cells
+            const canvas: Ref<HTMLCanvasElement | undefined> = ref()
+            const ctx: Ref<CanvasRenderingContext2D | undefined> = ref()
 
             const executionTime = ref<number>() // cycle execution time
             let startExecutionTime: number // for calculating execution time
             let lastTime: number | null // for calculating elapsed time
 
             onMounted(() => {
-                ctx.value = canvas.value?.getContext('2d') || undefined;
-                drawCanvas();
+                ctx.value = canvas.value?.getContext('2d') || undefined
+                drawCanvas()
             })
 
             function drawCanvas() {
@@ -36,22 +35,22 @@ export default defineComponent({
 
                 for (let y = 0; y < game.rows; y++) {
                     for (let x = 0; x < game.cols; x++) {
-                        let index = x + y * game.cols;
-                        cellsArray[index] = reactive(new Cell(x, y, game.size, ctx.value))
+                        let index = x + y * game.cols
+                        game.cellsArray[index] = reactive(new Cell(x, y, game.size, ctx.value))
                     }
                 }
-                console.log(cellsArray)
+                console.log(game.cellsArray)
             }
 
             const randomCells = (num: number) => {
                 for (let i = 0; i < num; i++) {
-                    const random = Math.floor(Math.random() * cellsArray.length)
-                    cellsArray[random].makeAlive(true)
+                    const random = Math.floor(Math.random() * game.cellsArray.length)
+                    game.cellsArray[random].makeAlive(true)
                 }
-                console.log(cellsArray)
+                console.log(game.cellsArray)
             }
             const killRandom = (num: number) => {
-                const shuffled = [...cellsArray].sort(() => 0.5 - Math.random())
+                const shuffled = [...game.cellsArray].sort(() => 0.5 - Math.random())
                 const rCells = shuffled.slice(0, num)
                 rCells.forEach((cell) => {
                     cell.kill(true)
@@ -87,48 +86,15 @@ export default defineComponent({
             }
 
             function newCycle() {
-                console.log(cellsArray)
+                console.log(game.cellsArray)
                 let changedCells = [] as ICell[]
-                cellsArray.forEach((cell, index) => {
-                    // const aliveNeighbours = surroundingsWithDeadEdges(cellsArray, index, cols).reduce((acc, cur) => acc += cur?.isAlive ? 1 : 0 , 0);
-                    // const aliveNeighbours = surroundingsWithMirrorEdges(cellsArray, index, rows, cols).reduce((acc, cur) => acc += cur?.isAlive ? 1 : 0 , 0);
-                    const aliveNeighbours = surroundingsWithNewPrinciple(cell.x, cell.y)
-
-                    const hasChanged = processRules(cell, aliveNeighbours)
+                game.cellsArray.forEach((cell, index) => {
+                    const hasChanged = processRules(cell, aliveNeighbours(cell.x, cell.y))
                     if (hasChanged) changedCells.push(cell)
                 })
                 changedCells.forEach((cell, index) => {
                     cell.isAlive = cell.nextAlive
                 })
-            }
-
-            const neighbourCellsMap = [
-                [-1, -1], [0, -1], [1, -1],
-                [-1, 0],           [1, 0],
-                [-1, 1],  [0, 1],  [1, 1]
-            ]
-
-            const surroundingsWithNewPrinciple = (x: number, y: number) => {
-                return neighbourCellsMap.reduce((numNeighbours, [dx, dy]) => {
-                    return numNeighbours + (isCellAlive(x + dx, y + dy) ? 1 : 0);
-                }, 0);
-            }
-
-            const isCellAlive = (x: number, y: number) => {
-                // Dead Edges
-                // if (x < 0 || x >= cols || y < 0 || y >= rows){
-                //     return false;
-                // }
-
-                // Mirror Edges
-                const modX = (x + game.cols) % game.cols
-                const modY = (y + game.rows) % game.rows
-
-                return cellsArray[gridToIndex(modX, modY, game.cols)].isAlive
-            }
-
-            const gridToIndex = (x: number, y: number, cols: number) => {
-                return x + (y * cols);
             }
 
             function processRules(cell: ICell, aliveNeighbours: number): boolean { // return if cell has changed
@@ -147,7 +113,7 @@ export default defineComponent({
             }
 
             return {
-                canvas, ctx, cellsArray, randomCells, killRandom, newCycle, startLoop
+                canvas, ctx, randomCells, killRandom, newCycle, startLoop
             }
         },
     })
