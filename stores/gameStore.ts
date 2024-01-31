@@ -13,5 +13,8 @@ export const useGameStore = defineStore('game', () => {
     const edgeMode = ref<string>('mirror') // dead, alive, mirror
     const isRunning = ref<boolean>(false) // is the animation running?
 
-    return { SPEED, canvasWidth, canvasHeight, size, rows, cols, cellsArray, edgeMode, isRunning }
+    const sliderMin = ref<number>(1000)
+    const sliderMax = ref<number>(8000)
+
+    return { SPEED, canvasWidth, canvasHeight, size, rows, cols, cellsArray, edgeMode, isRunning, sliderMin, sliderMax }
 })

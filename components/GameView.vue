@@ -37,6 +37,11 @@
                         :selected="game.edgeMode"
                         @selected="(id) => game.edgeMode = id"
             />
+            <RangeInput :min="100" :max="10000" :step="100"
+                        :min-value="storeToRefs(game).sliderMin"
+                        :max-value="storeToRefs(game).sliderMax"
+                        @update:minValue="(value) => game.sliderMin = value"
+                        @update:maxValue="(value) => game.sliderMax = value"/>
         </div>
     </section>
 </template>
