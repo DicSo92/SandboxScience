@@ -37,11 +37,12 @@
                         :selected="game.edgeMode"
                         @selected="(id) => game.edgeMode = id"
             />
-            <RangeInput :min="100" :max="10000" :step="100"
+            <RangeInputMinMax :min="100" :max="10000" :step="100"
                         :min-value="storeToRefs(game).sliderMin"
                         :max-value="storeToRefs(game).sliderMax"
                         @update:minValue="(value) => game.sliderMin = value"
                         @update:maxValue="(value) => game.sliderMax = value"/>
+            <RangeInput v-if="SPEED" :min="50" :max="2000" :step="10" v-model="SPEED"/>
         </div>
     </section>
 </template>
@@ -61,6 +62,8 @@ export default defineComponent({
         const executionTime = ref<number>(0) // cycle execution time
         let startExecutionTime: number // for calculating execution time
         let lastTime: number | null // for calculating elapsed time
+
+        const { SPEED } = storeToRefs(useGameStore())
 
         onMounted(() => {
             ctx.value = canvas.value?.getContext('2d') || undefined
@@ -156,7 +159,7 @@ export default defineComponent({
         }
 
         return {
-            game, ctx, canvas, newCycle, randomCells, killRandom, startLoop, pause, executionTime
+            game, ctx, canvas, newCycle, randomCells, killRandom, startLoop, pause, executionTime, SPEED
         }
     }
 })
