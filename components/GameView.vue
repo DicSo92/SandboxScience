@@ -28,6 +28,7 @@
                     Pause
                 </div>
             </div>
+            <ToggleSwitch />
             <SelectMenu label="Edge Mode :"
                         :options="[
                             { name: 'Mirror Edges', icon: 'i-carbon-compare', id: 'mirror'},
@@ -45,10 +46,8 @@ import { defineComponent } from 'vue'
 import { aliveNeighbours } from '~/helpers/utils/neighbours'
 import { Cell } from '~/models/classes/Cell'
 import type { ICell } from '~/models/interfaces/ICell.interface'
-import SelectMenu from "~/components/SelectMenu.vue";
 
 export default defineComponent({
-    components: { SelectMenu },
     setup() {
         const game = useGameStore()
         const canvas: Ref<HTMLCanvasElement | undefined> = ref()
