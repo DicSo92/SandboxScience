@@ -17,7 +17,7 @@
 
             <transition leave-active-class="transition ease-out duration-200" leave-from-class="opacity-100" leave-to-class="opacity-0"
                         enter-active-class="transition ease-in duration-200" enter-from-class="opacity-0" enter-to-class="opacity-100">
-                <ul v-if="opened" class="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm" tabindex="-1" role="listbox" aria-labelledby="listbox-label" aria-activedescendant="listbox-option-3">
+                <ul v-if="opened" class="absolute z-100 mt-1 max-h-56 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm" tabindex="-1" role="listbox" aria-labelledby="listbox-label" aria-activedescendant="listbox-option-3">
                     <li v-for="(option, index) in options" @click.capture="select(option.id)"
                         class="text-gray-900 hover:text-white hover:bg-indigo-600 relative cursor-default select-none py-2 pl-3 pr-9"
                         :id="`listbox-option-${index}`" role="option">

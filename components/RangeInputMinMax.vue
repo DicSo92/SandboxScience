@@ -1,18 +1,18 @@
 <template>
-    <div ref="slider" mt-4 relative>
+    <div mt-4 relative>
         <div relative>
             <input type="range"
                    :step="step"
                    :min="min" :max="max"
-                   @input="onInputMin"
-                   v-model.number="minValue"
+                   :value="minValue"
+                   @input="updateMinValue($event.target.value)"
                    class="absolute pointer-events-none appearance-none z-20 h-2 w-full opacity-0 cursor-pointer left-0">
 
             <input type="range"
                    :step="step"
                    :min="min" :max="max"
-                   @input="onInputMax"
-                   v-model.number="maxValue"
+                   :value="maxValue"
+                   @input="updateMaxValue($event.target.value)"
                    class="absolute pointer-events-none appearance-none z-20 h-2 w-full opacity-0 cursor-pointer left-0">
 
             <div class="relative z-10 h-2">
@@ -24,12 +24,8 @@
         </div>
 
         <div class="flex justify-between items-center py-5">
-            <div>
-                <input type="text" maxlength="5"  v-model.number="minValue" class="px-3 py-2 border border-gray-200 rounded w-24 text-center text-black">
-            </div>
-            <div>
-                <input type="text" maxlength="5"  v-model.number="maxValue" class="px-3 py-2 border border-gray-200 rounded w-24 text-center text-black">
-            </div>
+            <input type="text" maxlength="5" :value="minValue" @input="updateMinValue($event.target.value)" class="px-3 py-2 border border-gray-200 rounded w-24 text-center text-black">
+            <input type="text" maxlength="5" :value="maxValue" @input="updateMaxValue($event.target.value)" class="px-3 py-2 border border-gray-200 rounded w-24 text-center text-black">
         </div>
     </div>
 
@@ -61,45 +57,47 @@ export default defineComponent({
         },
     },
     setup(props, { emit }) {
-        const slider = ref<HTMLDivElement | undefined>(undefined)
-        const minOffset = ref(0)
-        const maxOffset = ref(0)
-
-        const minValue = ref(props.minValue)
-        const maxValue = ref(props.maxValue)
+        const minOffset = computed(() => {
+            return ((props.minValue - props.min) / (props.max - props.min)) * 100 // get the percentage from the left
+        })
+        const maxOffset = computed(() => {
+            return 100 - (((props.maxValue - props.min) / (props.max - props.min)) * 100) // get the percentage from the right
+        })
 
         onMounted(() => {
-            minOffset.value = ((minValue.value - props.min) / (props.max - props.min)) * 100 // get the percentage from the left
-            maxOffset.value = 100 - (((maxValue.value - props.min) / (props.max - props.min)) * 100) // get the percentage from the right
+            updateMinValue(props.minValue)
+            updateMaxValue(props.maxValue)
         })
 
-        watch(minValue, (newValue, oldValue) => {
-            if (slider && newValue !== oldValue) {
-                minOffset.value = ((minValue.value - props.min) / (props.max - props.min)) * 100 // get the percentage from the left
-                emit("update:minValue", minValue.value)
-            }
-        })
-        watch(maxValue, (newValue, oldValue) => {
-            if (slider && newValue !== oldValue) {
-                maxOffset.value = 100 - (((maxValue.value - props.min) / (props.max - props.min)) * 100) // get the percentage from the right
-                emit("update:maxValue", maxValue.value)
-            }
-        })
+        function updateMinValue(value: any) {
+            emit("update:minValue", Math.min(value, props.maxValue - 500))
 
-        function onInputMin() {
-            minValue.value = Math.min(minValue.value, maxValue.value - 500);
         }
-        function onInputMax() {
-            maxValue.value = Math.max(maxValue.value, minValue.value + 500);
+        function updateMaxValue(value: any) {
+            emit("update:maxValue", Math.max(value, props.minValue + 500))
         }
 
-        return { minValue, maxValue, minOffset, maxOffset, onInputMin, onInputMax }
+        return { minOffset, maxOffset, updateMinValue, updateMaxValue }
     }
 })
 </script>
 
 <style scoped>
 input[type=range]::-webkit-slider-thumb {
+    pointer-events: all;
+    width: 24px;
+    height: 24px;
+    -webkit-appearance: none;
+    /* @apply w-6 h-6 appearance-none pointer-events-auto; */
+}
+input[type=range]::-moz-range-thumb {
+    pointer-events: all;
+    width: 24px;
+    height: 24px;
+    -webkit-appearance: none;
+    /* @apply w-6 h-6 appearance-none pointer-events-auto; */
+}
+input[type=range]::-ms-thumb {
     pointer-events: all;
     width: 24px;
     height: 24px;
