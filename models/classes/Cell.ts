@@ -13,13 +13,6 @@ export class Cell implements ICell {
         this.y = y
         this.size = size
         this.ctx = ctx
-
-        this.init()
-    }
-
-    private init () {
-        this.ctx!.beginPath();
-        this.ctx!.strokeRect(this.coordinates.x, this.coordinates.y, this.size, this.size);
     }
 
     public makeAlive (isInit: boolean = false) {
@@ -27,8 +20,6 @@ export class Cell implements ICell {
             console.log(this.x + '-' + this.y + ' alive (cant revive)')
             return
         }
-        this.ctx!.fillStyle = "black";
-        this.ctx!.fillRect(this.coordinates.x, this.coordinates.y, this.size, this.size)
         this.nextAlive = true
         this.isAlive = isInit ? true : this.isAlive
     }
@@ -37,7 +28,6 @@ export class Cell implements ICell {
             console.log(this.coordinates.x + '-' + this.coordinates.y + ' not alive (cant remove)')
             return
         }
-        this.clear()
         this.nextAlive = false
         this.isAlive = isInit ? false : this.isAlive
     }
@@ -47,12 +37,5 @@ export class Cell implements ICell {
             x: this.x * this.size,
             y: this.y * this.size
         }
-    }
-
-    private clear () {
-        this.ctx!.clearRect(this.coordinates.x, this.coordinates.y, this.size, this.size);
-        this.ctx!.fillStyle = "midnightblue";
-        this.ctx!.fillRect(this.coordinates.x, this.coordinates.y, this.size, this.size)
-        this.ctx!.strokeRect(this.coordinates.x, this.coordinates.y, this.size, this.size);
     }
 }
