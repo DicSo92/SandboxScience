@@ -16,12 +16,26 @@ export default defineComponent({
         const imageData = ref()
         const imageDataArray = ref<Int32Array | number[]>()
 
+        const target = computed<HTMLElement | null>(() => {
+            return canvas.value as HTMLElement
+        })
+
+        const pointer = reactive(usePointer({ target }))
+        useEventListener(target, ['mousemove'], (e) => {
+            if (pointer.pressure > 0) {
+                game.rowx += e.movementY
+                game.colx += e.movementX
+                if (!game.isRunning) drawCellsFromCellsArray()
+            }
+        })
+
         onMounted(() => {
             ctx.value = canvas.value?.getContext('2d') || undefined
-            window.addEventListener('resize', handleResize)
+            useEventListener('resize', handleResize)
             handleResize()
             center()
             initCanvas()
+            handleResize()
         })
 
         const cellWidth = computed(() => {
@@ -37,8 +51,7 @@ export default defineComponent({
             console.log(canvas.value!)
             game.canvasWidth = canvas.value!.width = canvas.value!.clientWidth
             game.canvasHeight = canvas.value!.height = canvas.value!.clientHeight
-            center()
-            drawCellsFromCellsArray()
+            if (!game.isRunning) drawCellsFromCellsArray()
         }
 
         function initCanvas() {
@@ -146,7 +159,7 @@ export default defineComponent({
             }
         }
 
-        return { canvas, ctx, newCycle, drawCellsFromCellsArray }
+        return { canvas, ctx, pointer, newCycle, drawCellsFromCellsArray }
     }
 })
 </script>
