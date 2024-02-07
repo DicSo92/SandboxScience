@@ -1,5 +1,5 @@
 <template>
-    <section flex flex-col justify-center>
+    <section flex flex-col justify-center h-full>
         <NaiveCanvas ref="naiveCanvas" />
         <div flex flex-col>
             <div flex justify-between>
@@ -37,7 +37,7 @@
                         :selected="game.edgeMode"
                         @selected="(id) => game.edgeMode = id"
             />
-            <RangeInputMinMax :min="100" :max="10000" :step="100" v-model:min-value="sliderMin" v-model:max-value="sliderMax"/>
+<!--            <RangeInputMinMax :min="100" :max="10000" :step="100" v-model:min-value="sliderMin" v-model:max-value="sliderMax"/>-->
             <RangeInput v-if="SPEED" :min="50" :max="2000" :step="10" v-model="SPEED"/>
         </div>
     </section>

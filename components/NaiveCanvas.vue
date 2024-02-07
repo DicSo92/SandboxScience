@@ -18,13 +18,30 @@ export default defineComponent({
 
         onMounted(() => {
             ctx.value = canvas.value?.getContext('2d') || undefined
+            window.addEventListener('resize', handleResize)
+            handleResize()
+            center()
             initCanvas()
         })
 
-        function initCanvas() {
-            canvas.value!.width = game.canvasWidth
-            canvas.value!.height = game.canvasHeight
+        const cellWidth = computed(() => {
+            return Math.max(1, game.size)
+        })
 
+        function center() {
+            game.rowx = (game.canvasHeight - (game.size * game.rows)) / 2
+            game.colx = (game.canvasWidth - (game.size * game.cols)) / 2
+        }
+
+        function handleResize() {
+            console.log(canvas.value!)
+            game.canvasWidth = canvas.value!.width = canvas.value!.clientWidth
+            game.canvasHeight = canvas.value!.height = canvas.value!.clientHeight
+            center()
+            drawCellsFromCellsArray()
+        }
+
+        function initCanvas() {
             drawGrid()
 
             for (let y = 0; y < game.rows; y++) {
@@ -43,15 +60,17 @@ export default defineComponent({
 
         function drawGrid() {
             ctx.value!.beginPath()
-            for (let row = 0; row < game.rows; row++) {
-                const y = game.size * row
-                ctx.value!.moveTo(0, y)
-                ctx.value!.lineTo(game.canvasWidth, y)
+            for (let row = 0; row < game.rows + 1; row++) {
+                const x = game.colx + (game.cols * game.size)
+                const y = game.rowx + (game.size * row)
+                ctx.value!.moveTo(game.colx, y)
+                ctx.value!.lineTo(x, y)
             }
-            for (let col = 0; col < game.cols; col++) {
-                const xo = game.size * col
-                ctx.value!.moveTo(xo, 0)
-                ctx.value!.lineTo(xo, game.canvasHeight)
+            for (let col = 0; col < game.cols + 1; col++) {
+                const x = game.colx + (game.size * col)
+                const y = game.rowx + (game.rows * game.size)
+                ctx.value!.moveTo(x, game.rowx)
+                ctx.value!.lineTo(x, y)
             }
             ctx.value!.strokeStyle = '#a8a8a8'
             ctx.value!.stroke()
@@ -66,7 +85,7 @@ export default defineComponent({
             game.cellsArray.forEach((cell, index) => {
                 const hasChanged = processRules(cell, aliveNeighbours(cell.x, cell.y))
                 if (hasChanged) changedCells.push(cell)
-                if (cell.nextAlive) fillSquare(cell.x * game.size, cell.y * game.size, game.size)
+                if (cell.nextAlive) fillSquare(cell.x, cell.y, game.size)
             })
             changedCells.forEach((cell, index) => {
                 cell.isAlive = cell.nextAlive
@@ -80,44 +99,45 @@ export default defineComponent({
             imageData.value = ctx.value!.createImageData(game.canvasWidth, game.canvasHeight)
             imageDataArray.value = new Int32Array(imageData.value.data.buffer)
             game.cellsArray.forEach((cell, index) => {
-                if (cell.isAlive) fillSquare(cell.x * game.size, cell.y * game.size, game.size)
+                if (cell.isAlive) fillSquare(cell.x, cell.y, game.size)
             })
             ctx.value!.putImageData(imageData.value, 0, 0)
             drawGrid()
         }
 
         function processRules(cell: ICell, aliveNeighbours: number): boolean { // return if cell has changed
-            if (cell.isAlive && (aliveNeighbours === 2 || aliveNeighbours === 3)) {
-                // Survives
+            if (cell.isAlive && (aliveNeighbours === 2 || aliveNeighbours === 3)) { // Survives
                 return false
-            } else if (!cell.isAlive && aliveNeighbours === 3) {
-                // Born
+            } else if (!cell.isAlive && aliveNeighbours === 3) { // Born
                 cell.makeAlive()
                 return true
-            } else {
-                // Dies
+            } else { // Dies
                 if (cell.isAlive) cell.kill()
                 return true
             }
         }
-        function fillSquare(x: number, y: number, cellSize: number) {
+        function fillSquare(x: number, y: number, cellSize: number) { // fill a square by changing the imageDataArray values directly (faster than fillRect)
+            x = x * cellSize
+            y = y * cellSize
             let width = cellSize
             let height = cellSize
-            if (x < 0) { // if cell is outside the canvas on the left
-                width += x
-                x = 0
+
+            if ((x + game.colx) < 0) { // if cell is outside the canvas on the left
+                width += (x + Math.floor(game.colx))
+                x = -Math.floor(game.colx)
             }
-            if (x + width > game.canvasWidth) { // if cell is outside the canvas on the right
-                width = game.canvasWidth - x
+            if ((x + game.colx) + width > game.canvasWidth) { // if cell is outside the canvas on the right
+                width = game.canvasWidth - (x + Math.floor(game.colx))
             }
-            if (y < 0) { // if cell is outside the canvas on the top
-                height += y
-                y = 0
+            if ((y + game.rowx) < 0) { // if cell is outside the canvas on the top
+                height += (y + Math.floor(game.rowx))
+                y = -Math.floor(game.rowx)
             }
-            if (y + height > game.canvasHeight) { // if cell is outside the canvas on the bottom
-                height = game.canvasHeight - y
+            if ((y + game.rowx) + height > game.canvasHeight) { // if cell is outside the canvas on the bottom
+                height = game.canvasHeight - (y + Math.floor(game.rowx))
             }
-            let imageDataIndex = x + (y * game.canvasWidth) // position in the array
+
+            let imageDataIndex = ((Math.floor(game.rowx) + y) * game.canvasWidth) + (Math.floor(game.colx) + x) // Get the index of the first pixel of the cell
             for (let i = 0; i < height; i++) {
                 for (let j = 0; j < width; j++) { // fill a row
                     imageDataArray.value![imageDataIndex++] = 0xff000000
@@ -134,5 +154,7 @@ export default defineComponent({
 <style scoped>
 canvas {
     background-color: midnightblue;
+    width: 100%;
+    height: 100%;
 }
 </style>

@@ -1,6 +1,5 @@
 <template>
-    <div>
-        <p>Current route: {{ route.path }}</p>
+    <div flex-1>
         <GameView />
     </div>
 </template>
