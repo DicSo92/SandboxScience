@@ -21,6 +21,7 @@ export default defineComponent({
 
         const pointerX = ref(0)
         const pointerY = ref(0)
+        const zoom = ref(0)
 
         onMounted(() => {
             ctx.value = canvas.value?.getContext('2d') || undefined
@@ -30,15 +31,35 @@ export default defineComponent({
             useEventListener(canvas.value, ['mousemove'], (e) => {
                 pointerX.value = e.x - canvas.value!.offsetLeft
                 pointerY.value = e.y - canvas.value!.offsetTop
-                if (e.buttons > 0) {
-                    if (e.buttons === 1) { // Primary button (usually the left button)
+                if (e.buttons > 0) { // if mouse is pressed
+                    if (e.buttons === 1) { // if primary button is pressed (left click)
                         game.rowx += e.movementY
                         game.colx += e.movementX
                         drawCellsFromCellsArray()
                     }
                 }
             })
+            useEventListener(canvas.value, 'wheel', (e) => {
+                if (e.deltaY < 0) { // Zoom in
+                    handleZoom(1, e.x - canvas.value!.offsetLeft, e.y - canvas.value!.offsetTop)
+                } else { // Zoom out
+                    handleZoom(-1, e.x - canvas.value!.offsetLeft, e.y - canvas.value!.offsetTop)
+                }
+            })
         })
+        function handleZoom(zoomFactor: number, cursorX?: number, cursorY?: number) {
+            if (zoom.value + zoomFactor > 4 || zoom.value + zoomFactor < -4) return // Limit zoom
+            cursorX = cursorX || game.canvasWidth / 2 // if no x is provided, use the center of the canvas
+            cursorY = cursorY || game.canvasHeight / 2 // if no y is provided, use the center of the canvas
+
+            zoom.value += zoomFactor // Increase or decrease zoom
+            game.size *= Math.pow(2, zoomFactor) // Divide or multiply size by 2
+            // Adjust colx and rowx to keep the zoom centered on the pointer
+            game.colx = cursorX - (cursorX - game.colx) * Math.pow(2, zoomFactor)
+            game.rowx = cursorY - (cursorY - game.rowx) * Math.pow(2, zoomFactor)
+
+            drawCellsFromCellsArray() // redraw
+        }
 
         const cellWidth = computed(() => {
             return Math.max(1, game.size)
