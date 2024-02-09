@@ -1,5 +1,8 @@
 <template>
-    <canvas ref="canvas"></canvas>
+    <div class="flex flex-col" flex-1>
+        <canvas ref="canvas"></canvas>
+        <p>x: {{ pointerX }} -- y: {{ pointerY }}</p>
+    </div>
 </template>
 
 <script lang="ts">
@@ -16,26 +19,25 @@ export default defineComponent({
         const imageData = ref()
         const imageDataArray = ref<Int32Array | number[]>()
 
-        const target = computed<HTMLElement | null>(() => {
-            return canvas.value as HTMLElement
-        })
-
-        const pointer = reactive(usePointer({ target }))
-        useEventListener(target, ['mousemove'], (e) => {
-            if (pointer.pressure > 0) {
-                game.rowx += e.movementY
-                game.colx += e.movementX
-                if (!game.isRunning) drawCellsFromCellsArray()
-            }
-        })
+        const pointerX = ref(0)
+        const pointerY = ref(0)
 
         onMounted(() => {
             ctx.value = canvas.value?.getContext('2d') || undefined
-            useEventListener('resize', handleResize)
-            handleResize()
-            center()
             initCanvas()
-            handleResize()
+
+            useEventListener('resize', handleResize)
+            useEventListener(canvas.value, ['mousemove'], (e) => {
+                pointerX.value = e.x - canvas.value!.offsetLeft
+                pointerY.value = e.y - canvas.value!.offsetTop
+                if (e.buttons > 0) {
+                    if (e.buttons === 1) { // Primary button (usually the left button)
+                        game.rowx += e.movementY
+                        game.colx += e.movementX
+                        drawCellsFromCellsArray()
+                    }
+                }
+            })
         })
 
         const cellWidth = computed(() => {
@@ -51,19 +53,22 @@ export default defineComponent({
             console.log(canvas.value!)
             game.canvasWidth = canvas.value!.width = canvas.value!.clientWidth
             game.canvasHeight = canvas.value!.height = canvas.value!.clientHeight
-            if (!game.isRunning) drawCellsFromCellsArray()
+            drawCellsFromCellsArray()
         }
 
         function initCanvas() {
-            drawGrid()
-
-            for (let y = 0; y < game.rows; y++) {
+            for (let y = 0; y < game.rows; y++) { // create cells array
                 for (let x = 0; x < game.cols; x++) {
                     let index = x + y * game.cols
                     game.cellsArray[index] = reactive(new Cell(x, y, game.size, ctx.value))
                 }
             }
             console.log(game.cellsArray)
+
+            game.canvasWidth = canvas.value!.width = canvas.value!.clientWidth
+            game.canvasHeight = canvas.value!.height = canvas.value!.clientHeight
+            center() // center the grid on the canvas view
+            drawGrid() // draw the grid
         }
         function newCycle() {
             ctx.value!.clearRect(0, 0, game.canvasWidth, game.canvasHeight)
@@ -159,7 +164,7 @@ export default defineComponent({
             }
         }
 
-        return { canvas, ctx, pointer, newCycle, drawCellsFromCellsArray }
+        return { canvas, ctx, pointerX, pointerY, newCycle, drawCellsFromCellsArray }
     }
 })
 </script>
