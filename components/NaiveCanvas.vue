@@ -185,7 +185,7 @@ export default defineComponent({
             }
         }
 
-        return { canvas, ctx, pointerX, pointerY, newCycle, drawCellsFromCellsArray }
+        return { canvas, ctx, pointerX, pointerY, newCycle, drawCellsFromCellsArray, handleZoom }
     }
 })
 </script>

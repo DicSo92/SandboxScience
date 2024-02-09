@@ -27,6 +27,9 @@
                     <div i-carbon-pause mr-1></div>
                     Pause
                 </div>
+                <div btn p2 mx-1 bg="green-900 hover:green-800" @click="naiveCanvas.handleZoom(1)">Zoom+</div>
+                <div btn p2 mx-1 bg="green-900 hover:green-800" @click="naiveCanvas.handleZoom(-1)">Zoom-</div>
+
             </div>
             <ToggleSwitch />
             <SelectMenu label="Edge Mode :"
