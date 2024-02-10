@@ -1,6 +1,6 @@
 <template>
     <div class="flex flex-col" flex-1>
-        <canvas ref="canvas"></canvas>
+        <canvas ref="canvas" @contextmenu.prevent></canvas>
         <p>x: {{ pointerX }} -- y: {{ pointerY }}</p>
     </div>
 </template>
@@ -8,7 +8,7 @@
 <script lang="ts">
 import { Cell } from "~/models/classes/Cell";
 import type { ICell } from "~/models/interfaces/ICell.interface";
-import { aliveNeighbours } from "~/helpers/utils/neighbours";
+import {aliveNeighbours, XYToIndex} from "~/helpers/utils/neighbours";
 
 export default defineComponent({
     setup() {
@@ -23,6 +23,9 @@ export default defineComponent({
         const pointerY = ref(0)
         const zoom = ref(0)
 
+        const isDragging = ref(false)
+        const prevChangedCell = ref<{ x: number, y: number } | null>(null)
+
         onMounted(() => {
             ctx.value = canvas.value?.getContext('2d') || undefined
             initCanvas()
@@ -32,11 +35,23 @@ export default defineComponent({
                 pointerX.value = e.x - canvas.value!.offsetLeft
                 pointerY.value = e.y - canvas.value!.offsetTop
                 if (e.buttons > 0) { // if mouse is pressed
+                    isDragging.value = true
                     if (e.buttons === 1) { // if primary button is pressed (left click)
+                        toggleCell(e.x - canvas.value!.offsetLeft, e.y - canvas.value!.offsetTop, 'draw')
+                    } else if (e.buttons === 2) { // if secondary button is pressed (right click)
                         game.rowx += e.movementY
                         game.colx += e.movementX
                         drawCellsFromCellsArray()
                     }
+                } else {
+                    isDragging.value = false
+                    prevChangedCell.value = null
+                }
+            })
+            useEventListener(canvas.value, 'click', (e) => {
+                if (!isDragging.value) {
+                    prevChangedCell.value = null
+                    toggleCell(e.x - canvas.value!.offsetLeft, e.y - canvas.value!.offsetTop)
                 }
             })
             useEventListener(canvas.value, 'wheel', (e) => {
@@ -47,6 +62,23 @@ export default defineComponent({
                 }
             })
         })
+        function toggleCell(cursorX: number, cursorY: number, type?: "draw" | "erase" | "toggle") {
+            // get the cell x and y from the cursor position
+            const cellX = Math.floor((cursorX - game.colx) / game.size)
+            const cellY = Math.floor((cursorY - game.rowx) / game.size)
+
+            if (prevChangedCell.value && prevChangedCell.value.x === cellX && prevChangedCell.value.y === cellY) return
+
+            if (type === "draw") {
+                game.cellsArray[XYToIndex(cellX, cellY, game.cols)].makeAlive(true)
+            } else if (type === "erase") {
+                game.cellsArray[XYToIndex(cellX, cellY, game.cols)].kill(true)
+            } else {
+                game.cellsArray[XYToIndex(cellX, cellY, game.cols)].toggle()
+            }
+            prevChangedCell.value = { x: cellX, y: cellY }
+            drawCellsFromCellsArray()
+        }
         function handleZoom(zoomFactor: number, cursorX?: number, cursorY?: number) {
             if (zoom.value + zoomFactor > 4 || zoom.value + zoomFactor < -4) return // Limit zoom
             cursorX = cursorX || game.canvasWidth / 2 // if no x is provided, use the center of the canvas

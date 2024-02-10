@@ -35,4 +35,4 @@ const XYToIndex = (x: number, y: number, cols: number) => {
     return x + (y * cols)
 }
 
-export { aliveNeighbours }
+export { aliveNeighbours, XYToIndex }

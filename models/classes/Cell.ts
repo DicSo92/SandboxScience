@@ -31,6 +31,10 @@ export class Cell implements ICell {
         this.nextAlive = false
         this.isAlive = isInit ? false : this.isAlive
     }
+    public toggle () {
+        this.isAlive = !this.isAlive
+        this.nextAlive = this.isAlive
+    }
 
     public get coordinates (): { x: number, y: number } {
         return {

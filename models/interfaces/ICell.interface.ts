@@ -6,5 +6,6 @@ export interface ICell {
     nextAlive: boolean
     makeAlive: (isInit?: boolean) => void
     kill: (isInit?: boolean) => void
+    toggle: () => void
     coordinates: { x: number, y: number }
 }
