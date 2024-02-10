@@ -14,20 +14,20 @@ const isCellAlive = (x: number, y: number): boolean => {
     const game = useGameStore()
 
     // Dead / Alive Mode
-    if (game.edgeMode === 'dead' || game.edgeMode === 'alive') {
+    if (game.EDGEMODE === 'dead' || game.EDGEMODE === 'alive') {
         if (x < 0 || x >= game.cols || y < 0 || y >= game.rows) { // if outside the grid
-            return game.edgeMode === 'alive'
+            return game.EDGEMODE === 'alive'
         }
         return game.cellsArray[XYToIndex(x, y, game.cols)].isAlive
     }
     // Mirror Mode
-    if (game.edgeMode === 'mirror') {
+    if (game.EDGEMODE === 'mirror') {
         const newX: number = (x + game.cols) % game.cols // opposite x on the grid
         const newY: number = (y + game.rows) % game.rows // opposite y on the grid
 
         return game.cellsArray[XYToIndex(newX, newY, game.cols)].isAlive
     }
-    console.log('edgeMode not found')
+    console.log('EDGEMODE not found')
     return false
 }
 

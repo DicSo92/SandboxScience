@@ -209,9 +209,9 @@ export default defineComponent({
             }
         }
         function processRules(cell: ICell, aliveNeighbours: number): boolean { // return if cell has changed
-            if (cell.isAlive && (aliveNeighbours === 2 || aliveNeighbours === 3)) { // Survives
+            if (cell.isAlive && game.SURVIVES.includes(aliveNeighbours)) { // Survives
                 return false
-            } else if (!cell.isAlive && aliveNeighbours === 3) { // Born
+            } else if (!cell.isAlive && game.BORN.includes(aliveNeighbours)) { // Born
                 cell.makeAlive()
                 return true
             } else { // Dies

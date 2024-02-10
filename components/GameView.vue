@@ -37,8 +37,8 @@
                             { name: 'Mirror Edges', icon: 'i-carbon-compare', id: 'mirror'},
                             { name: 'Dead Edges', icon: 'i-carbon-compare', id: 'dead'},
                             { name: 'Alive Edges', icon: 'i-carbon-compare', id: 'alive'}]"
-                        :selected="game.edgeMode"
-                        @selected="(id) => game.edgeMode = id"
+                        :selected="game.EDGEMODE"
+                        @selected="(id) => game.EDGEMODE = id"
             />
 <!--            <RangeInputMinMax :min="100" :max="10000" :step="100" v-model:min-value="sliderMin" v-model:max-value="sliderMax"/>-->
             <RangeInput v-if="SPEED" :min="50" :max="2000" :step="10" v-model="SPEED"/>
