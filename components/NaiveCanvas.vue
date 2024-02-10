@@ -34,10 +34,13 @@ export default defineComponent({
             useEventListener(canvas.value, ['mousemove'], (e) => {
                 pointerX.value = e.x - canvas.value!.offsetLeft
                 pointerY.value = e.y - canvas.value!.offsetTop
+
                 if (e.buttons > 0) { // if mouse is pressed
                     isDragging.value = true
                     if (e.buttons === 1) { // if primary button is pressed (left click)
-                        toggleCell(e.x - canvas.value!.offsetLeft, e.y - canvas.value!.offsetTop, 'draw')
+                        if (game.wasRunning === null) game.wasRunning = game.isRunning // store the running state
+                        game.isRunning = false // pause the game
+                        toggleCell(e.x - canvas.value!.offsetLeft, e.y - canvas.value!.offsetTop, 'draw') // add cell at cursor position
                     } else if (e.buttons === 2) { // if secondary button is pressed (right click)
                         game.rowx += e.movementY
                         game.colx += e.movementX
@@ -46,6 +49,10 @@ export default defineComponent({
                 } else {
                     isDragging.value = false
                     prevChangedCell.value = null
+                    if (game.wasRunning !== null) {
+                        game.isRunning = game.wasRunning
+                        game.wasRunning = null
+                    }
                 }
             })
             useEventListener(canvas.value, 'click', (e) => {

@@ -14,9 +14,10 @@ export const useGameStore = defineStore('game', () => {
     const cellsArray = reactive([] as Cell[]) // array of cells
     const edgeMode = ref<string>('mirror') // dead, alive, mirror
     const isRunning = ref<boolean>(false) // is the animation running?
+    const wasRunning = ref<boolean | null>(null) // was the animation running? (used to pause the animation)
 
     const sliderMin = ref<number>(1000)
     const sliderMax = ref<number>(8000)
 
-    return { SPEED, canvasWidth, canvasHeight, size, rows, cols, cellsArray, edgeMode, isRunning, sliderMin, sliderMax, rowx, colx }
+    return { SPEED, canvasWidth, canvasHeight, size, rows, cols, cellsArray, edgeMode, isRunning, wasRunning, sliderMin, sliderMax, rowx, colx }
 })
