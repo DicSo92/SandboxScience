@@ -35,4 +35,13 @@ const XYToIndex = (x: number, y: number, cols: number) => {
     return x + (y * cols)
 }
 
-export { aliveNeighbours, XYToIndex }
+const pixelToCell = (x: number, y: number) => {
+    const game = useGameStore()
+
+    return {
+        x: Math.floor((x - game.colx) / game.size),
+        y: Math.floor((y - game.rowx) / game.size)
+    }
+}
+
+export { aliveNeighbours, XYToIndex, pixelToCell }

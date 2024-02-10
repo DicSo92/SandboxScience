@@ -8,7 +8,7 @@
 <script lang="ts">
 import { Cell } from "~/models/classes/Cell";
 import type { ICell } from "~/models/interfaces/ICell.interface";
-import {aliveNeighbours, XYToIndex} from "~/helpers/utils/neighbours";
+import { aliveNeighbours, pixelToCell, XYToIndex } from "~/helpers/utils/naiveLife";
 
 export default defineComponent({
     setup() {
@@ -25,6 +25,10 @@ export default defineComponent({
 
         const isDragging = ref(false)
         const prevChangedCell = ref<{ x: number, y: number } | null>(null)
+
+        const cellWidth = computed(() => {
+            return Math.max(1, game.size)
+        })
 
         onMounted(() => {
             ctx.value = canvas.value?.getContext('2d') || undefined
@@ -69,21 +73,21 @@ export default defineComponent({
                 }
             })
         })
+        // -------------------------------------------------------------------------------------------------------------
         function toggleCell(cursorX: number, cursorY: number, type?: "draw" | "erase" | "toggle") {
-            // get the cell x and y from the cursor position
-            const cellX = Math.floor((cursorX - game.colx) / game.size)
-            const cellY = Math.floor((cursorY - game.rowx) / game.size)
+            const cell: { x: number, y: number } = pixelToCell(cursorX, cursorY) // get the cell x and y from the cursor position
 
-            if (prevChangedCell.value && prevChangedCell.value.x === cellX && prevChangedCell.value.y === cellY) return
+            if (cell.x < 0 || cell.x > game.cols - 1 || cell.y < 0 || cell.y > game.rows - 1) return // return if cell is outside the grid
+            if (prevChangedCell.value && prevChangedCell.value.x === cell.x && prevChangedCell.value.y === cell.y) return // return if same cell as last time
 
             if (type === "draw") {
-                game.cellsArray[XYToIndex(cellX, cellY, game.cols)].makeAlive(true)
+                game.cellsArray[XYToIndex(cell.x, cell.y, game.cols)].makeAlive(true)
             } else if (type === "erase") {
-                game.cellsArray[XYToIndex(cellX, cellY, game.cols)].kill(true)
+                game.cellsArray[XYToIndex(cell.x, cell.y, game.cols)].kill(true)
             } else {
-                game.cellsArray[XYToIndex(cellX, cellY, game.cols)].toggle()
+                game.cellsArray[XYToIndex(cell.x, cell.y, game.cols)].toggle()
             }
-            prevChangedCell.value = { x: cellX, y: cellY }
+            prevChangedCell.value = cell
             drawCellsFromCellsArray()
         }
         function handleZoom(zoomFactor: number, cursorX?: number, cursorY?: number) {
@@ -99,23 +103,17 @@ export default defineComponent({
 
             drawCellsFromCellsArray() // redraw
         }
-
-        const cellWidth = computed(() => {
-            return Math.max(1, game.size)
-        })
-
-        function center() {
-            game.rowx = (game.canvasHeight - (game.size * game.rows)) / 2
-            game.colx = (game.canvasWidth - (game.size * game.cols)) / 2
-        }
-
         function handleResize() {
             console.log(canvas.value!)
             game.canvasWidth = canvas.value!.width = canvas.value!.clientWidth
             game.canvasHeight = canvas.value!.height = canvas.value!.clientHeight
             drawCellsFromCellsArray()
         }
-
+        function center() {
+            game.rowx = (game.canvasHeight - (game.size * game.rows)) / 2
+            game.colx = (game.canvasWidth - (game.size * game.cols)) / 2
+        }
+        // -------------------------------------------------------------------------------------------------------------
         function initCanvas() {
             for (let y = 0; y < game.rows; y++) { // create cells array
                 for (let x = 0; x < game.cols; x++) {
@@ -128,14 +126,13 @@ export default defineComponent({
             game.canvasWidth = canvas.value!.width = canvas.value!.clientWidth
             game.canvasHeight = canvas.value!.height = canvas.value!.clientHeight
             center() // center the grid on the canvas view
-            drawGrid() // draw the grid
+            handleResize() // resize and draw the grid
         }
         function newCycle() {
             ctx.value!.clearRect(0, 0, game.canvasWidth, game.canvasHeight)
             drawCellsWithRules()
             drawGrid()
         }
-
         function drawGrid() {
             ctx.value!.beginPath()
             for (let row = 0; row < game.rows + 1; row++) {
@@ -182,18 +179,6 @@ export default defineComponent({
             ctx.value!.putImageData(imageData.value, 0, 0)
             drawGrid()
         }
-
-        function processRules(cell: ICell, aliveNeighbours: number): boolean { // return if cell has changed
-            if (cell.isAlive && (aliveNeighbours === 2 || aliveNeighbours === 3)) { // Survives
-                return false
-            } else if (!cell.isAlive && aliveNeighbours === 3) { // Born
-                cell.makeAlive()
-                return true
-            } else { // Dies
-                if (cell.isAlive) cell.kill()
-                return true
-            }
-        }
         function fillSquare(x: number, y: number, cellSize: number) { // fill a square by changing the imageDataArray values directly (faster than fillRect)
             x = x * cellSize
             y = y * cellSize
@@ -221,6 +206,17 @@ export default defineComponent({
                     imageDataArray.value![imageDataIndex++] = 0xff000000
                 }
                 imageDataIndex += game.canvasWidth - width // jump to next row
+            }
+        }
+        function processRules(cell: ICell, aliveNeighbours: number): boolean { // return if cell has changed
+            if (cell.isAlive && (aliveNeighbours === 2 || aliveNeighbours === 3)) { // Survives
+                return false
+            } else if (!cell.isAlive && aliveNeighbours === 3) { // Born
+                cell.makeAlive()
+                return true
+            } else { // Dies
+                if (cell.isAlive) cell.kill()
+                return true
             }
         }
 
