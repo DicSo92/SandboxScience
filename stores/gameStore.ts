@@ -6,8 +6,8 @@ export const useGameStore = defineStore('game', () => {
     const canvasHeight = ref<number>(0) // the height of the canvas
 
     const size = ref<number>(20) // the size of every cell
-    const rows = ref<number>(20) // number of rows
-    const cols = ref<number>(40) // number of columns
+    const rows = ref<number>(25) // number of rows
+    const cols = ref<number>(41) // number of columns
     const rowx = ref<number>(0) // starting row
     const colx = ref<number>(0) // starting column
 

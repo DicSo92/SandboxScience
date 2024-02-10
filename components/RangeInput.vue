@@ -1,6 +1,7 @@
 <template>
-    <div mt-4 relative>
-        <div relative>
+    <div relative mx-2 min-w-48>
+        <label id="listbox-label" class="block text-sm font-medium leading-6">Speed</label>
+        <div relative mt-1>
             <input type="range"
                    :step="step"
                    :min="min" :max="max"
@@ -15,7 +16,7 @@
             </div>
         </div>
 
-        <div class="flex justify-between items-center py-5">
+        <div v-if="inputs" class="flex justify-between items-center py-5">
             <input type="text" maxlength="5" :value="modelValue" @input="updateValue($event.target.value)" class="px-3 py-2 border border-gray-200 rounded w-24 text-center text-black">
             <input type="text" maxlength="5" :value="max" class="px-3 py-2 border border-gray-200 rounded w-24 text-center text-black">
         </div>
@@ -41,6 +42,10 @@ export default defineComponent({
         modelValue: {
             type: Number,
             required: true,
+        },
+        inputs: {
+            type: Boolean,
+            default: false
         }
     },
     setup(props, { emit }) {

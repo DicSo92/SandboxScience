@@ -11,37 +11,45 @@
                 </div>
                 <div mx-2>Execution Time: {{ Math.round(executionTime) }} ms</div>
             </div>
-            <div flex>
-                <div btn p2 mx-1 bg="orange-700 hover:orange-800" @click="randomCells(((game.rows * game.cols) * 20) / 100)">Random Cells</div>
-                <div btn p2 mx-1 bg="red-700 hover:red-900" @click="killRandom(((game.rows * game.cols) * 20) / 100)">Random Kills</div>
-                <div btn p2 mx-1 bg="green-900 hover:green-800" @click="naiveCanvas.newCycle()">Step</div>
-                <div btn flex items-center mx-1
-                     bg="green-700 hover:green-900"
-                     @click="startLoop">
-                    <div i-carbon-play mr-1></div>
-                    Start
-                </div>
-                <div btn flex items-center mx-1
-                     bg="blue-700 hover:blue-900"
-                     @click="pause">
-                    <div i-carbon-pause mr-1></div>
-                    Pause
-                </div>
-                <div btn p2 mx-1 bg="green-900 hover:green-800" @click="naiveCanvas.handleZoom(1)">Zoom+</div>
-                <div btn p2 mx-1 bg="green-900 hover:green-800" @click="naiveCanvas.handleZoom(-1)">Zoom-</div>
 
-            </div>
-            <ToggleSwitch />
-            <SelectMenu label="Edge Mode :"
-                        :options="[
+            <div flex items-start justify-between mt-1>
+                <div flex items-center>
+                    <SelectMenu label="Edge Mode :"
+                                :options="[
                             { name: 'Mirror Edges', icon: 'i-carbon-compare', id: 'mirror'},
                             { name: 'Dead Edges', icon: 'i-carbon-compare', id: 'dead'},
                             { name: 'Alive Edges', icon: 'i-carbon-compare', id: 'alive'}]"
-                        :selected="game.EDGEMODE"
-                        @selected="(id) => game.EDGEMODE = id"
-            />
+                                :selected="game.EDGEMODE"
+                                @selected="(id) => game.EDGEMODE = id"
+                    />
+                    <ToggleSwitch />
+                </div>
+                <div flex items-start>
+                    <div btn p1 mx-1 flex items-center bg="gray-700 hover:gray-800">
+                        <div i-game-icons-perspective-dice-six-faces-random text-2xl></div>
+                    </div>
+                    <div btn p1 mx-1 flex items-center bg="orange-700 hover:orange-800" @click="randomCells(((game.rows * game.cols) * 20) / 100)">
+                        <div i-fad-arprandom text-2xl></div>
+                    </div>
+                    <div btn p1 mx-1 flex items-center bg="red-700 hover:red-900" @click="killRandom(((game.rows * game.cols) * 20) / 100)">
+                        <div i-tabler-skull text-2xl></div>
+                    </div>
+                    <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="naiveCanvas.newCycle()">
+                        <div i-tabler-player-track-next-filled text-xl></div>
+                    </div>
+                    <div btn p2 flex items-center mx-1 bg="green-700 hover:green-900" @click="toggleIsRunning">
+                        <div text-xl :class="game.isRunning ? 'i-tabler-player-pause-filled' : 'i-tabler-player-play-filled'"></div>
+                    </div>
+                    <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="naiveCanvas.handleZoom(1)">
+                        <div i-tabler-zoom-in text-xl></div>
+                    </div>
+                    <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="naiveCanvas.handleZoom(-1)">
+                        <div i-tabler-zoom-out text-xl></div>
+                    </div>
+                </div>
+                <RangeInput v-if="SPEED" :min="50" :max="2000" :step="10" v-model="SPEED" />
+            </div>
 <!--            <RangeInputMinMax :min="100" :max="10000" :step="100" v-model:min-value="sliderMin" v-model:max-value="sliderMax"/>-->
-            <RangeInput v-if="SPEED" :min="50" :max="2000" :step="10" v-model="SPEED"/>
         </div>
     </section>
 </template>
@@ -81,7 +89,9 @@ export default defineComponent({
             naiveCanvas.value.drawCellsFromCellsArray()
         }
 
+        const toggleIsRunning = () => game.isRunning ? pause() : startLoop()
         function startLoop() {
+            console.log('start loop')
             lastTime = Number(document.timeline.currentTime) || null
             if (!lastTime) {
                 console.log("Can't get document.timeline.currentTime")
@@ -95,6 +105,7 @@ export default defineComponent({
             requestAnimationFrame(animate)
         }
         function pause() {
+            console.log('pause')
             game.isRunning = false
         }
 
@@ -114,7 +125,7 @@ export default defineComponent({
         }
 
         return {
-            game, randomCells, killRandom, startLoop, pause, executionTime, SPEED, sliderMin, sliderMax, naiveCanvas
+            game, randomCells, killRandom, toggleIsRunning, startLoop, pause, executionTime, SPEED, sliderMin, sliderMax, naiveCanvas
         }
     }
 })

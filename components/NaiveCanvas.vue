@@ -1,7 +1,7 @@
 <template>
-    <div class="flex flex-col" flex-1>
+    <div flex-1>
         <canvas ref="canvas" @contextmenu.prevent></canvas>
-        <p>x: {{ pointerX }} -- y: {{ pointerY }}</p>
+        <p absolute text-center transform top-0 class="-translate-x-1/2 left-1/2">x: {{ pointerX }} - y: {{ pointerY }}</p>
     </div>
 </template>
 
@@ -135,19 +135,20 @@ export default defineComponent({
         }
         function drawGrid() {
             ctx.value!.beginPath()
-            for (let row = 0; row < game.rows + 1; row++) {
-                const x = game.colx + (game.cols * game.size)
-                const y = game.rowx + (game.size * row)
-                ctx.value!.moveTo(game.colx, y)
-                ctx.value!.lineTo(x, y)
+            if (game.size < 8) { // draw a simple grid if size is too small
+                drawHorizontalLine(0)
+                drawHorizontalLine(game.rows)
+                drawVerticalLine(0)
+                drawVerticalLine(game.cols)
+            } else {
+                for (let row = 0; row < game.rows + 1; row++) {
+                    drawHorizontalLine(row)
+                }
+                for (let col = 0; col < game.cols + 1; col++) {
+                    drawVerticalLine(col)
+                }
             }
-            for (let col = 0; col < game.cols + 1; col++) {
-                const x = game.colx + (game.size * col)
-                const y = game.rowx + (game.rows * game.size)
-                ctx.value!.moveTo(x, game.rowx)
-                ctx.value!.lineTo(x, y)
-            }
-            ctx.value!.strokeStyle = '#a8a8a8'
+            ctx.value!.strokeStyle = '#707070'
             ctx.value!.stroke()
         }
         function drawCellsWithRules() {
@@ -182,8 +183,8 @@ export default defineComponent({
         function fillSquare(x: number, y: number, cellSize: number) { // fill a square by changing the imageDataArray values directly (faster than fillRect)
             x = x * cellSize
             y = y * cellSize
-            let width = cellSize
-            let height = cellSize
+            let width = cellWidth.value
+            let height = cellWidth.value
 
             if ((x + game.colx) < 0) { // if cell is outside the canvas on the left
                 width += (x + Math.floor(game.colx))
@@ -200,12 +201,12 @@ export default defineComponent({
                 height = game.canvasHeight - (y + Math.floor(game.rowx))
             }
 
-            let imageDataIndex = ((Math.floor(game.rowx) + y) * game.canvasWidth) + (Math.floor(game.colx) + x) // Get the index of the first pixel of the cell
-            for (let i = 0; i < height; i++) {
-                for (let j = 0; j < width; j++) { // fill a row
+            let imageDataIndex = ((Math.floor(game.rowx) + Math.floor(y)) * game.canvasWidth) + (Math.floor(game.colx) + Math.floor(x)) // Get the index of the first pixel of the cell
+            for (let i = 0; i < Math.floor(height); i++) {
+                for (let j = 0; j < Math.floor(width); j++) { // fill a row
                     imageDataArray.value![imageDataIndex++] = 0xff000000
                 }
-                imageDataIndex += game.canvasWidth - width // jump to next row
+                imageDataIndex += game.canvasWidth - Math.floor(width) // jump to next row
             }
         }
         function processRules(cell: ICell, aliveNeighbours: number): boolean { // return if cell has changed
@@ -219,6 +220,18 @@ export default defineComponent({
                 return true
             }
         }
+        function drawHorizontalLine(row: number) {
+            const x = game.colx + (game.cols * game.size)
+            const y = game.rowx + (game.size * row)
+            ctx.value!.moveTo(game.colx, y)
+            ctx.value!.lineTo(x, y)
+        }
+        function drawVerticalLine(col: number) {
+            const x = game.colx + (game.size * col)
+            const y = game.rowx + (game.rows * game.size)
+            ctx.value!.moveTo(x, game.rowx)
+            ctx.value!.lineTo(x, y)
+        }
 
         return { canvas, ctx, pointerX, pointerY, newCycle, drawCellsFromCellsArray, handleZoom }
     }
@@ -227,7 +240,7 @@ export default defineComponent({
 
 <style scoped>
 canvas {
-    background-color: midnightblue;
+    @apply bg-gray-700;
     width: 100%;
     height: 100%;
 }
