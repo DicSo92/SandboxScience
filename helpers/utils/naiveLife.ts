@@ -35,14 +35,14 @@ const isCellAlive = (x: number, y: number): boolean => {
         if (x < 0 || x >= game.cols || y < 0 || y >= game.rows) { // if outside the grid
             return game.EDGEMODE === 'alive'
         }
-        return game.cellsArray[XYToIndex(x, y, game.cols)].isAlive
+        return game.cellsArray[x][y] === 1
     }
     // Mirror Mode
     if (game.EDGEMODE === 'mirror') {
         const newX: number = (x + game.cols) % game.cols // opposite x on the grid
         const newY: number = (y + game.rows) % game.rows // opposite y on the grid
 
-        return game.cellsArray[XYToIndex(newX, newY, game.cols)].isAlive
+        return game.cellsArray[newX][newY] === 1
     }
     console.log('EDGEMODE not found')
     return false
@@ -61,4 +61,4 @@ const pixelToCell = (x: number, y: number) => {
     }
 }
 
-export { aliveNeighbours, XYToIndex, pixelToCell }
+export { aliveNeighbours, pixelToCell }

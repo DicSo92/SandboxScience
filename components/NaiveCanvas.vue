@@ -6,9 +6,7 @@
 </template>
 
 <script lang="ts">
-import { Cell } from "~/models/classes/Cell";
-import type { ICell } from "~/models/interfaces/ICell.interface";
-import { aliveNeighbours, pixelToCell, XYToIndex } from "~/helpers/utils/naiveLife";
+import { aliveNeighbours, pixelToCell } from "~/helpers/utils/naiveLife";
 
 export default defineComponent({
     setup() {
@@ -81,11 +79,16 @@ export default defineComponent({
             if (prevChangedCell.value && prevChangedCell.value.x === cell.x && prevChangedCell.value.y === cell.y) return // return if same cell as last time
 
             if (type === "draw") {
-                game.cellsArray[XYToIndex(cell.x, cell.y, game.cols)].makeAlive(true)
+                game.cellsArray[cell.x][cell.y] = 1 // makeAlive(true)
+                game.cellsArrayNext[cell.x][cell.y] = 1
             } else if (type === "erase") {
-                game.cellsArray[XYToIndex(cell.x, cell.y, game.cols)].kill(true)
+                game.cellsArray[cell.x][cell.y] = 0 // kill(true)
+                game.cellsArrayNext[cell.x][cell.y] = 0
             } else {
-                game.cellsArray[XYToIndex(cell.x, cell.y, game.cols)].toggle()
+                // toggle()
+                const newState = game.cellsArray[cell.x][cell.y] === 1 ? 0 : 1
+                game.cellsArray[cell.x][cell.y] = newState
+                game.cellsArrayNext[cell.x][cell.y] = newState
             }
             prevChangedCell.value = cell
             drawCellsFromCellsArray()
@@ -115,13 +118,11 @@ export default defineComponent({
         }
         // -------------------------------------------------------------------------------------------------------------
         function initCanvas() {
-            for (let y = 0; y < game.rows; y++) { // create cells array
-                for (let x = 0; x < game.cols; x++) {
-                    let index = x + y * game.cols
-                    game.cellsArray[index] = reactive(new Cell(x, y, game.size, ctx.value))
-                }
-            }
+            game.cellsArrayNext = Array(game.cols).fill(null).map(() => new Int32Array(game.rows).fill(0))
+            game.cellsArray = Array(game.cols).fill(null).map(() => new Int32Array(game.rows).fill(0))
+
             console.log(game.cellsArray)
+            console.table(game.cellsArray)
 
             game.canvasWidth = canvas.value!.width = canvas.value!.clientWidth
             game.canvasHeight = canvas.value!.height = canvas.value!.clientHeight
@@ -156,17 +157,14 @@ export default defineComponent({
             imageDataArray.value = new Int32Array(imageData.value.data.buffer)
 
             // logic to draw cells
-            console.log(game.cellsArray)
-            let changedCells = [] as ICell[]
-            game.cellsArray.forEach((cell, index) => {
-                const hasChanged = processRules(cell, aliveNeighbours(cell.x, cell.y))
-                if (hasChanged) changedCells.push(cell)
-                if (cell.nextAlive) fillSquare(cell.x, cell.y, game.size)
-            })
-            changedCells.forEach((cell, index) => {
-                cell.isAlive = cell.nextAlive
-            })
-
+            game.cellsArrayNext = Array(game.cols).fill(null).map(() => new Int32Array(game.rows).fill(0))
+            for (let y = 0; y < game.rows; y++) {
+                for (let x = 0; x < game.cols; x++) {
+                    const cellState = processRules(x, y, aliveNeighbours(x, y))
+                    if (cellState === 1) fillSquare(x, y, game.size)
+                }
+            }
+            game.cellsArray = game.cellsArrayNext
             ctx.value!.putImageData(imageData.value, 0, 0)
         }
         // function drawCellsWithRules() {
@@ -197,9 +195,12 @@ export default defineComponent({
 
             imageData.value = ctx.value!.createImageData(game.canvasWidth, game.canvasHeight)
             imageDataArray.value = new Int32Array(imageData.value.data.buffer)
-            game.cellsArray.forEach((cell, index) => {
-                if (cell.isAlive) fillSquare(cell.x, cell.y, game.size)
-            })
+
+            for (let y = 0; y < game.rows; y++) { // create cells array
+                for (let x = 0; x < game.cols; x++) {
+                    if (game.cellsArray[x][y] === 1) fillSquare(x, y, game.size)
+                }
+            }
             ctx.value!.putImageData(imageData.value, 0, 0)
             drawGrid()
         }
@@ -232,15 +233,19 @@ export default defineComponent({
                 imageDataIndex += game.canvasWidth - Math.floor(width) // jump to next row
             }
         }
-        function processRules(cell: ICell, aliveNeighbours: number): boolean { // return if cell has changed
-            if (cell.isAlive && game.SURVIVES.includes(aliveNeighbours)) { // Survives
-                return false
-            } else if (!cell.isAlive && game.BORN.includes(aliveNeighbours)) { // Born
-                cell.makeAlive()
-                return true
+        function processRules(x: number, y: number, aliveNeighbours: number): number { // return if cell has changed
+            const cell = game.cellsArray[x][y]
+            if (cell === 1 && game.SURVIVES.includes(aliveNeighbours)) { // Survives
+                game.cellsArrayNext[x][y] = game.cellsArray[x][y]
+                return game.cellsArrayNext[x][y]
+            } else if (cell !== 1 && game.BORN.includes(aliveNeighbours)) { // Born
+                // cell.makeAlive()
+                game.cellsArrayNext[x][y] = 1
+                return 1
             } else { // Dies
-                if (cell.isAlive) cell.kill()
-                return true
+                // if (cell.isAlive) cell.kill()
+                game.cellsArrayNext[x][y] = 0
+                return 0
             }
         }
         function drawHorizontalLine(row: number) {

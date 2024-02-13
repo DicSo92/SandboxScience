@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { Cell } from "~/models/classes/Cell"
+import type {UnwrapRefSimple} from "@vue/reactivity";
 
 export const useGameStore = defineStore('game', () => {
     const canvasWidth = ref<number>(0) // the width of the canvas
@@ -11,7 +11,9 @@ export const useGameStore = defineStore('game', () => {
     const rowx = ref<number>(0) // starting row
     const colx = ref<number>(0) // starting column
 
-    const cellsArray = reactive([] as Cell[]) // array of cells
+    // const cellsArray = reactive([] as Cell[]) // array of cells
+    const cellsArray = Array(rows.value).map(() => new Int32Array(cols.value).fill(0))
+    const cellsArrayNext = Array(rows.value).map(() => new Int32Array(cols.value).fill(0))
     const isRunning = ref<boolean>(false) // is the animation running?
     const wasRunning = ref<boolean | null>(null) // was the animation running? (used to pause the animation)
 
@@ -26,7 +28,7 @@ export const useGameStore = defineStore('game', () => {
     return {
         canvasWidth, canvasHeight,
         size, rows, cols, rowx, colx,
-        cellsArray, isRunning, wasRunning,
+        cellsArray, cellsArrayNext, isRunning, wasRunning,
         SPEED, EDGEMODE, BORN, SURVIVES,
         sliderMin, sliderMax
     }

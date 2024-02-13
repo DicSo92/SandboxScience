@@ -74,23 +74,49 @@ export default defineComponent({
         const timer = ref()
 
         const randomCells = (num: number) => {
-            for (let i = 0; i < num; i++) {
-                const random = Math.floor(Math.random() * game.cellsArray.length)
-                if (!game.cellsArray[random].isAlive) {
-                    game.cellsArray[random].makeAlive(true)
-                }
+            const allCellsAlive = game.cellsArray.every(row => row.every(cell => cell === 1))
+            if (allCellsAlive) {
+                console.log("All cells are already alive.")
+                return
             }
-            console.log(game.cellsArray)
+            let count = 0
+            let attempts = 0
+            while (count < num) {
+                if (attempts > game.cols * game.rows * 10) {
+                    console.log("Too many attempts to find dead cells. Stopping...")
+                    break
+                }
+                const randomX = Math.floor(Math.random() * game.cols)
+                const randomY = Math.floor(Math.random() * game.rows)
+                if (game.cellsArray[randomX][randomY] === 0) {
+                    game.cellsArray[randomX][randomY] = 1
+                    count++
+                }
+                attempts++
+            }
             naiveCanvas.value.drawCellsFromCellsArray()
         }
         const killRandom = (num: number) => {
-            const shuffled = [...game.cellsArray].sort(() => 0.5 - Math.random())
-            const rCells = shuffled.slice(0, num)
-            rCells.forEach((cell) => {
-                if (cell.isAlive) {
-                    cell.kill(true)
+            const allCellsAlive = game.cellsArray.every(row => row.every(cell => cell !== 1))
+            if (allCellsAlive) {
+                console.log("All cells are already dead.")
+                return
+            }
+            let count = 0
+            let attempts = 0
+            while (count < num) {
+                if (attempts > game.cols * game.rows * 10) {
+                    console.log("Too many attempts to find alive cells. Stopping...")
+                    break
                 }
-            })
+                const randomX = Math.floor(Math.random() * game.cols)
+                const randomY = Math.floor(Math.random() * game.rows)
+                if (game.cellsArray[randomX][randomY] === 1) {
+                    game.cellsArray[randomX][randomY] = 0
+                    count++
+                }
+                attempts++
+            }
             naiveCanvas.value.drawCellsFromCellsArray()
         }
 
@@ -114,7 +140,6 @@ export default defineComponent({
             console.log('pause')
             game.isRunning = false
         }
-
         function animate(currentTime: number) {
             const elapsedTime = currentTime - lastTime!
 
