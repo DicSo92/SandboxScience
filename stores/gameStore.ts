@@ -6,8 +6,8 @@ export const useGameStore = defineStore('game', () => {
     const canvasHeight = ref<number>(0) // the height of the canvas
 
     const size = ref<number>(20) // the size of every cell
-    const rows = ref<number>(25) // number of rows
-    const cols = ref<number>(41) // number of columns
+    const rows = ref<number>(24) // number of rows
+    const cols = ref<number>(40) // number of columns
     const rowx = ref<number>(0) // starting row
     const colx = ref<number>(0) // starting column
 
@@ -15,7 +15,7 @@ export const useGameStore = defineStore('game', () => {
     const isRunning = ref<boolean>(false) // is the animation running?
     const wasRunning = ref<boolean | null>(null) // was the animation running? (used to pause the animation)
 
-    const SPEED = ref<number>(50) // the speed of the animation (ms)
+    const SPEED = ref<number>(1) // the speed of the animation (ms)
     const EDGEMODE = ref<string>('mirror') // dead, alive, mirror
     const BORN = ref<number[]>([3]) // the number of neighbours for a dead cell to born
     const SURVIVES =  ref<number[]>([2, 3]) // the number of neighbours for a living cell to survive

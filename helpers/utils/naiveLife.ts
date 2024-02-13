@@ -10,6 +10,23 @@ const aliveNeighbours = (x: number, y: number) => {
     }, 0)
 }
 
+// const neighbourCellsMap: Int8Array = new Int8Array([
+//     -1, -1,  0, -1,  1, -1,
+//     -1,  0,         1,  0,
+//     -1,  1,  0,  1,  1,  1
+// ]);
+// const aliveNeighbours = (x: number, y: number): number => {
+//     let numNeighbours = 0;
+//     for (let i = 0; i < neighbourCellsMap.length; i += 2) {
+//         const dx = neighbourCellsMap[i];
+//         const dy = neighbourCellsMap[i + 1];
+//         if (isCellAlive(x + dx, y + dy)) {
+//             numNeighbours++;
+//         }
+//     }
+//     return numNeighbours;
+// }
+
 const isCellAlive = (x: number, y: number): boolean => {
     const game = useGameStore()
 

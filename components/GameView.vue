@@ -34,6 +34,9 @@
                     <div btn p1 mx-1 flex items-center bg="red-700 hover:red-900" @click="killRandom(((game.rows * game.cols) * 20) / 100)">
                         <div i-tabler-skull text-2xl></div>
                     </div>
+                    <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" disabled @click="naiveCanvas.newCycle()">
+                        <div i-tabler-player-track-prev-filled text-xl></div>
+                    </div>
                     <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="naiveCanvas.newCycle()">
                         <div i-tabler-player-track-next-filled text-xl></div>
                     </div>
@@ -47,7 +50,7 @@
                         <div i-tabler-zoom-out text-xl></div>
                     </div>
                 </div>
-                <RangeInput v-if="SPEED" :min="50" :max="2000" :step="10" v-model="SPEED" />
+                <RangeInput v-if="SPEED" :min="1" :max="1000" :step="1" v-model="SPEED" />
             </div>
 <!--            <RangeInputMinMax :min="100" :max="10000" :step="100" v-model:min-value="sliderMin" v-model:max-value="sliderMax"/>-->
         </div>
@@ -67,6 +70,8 @@ export default defineComponent({
         let lastTime: number | null // for calculating elapsed time
 
         const { SPEED, sliderMin, sliderMax } = storeToRefs(useGameStore())
+
+        const timer = ref()
 
         const randomCells = (num: number) => {
             for (let i = 0; i < num; i++) {
@@ -103,6 +108,7 @@ export default defineComponent({
 
             game.isRunning = true
             requestAnimationFrame(animate)
+            // animate(startExecutionTime)
         }
         function pause() {
             console.log('pause')
@@ -121,6 +127,7 @@ export default defineComponent({
             }
 
             startExecutionTime = performance.now()
+            // timer.value = setTimeout(() => animate(startExecutionTime), game.SPEED)
             requestAnimationFrame(animate);
         }
 

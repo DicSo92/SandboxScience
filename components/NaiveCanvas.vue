@@ -169,6 +169,29 @@ export default defineComponent({
 
             ctx.value!.putImageData(imageData.value, 0, 0)
         }
+        // function drawCellsWithRules() {
+        //     const ctxValue = ctx.value!;
+        //     const canvasWidth = game.canvasWidth;
+        //     const canvasHeight = game.canvasHeight;
+        //     const cellSize = game.size;
+        //     const cellsArray = game.cellsArray;
+        //     const imageData = ctxValue.createImageData(canvasWidth, canvasHeight);
+        //     imageDataArray.value = new Int32Array(imageData.data.buffer);
+        //
+        //     let changedCells = [] as ICell[]
+        //     for (let i = 0; i < cellsArray.length; i++) {
+        //         const cell = cellsArray[i];
+        //         const hasChanged = processRules(cell, aliveNeighbours(cell.x, cell.y))
+        //         if (hasChanged) changedCells.push(cell)
+        //         if (cell.nextAlive) fillSquare(cell.x, cell.y, cellSize)
+        //     }
+        //     for (let i = 0; i < changedCells.length; i++) {
+        //         const cell = changedCells[i];
+        //         cell.isAlive = cell.nextAlive
+        //     }
+        //
+        //     ctxValue.putImageData(imageData, 0, 0);
+        // }
         function drawCellsFromCellsArray() {
             ctx.value!.clearRect(0, 0, game.canvasWidth, game.canvasHeight)
 
