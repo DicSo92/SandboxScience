@@ -6,12 +6,11 @@ export const useGameStore = defineStore('game', () => {
     const canvasHeight = ref<number>(0) // the height of the canvas
 
     const size = ref<number>(20) // the size of every cell
-    const rows = ref<number>(24) // number of rows
-    const cols = ref<number>(40) // number of columns
+    const rows = ref<number>(38) // number of rows
+    const cols = ref<number>(100) // number of columns
     const rowx = ref<number>(0) // starting row
     const colx = ref<number>(0) // starting column
 
-    // const cellsArray = reactive([] as Cell[]) // array of cells
     const cellsArray = Array(rows.value).map(() => new Int32Array(cols.value).fill(0))
     const cellsArrayNext = Array(rows.value).map(() => new Int32Array(cols.value).fill(0))
     const isRunning = ref<boolean>(false) // is the animation running?

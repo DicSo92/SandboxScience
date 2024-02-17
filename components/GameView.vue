@@ -10,6 +10,7 @@
                     <div mx-2>Speed: {{game.SPEED}}</div>
                 </div>
                 <div mx-2>Execution Time: {{ Math.round(executionTime) }} ms</div>
+                <p absolute text-center transform top-0 class="-translate-x-1/2 left-1/2">x: {{ pointerX }} - y: {{ pointerY }}</p>
             </div>
 
             <div flex items-start justify-between mt-1>
@@ -65,6 +66,10 @@ export default defineComponent({
         const game = useGameStore()
         const naiveCanvas = ref( )
 
+        const pointerX = ref(0)
+        const pointerY = ref(0)
+        const isDragging = ref(false)
+
         const executionTime = ref<number>(0) // cycle execution time
         let startExecutionTime: number // for calculating execution time
         let lastTime: number | null // for calculating elapsed time
@@ -72,6 +77,47 @@ export default defineComponent({
         const { SPEED, sliderMin, sliderMax } = storeToRefs(useGameStore())
 
         const timer = ref()
+
+        onMounted(() => {
+            useEventListener('resize', naiveCanvas.value.handleResize)
+            useEventListener(naiveCanvas, ['mousemove'], (e) => {
+                pointerX.value = e.x - naiveCanvas.value!.canvas.offsetLeft
+                pointerY.value = e.y - naiveCanvas.value!.canvas.offsetTop
+
+                if (e.buttons > 0) { // if mouse is pressed
+                    isDragging.value = true
+                    if (e.buttons === 1) { // if primary button is pressed (left click)
+                        if (game.wasRunning === null) game.wasRunning = game.isRunning // store the running state
+                        game.isRunning = false // pause the game
+                        naiveCanvas.value.toggleCell(pointerX.value, pointerY.value, 'draw') // add cell at cursor position
+                    } else if (e.buttons === 2) { // if secondary button is pressed (right click)
+                        game.rowx += e.movementY
+                        game.colx += e.movementX
+                        naiveCanvas.value.drawCellsFromCellsArray()
+                    }
+                } else {
+                    isDragging.value = false
+                    naiveCanvas.value.prevChangedCell = null
+                    if (game.wasRunning !== null) {
+                        game.isRunning = game.wasRunning
+                        game.wasRunning = null
+                    }
+                }
+            })
+            useEventListener(naiveCanvas, 'click', (e) => {
+                if (!isDragging.value) {
+                    naiveCanvas.value.prevChangedCell = null
+                    naiveCanvas.value.toggleCell(pointerX.value, pointerY.value)
+                }
+            })
+            useEventListener(naiveCanvas, 'wheel', (e) => {
+                if (e.deltaY < 0) { // Zoom in
+                    naiveCanvas.value.handleZoom(1, pointerX.value, pointerY.value)
+                } else { // Zoom out
+                    naiveCanvas.value.handleZoom(-1, pointerX.value, pointerY.value)
+                }
+            })
+        })
 
         const randomCells = (num: number) => {
             const allCellsAlive = game.cellsArray.every(row => row.every(cell => cell === 1))
@@ -157,7 +203,7 @@ export default defineComponent({
         }
 
         return {
-            game, randomCells, killRandom, toggleIsRunning, startLoop, pause, executionTime, SPEED, sliderMin, sliderMax, naiveCanvas
+            game, randomCells, killRandom, toggleIsRunning, startLoop, pause, executionTime, SPEED, sliderMin, sliderMax, naiveCanvas, pointerX, pointerY
         }
     }
 })

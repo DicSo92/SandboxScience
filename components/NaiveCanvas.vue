@@ -1,7 +1,6 @@
 <template>
     <div flex-1>
         <canvas ref="canvas" @contextmenu.prevent></canvas>
-        <p absolute text-center transform top-0 class="-translate-x-1/2 left-1/2">x: {{ pointerX }} - y: {{ pointerY }}</p>
     </div>
 </template>
 
@@ -17,11 +16,8 @@ export default defineComponent({
         const imageData = ref()
         const imageDataArray = ref<Int32Array | number[]>()
 
-        const pointerX = ref(0)
-        const pointerY = ref(0)
         const zoom = ref(0)
 
-        const isDragging = ref(false)
         const prevChangedCell = ref<{ x: number, y: number } | null>(null)
 
         const cellWidth = computed(() => {
@@ -31,45 +27,6 @@ export default defineComponent({
         onMounted(() => {
             ctx.value = canvas.value?.getContext('2d') || undefined
             initCanvas()
-
-            useEventListener('resize', handleResize)
-            useEventListener(canvas.value, ['mousemove'], (e) => {
-                pointerX.value = e.x - canvas.value!.offsetLeft
-                pointerY.value = e.y - canvas.value!.offsetTop
-
-                if (e.buttons > 0) { // if mouse is pressed
-                    isDragging.value = true
-                    if (e.buttons === 1) { // if primary button is pressed (left click)
-                        if (game.wasRunning === null) game.wasRunning = game.isRunning // store the running state
-                        game.isRunning = false // pause the game
-                        toggleCell(e.x - canvas.value!.offsetLeft, e.y - canvas.value!.offsetTop, 'draw') // add cell at cursor position
-                    } else if (e.buttons === 2) { // if secondary button is pressed (right click)
-                        game.rowx += e.movementY
-                        game.colx += e.movementX
-                        drawCellsFromCellsArray()
-                    }
-                } else {
-                    isDragging.value = false
-                    prevChangedCell.value = null
-                    if (game.wasRunning !== null) {
-                        game.isRunning = game.wasRunning
-                        game.wasRunning = null
-                    }
-                }
-            })
-            useEventListener(canvas.value, 'click', (e) => {
-                if (!isDragging.value) {
-                    prevChangedCell.value = null
-                    toggleCell(e.x - canvas.value!.offsetLeft, e.y - canvas.value!.offsetTop)
-                }
-            })
-            useEventListener(canvas.value, 'wheel', (e) => {
-                if (e.deltaY < 0) { // Zoom in
-                    handleZoom(1, e.x - canvas.value!.offsetLeft, e.y - canvas.value!.offsetTop)
-                } else { // Zoom out
-                    handleZoom(-1, e.x - canvas.value!.offsetLeft, e.y - canvas.value!.offsetTop)
-                }
-            })
         })
         // -------------------------------------------------------------------------------------------------------------
         function toggleCell(cursorX: number, cursorY: number, type?: "draw" | "erase" | "toggle") {
@@ -134,24 +91,6 @@ export default defineComponent({
             drawCellsWithRules()
             drawGrid()
         }
-        function drawGrid() {
-            ctx.value!.beginPath()
-            if (game.size < 8) { // draw a simple grid if size is too small
-                drawHorizontalLine(0)
-                drawHorizontalLine(game.rows)
-                drawVerticalLine(0)
-                drawVerticalLine(game.cols)
-            } else {
-                for (let row = 0; row < game.rows + 1; row++) {
-                    drawHorizontalLine(row)
-                }
-                for (let col = 0; col < game.cols + 1; col++) {
-                    drawVerticalLine(col)
-                }
-            }
-            ctx.value!.strokeStyle = '#707070'
-            ctx.value!.stroke()
-        }
         function drawCellsWithRules() {
             imageData.value = ctx.value!.createImageData(game.canvasWidth, game.canvasHeight)
             imageDataArray.value = new Int32Array(imageData.value.data.buffer)
@@ -167,29 +106,21 @@ export default defineComponent({
             game.cellsArray = game.cellsArrayNext
             ctx.value!.putImageData(imageData.value, 0, 0)
         }
-        // function drawCellsWithRules() {
-        //     const ctxValue = ctx.value!;
-        //     const canvasWidth = game.canvasWidth;
-        //     const canvasHeight = game.canvasHeight;
-        //     const cellSize = game.size;
-        //     const cellsArray = game.cellsArray;
-        //     const imageData = ctxValue.createImageData(canvasWidth, canvasHeight);
-        //     imageDataArray.value = new Int32Array(imageData.data.buffer);
-        //
-        //     let changedCells = [] as ICell[]
-        //     for (let i = 0; i < cellsArray.length; i++) {
-        //         const cell = cellsArray[i];
-        //         const hasChanged = processRules(cell, aliveNeighbours(cell.x, cell.y))
-        //         if (hasChanged) changedCells.push(cell)
-        //         if (cell.nextAlive) fillSquare(cell.x, cell.y, cellSize)
-        //     }
-        //     for (let i = 0; i < changedCells.length; i++) {
-        //         const cell = changedCells[i];
-        //         cell.isAlive = cell.nextAlive
-        //     }
-        //
-        //     ctxValue.putImageData(imageData, 0, 0);
-        // }
+        function processRules(x: number, y: number, aliveNeighbours: number): number { // return if cell has changed
+            const cell = game.cellsArray[x][y]
+            if (cell === 1 && game.SURVIVES.includes(aliveNeighbours)) { // Survives
+                game.cellsArrayNext[x][y] = game.cellsArray[x][y]
+                return game.cellsArrayNext[x][y]
+            } else if (cell !== 1 && game.BORN.includes(aliveNeighbours)) { // Born
+                // cell.makeAlive()
+                game.cellsArrayNext[x][y] = 1
+                return 1
+            } else { // Dies
+                // if (cell.isAlive) cell.kill()
+                game.cellsArrayNext[x][y] = 0
+                return 0
+            }
+        }
         function drawCellsFromCellsArray() {
             ctx.value!.clearRect(0, 0, game.canvasWidth, game.canvasHeight)
 
@@ -233,20 +164,24 @@ export default defineComponent({
                 imageDataIndex += game.canvasWidth - Math.floor(width) // jump to next row
             }
         }
-        function processRules(x: number, y: number, aliveNeighbours: number): number { // return if cell has changed
-            const cell = game.cellsArray[x][y]
-            if (cell === 1 && game.SURVIVES.includes(aliveNeighbours)) { // Survives
-                game.cellsArrayNext[x][y] = game.cellsArray[x][y]
-                return game.cellsArrayNext[x][y]
-            } else if (cell !== 1 && game.BORN.includes(aliveNeighbours)) { // Born
-                // cell.makeAlive()
-                game.cellsArrayNext[x][y] = 1
-                return 1
-            } else { // Dies
-                // if (cell.isAlive) cell.kill()
-                game.cellsArrayNext[x][y] = 0
-                return 0
+        // -------------------------------------------------------------------------------------------------------------
+        function drawGrid() {
+            ctx.value!.beginPath()
+            if (game.size < 8) { // draw a simple grid if size is too small
+                drawHorizontalLine(0)
+                drawHorizontalLine(game.rows)
+                drawVerticalLine(0)
+                drawVerticalLine(game.cols)
+            } else {
+                for (let row = 0; row < game.rows + 1; row++) {
+                    drawHorizontalLine(row)
+                }
+                for (let col = 0; col < game.cols + 1; col++) {
+                    drawVerticalLine(col)
+                }
             }
+            ctx.value!.strokeStyle = '#707070'
+            ctx.value!.stroke()
         }
         function drawHorizontalLine(row: number) {
             const x = game.colx + (game.cols * game.size)
@@ -261,7 +196,7 @@ export default defineComponent({
             ctx.value!.lineTo(x, y)
         }
 
-        return { canvas, ctx, pointerX, pointerY, newCycle, drawCellsFromCellsArray, handleZoom }
+        return { canvas, ctx, prevChangedCell, newCycle, drawCellsFromCellsArray, handleZoom, handleResize, toggleCell }
     }
 })
 </script>
