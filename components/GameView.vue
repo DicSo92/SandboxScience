@@ -91,9 +91,7 @@ export default defineComponent({
                         game.isRunning = false // pause the game
                         naiveCanvas.value.toggleCell(pointerX.value, pointerY.value, 'draw') // add cell at cursor position
                     } else if (e.buttons === 2) { // if secondary button is pressed (right click)
-                        game.rowx += e.movementY
-                        game.colx += e.movementX
-                        naiveCanvas.value.drawCellsFromCellsArray()
+                        naiveCanvas.value.handleMove(e)
                     }
                 } else {
                     isDragging.value = false
@@ -120,8 +118,9 @@ export default defineComponent({
         })
 
         const randomCells = (num: number) => {
-            const allCellsAlive = game.cellsArray.every(row => row.every(cell => cell === 1))
-            if (allCellsAlive) {
+            const cellsArray = naiveCanvas.value.getCellsArray()
+            const isAllCellsAlive = cellsArray.every((row: any[]) => row.every(cell => cell === 1))
+            if (isAllCellsAlive) {
                 console.log("All cells are already alive.")
                 return
             }
@@ -134,8 +133,8 @@ export default defineComponent({
                 }
                 const randomX = Math.floor(Math.random() * game.cols)
                 const randomY = Math.floor(Math.random() * game.rows)
-                if (game.cellsArray[randomX][randomY] === 0) {
-                    game.cellsArray[randomX][randomY] = 1
+                if (cellsArray[randomX][randomY] === 0) {
+                    naiveCanvas.value.setCell(randomX, randomY, 1)
                     count++
                 }
                 attempts++
@@ -143,8 +142,9 @@ export default defineComponent({
             naiveCanvas.value.drawCellsFromCellsArray()
         }
         const killRandom = (num: number) => {
-            const allCellsAlive = game.cellsArray.every(row => row.every(cell => cell !== 1))
-            if (allCellsAlive) {
+            const cellsArray = naiveCanvas.value.getCellsArray()
+            const isAllCellsAlive = cellsArray.every((row: any[]) => row.every(cell => cell !== 1))
+            if (isAllCellsAlive) {
                 console.log("All cells are already dead.")
                 return
             }
@@ -157,8 +157,8 @@ export default defineComponent({
                 }
                 const randomX = Math.floor(Math.random() * game.cols)
                 const randomY = Math.floor(Math.random() * game.rows)
-                if (game.cellsArray[randomX][randomY] === 1) {
-                    game.cellsArray[randomX][randomY] = 0
+                if (cellsArray[randomX][randomY] === 1) {
+                    naiveCanvas.value.setCell(randomX, randomY, 0)
                     count++
                 }
                 attempts++

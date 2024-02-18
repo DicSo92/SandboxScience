@@ -13,8 +13,15 @@ export default defineComponent({
         const canvas: Ref<HTMLCanvasElement | undefined> = ref()
         const ctx: Ref<CanvasRenderingContext2D | undefined> = ref()
 
-        const imageData = ref()
-        const imageDataArray = ref<Int32Array | number[]>()
+        let imageData: ImageData | undefined
+        let imageDataArray: Int32Array | number[]
+        let rowx: number = 0 // starting row
+        let colx: number = 0 // starting column
+
+        let cellsArray = Array(game.rows).map(() => new Int32Array(game.cols).fill(0))
+        let cellsArrayNext: Int32Array[] | number[][] = []
+        let canvasWidth: number = 0
+        let canvasHeight: number = 0
 
         const zoom = ref(0)
 
@@ -30,173 +37,197 @@ export default defineComponent({
         })
         // -------------------------------------------------------------------------------------------------------------
         function toggleCell(cursorX: number, cursorY: number, type?: "draw" | "erase" | "toggle") {
-            const cell: { x: number, y: number } = pixelToCell(cursorX, cursorY) // get the cell x and y from the cursor position
+            const cell: { x: number, y: number } = pixelToCell(cursorX, cursorY, colx, rowx, game.size) // get the cell x and y from the cursor position
 
             if (cell.x < 0 || cell.x > game.cols - 1 || cell.y < 0 || cell.y > game.rows - 1) return // return if cell is outside the grid
             if (prevChangedCell.value && prevChangedCell.value.x === cell.x && prevChangedCell.value.y === cell.y) return // return if same cell as last time
 
             if (type === "draw") {
-                game.cellsArray[cell.x][cell.y] = 1 // makeAlive(true)
-                game.cellsArrayNext[cell.x][cell.y] = 1
+                cellsArray[cell.x][cell.y] = 1 // makeAlive(true)
+                cellsArrayNext[cell.x][cell.y] = 1
             } else if (type === "erase") {
-                game.cellsArray[cell.x][cell.y] = 0 // kill(true)
-                game.cellsArrayNext[cell.x][cell.y] = 0
+                cellsArray[cell.x][cell.y] = 0 // kill(true)
+                cellsArrayNext[cell.x][cell.y] = 0
             } else {
                 // toggle()
-                const newState = game.cellsArray[cell.x][cell.y] === 1 ? 0 : 1
-                game.cellsArray[cell.x][cell.y] = newState
-                game.cellsArrayNext[cell.x][cell.y] = newState
+                const newState = cellsArray[cell.x][cell.y] === 1 ? 0 : 1
+                cellsArray[cell.x][cell.y] = newState
+                cellsArrayNext[cell.x][cell.y] = newState
             }
             prevChangedCell.value = cell
             drawCellsFromCellsArray()
         }
         function handleZoom(zoomFactor: number, cursorX?: number, cursorY?: number) {
             if (zoom.value + zoomFactor > 4 || zoom.value + zoomFactor < -4) return // Limit zoom
-            cursorX = cursorX || game.canvasWidth / 2 // if no x is provided, use the center of the canvas
-            cursorY = cursorY || game.canvasHeight / 2 // if no y is provided, use the center of the canvas
+            cursorX = cursorX || canvasWidth / 2 // if no x is provided, use the center of the canvas
+            cursorY = cursorY || canvasHeight / 2 // if no y is provided, use the center of the canvas
 
             zoom.value += zoomFactor // Increase or decrease zoom
             game.size *= Math.pow(2, zoomFactor) // Divide or multiply size by 2
             // Adjust colx and rowx to keep the zoom centered on the pointer
-            game.colx = cursorX - (cursorX - game.colx) * Math.pow(2, zoomFactor)
-            game.rowx = cursorY - (cursorY - game.rowx) * Math.pow(2, zoomFactor)
+            colx = cursorX - (cursorX - colx) * Math.pow(2, zoomFactor)
+            rowx = cursorY - (cursorY - rowx) * Math.pow(2, zoomFactor)
 
             drawCellsFromCellsArray() // redraw
         }
+        function handleMove(e: { movementY: number; movementX: number; }) {
+            rowx += e.movementY
+            colx += e.movementX
+            drawCellsFromCellsArray()
+        }
         function handleResize() {
             console.log(canvas.value!)
-            game.canvasWidth = canvas.value!.width = canvas.value!.clientWidth
-            game.canvasHeight = canvas.value!.height = canvas.value!.clientHeight
+            canvasWidth = canvas.value!.width = canvas.value!.clientWidth
+            canvasHeight = canvas.value!.height = canvas.value!.clientHeight
             drawCellsFromCellsArray()
         }
         function center() {
-            game.rowx = (game.canvasHeight - (game.size * game.rows)) / 2
-            game.colx = (game.canvasWidth - (game.size * game.cols)) / 2
+            rowx = (canvasHeight - (game.size * game.rows)) / 2
+            colx = (canvasWidth - (game.size * game.cols)) / 2
         }
         // -------------------------------------------------------------------------------------------------------------
         function initCanvas() {
-            game.cellsArrayNext = Array(game.cols).fill(null).map(() => new Int32Array(game.rows).fill(0))
-            game.cellsArray = Array(game.cols).fill(null).map(() => new Int32Array(game.rows).fill(0))
+            cellsArrayNext = Array(game.cols).fill(null).map(() => new Int32Array(game.rows).fill(0))
+            cellsArray = Array(game.cols).fill(null).map(() => new Int32Array(game.rows).fill(0))
 
-            console.log(game.cellsArray)
-            console.table(game.cellsArray)
+            console.log(cellsArray)
+            console.table(cellsArray)
 
-            game.canvasWidth = canvas.value!.width = canvas.value!.clientWidth
-            game.canvasHeight = canvas.value!.height = canvas.value!.clientHeight
+            canvasWidth = canvas.value!.width = canvas.value!.clientWidth
+            canvasHeight = canvas.value!.height = canvas.value!.clientHeight
             center() // center the grid on the canvas view
             handleResize() // resize and draw the grid
         }
         function newCycle() {
-            ctx.value!.clearRect(0, 0, game.canvasWidth, game.canvasHeight)
+            ctx.value!.clearRect(0, 0, canvasWidth, canvasHeight)
             drawCellsWithRules()
-            drawGrid()
         }
         function drawCellsWithRules() {
-            imageData.value = ctx.value!.createImageData(game.canvasWidth, game.canvasHeight)
-            imageDataArray.value = new Int32Array(imageData.value.data.buffer)
+            imageData = ctx.value!.createImageData(canvasWidth, canvasHeight)
+            imageDataArray = new Int32Array(imageData.data.buffer)
+
+            const maxNeighbours = game.maxNeighbours.valueOf()
+            const rows = game.rows.valueOf()
+            const cols = game.cols.valueOf()
+            const BORN = game.BORN.valueOf()
+            const SURVIVES = game.SURVIVES.valueOf()
+            const EDGEMODE = game.EDGEMODE.valueOf()
+            const size = game.size.valueOf()
 
             // logic to draw cells
-            game.cellsArrayNext = Array(game.cols).fill(null).map(() => new Int32Array(game.rows).fill(0))
-            for (let y = 0; y < game.rows; y++) {
-                for (let x = 0; x < game.cols; x++) {
-                    const cellState = processRules(x, y, aliveNeighbours(x, y))
-                    if (cellState === 1) fillSquare(x, y, game.size)
+            cellsArrayNext = Array(cols).fill(null).map(() => new Int32Array(rows).fill(0))
+            for (let y = 0; y < rows; y++) {
+                for (let x = 0; x < cols; x++) {
+                    const cellState = processRules(x, y, SURVIVES, BORN, aliveNeighbours(x, y, maxNeighbours, cellsArray, rows, cols, EDGEMODE))
+                    if (cellState === 1) fillSquare(x, y, size, colx, rowx)
                 }
             }
-            game.cellsArray = game.cellsArrayNext
-            ctx.value!.putImageData(imageData.value, 0, 0)
+            cellsArray = cellsArrayNext
+            ctx.value!.putImageData(imageData, 0, 0)
+
+            drawGrid(cols, rows, size)
         }
-        function processRules(x: number, y: number, aliveNeighbours: number): number { // return if cell has changed
-            const cell = game.cellsArray[x][y]
-            if (cell === 1 && game.SURVIVES.includes(aliveNeighbours)) { // Survives
-                game.cellsArrayNext[x][y] = game.cellsArray[x][y]
-                return game.cellsArrayNext[x][y]
-            } else if (cell !== 1 && game.BORN.includes(aliveNeighbours)) { // Born
-                // cell.makeAlive()
-                game.cellsArrayNext[x][y] = 1
+        function processRules(x: number, y: number, SURVIVES: any, BORN: any, aliveNeighbours: number): number { // return if cell has changed
+            const cell = cellsArray[x][y]
+            if (cell === 1 && SURVIVES.includes(aliveNeighbours)) { // Survives
+                cellsArrayNext[x][y] = 1
+                return 1
+            } else if (cell !== 1 && BORN.includes(aliveNeighbours)) { // Born
+                cellsArrayNext[x][y] = 1
                 return 1
             } else { // Dies
-                // if (cell.isAlive) cell.kill()
-                game.cellsArrayNext[x][y] = 0
+                cellsArrayNext[x][y] = 0
                 return 0
             }
         }
         function drawCellsFromCellsArray() {
-            ctx.value!.clearRect(0, 0, game.canvasWidth, game.canvasHeight)
+            ctx.value!.clearRect(0, 0, canvasWidth, canvasHeight)
 
-            imageData.value = ctx.value!.createImageData(game.canvasWidth, game.canvasHeight)
-            imageDataArray.value = new Int32Array(imageData.value.data.buffer)
+            imageData = ctx.value!.createImageData(canvasWidth, canvasHeight)
+            imageDataArray = new Int32Array(imageData.data.buffer)
+            const cols = game.cols.valueOf()
+            const rows = game.rows.valueOf()
+            const size = game.size.valueOf()
 
-            for (let y = 0; y < game.rows; y++) { // create cells array
-                for (let x = 0; x < game.cols; x++) {
-                    if (game.cellsArray[x][y] === 1) fillSquare(x, y, game.size)
+            for (let y = 0; y < rows; y++) { // create cells array
+                for (let x = 0; x < cols; x++) {
+                    if (cellsArray[x][y] === 1) fillSquare(x, y, size, colx, rowx)
                 }
             }
-            ctx.value!.putImageData(imageData.value, 0, 0)
-            drawGrid()
+            ctx.value!.putImageData(imageData, 0, 0)
+            drawGrid(cols, rows, size)
         }
-        function fillSquare(x: number, y: number, cellSize: number) { // fill a square by changing the imageDataArray values directly (faster than fillRect)
+        function fillSquare(x: number, y: number, cellSize: number, colx: number, rowx: number) { // fill a square by changing the imageDataArray values directly (faster than fillRect)
             x = x * cellSize
             y = y * cellSize
             let width = cellWidth.value
             let height = cellWidth.value
 
-            if ((x + game.colx) < 0) { // if cell is outside the canvas on the left
-                width += (x + Math.floor(game.colx))
-                x = -Math.floor(game.colx)
+            if ((x + colx) < 0) { // if cell is outside the canvas on the left
+                width += (x + Math.floor(colx))
+                x = -Math.floor(colx)
             }
-            if ((x + game.colx) + width > game.canvasWidth) { // if cell is outside the canvas on the right
-                width = game.canvasWidth - (x + Math.floor(game.colx))
+            if ((x + colx) + width > canvasWidth) { // if cell is outside the canvas on the right
+                width = canvasWidth - (x + Math.floor(colx))
             }
-            if ((y + game.rowx) < 0) { // if cell is outside the canvas on the top
-                height += (y + Math.floor(game.rowx))
-                y = -Math.floor(game.rowx)
+            if ((y + rowx) < 0) { // if cell is outside the canvas on the top
+                height += (y + Math.floor(rowx))
+                y = -Math.floor(rowx)
             }
-            if ((y + game.rowx) + height > game.canvasHeight) { // if cell is outside the canvas on the bottom
-                height = game.canvasHeight - (y + Math.floor(game.rowx))
+            if ((y + rowx) + height > canvasHeight) { // if cell is outside the canvas on the bottom
+                height = canvasHeight - (y + Math.floor(rowx))
             }
 
-            let imageDataIndex = ((Math.floor(game.rowx) + Math.floor(y)) * game.canvasWidth) + (Math.floor(game.colx) + Math.floor(x)) // Get the index of the first pixel of the cell
+            let imageDataIndex = ((Math.floor(rowx) + Math.floor(y)) * canvasWidth) + (Math.floor(colx) + Math.floor(x)) // Get the index of the first pixel of the cell
             for (let i = 0; i < Math.floor(height); i++) {
                 for (let j = 0; j < Math.floor(width); j++) { // fill a row
-                    imageDataArray.value![imageDataIndex++] = 0xff000000
+                    imageDataArray![imageDataIndex++] = 0xff000000
                 }
-                imageDataIndex += game.canvasWidth - Math.floor(width) // jump to next row
+                imageDataIndex += canvasWidth - Math.floor(width) // jump to next row
             }
         }
         // -------------------------------------------------------------------------------------------------------------
-        function drawGrid() {
+        function drawGrid(cols: number, rows: number, size: number) {
             ctx.value!.beginPath()
-            if (game.size < 8) { // draw a simple grid if size is too small
-                drawHorizontalLine(0)
-                drawHorizontalLine(game.rows)
-                drawVerticalLine(0)
-                drawVerticalLine(game.cols)
+            if (size < 8) { // draw a simple grid if size is too small
+                drawHorizontalLine(0, cols, size)
+                drawHorizontalLine(rows, cols, size)
+                drawVerticalLine(0, rows, size)
+                drawVerticalLine(cols, rows, size)
             } else {
-                for (let row = 0; row < game.rows + 1; row++) {
-                    drawHorizontalLine(row)
+                for (let row = 0; row < rows + 1; row++) {
+                    drawHorizontalLine(row, cols, size)
                 }
-                for (let col = 0; col < game.cols + 1; col++) {
-                    drawVerticalLine(col)
+                for (let col = 0; col < cols + 1; col++) {
+                    drawVerticalLine(col, rows, size)
                 }
             }
             ctx.value!.strokeStyle = '#707070'
             ctx.value!.stroke()
         }
-        function drawHorizontalLine(row: number) {
-            const x = game.colx + (game.cols * game.size)
-            const y = game.rowx + (game.size * row)
-            ctx.value!.moveTo(game.colx, y)
+        function drawHorizontalLine(row: number, cols: number, size: number) {
+            const x = colx + (cols * size)
+            const y = rowx + (size * row)
+            ctx.value!.moveTo(colx, y)
             ctx.value!.lineTo(x, y)
         }
-        function drawVerticalLine(col: number) {
-            const x = game.colx + (game.size * col)
-            const y = game.rowx + (game.rows * game.size)
-            ctx.value!.moveTo(x, game.rowx)
+        function drawVerticalLine(col: number, rows: number, size: number) {
+            const x = colx + (size * col)
+            const y = rowx + (rows * size)
+            ctx.value!.moveTo(x, rowx)
             ctx.value!.lineTo(x, y)
         }
 
-        return { canvas, ctx, prevChangedCell, newCycle, drawCellsFromCellsArray, handleZoom, handleResize, toggleCell }
+        function getCellsArray() {
+            return cellsArray
+        }
+        function setCell(x: number, y: number, value: number) {
+            cellsArray[x][y] = value
+        }
+
+        return { canvas, ctx, prevChangedCell, cellsArray,
+            newCycle, drawCellsFromCellsArray, handleZoom, handleResize, toggleCell, handleMove, getCellsArray, setCell
+        }
     }
 })
 </script>
