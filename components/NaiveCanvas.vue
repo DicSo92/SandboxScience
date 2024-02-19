@@ -5,7 +5,7 @@
 </template>
 
 <script lang="ts">
-import { aliveNeighbours, pixelToCell } from "~/helpers/utils/naiveLife";
+import { aliveNeighbours, initAliveNeighboursFunc, pixelToCell } from "~/helpers/utils/naiveLife";
 
 export default defineComponent({
     setup() {
@@ -34,6 +34,11 @@ export default defineComponent({
         onMounted(() => {
             ctx.value = canvas.value?.getContext('2d') || undefined
             initCanvas()
+        })
+        watch(() => game.EDGEMODE, () => {
+            console.log('EDGEMODE changed')
+            console.log(game.EDGEMODE)
+            initAliveNeighboursFunc(game.EDGEMODE)
         })
         // -------------------------------------------------------------------------------------------------------------
         function toggleCell(cursorX: number, cursorY: number, type?: "draw" | "erase" | "toggle") {
@@ -93,6 +98,7 @@ export default defineComponent({
             console.log(cellsArray)
             console.table(cellsArray)
 
+            initAliveNeighboursFunc(game.EDGEMODE)
             canvasWidth = canvas.value!.width = canvas.value!.clientWidth
             canvasHeight = canvas.value!.height = canvas.value!.clientHeight
             center() // center the grid on the canvas view
@@ -111,14 +117,13 @@ export default defineComponent({
             const cols = game.cols.valueOf()
             const BORN = game.BORN.valueOf()
             const SURVIVES = game.SURVIVES.valueOf()
-            const EDGEMODE = game.EDGEMODE.valueOf()
             const size = game.size.valueOf()
 
             // logic to draw cells
             cellsArrayNext = Array(cols).fill(null).map(() => new Int32Array(rows).fill(0))
             for (let y = 0; y < rows; y++) {
                 for (let x = 0; x < cols; x++) {
-                    const cellState = processRules(x, y, SURVIVES, BORN, aliveNeighbours(x, y, maxNeighbours, cellsArray, rows, cols, EDGEMODE))
+                    const cellState = processRules(x, y, SURVIVES, BORN, aliveNeighbours(x, y, maxNeighbours, cellsArray, rows, cols))
                     if (cellState === 1) fillSquare(x, y, size, colx, rowx)
                 }
             }

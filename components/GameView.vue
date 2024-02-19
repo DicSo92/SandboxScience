@@ -9,7 +9,7 @@
                     <div mx-2>Cell Size: {{game.size}}</div>
                     <div mx-2>Speed: {{game.SPEED}}</div>
                 </div>
-                <div mx-2>Execution Time: {{ Math.round(executionTime) }} ms</div>
+                <div mx-2>Execution Time: {{ Math.round(executionTime) }} ms ({{ averageExecutionTime }}ms)</div>
                 <p absolute text-center transform top-0 class="-translate-x-1/2 left-1/2">x: {{ pointerX }} - y: {{ pointerY }}</p>
             </div>
 
@@ -17,16 +17,16 @@
                 <div flex items-center>
                     <SelectMenu label="Edge Mode :"
                                 :options="[
-                            { name: 'Mirror Edges', icon: 'i-carbon-compare', id: 'mirror'},
-                            { name: 'Dead Edges', icon: 'i-carbon-compare', id: 'dead'},
-                            { name: 'Alive Edges', icon: 'i-carbon-compare', id: 'alive'}]"
+                            { name: 'Mirror Edges', icon: 'i-carbon-compare', id: 2},
+                            { name: 'Dead Edges', icon: 'i-carbon-compare', id: 0},
+                            { name: 'Alive Edges', icon: 'i-carbon-compare', id: 1}]"
                                 :selected="game.EDGEMODE"
                                 @selected="(id) => game.EDGEMODE = id"
                     />
                     <ToggleSwitch />
                 </div>
                 <div flex items-start>
-                    <div btn p1 mx-1 flex items-center bg="gray-700 hover:gray-800">
+                    <div btn p1 mx-1 flex items-center bg="gray-700 hover:gray-800" @click="getExecutionAverage">
                         <div i-game-icons-perspective-dice-six-faces-random text-2xl></div>
                     </div>
                     <div btn p1 mx-1 flex items-center bg="orange-700 hover:orange-800" @click="randomCells(((game.rows * game.cols) * 20) / 100)">
@@ -70,7 +70,10 @@ export default defineComponent({
         const pointerY = ref(0)
         const isDragging = ref(false)
 
+        const averageExecutionTime = ref(0)
         const executionTime = ref<number>(0) // cycle execution time
+        let totalExecutionTime: number = 0 // for calculating total execution time
+        let totalCycles: number = 0 // for calculating total cycles
         let startExecutionTime: number // for calculating execution time
         let lastTime: number | null // for calculating elapsed time
 
@@ -116,6 +119,10 @@ export default defineComponent({
                 }
             })
         })
+
+        const getExecutionAverage = () => {
+            averageExecutionTime.value = Math.floor(totalExecutionTime / totalCycles)
+        }
 
         const randomCells = (num: number) => {
             const cellsArray = naiveCanvas.value.getCellsArray()
@@ -177,6 +184,7 @@ export default defineComponent({
 
             lastTime = lastTime - game.SPEED // to start a cycle immediately
             startExecutionTime = performance.now()
+            totalExecutionTime = 0
 
             game.isRunning = true
             requestAnimationFrame(animate)
@@ -194,6 +202,8 @@ export default defineComponent({
 
                 lastTime = currentTime - (elapsedTime % game.SPEED)
                 executionTime.value = performance.now() - startExecutionTime
+                totalExecutionTime += executionTime.value
+                totalCycles++
                 console.log(`Execution Time : ${executionTime.value} ms`)
             }
 
@@ -203,7 +213,7 @@ export default defineComponent({
         }
 
         return {
-            game, randomCells, killRandom, toggleIsRunning, startLoop, pause, executionTime, SPEED, sliderMin, sliderMax, naiveCanvas, pointerX, pointerY
+            game, randomCells, killRandom, toggleIsRunning, startLoop, pause, getExecutionAverage, averageExecutionTime, executionTime, SPEED, sliderMin, sliderMax, naiveCanvas, pointerX, pointerY
         }
     }
 })
