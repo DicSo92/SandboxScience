@@ -97,11 +97,6 @@ const initAliveNeighboursFunc = (EDGEMODE: number) => {
     }
 }
 
-
-const XYToIndex = (x: number, y: number, cols: number) => {
-    return x + (y * cols)
-}
-
 const pixelToCell = (x: number, y: number, colx: number, rowx: number, size: number) => {
     return {
         x: Math.floor((x - colx) / size),

@@ -78,7 +78,6 @@ export default defineComponent({
         let lastTime: number | null // for calculating elapsed time
 
         const { SPEED, sliderMin, sliderMax } = storeToRefs(useGameStore())
-
         const timer = ref()
 
         onMounted(() => {
@@ -119,11 +118,46 @@ export default defineComponent({
                 }
             })
         })
-
-        const getExecutionAverage = () => {
-            averageExecutionTime.value = Math.floor(totalExecutionTime / totalCycles)
+        // -------------------------------------------------------------------------------------------------------------
+        const toggleIsRunning = () => game.isRunning ? pause() : startLoop()
+        function pause() {
+            console.log('pause')
+            game.isRunning = false
         }
+        function startLoop() {
+            console.log('start loop')
+            lastTime = Number(document.timeline.currentTime) || null
+            if (!lastTime) {
+                console.log("Can't get document.timeline.currentTime")
+                return
+            }
+            lastTime = lastTime - game.SPEED // to start a cycle immediately
+            startExecutionTime = performance.now()
+            totalExecutionTime = 0
+            totalCycles = 0
+            game.isRunning = true
 
+            requestAnimationFrame(animate)
+            // animate(startExecutionTime)
+        }
+        function animate(currentTime: number) {
+            const elapsedTime = currentTime - lastTime!
+
+            if (elapsedTime >= game.SPEED && game.isRunning) {
+                naiveCanvas.value.newCycle()
+
+                lastTime = currentTime - (elapsedTime % game.SPEED)
+                executionTime.value = performance.now() - startExecutionTime
+                totalExecutionTime += executionTime.value
+                totalCycles++
+                console.log(`Execution Time : ${executionTime.value} ms`)
+            }
+
+            startExecutionTime = performance.now()
+            // timer.value = setTimeout(() => animate(startExecutionTime), game.SPEED)
+            requestAnimationFrame(animate)
+        }
+        // -------------------------------------------------------------------------------------------------------------
         const randomCells = (num: number) => {
             const cellsArray = naiveCanvas.value.getCellsArray()
             const isAllCellsAlive = cellsArray.every((row: any[]) => row.every(cell => cell === 1))
@@ -146,7 +180,7 @@ export default defineComponent({
                 }
                 attempts++
             }
-            naiveCanvas.value.drawCellsFromCellsArray()
+            if (!game.isRunning) naiveCanvas.value.drawCellsFromCellsArray()
         }
         const killRandom = (num: number) => {
             const cellsArray = naiveCanvas.value.getCellsArray()
@@ -170,50 +204,15 @@ export default defineComponent({
                 }
                 attempts++
             }
-            naiveCanvas.value.drawCellsFromCellsArray()
+            if (!game.isRunning) naiveCanvas.value.drawCellsFromCellsArray()
         }
-
-        const toggleIsRunning = () => game.isRunning ? pause() : startLoop()
-        function startLoop() {
-            console.log('start loop')
-            lastTime = Number(document.timeline.currentTime) || null
-            if (!lastTime) {
-                console.log("Can't get document.timeline.currentTime")
-                return
-            }
-
-            lastTime = lastTime - game.SPEED // to start a cycle immediately
-            startExecutionTime = performance.now()
-            totalExecutionTime = 0
-
-            game.isRunning = true
-            requestAnimationFrame(animate)
-            // animate(startExecutionTime)
+        const getExecutionAverage = () => {
+            averageExecutionTime.value = Math.floor(totalExecutionTime / totalCycles)
         }
-        function pause() {
-            console.log('pause')
-            game.isRunning = false
-        }
-        function animate(currentTime: number) {
-            const elapsedTime = currentTime - lastTime!
-
-            if (elapsedTime >= game.SPEED && game.isRunning) {
-                naiveCanvas.value.newCycle()
-
-                lastTime = currentTime - (elapsedTime % game.SPEED)
-                executionTime.value = performance.now() - startExecutionTime
-                totalExecutionTime += executionTime.value
-                totalCycles++
-                console.log(`Execution Time : ${executionTime.value} ms`)
-            }
-
-            startExecutionTime = performance.now()
-            // timer.value = setTimeout(() => animate(startExecutionTime), game.SPEED)
-            requestAnimationFrame(animate)
-        }
-
+        // -------------------------------------------------------------------------------------------------------------
         return {
-            game, randomCells, killRandom, toggleIsRunning, startLoop, pause, getExecutionAverage, averageExecutionTime, executionTime, SPEED, sliderMin, sliderMax, naiveCanvas, pointerX, pointerY
+            game, averageExecutionTime, executionTime, SPEED, sliderMin, sliderMax, naiveCanvas, pointerX, pointerY,
+            randomCells, killRandom, toggleIsRunning, startLoop, pause, getExecutionAverage
         }
     }
 })

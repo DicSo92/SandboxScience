@@ -25,7 +25,6 @@ export default defineComponent({
         let cellSize: number = Math.max(1, game.size.valueOf())
 
         const zoom = ref(0)
-
         const prevChangedCell = ref<{ x: number, y: number } | null>(null)
 
         onMounted(() => {
@@ -79,7 +78,6 @@ export default defineComponent({
             if (!game.isRunning) requestAnimationFrame(drawCellsFromCellsArray) // redraw
         }
         function handleResize() {
-            console.log(canvas.value!)
             canvasWidth = canvas.value!.width = canvas.value!.clientWidth
             canvasHeight = canvas.value!.height = canvas.value!.clientHeight
             if (!game.isRunning) requestAnimationFrame(drawCellsFromCellsArray) // redraw
@@ -236,7 +234,7 @@ export default defineComponent({
         function setCell(x: number, y: number, value: number) {
             cellsArray[x][y] = value
         }
-
+        // -------------------------------------------------------------------------------------------------------------
         return { canvas, ctx, prevChangedCell,
             newCycle, drawCellsFromCellsArray, handleZoom, handleResize, toggleCell, handleMove, getCellsArray, setCell
         }
