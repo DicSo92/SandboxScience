@@ -209,7 +209,7 @@ export default defineComponent({
 
             startExecutionTime = performance.now()
             // timer.value = setTimeout(() => animate(startExecutionTime), game.SPEED)
-            requestAnimationFrame(animate);
+            requestAnimationFrame(animate)
         }
 
         return {

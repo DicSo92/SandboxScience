@@ -17,8 +17,8 @@
 //     return numNeighbours;
 // }
 
-let aliveNeighbours: (x: number, y: number, maxNeighbours: number, cellsArray: any, rows: number, cols: number) => number
-const aliveNeighboursDead = (x: number, y: number, maxNeighbours: number, cellsArray: any, rows: number, cols: number): number => {
+let aliveNeighbours: (x: number, y: number, maxNeighbours: number, cellsArray: Int32Array[], rows: number, cols: number) => number
+const aliveNeighboursDead = (x: number, y: number, maxNeighbours: number, cellsArray: Int32Array[], rows: number, cols: number): number => {
     let numNeighbours = 0;
     for (let dy = -1; dy <= 1; dy++) {
         const newY = y + dy
@@ -46,7 +46,7 @@ const aliveNeighboursDead = (x: number, y: number, maxNeighbours: number, cellsA
     // }
     return numNeighbours;
 }
-const aliveNeighboursAlive = (x: number, y: number, maxNeighbours: number, cellsArray: any, rows: number, cols: number): number => {
+const aliveNeighboursAlive = (x: number, y: number, maxNeighbours: number, cellsArray: Int32Array[], rows: number, cols: number): number => {
     let numNeighbours = 0;
     for (let dy = -1; dy <= 1; dy++) {
         for (let dx = -1; dx <= 1; dx++) {
@@ -62,7 +62,7 @@ const aliveNeighboursAlive = (x: number, y: number, maxNeighbours: number, cells
     return numNeighbours
 }
 
-const aliveNeighboursMirror = (x: number, y: number, maxNeighbours: number, cellsArray: any, rows: number, cols: number): number => {
+const aliveNeighboursMirror = (x: number, y: number, maxNeighbours: number, cellsArray: Int32Array[], rows: number, cols: number): number => {
     let numNeighbours = 0;
     for (let dy = -1; dy <= 1; dy++) {
         // const newY: number = (y + dy + rows) % rows // maybe faster here (not really noticeable)

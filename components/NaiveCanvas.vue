@@ -18,8 +18,8 @@ export default defineComponent({
         let rowx: number = 0 // starting row
         let colx: number = 0 // starting column
 
-        let cellsArray = Array(game.rows).map(() => new Int32Array(game.cols).fill(0))
-        let cellsArrayNext: Int32Array[] | number[][] = []
+        let cellsArray: Int32Array[]
+        let cellsArrayNext: Int32Array[]
         let canvasWidth: number = 0
         let canvasHeight: number = 0
 
@@ -63,7 +63,7 @@ export default defineComponent({
             drawCellsFromCellsArray()
         }
         function handleZoom(zoomFactor: number, cursorX?: number, cursorY?: number) {
-            if (zoom.value + zoomFactor > 4 || zoom.value + zoomFactor < -4) return // Limit zoom
+            if (zoom.value + zoomFactor > 4 || zoom.value + zoomFactor < -8) return // Limit zoom
             cursorX = cursorX || canvasWidth / 2 // if no x is provided, use the center of the canvas
             cursorY = cursorY || canvasHeight / 2 // if no y is provided, use the center of the canvas
 
@@ -120,28 +120,37 @@ export default defineComponent({
             const size = game.size.valueOf()
 
             // logic to draw cells
-            cellsArrayNext = Array(cols).fill(null).map(() => new Int32Array(rows).fill(0))
+            // cellsArrayNext = Array(cols).fill(null).map(() => new Int32Array(rows).fill(0)) // old way, garbage collection is slow
             for (let y = 0; y < rows; y++) {
                 for (let x = 0; x < cols; x++) {
                     const cellState = processRules(x, y, SURVIVES, BORN, aliveNeighbours(x, y, maxNeighbours, cellsArray, rows, cols))
+                    cellsArrayNext[x][y] = cellState
                     if (cellState === 1) fillSquare(x, y, size, colx, rowx)
                 }
             }
-            cellsArray = cellsArrayNext
-            ctx.value!.putImageData(imageData, 0, 0)
+            // copy cellsArrayNext to cellsArray
+            // Optimize by not creating a new array (cellsArrayNext) on each cycle (see above)
+            // Garbage collection is slow, so we should avoid creating big arrays on each cycle
+            for (let i = 0; i < cellsArrayNext.length; i++) {
+                for (let j = 0; j < cellsArrayNext[i].length; j++) {
+                    cellsArray[i][j] = cellsArrayNext[i][j]
+                }
+            }
+            // cellsArray = cellsArrayNext // old way
 
+            ctx.value!.putImageData(imageData, 0, 0)
             drawGrid(cols, rows, size)
         }
         function processRules(x: number, y: number, SURVIVES: any, BORN: any, aliveNeighbours: number): number { // return if cell has changed
             const cell = cellsArray[x][y]
             if (cell === 1 && SURVIVES.includes(aliveNeighbours)) { // Survives
-                cellsArrayNext[x][y] = 1
+                // cellsArrayNext[x][y] = 1
                 return 1
             } else if (cell !== 1 && BORN.includes(aliveNeighbours)) { // Born
-                cellsArrayNext[x][y] = 1
+                // cellsArrayNext[x][y] = 1
                 return 1
             } else { // Dies
-                cellsArrayNext[x][y] = 0
+                // cellsArrayNext[x][y] = 0
                 return 0
             }
         }
@@ -230,7 +239,7 @@ export default defineComponent({
             cellsArray[x][y] = value
         }
 
-        return { canvas, ctx, prevChangedCell, cellsArray,
+        return { canvas, ctx, prevChangedCell,
             newCycle, drawCellsFromCellsArray, handleZoom, handleResize, toggleCell, handleMove, getCellsArray, setCell
         }
     }
