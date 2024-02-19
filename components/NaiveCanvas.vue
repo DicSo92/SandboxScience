@@ -127,12 +127,12 @@ export default defineComponent({
             // copy cellsArrayNext to cellsArray
             // Optimize by not creating a new array (cellsArrayNext) on each cycle (see above)
             // Garbage collection is slow, so we should avoid creating big arrays on each cycle
-            for (let i = 0; i < cellsArrayNext.length; i++) {
-                for (let j = 0; j < cellsArrayNext[i].length; j++) {
-                    cellsArray[i][j] = cellsArrayNext[i][j]
-                }
-            }
-            // cellsArray = cellsArrayNext // old way
+            // for (let i = 0; i < cellsArrayNext.length; i++) {
+            //     for (let j = 0; j < cellsArrayNext[i].length; j++) {
+            //         cellsArray[i][j] = cellsArrayNext[i][j]
+            //     }
+            // }
+            cellsArray = cellsArrayNext // old way
 
             ctx.value!.putImageData(imageData, 0, 0)
             drawGrid(cols, rows, size)
