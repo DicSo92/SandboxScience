@@ -35,7 +35,7 @@
                     <div btn p1 mx-1 flex items-center bg="red-700 hover:red-900" @click="killRandom(((game.rows * game.cols) * 20) / 100)">
                         <div i-tabler-skull text-2xl></div>
                     </div>
-                    <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" disabled @click="naiveCanvas.newCycle()">
+                    <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="naiveCanvas.newCycle()">
                         <div i-tabler-player-track-prev-filled text-xl></div>
                     </div>
                     <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="naiveCanvas.newCycle()">
@@ -105,7 +105,7 @@ export default defineComponent({
                     }
                 }
             })
-            useEventListener(naiveCanvas, 'click', (e) => {
+            useEventListener(naiveCanvas, 'click', () => {
                 if (!isDragging.value) {
                     naiveCanvas.value.prevChangedCell = null
                     naiveCanvas.value.toggleCell(pointerX.value, pointerY.value)

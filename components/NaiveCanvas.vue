@@ -22,7 +22,7 @@ export default defineComponent({
         let cellsArrayNext: Int32Array[]
         let canvasWidth: number = 0
         let canvasHeight: number = 0
-        let cellWidth: number = Math.max(1, game.size.valueOf())
+        let cellSize: number = Math.max(1, game.size.valueOf())
 
         const zoom = ref(0)
 
@@ -35,10 +35,6 @@ export default defineComponent({
         watch(() => game.EDGEMODE, () => {
             console.log('EDGEMODE changed', game.EDGEMODE)
             initAliveNeighboursFunc(game.EDGEMODE)
-        })
-        watch(() => game.size, (newSize) => {
-            console.log('size changed')
-            cellWidth = Math.max(1, newSize)
         })
         // -------------------------------------------------------------------------------------------------------------
         function toggleCell(cursorX: number, cursorY: number, type?: "draw" | "erase" | "toggle") {
@@ -69,6 +65,7 @@ export default defineComponent({
 
             zoom.value += zoomFactor // Increase or decrease zoom
             game.size *= Math.pow(2, zoomFactor) // Divide or multiply size by 2
+            cellSize = Math.max(1, game.size.valueOf()) // Set the new cellSize (non-reactive), but keep it at least 1 pixel
             // Adjust colx and rowx to keep the zoom centered on the pointer
             colx = cursorX - (cursorX - colx) * Math.pow(2, zoomFactor)
             rowx = cursorY - (cursorY - rowx) * Math.pow(2, zoomFactor)
@@ -171,11 +168,11 @@ export default defineComponent({
             ctx.value!.putImageData(imageData, 0, 0)
             drawGrid(cols, rows, size)
         }
-        function fillSquare(x: number, y: number, cellSize: number, colx: number, rowx: number) { // fill a square by changing the imageDataArray values directly (faster than fillRect)
-            x = x * cellSize
-            y = y * cellSize
-            let width = cellWidth
-            let height = cellWidth
+        function fillSquare(x: number, y: number, floatCellSize: number, colx: number, rowx: number) { // fill a square by changing the imageDataArray values directly (faster than fillRect)
+            x = x * floatCellSize
+            y = y * floatCellSize
+            let width = cellSize
+            let height = cellSize
 
             if ((x + colx) < 0) { // if cell is outside the canvas on the left
                 width += (x + Math.floor(colx))
