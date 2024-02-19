@@ -70,18 +70,19 @@ export default defineComponent({
             colx = cursorX - (cursorX - colx) * Math.pow(2, zoomFactor)
             rowx = cursorY - (cursorY - rowx) * Math.pow(2, zoomFactor)
 
-            drawCellsFromCellsArray() // redraw
+            if (!game.isRunning) requestAnimationFrame(drawCellsFromCellsArray) // redraw
+
         }
         function handleMove(e: { movementY: number; movementX: number; }) {
             rowx += e.movementY
             colx += e.movementX
-            drawCellsFromCellsArray()
+            if (!game.isRunning) requestAnimationFrame(drawCellsFromCellsArray) // redraw
         }
         function handleResize() {
             console.log(canvas.value!)
             canvasWidth = canvas.value!.width = canvas.value!.clientWidth
             canvasHeight = canvas.value!.height = canvas.value!.clientHeight
-            drawCellsFromCellsArray()
+            if (!game.isRunning) requestAnimationFrame(drawCellsFromCellsArray) // redraw
         }
         function center() {
             rowx = (canvasHeight - (game.size * game.rows)) / 2
