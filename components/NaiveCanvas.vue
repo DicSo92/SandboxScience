@@ -22,23 +22,23 @@ export default defineComponent({
         let cellsArrayNext: Int32Array[]
         let canvasWidth: number = 0
         let canvasHeight: number = 0
+        let cellWidth: number = Math.max(1, game.size.valueOf())
 
         const zoom = ref(0)
 
         const prevChangedCell = ref<{ x: number, y: number } | null>(null)
-
-        const cellWidth = computed(() => {
-            return Math.max(1, game.size)
-        })
 
         onMounted(() => {
             ctx.value = canvas.value?.getContext('2d') || undefined
             initCanvas()
         })
         watch(() => game.EDGEMODE, () => {
-            console.log('EDGEMODE changed')
-            console.log(game.EDGEMODE)
+            console.log('EDGEMODE changed', game.EDGEMODE)
             initAliveNeighboursFunc(game.EDGEMODE)
+        })
+        watch(() => game.size, (newSize) => {
+            console.log('size changed')
+            cellWidth = Math.max(1, newSize)
         })
         // -------------------------------------------------------------------------------------------------------------
         function toggleCell(cursorX: number, cursorY: number, type?: "draw" | "erase" | "toggle") {
@@ -174,8 +174,8 @@ export default defineComponent({
         function fillSquare(x: number, y: number, cellSize: number, colx: number, rowx: number) { // fill a square by changing the imageDataArray values directly (faster than fillRect)
             x = x * cellSize
             y = y * cellSize
-            let width = cellWidth.value
-            let height = cellWidth.value
+            let width = cellWidth
+            let height = cellWidth
 
             if ((x + colx) < 0) { // if cell is outside the canvas on the left
                 width += (x + Math.floor(colx))
