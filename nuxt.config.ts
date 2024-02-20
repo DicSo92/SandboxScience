@@ -2,10 +2,10 @@ import { appDescription } from './constants/index'
 
 export default defineNuxtConfig({
     devtools: {
-      enabled: true,
-      timeline: {
-        enabled: false,
-      },
+        enabled: true,
+        timeline: {
+            enabled: false,
+        },
     },
     modules: [
         '@vueuse/nuxt',
