@@ -234,9 +234,50 @@ export default defineComponent({
         function setCell(x: number, y: number, value: number) {
             cellsArray[x][y] = value
         }
+
+        function expandGrid(side:  string, factor: number = 1) {
+            const newCols = side === "left" || side === "right" ? game.cols.valueOf() + factor : game.cols.valueOf()
+            const newRows = side === "top" || side === "bottom" ? game.rows.valueOf() + factor : game.rows.valueOf()
+
+            const newCellsArray = Array(newCols).fill(null).map(() => new Int32Array(newRows).fill(0))
+            cellsArrayNext = Array(newCols).fill(null).map(() => new Int32Array(newRows).fill(0))
+
+            if (side === "top") {
+                for (let i = 0; i < game.cols.valueOf(); i++) {
+                    for (let j = 0; j < game.rows.valueOf(); j++) {
+                        newCellsArray[i][j + factor] = cellsArray[i][j]
+                    }
+                }
+            } else if (side === "bottom") {
+                for (let i = 0; i < game.cols.valueOf(); i++) {
+                    for (let j = 0; j < game.rows.valueOf(); j++) {
+                        newCellsArray[i][j] = cellsArray[i][j]
+                    }
+                }
+            } else if (side === "left") {
+                for (let i = 0; i < game.cols.valueOf(); i++) {
+                    for (let j = 0; j < game.rows.valueOf(); j++) {
+                        newCellsArray[i + factor][j] = cellsArray[i][j]
+                    }
+                }
+            } else if (side === "right") {
+                for (let i = 0; i < game.cols.valueOf(); i++) {
+                    for (let j = 0; j < game.rows.valueOf(); j++) {
+                        newCellsArray[i][j] = cellsArray[i][j]
+                    }
+                }
+            }
+            cellsArray = newCellsArray
+            game.cols = newCols
+            game.rows = newRows
+            colx += side === "left" ? -factor * game.size.valueOf() : 0
+            rowx += side === "top" ? -factor * game.size.valueOf() : 0
+            if (!game.isRunning) requestAnimationFrame(drawCellsFromCellsArray) // redraw
+        }
         // -------------------------------------------------------------------------------------------------------------
         return { canvas, ctx, prevChangedCell,
-            newCycle, drawCellsFromCellsArray, handleZoom, handleResize, toggleCell, handleMove, getCellsArray, setCell
+            newCycle, drawCellsFromCellsArray, handleZoom, handleResize, toggleCell,
+            handleMove, getCellsArray, setCell, expandGrid
         }
     }
 })

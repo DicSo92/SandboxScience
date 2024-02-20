@@ -50,6 +50,18 @@
                     <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="naiveCanvas.handleZoom(-1)">
                         <div i-tabler-zoom-out text-xl></div>
                     </div>
+                    <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="naiveCanvas.expandGrid('left', 1)">
+                        <div i-tabler-arrow-bar-left text-xl></div>
+                    </div>
+                    <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="naiveCanvas.expandGrid('right', 1)">
+                        <div i-tabler-arrow-bar-right text-xl></div>
+                    </div>
+                    <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="naiveCanvas.expandGrid('top', 1)">
+                        <div i-tabler-arrow-bar-to-up text-xl></div>
+                    </div>
+                    <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="naiveCanvas.expandGrid('bottom', 1)">
+                        <div i-tabler-arrow-bar-to-down text-xl></div>
+                    </div>
                 </div>
                 <RangeInput v-if="SPEED" :min="1" :max="1000" :step="1" v-model="SPEED" />
             </div>
