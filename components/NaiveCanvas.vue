@@ -277,9 +277,6 @@ export default defineComponent({
             if (!game.isRunning) requestAnimationFrame(drawCellsFromCellsArray) // redraw
         }
         function handleGridResize(e: { movementY: number; movementX: number; }, pointerX: number, pointerY: number) {
-            if (!game.wasRunning) game.wasRunning = game.isRunning // store the running state
-            game.isRunning = false // pause the game
-
             const activeRangeStart = (cellSize / 4)
             let activeRangeEnd = cellSize
             if (zoom.value < 0) activeRangeEnd = 8

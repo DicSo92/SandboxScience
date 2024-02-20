@@ -94,9 +94,11 @@ export default defineComponent({
 
         const keys = useMagicKeys()
         const ctrlKey = keys['Ctrl']
+        const wheelClick = ref(false)
+        const cursor = computed(() => ctrlKey.value ? 'all-scroll' : wheelClick.value ? 'grabbing' : 'crosshair')
 
-        watch(ctrlKey, (isPressed) => {
-            console.log('ctrlKey', isPressed)
+        watch(cursor, (value) => {
+            naiveCanvas.value!.canvas.style.cursor = value
         })
 
         onMounted(() => {
@@ -105,32 +107,35 @@ export default defineComponent({
                 pointerX.value = e.x - naiveCanvas.value!.canvas.offsetLeft
                 pointerY.value = e.y - naiveCanvas.value!.canvas.offsetTop
 
+                // Ctrl + button actions
                 if (ctrlKey.value) {
-                    isDragging.value = true
-                    naiveCanvas.value!.canvas.style.cursor = 'all-scroll'
                     if (e.buttons === 1) { // if primary button is pressed (left click)
+                        isDragging.value = true
+                        if (!game.wasRunning) game.wasRunning = game.isRunning // store the running state
+                        game.isRunning = false // pause the game
                         naiveCanvas.value.handleGridResize(e, pointerX.value, pointerY.value)
                     }
-                } else if (e.buttons > 0) { // if mouse is pressed
+                }
+                // Single button actions
+                else if (e.buttons > 0) { // if mouse is pressed
                     isDragging.value = true
                     if (e.buttons === 1) { // if primary button is pressed (left click)
                         if (!game.wasRunning) game.wasRunning = game.isRunning // store the running state
                         game.isRunning = false // pause the game
                         naiveCanvas.value.toggleCell(pointerX.value, pointerY.value, 'draw') // add cell at cursor position
-                    } else if (e.buttons === 2) { // if secondary button is pressed (right click)
-                        naiveCanvas.value!.canvas.style.cursor = 'grabbing'
+                    } else if (e.buttons === 4) { // if wheel button is pressed
                         naiveCanvas.value.handleMove(e)
                     }
-                } else {
+                }
+                // Reset the dragging state and resume the game if it was running when all buttons are released
+                if (e.buttons === 0 && !ctrlKey.value) {
                     isDragging.value = false
                     naiveCanvas.value.prevChangedCell = null
                     if (game.wasRunning) {
                         game.isRunning = game.wasRunning
                         game.wasRunning = false
                     }
-                    naiveCanvas.value!.canvas.style.cursor = 'crosshair'
                 }
-
             })
             useEventListener(naiveCanvas, 'click', () => {
                 if (!isDragging.value) {
@@ -143,6 +148,16 @@ export default defineComponent({
                     naiveCanvas.value.handleZoom(1, pointerX.value, pointerY.value)
                 } else { // Zoom out
                     naiveCanvas.value.handleZoom(-1, pointerX.value, pointerY.value)
+                }
+            })
+            useEventListener(naiveCanvas, 'mousedown', (e) => {
+                if (e.button === 1) { // if wheel button is pressed
+                    wheelClick.value = true
+                }
+            })
+            useEventListener(naiveCanvas, 'mouseup', (e) => {
+                if (e.button === 1) { // if wheel button is pressed
+                    wheelClick.value = false
                 }
             })
         })
