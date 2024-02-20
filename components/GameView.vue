@@ -132,7 +132,6 @@ export default defineComponent({
                 return
             }
             lastTime = lastTime - game.SPEED // to start a cycle immediately
-            startExecutionTime = performance.now()
             totalExecutionTime = 0
             totalCycles = 0
             game.isRunning = true
@@ -144,16 +143,16 @@ export default defineComponent({
             const elapsedTime = currentTime - lastTime!
 
             if (elapsedTime >= game.SPEED && game.isRunning) {
+                startExecutionTime = performance.now()
                 naiveCanvas.value.newCycle()
+                executionTime.value = performance.now() - startExecutionTime
 
                 lastTime = currentTime - (elapsedTime % game.SPEED)
-                executionTime.value = performance.now() - startExecutionTime
                 totalExecutionTime += executionTime.value
                 totalCycles++
                 console.log(`Execution Time : ${executionTime.value} ms`)
             }
 
-            startExecutionTime = performance.now()
             // timer.value = setTimeout(() => animate(startExecutionTime), game.SPEED)
             requestAnimationFrame(animate)
         }
