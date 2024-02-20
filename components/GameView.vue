@@ -92,29 +92,45 @@ export default defineComponent({
         const { SPEED, sliderMin, sliderMax } = storeToRefs(useGameStore())
         const timer = ref()
 
+        const keys = useMagicKeys()
+        const ctrlKey = keys['Ctrl']
+
+        watch(ctrlKey, (isPressed) => {
+            console.log('ctrlKey', isPressed)
+        })
+
         onMounted(() => {
             useEventListener('resize', naiveCanvas.value.handleResize)
             useEventListener(naiveCanvas, ['mousemove'], (e) => {
                 pointerX.value = e.x - naiveCanvas.value!.canvas.offsetLeft
                 pointerY.value = e.y - naiveCanvas.value!.canvas.offsetTop
 
-                if (e.buttons > 0) { // if mouse is pressed
+                if (ctrlKey.value) {
+                    isDragging.value = true
+                    naiveCanvas.value!.canvas.style.cursor = 'all-scroll'
+                    if (e.buttons === 1) { // if primary button is pressed (left click)
+                        naiveCanvas.value.handleGridResize(e, pointerX.value, pointerY.value)
+                    }
+                } else if (e.buttons > 0) { // if mouse is pressed
                     isDragging.value = true
                     if (e.buttons === 1) { // if primary button is pressed (left click)
-                        if (game.wasRunning === null) game.wasRunning = game.isRunning // store the running state
+                        if (!game.wasRunning) game.wasRunning = game.isRunning // store the running state
                         game.isRunning = false // pause the game
                         naiveCanvas.value.toggleCell(pointerX.value, pointerY.value, 'draw') // add cell at cursor position
                     } else if (e.buttons === 2) { // if secondary button is pressed (right click)
+                        naiveCanvas.value!.canvas.style.cursor = 'grabbing'
                         naiveCanvas.value.handleMove(e)
                     }
                 } else {
                     isDragging.value = false
                     naiveCanvas.value.prevChangedCell = null
-                    if (game.wasRunning !== null) {
+                    if (game.wasRunning) {
                         game.isRunning = game.wasRunning
-                        game.wasRunning = null
+                        game.wasRunning = false
                     }
+                    naiveCanvas.value!.canvas.style.cursor = 'crosshair'
                 }
+
             })
             useEventListener(naiveCanvas, 'click', () => {
                 if (!isDragging.value) {

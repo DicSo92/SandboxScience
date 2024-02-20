@@ -1,11 +1,11 @@
 import { defineStore } from 'pinia'
 export const useGameStore = defineStore('game', () => {
     const size = ref<number>(16) // the size of every cell
-    const rows = ref<number>(16) // number of rows
-    const cols = ref<number>(16) // number of columns
+    const rows = ref<number>(64) // number of rows
+    const cols = ref<number>(64) // number of columns
 
     const isRunning = ref<boolean>(false) // is the animation running?
-    const wasRunning = ref<boolean | null>(null) // was the animation running? (used to pause the animation)
+    const wasRunning = ref<boolean>(false) // was the animation running? (used to pause the animation)
 
     const SPEED = ref<number>(1) // the speed of the animation (ms)
     const EDGEMODE = ref<number>(2) // dead, alive, mirror

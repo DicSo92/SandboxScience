@@ -256,12 +256,14 @@ export default defineComponent({
                 }
             } else if (side === "left") {
                 for (let i = 0; i < game.cols.valueOf(); i++) {
+                    if (i + factor < 0) continue
                     for (let j = 0; j < game.rows.valueOf(); j++) {
                         newCellsArray[i + factor][j] = cellsArray[i][j]
                     }
                 }
             } else if (side === "right") {
                 for (let i = 0; i < game.cols.valueOf(); i++) {
+                    if (i >= newCols) continue
                     for (let j = 0; j < game.rows.valueOf(); j++) {
                         newCellsArray[i][j] = cellsArray[i][j]
                     }
@@ -274,10 +276,31 @@ export default defineComponent({
             rowx += side === "top" ? -factor * game.size.valueOf() : 0
             if (!game.isRunning) requestAnimationFrame(drawCellsFromCellsArray) // redraw
         }
+        function handleGridResize(e: { movementY: number; movementX: number; }, pointerX: number, pointerY: number) {
+            if (!game.wasRunning) game.wasRunning = game.isRunning // store the running state
+            game.isRunning = false // pause the game
+
+            const activeRangeStart = (cellSize / 4)
+            let activeRangeEnd = cellSize
+            if (zoom.value < 0) activeRangeEnd = 8
+
+            if (e.movementY < 0 && pointerY < (rowx - activeRangeStart) && pointerY > (rowx - activeRangeEnd)) expandGrid("top", 1)
+            if (e.movementY > 0 && pointerY > (rowx + activeRangeStart) && pointerY < (rowx + activeRangeEnd) && game.rows > 1) expandGrid("top", -1)
+
+            if (e.movementY < 0 && pointerY < (rowx + game.rows * cellSize - activeRangeStart) && pointerY > (rowx + game.rows * cellSize - activeRangeEnd) && game.rows > 1) expandGrid("bottom", -1)
+            if (e.movementY > 0 && pointerY > (rowx + game.rows * cellSize + activeRangeStart) && pointerY < (rowx + game.rows * cellSize + activeRangeEnd)) expandGrid("bottom", 1)
+
+
+            if (e.movementX < 0 && pointerX < (colx - activeRangeStart) && pointerX > (colx - activeRangeEnd)) expandGrid('left', 1)
+            if (e.movementX > 0 && pointerX > (colx + activeRangeStart) && pointerX < (colx + activeRangeEnd) && game.cols > 1) expandGrid("left", -1)
+
+            if (e.movementX < 0 && pointerX < (colx + game.cols * cellSize - activeRangeStart) && pointerX > (colx + game.cols * cellSize - activeRangeEnd) && game.cols > 1) expandGrid("right", -1)
+            if (e.movementX > 0 && pointerX > (colx + game.cols * cellSize + activeRangeStart) && pointerX < (colx + game.cols * cellSize + activeRangeEnd)) expandGrid("right", 1)
+        }
         // -------------------------------------------------------------------------------------------------------------
         return { canvas, ctx, prevChangedCell,
             newCycle, drawCellsFromCellsArray, handleZoom, handleResize, toggleCell,
-            handleMove, getCellsArray, setCell, expandGrid
+            handleMove, getCellsArray, setCell, expandGrid, handleGridResize
         }
     }
 })
@@ -288,5 +311,6 @@ canvas {
     @apply bg-gray-700;
     width: 100%;
     height: 100%;
+    cursor: crosshair;
 }
 </style>
