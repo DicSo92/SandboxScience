@@ -92,11 +92,11 @@ export default defineComponent({
 
             if (pointerY > (rowx - activeRange) && pointerY < (rowx + activeRange)) {
                 game.hoveredSide = 1
-            } else if (pointerY > (rowx + game.rows * cellSize - activeRange) && pointerY < (rowx + game.rows * cellSize + activeRange)) {
+            } else if (pointerY > (rowx + game.rows * game.size - activeRange) && pointerY < (rowx + game.rows * game.size + activeRange)) {
                 game.hoveredSide = 2
             } else if (pointerX > (colx - activeRange) && pointerX < (colx + activeRange)) {
                 game.hoveredSide = 3
-            } else if (pointerX > (colx + game.cols * cellSize - activeRange) && pointerX < (colx + game.cols * cellSize + activeRange)) {
+            } else if (pointerX > (colx + game.cols * game.size - activeRange) && pointerX < (colx + game.cols * game.size + activeRange)) {
                 game.hoveredSide = 4
             } else {
                 game.hoveredSide = null
