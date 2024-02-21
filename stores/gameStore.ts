@@ -6,6 +6,7 @@ export const useGameStore = defineStore('game', () => {
 
     const isRunning = ref<boolean>(false) // is the animation running?
     const wasRunning = ref<boolean>(false) // was the animation running? (used to pause the animation)
+    const hoveredSide = ref<number | null>(null)
 
     const SPEED = ref<number>(1) // the speed of the animation (ms)
     const EDGEMODE = ref<number>(2) // dead, alive, mirror
@@ -19,7 +20,7 @@ export const useGameStore = defineStore('game', () => {
 
     return {
         size, rows, cols,
-        isRunning, wasRunning,
+        isRunning, wasRunning, hoveredSide,
         SPEED, EDGEMODE, BORN, SURVIVES,
         sliderMin, sliderMax, maxNeighbours
     }

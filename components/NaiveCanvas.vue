@@ -1,6 +1,7 @@
 <template>
-    <div flex-1>
-        <canvas ref="canvas" @contextmenu.prevent></canvas>
+    <div flex-1 relative>
+        <canvas ref="canvas" id="canvas" @contextmenu.prevent></canvas>
+        <canvas ref="overlayCanvas" absolute top-0 id="overlayCanvas" @contextmenu.prevent></canvas>
     </div>
 </template>
 
@@ -12,6 +13,8 @@ export default defineComponent({
         const game = useGameStore()
         const canvas: Ref<HTMLCanvasElement | undefined> = ref()
         const ctx: Ref<CanvasRenderingContext2D | undefined> = ref()
+        const overlayCanvas: Ref<HTMLCanvasElement | undefined> = ref()
+        let overlayCtx: CanvasRenderingContext2D | undefined
 
         let imageData: ImageData | undefined
         let imageDataArray: Int32Array | number[]
@@ -29,11 +32,15 @@ export default defineComponent({
 
         onMounted(() => {
             ctx.value = canvas.value?.getContext('2d') || undefined
+            overlayCtx = overlayCanvas.value?.getContext('2d') || undefined
             initCanvas()
         })
         watch(() => game.EDGEMODE, () => {
             console.log('EDGEMODE changed', game.EDGEMODE)
             initAliveNeighboursFunc(game.EDGEMODE)
+        })
+        watch(() => game.hoveredSide, () => {
+            drawOverlayGrid(game.cols, game.rows, game.size)
         })
         // -------------------------------------------------------------------------------------------------------------
         function toggleCell(cursorX: number, cursorY: number, type?: "draw" | "erase" | "toggle") {
@@ -78,8 +85,9 @@ export default defineComponent({
             if (!game.isRunning) requestAnimationFrame(drawCellsFromCellsArray) // redraw
         }
         function handleResize() {
-            canvasWidth = canvas.value!.width = canvas.value!.clientWidth
-            canvasHeight = canvas.value!.height = canvas.value!.clientHeight
+            canvasWidth = canvas.value!.width = overlayCanvas.value!.width = canvas.value!.clientWidth
+            canvasHeight = canvas.value!.height = overlayCanvas.value!.height = canvas.value!.clientHeight
+
             if (!game.isRunning) requestAnimationFrame(drawCellsFromCellsArray) // redraw
         }
         function center() {
@@ -95,10 +103,8 @@ export default defineComponent({
             console.table(cellsArray)
 
             initAliveNeighboursFunc(game.EDGEMODE)
-            canvasWidth = canvas.value!.width = canvas.value!.clientWidth
-            canvasHeight = canvas.value!.height = canvas.value!.clientHeight
-            center() // center the grid on the canvas view
             handleResize() // resize and draw the grid
+            center() // center the grid on the canvas view
         }
         function newCycle() {
             ctx.value!.clearRect(0, 0, canvasWidth, canvasHeight)
@@ -200,32 +206,53 @@ export default defineComponent({
         function drawGrid(cols: number, rows: number, size: number) {
             ctx.value!.beginPath()
             if (size < 8) { // draw a simple grid if size is too small
-                drawHorizontalLine(0, cols, size)
-                drawHorizontalLine(rows, cols, size)
-                drawVerticalLine(0, rows, size)
-                drawVerticalLine(cols, rows, size)
+                drawHorizontalLine(0, cols, size, ctx.value)
+                drawHorizontalLine(rows, cols, size, ctx.value)
+                drawVerticalLine(0, rows, size, ctx.value)
+                drawVerticalLine(cols, rows, size, ctx.value)
             } else {
-                for (let row = 0; row < rows + 1; row++) {
-                    drawHorizontalLine(row, cols, size)
+                for (let row = 0; row <= rows; row++) {
+                    drawHorizontalLine(row, cols, size, ctx.value)
                 }
-                for (let col = 0; col < cols + 1; col++) {
-                    drawVerticalLine(col, rows, size)
+                for (let col = 0; col <= cols; col++) {
+                    drawVerticalLine(col, rows, size, ctx.value)
                 }
             }
             ctx.value!.strokeStyle = '#707070'
             ctx.value!.stroke()
         }
-        function drawHorizontalLine(row: number, cols: number, size: number) {
+        function drawOverlayGrid(cols: number, rows: number, size: number) {
+            overlayCtx!.clearRect(0, 0, canvasWidth, canvasHeight)
+            const hoveredSide = game.hoveredSide
+            if (hoveredSide !== null) {
+                overlayCtx!.beginPath()
+                if (hoveredSide === 1) {
+                    drawHorizontalLine(0, cols, size, overlayCtx)
+                } else if (hoveredSide === 2) {
+                    drawHorizontalLine(rows, cols, size, overlayCtx)
+                } else if (hoveredSide === 3) {
+                    drawVerticalLine(0, rows, size, overlayCtx)
+                } else if (hoveredSide === 4) {
+                    drawVerticalLine(cols, rows, size, overlayCtx)
+                }
+                overlayCtx!.strokeStyle = '#c31313'
+                overlayCtx!.lineWidth = 2
+                overlayCtx!.stroke()
+            }
+        }
+        function drawHorizontalLine(row: number, cols: number, size: number, ctx: CanvasRenderingContext2D | undefined) {
             const x = colx + (cols * size)
             const y = rowx + (size * row)
-            ctx.value!.moveTo(colx, y)
-            ctx.value!.lineTo(x, y)
+
+            ctx!.moveTo(colx, y)
+            ctx!.lineTo(x, y)
         }
-        function drawVerticalLine(col: number, rows: number, size: number) {
+        function drawVerticalLine(col: number, rows: number, size: number, ctx: CanvasRenderingContext2D | undefined) {
             const x = colx + (size * col)
             const y = rowx + (rows * size)
-            ctx.value!.moveTo(x, rowx)
-            ctx.value!.lineTo(x, y)
+
+            ctx!.moveTo(x, rowx)
+            ctx!.lineTo(x, y)
         }
 
         function getCellsArray() {
@@ -233,6 +260,26 @@ export default defineComponent({
         }
         function setCell(x: number, y: number, value: number) {
             cellsArray[x][y] = value
+        }
+        function handleSideHover(pointerX: number, pointerY: number) {
+            let activeRange = Math.max(16, cellSize)
+
+            if (pointerY > (rowx - activeRange) && pointerY < (rowx + activeRange)) {
+                overlayCanvas.value!.style.cursor = "n-resize"
+                game.hoveredSide = 1
+            } else if (pointerY > (rowx + game.rows * cellSize - activeRange) && pointerY < (rowx + game.rows * cellSize + activeRange)) {
+                overlayCanvas.value!.style.cursor = "s-resize"
+                game.hoveredSide = 2
+            } else if (pointerX > (colx - activeRange) && pointerX < (colx + activeRange)) {
+                overlayCanvas.value!.style.cursor = "w-resize"
+                game.hoveredSide = 3
+            } else if (pointerX > (colx + game.cols * cellSize - activeRange) && pointerX < (colx + game.cols * cellSize + activeRange)) {
+                overlayCanvas.value!.style.cursor = "e-resize"
+                game.hoveredSide = 4
+            } else {
+                overlayCanvas.value!.style.cursor = "all-scroll"
+                game.hoveredSide = null
+            }
         }
 
         function expandGrid(side:  string, factor: number = 1) {
@@ -275,11 +322,16 @@ export default defineComponent({
             colx += side === "left" ? -factor * game.size.valueOf() : 0
             rowx += side === "top" ? -factor * game.size.valueOf() : 0
             if (!game.isRunning) requestAnimationFrame(drawCellsFromCellsArray) // redraw
+            drawOverlayGrid(game.cols, game.rows, game.size) // redraw overlay grid
         }
+
         function handleGridResize(e: { movementY: number; movementX: number; }, pointerX: number, pointerY: number) {
-            const activeRangeStart = (cellSize / 4)
-            let activeRangeEnd = cellSize
-            if (zoom.value < 0) activeRangeEnd = 8
+            let activeRangeStart = Math.max(2, (cellSize / 2))
+            let activeRangeEnd = Math.max(16, cellSize)
+            if (zoom.value < -1) {
+                activeRangeStart = 8
+                activeRangeEnd = 24
+            }
 
             if (e.movementY < 0 && pointerY < (rowx - activeRangeStart) && pointerY > (rowx - activeRangeEnd)) expandGrid("top", 1)
             if (e.movementY > 0 && pointerY > (rowx + activeRangeStart) && pointerY < (rowx + activeRangeEnd) && game.rows > 1) expandGrid("top", -1)
@@ -295,7 +347,7 @@ export default defineComponent({
             if (e.movementX > 0 && pointerX > (colx + game.cols * cellSize + activeRangeStart) && pointerX < (colx + game.cols * cellSize + activeRangeEnd)) expandGrid("right", 1)
         }
         // -------------------------------------------------------------------------------------------------------------
-        return { canvas, ctx, prevChangedCell,
+        return { canvas, ctx, prevChangedCell, overlayCanvas, handleSideHover,
             newCycle, drawCellsFromCellsArray, handleZoom, handleResize, toggleCell,
             handleMove, getCellsArray, setCell, expandGrid, handleGridResize
         }
@@ -304,8 +356,14 @@ export default defineComponent({
 </script>
 
 <style scoped>
-canvas {
+#canvas {
     @apply bg-gray-700;
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+}
+#overlayCanvas {
+    @apply bg-transparent;
     width: 100%;
     height: 100%;
     cursor: crosshair;

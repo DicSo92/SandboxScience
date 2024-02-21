@@ -97,18 +97,23 @@ export default defineComponent({
         const wheelClick = ref(false)
         const cursor = computed(() => ctrlKey.value ? 'all-scroll' : wheelClick.value ? 'grabbing' : 'crosshair')
 
+        watch(ctrlKey, (isPressed) => {
+            if (!isPressed) game.hoveredSide = null
+        })
         watch(cursor, (value) => {
-            naiveCanvas.value!.canvas.style.cursor = value
+            naiveCanvas.value!.overlayCanvas.style.cursor = value
         })
 
         onMounted(() => {
             useEventListener('resize', naiveCanvas.value.handleResize)
             useEventListener(naiveCanvas, ['mousemove'], (e) => {
-                pointerX.value = e.x - naiveCanvas.value!.canvas.offsetLeft
-                pointerY.value = e.y - naiveCanvas.value!.canvas.offsetTop
+                pointerX.value = e.x - naiveCanvas.value!.canvas.parentNode.offsetLeft
+                pointerY.value = e.y - naiveCanvas.value!.canvas.parentNode.offsetTop
 
                 // Ctrl + button actions
                 if (ctrlKey.value) {
+                    naiveCanvas.value.handleSideHover(pointerX.value, pointerY.value)
+
                     if (e.buttons === 1) { // if primary button is pressed (left click)
                         isDragging.value = true
                         if (!game.wasRunning) game.wasRunning = game.isRunning // store the running state
@@ -131,6 +136,7 @@ export default defineComponent({
                 if (e.buttons === 0 && !ctrlKey.value) {
                     isDragging.value = false
                     naiveCanvas.value.prevChangedCell = null
+                    game.hoveredSide = null
                     if (game.wasRunning) {
                         game.isRunning = game.wasRunning
                         game.wasRunning = false
