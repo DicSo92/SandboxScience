@@ -39,7 +39,12 @@ export default defineComponent({
             console.log('EDGEMODE changed', game.EDGEMODE)
             initAliveNeighboursFunc(game.EDGEMODE)
         })
-        watch(() => game.hoveredSide, () => {
+        watch(() => game.hoveredSide, (val) => {
+            if (val === null) overlayCanvas.value!.style.cursor = "all-scroll"
+            else if (val === 1) overlayCanvas.value!.style.cursor = "n-resize"
+            else if (val === 2) overlayCanvas.value!.style.cursor = "s-resize"
+            else if (val === 3) overlayCanvas.value!.style.cursor = "w-resize"
+            else if (val === 4) overlayCanvas.value!.style.cursor = "e-resize"
             drawOverlayGrid(game.cols, game.rows, game.size)
         })
         // -------------------------------------------------------------------------------------------------------------
@@ -90,9 +95,34 @@ export default defineComponent({
 
             if (!game.isRunning) requestAnimationFrame(drawCellsFromCellsArray) // redraw
         }
-        function center() {
-            rowx = (canvasHeight - (game.size * game.rows)) / 2
-            colx = (canvasWidth - (game.size * game.cols)) / 2
+        function handleSideHover(pointerX: number, pointerY: number) {
+            let activeRange = Math.max(16, cellSize)
+
+            if (pointerY > (rowx - activeRange) && pointerY < (rowx + activeRange)) {
+                game.hoveredSide = 1
+            } else if (pointerY > (rowx + game.rows * cellSize - activeRange) && pointerY < (rowx + game.rows * cellSize + activeRange)) {
+                game.hoveredSide = 2
+            } else if (pointerX > (colx - activeRange) && pointerX < (colx + activeRange)) {
+                game.hoveredSide = 3
+            } else if (pointerX > (colx + game.cols * cellSize - activeRange) && pointerX < (colx + game.cols * cellSize + activeRange)) {
+                game.hoveredSide = 4
+            } else {
+                game.hoveredSide = null
+            }
+        }
+        function handleGridResize(pointerX: number, pointerY: number) {
+            const cell: { x: number, y: number } = pixelToCell(pointerX, pointerY, colx, rowx, game.size) // get the cell x and y from the cursor position
+
+            if (game.hoveredSide === null) return
+            if (game.hoveredSide === 1 && cell.y !== 0 && cell.y < game.rows) {
+                expandGrid("top", -cell.y)
+            } else if (game.hoveredSide === 2 && cell.y !== game.rows - 1 && cell.y >= 0) {
+                expandGrid("bottom", -(game.rows - 1 - cell.y))
+            } else if (game.hoveredSide === 3 && cell.x !== 0 && cell.x < game.cols) {
+                expandGrid("left", -cell.x)
+            } else if (game.hoveredSide === 4 && cell.x !== game.cols - 1 && cell.x >= 0) {
+                expandGrid("right", -(game.cols - 1 - cell.x))
+            }
         }
         // -------------------------------------------------------------------------------------------------------------
         function initCanvas() {
@@ -254,34 +284,6 @@ export default defineComponent({
             ctx!.moveTo(x, rowx)
             ctx!.lineTo(x, y)
         }
-
-        function getCellsArray() {
-            return cellsArray
-        }
-        function setCell(x: number, y: number, value: number) {
-            cellsArray[x][y] = value
-        }
-        function handleSideHover(pointerX: number, pointerY: number) {
-            let activeRange = Math.max(16, cellSize)
-
-            if (pointerY > (rowx - activeRange) && pointerY < (rowx + activeRange)) {
-                overlayCanvas.value!.style.cursor = "n-resize"
-                game.hoveredSide = 1
-            } else if (pointerY > (rowx + game.rows * cellSize - activeRange) && pointerY < (rowx + game.rows * cellSize + activeRange)) {
-                overlayCanvas.value!.style.cursor = "s-resize"
-                game.hoveredSide = 2
-            } else if (pointerX > (colx - activeRange) && pointerX < (colx + activeRange)) {
-                overlayCanvas.value!.style.cursor = "w-resize"
-                game.hoveredSide = 3
-            } else if (pointerX > (colx + game.cols * cellSize - activeRange) && pointerX < (colx + game.cols * cellSize + activeRange)) {
-                overlayCanvas.value!.style.cursor = "e-resize"
-                game.hoveredSide = 4
-            } else {
-                overlayCanvas.value!.style.cursor = "all-scroll"
-                game.hoveredSide = null
-            }
-        }
-
         function expandGrid(side:  string, factor: number = 1) {
             const newCols = side === "left" || side === "right" ? game.cols.valueOf() + factor : game.cols.valueOf()
             const newRows = side === "top" || side === "bottom" ? game.rows.valueOf() + factor : game.rows.valueOf()
@@ -324,27 +326,16 @@ export default defineComponent({
             if (!game.isRunning) requestAnimationFrame(drawCellsFromCellsArray) // redraw
             drawOverlayGrid(game.cols, game.rows, game.size) // redraw overlay grid
         }
-
-        function handleGridResize(e: { movementY: number; movementX: number; }, pointerX: number, pointerY: number) {
-            let activeRangeStart = Math.max(2, (cellSize / 2))
-            let activeRangeEnd = Math.max(16, cellSize)
-            if (zoom.value < -1) {
-                activeRangeStart = 8
-                activeRangeEnd = 24
-            }
-
-            if (e.movementY < 0 && pointerY < (rowx - activeRangeStart) && pointerY > (rowx - activeRangeEnd)) expandGrid("top", 1)
-            if (e.movementY > 0 && pointerY > (rowx + activeRangeStart) && pointerY < (rowx + activeRangeEnd) && game.rows > 1) expandGrid("top", -1)
-
-            if (e.movementY < 0 && pointerY < (rowx + game.rows * cellSize - activeRangeStart) && pointerY > (rowx + game.rows * cellSize - activeRangeEnd) && game.rows > 1) expandGrid("bottom", -1)
-            if (e.movementY > 0 && pointerY > (rowx + game.rows * cellSize + activeRangeStart) && pointerY < (rowx + game.rows * cellSize + activeRangeEnd)) expandGrid("bottom", 1)
-
-
-            if (e.movementX < 0 && pointerX < (colx - activeRangeStart) && pointerX > (colx - activeRangeEnd)) expandGrid('left', 1)
-            if (e.movementX > 0 && pointerX > (colx + activeRangeStart) && pointerX < (colx + activeRangeEnd) && game.cols > 1) expandGrid("left", -1)
-
-            if (e.movementX < 0 && pointerX < (colx + game.cols * cellSize - activeRangeStart) && pointerX > (colx + game.cols * cellSize - activeRangeEnd) && game.cols > 1) expandGrid("right", -1)
-            if (e.movementX > 0 && pointerX > (colx + game.cols * cellSize + activeRangeStart) && pointerX < (colx + game.cols * cellSize + activeRangeEnd)) expandGrid("right", 1)
+        // -------------------------------------------------------------------------------------------------------------
+        function center() {
+            rowx = (canvasHeight - (game.size * game.rows)) / 2
+            colx = (canvasWidth - (game.size * game.cols)) / 2
+        }
+        function getCellsArray() {
+            return cellsArray
+        }
+        function setCell(x: number, y: number, value: number) {
+            cellsArray[x][y] = value
         }
         // -------------------------------------------------------------------------------------------------------------
         return { canvas, ctx, prevChangedCell, overlayCanvas, handleSideHover,

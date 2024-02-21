@@ -112,13 +112,13 @@ export default defineComponent({
 
                 // Ctrl + button actions
                 if (ctrlKey.value) {
-                    naiveCanvas.value.handleSideHover(pointerX.value, pointerY.value)
+                    if (!isDragging.value) naiveCanvas.value.handleSideHover(pointerX.value, pointerY.value)
 
                     if (e.buttons === 1) { // if primary button is pressed (left click)
                         isDragging.value = true
                         if (!game.wasRunning) game.wasRunning = game.isRunning // store the running state
                         game.isRunning = false // pause the game
-                        naiveCanvas.value.handleGridResize(e, pointerX.value, pointerY.value)
+                        naiveCanvas.value.handleGridResize(pointerX.value, pointerY.value)
                     }
                 }
                 // Single button actions
@@ -144,7 +144,7 @@ export default defineComponent({
                 }
             })
             useEventListener(naiveCanvas, 'click', () => {
-                if (!isDragging.value) {
+                if (!isDragging.value && !game.hoveredSide) {
                     naiveCanvas.value.prevChangedCell = null
                     naiveCanvas.value.toggleCell(pointerX.value, pointerY.value)
                 }
@@ -164,6 +164,10 @@ export default defineComponent({
             useEventListener(naiveCanvas, 'mouseup', (e) => {
                 if (e.button === 1) { // if wheel button is pressed
                     wheelClick.value = false
+                }
+                if (e.button === 0 && game.hoveredSide && isDragging.value) { // if primary button is released
+                    isDragging.value = false
+                    naiveCanvas.value.handleSideHover(pointerX.value, pointerY.value)
                 }
             })
         })
