@@ -39,14 +39,6 @@ export default defineComponent({
             console.log('EDGEMODE changed', game.EDGEMODE)
             initAliveNeighboursFunc(game.EDGEMODE)
         })
-        watch(() => game.hoveredSide, (val) => {
-            if (val === null) overlayCanvas.value!.style.cursor = "all-scroll"
-            else if (val === 1) overlayCanvas.value!.style.cursor = "n-resize"
-            else if (val === 2) overlayCanvas.value!.style.cursor = "s-resize"
-            else if (val === 3) overlayCanvas.value!.style.cursor = "w-resize"
-            else if (val === 4) overlayCanvas.value!.style.cursor = "e-resize"
-            drawOverlayGrid(game.cols, game.rows, game.size)
-        })
         // -------------------------------------------------------------------------------------------------------------
         function toggleCell(cursorX: number, cursorY: number, type?: "draw" | "erase" | "toggle") {
             const cell: { x: number, y: number } = pixelToCell(cursorX, cursorY, colx, rowx, game.size) // get the cell x and y from the cursor position
@@ -338,7 +330,7 @@ export default defineComponent({
             cellsArray[x][y] = value
         }
         // -------------------------------------------------------------------------------------------------------------
-        return { canvas, ctx, prevChangedCell, overlayCanvas, handleSideHover,
+        return { canvas, ctx, prevChangedCell, overlayCanvas, handleSideHover, drawOverlayGrid,
             newCycle, drawCellsFromCellsArray, handleZoom, handleResize, toggleCell,
             handleMove, getCellsArray, setCell, expandGrid, handleGridResize
         }

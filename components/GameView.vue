@@ -99,9 +99,18 @@ export default defineComponent({
 
         watch(ctrlKey, (isPressed) => {
             if (!isPressed) game.hoveredSide = null
+            else naiveCanvas.value!.handleSideHover(pointerX.value, pointerY.value)
         })
         watch(cursor, (value) => {
             naiveCanvas.value!.overlayCanvas.style.cursor = value
+        })
+        watch(() => game.hoveredSide, (val) => {
+            if (val === null) naiveCanvas.value.overlayCanvas.style.cursor = ctrlKey.value ? "all-scroll" : "crosshair"
+            else if (val === 1) naiveCanvas.value.overlayCanvas.style.cursor = "n-resize"
+            else if (val === 2) naiveCanvas.value.overlayCanvas.style.cursor = "s-resize"
+            else if (val === 3) naiveCanvas.value.overlayCanvas.style.cursor = "w-resize"
+            else if (val === 4) naiveCanvas.value.overlayCanvas.style.cursor = "e-resize"
+            naiveCanvas.value!.drawOverlayGrid(game.cols, game.rows, game.size)
         })
 
         onMounted(() => {
