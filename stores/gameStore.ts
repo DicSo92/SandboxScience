@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia'
 export const useGameStore = defineStore('game', () => {
     const size = ref<number>(16) // the size of every cell
-    const rows = ref<number>(32) // number of rows
-    const cols = ref<number>(32) // number of columns
+    const rows = ref<number>(256) // number of rows
+    const cols = ref<number>(256) // number of columns
 
     const isRunning = ref<boolean>(false) // is the animation running?
     const wasRunning = ref<boolean>(false) // was the animation running? (used to pause the animation)

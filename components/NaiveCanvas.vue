@@ -12,8 +12,8 @@ export default defineComponent({
     setup() {
         const game = useGameStore()
         const canvas: Ref<HTMLCanvasElement | undefined> = ref()
-        const ctx: Ref<CanvasRenderingContext2D | undefined> = ref()
         const overlayCanvas: Ref<HTMLCanvasElement | undefined> = ref()
+        let ctx: CanvasRenderingContext2D | undefined
         let overlayCtx: CanvasRenderingContext2D | undefined
 
         let imageData: ImageData | undefined
@@ -31,7 +31,7 @@ export default defineComponent({
         const prevChangedCell = ref<{ x: number, y: number } | null>(null)
 
         onMounted(() => {
-            ctx.value = canvas.value?.getContext('2d') || undefined
+            ctx = canvas.value?.getContext('2d') || undefined
             overlayCtx = overlayCanvas.value?.getContext('2d') || undefined
             initCanvas()
         })
@@ -129,11 +129,11 @@ export default defineComponent({
             center() // center the grid on the canvas view
         }
         function newCycle() {
-            ctx.value!.clearRect(0, 0, canvasWidth, canvasHeight)
+            ctx!.clearRect(0, 0, canvasWidth, canvasHeight)
             drawCellsWithRules()
         }
         function drawCellsWithRules() {
-            imageData = ctx.value!.createImageData(canvasWidth, canvasHeight)
+            imageData = ctx!.createImageData(canvasWidth, canvasHeight)
             imageDataArray = new Int32Array(imageData.data.buffer)
 
             const maxNeighbours = game.maxNeighbours.valueOf()
@@ -162,7 +162,7 @@ export default defineComponent({
             }
             // cellsArray = cellsArrayNext // old way
 
-            ctx.value!.putImageData(imageData, 0, 0)
+            ctx!.putImageData(imageData, 0, 0)
             drawGrid(cols, rows, size)
         }
         function processRules(x: number, y: number, SURVIVES: any, BORN: any, aliveNeighbours: number): number { // return if cell has changed
@@ -179,9 +179,9 @@ export default defineComponent({
             }
         }
         function drawCellsFromCellsArray() {
-            ctx.value!.clearRect(0, 0, canvasWidth, canvasHeight)
+            ctx!.clearRect(0, 0, canvasWidth, canvasHeight)
 
-            imageData = ctx.value!.createImageData(canvasWidth, canvasHeight)
+            imageData = ctx!.createImageData(canvasWidth, canvasHeight)
             imageDataArray = new Int32Array(imageData.data.buffer)
             const cols = game.cols.valueOf()
             const rows = game.rows.valueOf()
@@ -192,7 +192,7 @@ export default defineComponent({
                     if (cellsArray[x][y] === 1) fillSquare(x, y, size, colx, rowx)
                 }
             }
-            ctx.value!.putImageData(imageData, 0, 0)
+            ctx!.putImageData(imageData, 0, 0)
             drawGrid(cols, rows, size)
         }
         function fillSquare(x: number, y: number, floatCellSize: number, colx: number, rowx: number) { // fill a square by changing the imageDataArray values directly (faster than fillRect)
@@ -226,22 +226,22 @@ export default defineComponent({
         }
         // -------------------------------------------------------------------------------------------------------------
         function drawGrid(cols: number, rows: number, size: number) {
-            ctx.value!.beginPath()
+            ctx!.beginPath()
             if (size < 8) { // draw a simple grid if size is too small
-                drawHorizontalLine(0, cols, size, ctx.value)
-                drawHorizontalLine(rows, cols, size, ctx.value)
-                drawVerticalLine(0, rows, size, ctx.value)
-                drawVerticalLine(cols, rows, size, ctx.value)
+                drawHorizontalLine(0, cols, size, ctx)
+                drawHorizontalLine(rows, cols, size, ctx)
+                drawVerticalLine(0, rows, size, ctx)
+                drawVerticalLine(cols, rows, size, ctx)
             } else {
                 for (let row = 0; row <= rows; row++) {
-                    drawHorizontalLine(row, cols, size, ctx.value)
+                    drawHorizontalLine(row, cols, size, ctx)
                 }
                 for (let col = 0; col <= cols; col++) {
-                    drawVerticalLine(col, rows, size, ctx.value)
+                    drawVerticalLine(col, rows, size, ctx)
                 }
             }
-            ctx.value!.strokeStyle = '#707070'
-            ctx.value!.stroke()
+            ctx!.strokeStyle = '#707070'
+            ctx!.stroke()
         }
         function drawOverlayGrid(cols: number, rows: number, size: number) {
             overlayCtx!.clearRect(0, 0, canvasWidth, canvasHeight)
