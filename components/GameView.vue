@@ -13,7 +13,7 @@
                 <p absolute text-center transform top-0 class="-translate-x-1/2 left-1/2">x: {{ pointerX }} - y: {{ pointerY }}</p>
             </div>
 
-            <div flex items-start justify-between mt-1>
+            <div flex items-start justify-between my-1>
                 <div flex items-center>
                     <SelectMenu label="Edge Mode :"
                                 :options="[

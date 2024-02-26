@@ -16,12 +16,14 @@ export const useGameStore = defineStore('game', () => {
     const sliderMin = ref<number>(1000)
     const sliderMax = ref<number>(8000)
 
+    const sidebarRightOpen = ref<boolean>(false)
+
     const maxNeighbours = computed(() => Math.max.apply(Math, BORN.value.concat(SURVIVES.value))) // the maximum number of neighbours
 
     return {
         size, rows, cols,
         isRunning, wasRunning, hoveredSide,
         SPEED, EDGEMODE, BORN, SURVIVES,
-        sliderMin, sliderMax, maxNeighbours
+        sliderMin, sliderMax, maxNeighbours, sidebarRightOpen
     }
 })
