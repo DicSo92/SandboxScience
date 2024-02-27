@@ -1,6 +1,5 @@
 <template>
     <div relative mx-2 min-w-48>
-        <label id="listbox-label" class="block text-sm font-medium leading-6">Speed</label>
         <div relative mt-1>
             <input type="range"
                    :step="step"
@@ -12,7 +11,7 @@
             <div class="relative z-10 h-2">
                 <div class="absolute z-10 left-0 right-0 bottom-0 top-0 rounded-md bg-gray-200"></div>
                 <div class="absolute z-20 top-0 bottom-0 rounded-md bg-purple-400" :style="`right: ${maxOffset}%; left: 0%`"></div>
-                <div class="absolute z-30 w-6 h-6 top-0 left-0 bg-purple-500 rounded-full -mt-2 -ml-1" :style="`left: ${minOffset}%`"></div>
+                <div class="absolute z-30 w-5 h-5 top-0 left-0 bg-purple-500 rounded-full -ml-1" :style="`left: ${minOffset}%; margin-top: -7px;`"></div>
             </div>
         </div>
 
@@ -72,8 +71,8 @@ export default defineComponent({
 <style scoped>
 input[type=range]::-webkit-slider-thumb, ::-moz-range-thumb, ::-ms-thumb {
     pointer-events: all;
-    width: 24px;
-    height: 24px;
+    width: 20px;
+    height: 20px;
     -webkit-appearance: none;
     /* @apply w-6 h-6 appearance-none pointer-events-auto; */
 }

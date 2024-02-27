@@ -6,16 +6,16 @@
 
         <NaiveCanvas ref="naiveCanvas" />
 
-        <div flex flex-col absolute top-0 left-0>
-            <div flex>
-                <div mx-2>Rows: {{game.rows}}</div>
+        <div flex flex-col absolute top-2 left-2>
+            <div class="flex">
+                <div mr-2>Rows: {{game.rows}}</div>
                 <div mx-2>Cols: {{game.cols}}</div>
                 <div mx-2>Cell Size: {{game.size}}</div>
-                <div mx-2>Speed: {{game.SPEED}}</div>
             </div>
-            <div mx-2>Execution Time: {{ Math.round(executionTime) }} ms ({{ averageExecutionTime }}ms)</div>
+            <div>Execution Time: {{ Math.round(executionTime) }} ms ({{ averageExecutionTime }}ms)</div>
         </div>
-        <div absolute w-full text-center transform top-0 class="-translate-x-1/2 left-1/2">x: {{ pointerX }} - y: {{ pointerY }}</div>
+
+        <div absolute w-full text-center transform top-2 class="-translate-x-1/2 left-1/2">x: {{ pointerX }} - y: {{ pointerY }}</div>
 
         <Controls class="absolute bottom-0 mb-2"
                   :naiveCanvas="naiveCanvas"
@@ -24,6 +24,19 @@
                   @killRandom="killRandom"
                   @toggleIsRunning="toggleIsRunning"
         />
+
+        <div class="absolute bottom-0 left-0">
+            <div class="ml-2 mb-1">
+                <div>Speed: {{game.SPEED}}ms/gen</div>
+            </div>
+
+            <div class="p-2 flex items-center bg-gray-600 border-t-1 border-r-1 border-gray rounded-tr-2xl">
+                <div class="block text-sm font-medium leading-6 mr-1">Speed</div>
+                <RangeInput v-if="SPEED" :min="1" :max="1000" :step="1" v-model="SPEED" />
+            </div>
+        </div>
+
+
 
 <!--        <div flex flex-col absolute bottom-0>-->
 <!--            <div flex items-start justify-between my-1>-->
@@ -38,8 +51,6 @@
 <!--                    />-->
 <!--                    <ToggleSwitch />-->
 <!--                </div>-->
-
-<!--                <RangeInput v-if="SPEED" :min="1" :max="1000" :step="1" v-model="SPEED" />-->
 <!--            </div>-->
 <!--&lt;!&ndash;            <RangeInputMinMax :min="100" :max="10000" :step="100" v-model:min-value="sliderMin" v-model:max-value="sliderMax"/>&ndash;&gt;-->
 <!--        </div>-->
