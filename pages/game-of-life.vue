@@ -1,84 +1,58 @@
 <template>
-    <section flex flex-col justify-center h-full>
+    <section flex flex-col justify-center h-full overflow-hidden relative>
         <SidebarRight v-model="sidebarRightOpen">
             <PatternList />
         </SidebarRight>
-        <NaiveCanvas ref="naiveCanvas" />
-        <div flex flex-col>
-            <div flex justify-between>
-                <div flex>
-                    <div mx-2>Rows: {{game.rows}}</div>
-                    <div mx-2>Cols: {{game.cols}}</div>
-                    <div mx-2>Cell Size: {{game.size}}</div>
-                    <div mx-2>Speed: {{game.SPEED}}</div>
-                </div>
-                <div mx-2>Execution Time: {{ Math.round(executionTime) }} ms ({{ averageExecutionTime }}ms)</div>
-                <p absolute text-center transform top-0 class="-translate-x-1/2 left-1/2">x: {{ pointerX }} - y: {{ pointerY }}</p>
-            </div>
 
-            <div flex items-start justify-between my-1>
-                <div flex items-center>
-                    <SelectMenu label="Edge Mode :"
-                                :options="[
-                            { name: 'Mirror Edges', icon: 'i-carbon-compare', id: 2},
-                            { name: 'Dead Edges', icon: 'i-carbon-compare', id: 0},
-                            { name: 'Alive Edges', icon: 'i-carbon-compare', id: 1}]"
-                                :selected="game.EDGEMODE"
-                                @selected="(id) => game.EDGEMODE = id"
-                    />
-                    <ToggleSwitch />
-                </div>
-                <div flex items-start>
-                    <div btn p1 mx-1 flex items-center bg="gray-700 hover:gray-800" @click="getExecutionAverage">
-                        <div i-game-icons-perspective-dice-six-faces-random text-2xl></div>
-                    </div>
-                    <div btn p1 mx-1 flex items-center bg="orange-700 hover:orange-800" @click="randomCells(((game.rows * game.cols) * 20) / 100)">
-                        <div i-fad-arprandom text-2xl></div>
-                    </div>
-                    <div btn p1 mx-1 flex items-center bg="red-700 hover:red-900" @click="killRandom(((game.rows * game.cols) * 20) / 100)">
-                        <div i-tabler-skull text-2xl></div>
-                    </div>
-                    <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="naiveCanvas.newCycle()">
-                        <div i-tabler-player-track-prev-filled text-xl></div>
-                    </div>
-                    <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="naiveCanvas.newCycle()">
-                        <div i-tabler-player-track-next-filled text-xl></div>
-                    </div>
-                    <div btn p2 flex items-center mx-1 bg="green-700 hover:green-900" @click="toggleIsRunning">
-                        <div text-xl :class="game.isRunning ? 'i-tabler-player-pause-filled' : 'i-tabler-player-play-filled'"></div>
-                    </div>
-                    <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="naiveCanvas.handleZoom(1)">
-                        <div i-tabler-zoom-in text-xl></div>
-                    </div>
-                    <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="naiveCanvas.handleZoom(-1)">
-                        <div i-tabler-zoom-out text-xl></div>
-                    </div>
-                    <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="naiveCanvas.expandGrid('left', 1)">
-                        <div i-tabler-arrow-bar-left text-xl></div>
-                    </div>
-                    <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="naiveCanvas.expandGrid('right', 1)">
-                        <div i-tabler-arrow-bar-right text-xl></div>
-                    </div>
-                    <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="naiveCanvas.expandGrid('top', 1)">
-                        <div i-tabler-arrow-bar-to-up text-xl></div>
-                    </div>
-                    <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="naiveCanvas.expandGrid('bottom', 1)">
-                        <div i-tabler-arrow-bar-to-down text-xl></div>
-                    </div>
-                </div>
-                <RangeInput v-if="SPEED" :min="1" :max="1000" :step="1" v-model="SPEED" />
+        <NaiveCanvas ref="naiveCanvas" />
+
+        <div flex flex-col absolute top-0 left-0>
+            <div flex>
+                <div mx-2>Rows: {{game.rows}}</div>
+                <div mx-2>Cols: {{game.cols}}</div>
+                <div mx-2>Cell Size: {{game.size}}</div>
+                <div mx-2>Speed: {{game.SPEED}}</div>
             </div>
-<!--            <RangeInputMinMax :min="100" :max="10000" :step="100" v-model:min-value="sliderMin" v-model:max-value="sliderMax"/>-->
+            <div mx-2>Execution Time: {{ Math.round(executionTime) }} ms ({{ averageExecutionTime }}ms)</div>
         </div>
+        <div absolute w-full text-center transform top-0 class="-translate-x-1/2 left-1/2">x: {{ pointerX }} - y: {{ pointerY }}</div>
+
+        <Controls class="absolute bottom-0 mb-2"
+                  :naiveCanvas="naiveCanvas"
+                  @getExecutionAverage="getExecutionAverage"
+                  @randomCells="randomCells"
+                  @killRandom="killRandom"
+                  @toggleIsRunning="toggleIsRunning"
+        />
+
+<!--        <div flex flex-col absolute bottom-0>-->
+<!--            <div flex items-start justify-between my-1>-->
+<!--                <div flex items-center>-->
+<!--                    <SelectMenu label="Edge Mode :"-->
+<!--                                :options="[-->
+<!--                                    { name: 'Mirror Edges', icon: 'i-carbon-compare', id: 2},-->
+<!--                                    { name: 'Dead Edges', icon: 'i-carbon-compare', id: 0},-->
+<!--                                    { name: 'Alive Edges', icon: 'i-carbon-compare', id: 1}]"-->
+<!--                                :selected="game.EDGEMODE"-->
+<!--                                @selected="(id) => game.EDGEMODE = id"-->
+<!--                    />-->
+<!--                    <ToggleSwitch />-->
+<!--                </div>-->
+
+<!--                <RangeInput v-if="SPEED" :min="1" :max="1000" :step="1" v-model="SPEED" />-->
+<!--            </div>-->
+<!--&lt;!&ndash;            <RangeInputMinMax :min="100" :max="10000" :step="100" v-model:min-value="sliderMin" v-model:max-value="sliderMax"/>&ndash;&gt;-->
+<!--        </div>-->
     </section>
 </template>
 
 <script lang="ts">
 import { defineComponent } from 'vue'
 import PatternList from "~/components/game-of-life/PatternList.vue";
+import Controls from "~/components/game-of-life/Controls.vue";
 
 export default defineComponent({
-    components: { PatternList },
+    components: {Controls, PatternList },
     setup() {
         definePageMeta({ layout: 'life' })
         const game = useGameStore()
@@ -123,8 +97,8 @@ export default defineComponent({
         onMounted(() => {
             useEventListener('resize', naiveCanvas.value.handleResize)
             useEventListener(naiveCanvas, ['mousemove'], (e) => {
-                pointerX.value = e.x - naiveCanvas.value!.canvas.parentNode.offsetLeft
-                pointerY.value = e.y - naiveCanvas.value!.canvas.parentNode.offsetTop
+                pointerX.value = e.x - naiveCanvas.value!.canvas.parentNode.getBoundingClientRect().left
+                pointerY.value = e.y - naiveCanvas.value!.canvas.parentNode.getBoundingClientRect().top
 
                 // Ctrl + button actions
                 if (ctrlKey.value) {
@@ -288,7 +262,7 @@ export default defineComponent({
 </script>
 
 <style scoped>
-    canvas {
-        background-color: midnightblue;
-    }
+canvas {
+    background-color: midnightblue;
+}
 </style>
