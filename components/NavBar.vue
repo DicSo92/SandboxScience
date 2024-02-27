@@ -1,6 +1,11 @@
 <template>
-    <nav class="flex justify-between py-2 px-3 bg-gray-800 z-100">
-        <div class="font-semibold">SandboxScience</div>
+    <nav class="flex py-2 px-3 bg-gray-800 z-100">
+        <NuxtLink to="/">
+            <div class="font-semibold">SandboxScience</div>
+        </NuxtLink>
+        <div class="ml-8 flex">
+            <NuxtLink to="/game-of-life" class="mx-2">Game Of Life</NuxtLink>
+        </div>
     </nav>
 </template>
 

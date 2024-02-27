@@ -20,10 +20,26 @@ export const useGameStore = defineStore('game', () => {
 
     const maxNeighbours = computed(() => Math.max.apply(Math, BORN.value.concat(SURVIVES.value))) // the maximum number of neighbours
 
+    function $reset() {
+        size.value = 16
+        rows.value = 256
+        cols.value = 256
+        isRunning.value = false
+        wasRunning.value = false
+        hoveredSide.value = null
+        SPEED.value = 1
+        EDGEMODE.value = 2
+        BORN.value = [3]
+        SURVIVES.value = [2, 3]
+        sliderMin.value = 1000
+        sliderMax.value = 8000
+        sidebarRightOpen.value = false
+    }
+
     return {
         size, rows, cols,
         isRunning, wasRunning, hoveredSide,
         SPEED, EDGEMODE, BORN, SURVIVES,
-        sliderMin, sliderMax, maxNeighbours, sidebarRightOpen
+        sliderMin, sliderMax, maxNeighbours, sidebarRightOpen, $reset
     }
 })
