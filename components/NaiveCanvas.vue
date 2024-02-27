@@ -20,6 +20,7 @@ export default defineComponent({
         let imageDataArray: Int32Array | number[]
         let rowx: number = 0 // starting row
         let colx: number = 0 // starting column
+        let pop: number = 0
 
         let cellsArray: Int32Array[]
         let cellsArrayNext: Int32Array[]
@@ -131,6 +132,7 @@ export default defineComponent({
         function newCycle() {
             ctx!.clearRect(0, 0, canvasWidth, canvasHeight)
             drawCellsWithRules()
+            game.generation++
         }
         function drawCellsWithRules() {
             imageData = ctx!.createImageData(canvasWidth, canvasHeight)
@@ -145,13 +147,19 @@ export default defineComponent({
 
             // logic to draw cells
             // cellsArrayNext = Array(cols).fill(null).map(() => new Int32Array(rows).fill(0)) // old way, garbage collection is slow
+            pop = 0
             for (let y = 0; y < rows; y++) {
                 for (let x = 0; x < cols; x++) {
                     const cellState = processRules(x, y, SURVIVES, BORN, aliveNeighbours(x, y, maxNeighbours, cellsArray, rows, cols))
                     cellsArrayNext[x][y] = cellState
-                    if (cellState === 1) fillSquare(x, y, size, colx, rowx)
+                    if (cellState === 1) {
+                        pop++
+                        fillSquare(x, y, size, colx, rowx)
+                    }
                 }
             }
+            game.population = pop
+
             // copy cellsArrayNext to cellsArray
             // Optimize by not creating a new array (cellsArrayNext) on each cycle (see above)
             // Garbage collection is slow, so we should avoid creating big arrays on each cycle
@@ -187,11 +195,17 @@ export default defineComponent({
             const rows = game.rows.valueOf()
             const size = game.size.valueOf()
 
+            pop = 0
             for (let y = 0; y < rows; y++) { // create cells array
                 for (let x = 0; x < cols; x++) {
-                    if (cellsArray[x][y] === 1) fillSquare(x, y, size, colx, rowx)
+                    if (cellsArray[x][y] === 1) {
+                        pop++
+                        fillSquare(x, y, size, colx, rowx)
+                    }
                 }
             }
+            game.population = pop
+
             ctx!.putImageData(imageData, 0, 0)
             drawGrid(cols, rows, size)
         }

@@ -18,6 +18,9 @@ export const useGameStore = defineStore('game', () => {
 
     const sidebarRightOpen = ref<boolean>(false)
 
+    const population = ref<number>(0) // the population (number of living cells)
+    const generation = ref<number>(0) // the generation (number of iterations)
+
     const maxNeighbours = computed(() => Math.max.apply(Math, BORN.value.concat(SURVIVES.value))) // the maximum number of neighbours
 
     function $reset() {
@@ -40,6 +43,6 @@ export const useGameStore = defineStore('game', () => {
         size, rows, cols,
         isRunning, wasRunning, hoveredSide,
         SPEED, EDGEMODE, BORN, SURVIVES,
-        sliderMin, sliderMax, maxNeighbours, sidebarRightOpen, $reset
+        sliderMin, sliderMax, maxNeighbours, sidebarRightOpen, $reset, population, generation
     }
 })

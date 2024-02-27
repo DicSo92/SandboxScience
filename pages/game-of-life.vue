@@ -13,6 +13,8 @@
                 <div mx-2>Cell Size: {{game.size}}</div>
             </div>
             <div>Execution Time: {{ Math.round(executionTime) }} ms ({{ averageExecutionTime }}ms)</div>
+            <div>Generation: {{ game.generation }}</div>
+            <div>Population: {{ game.population }}</div>
         </div>
 
         <div absolute w-full text-center transform top-2 class="-translate-x-1/2 left-1/2">x: {{ pointerX }} - y: {{ pointerY }}</div>
