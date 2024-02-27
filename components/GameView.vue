@@ -1,5 +1,8 @@
 <template>
     <section flex flex-col justify-center h-full>
+        <SidebarRight v-model="sidebarRightOpen">
+            <PatternList />
+        </SidebarRight>
         <NaiveCanvas ref="naiveCanvas" />
         <div flex flex-col>
             <div flex justify-between>
@@ -72,8 +75,10 @@
 
 <script lang="ts">
 import { defineComponent } from 'vue'
+import PatternList from "~/components/game-of-life/PatternList.vue";
 
 export default defineComponent({
+    components: {PatternList},
     setup() {
         const game = useGameStore()
         const naiveCanvas = ref( )
@@ -89,7 +94,7 @@ export default defineComponent({
         let startExecutionTime: number // for calculating execution time
         let lastTime: number | null // for calculating elapsed time
 
-        const { SPEED, sliderMin, sliderMax } = storeToRefs(useGameStore())
+        const { SPEED, sliderMin, sliderMax, sidebarRightOpen } = storeToRefs(useGameStore())
         const timer = ref()
 
         const keys = useMagicKeys()
@@ -270,7 +275,7 @@ export default defineComponent({
         }
         // -------------------------------------------------------------------------------------------------------------
         return {
-            game, averageExecutionTime, executionTime, SPEED, sliderMin, sliderMax, naiveCanvas, pointerX, pointerY,
+            game, averageExecutionTime, executionTime, SPEED, sliderMin, sliderMax, naiveCanvas, pointerX, pointerY, sidebarRightOpen,
             randomCells, killRandom, toggleIsRunning, startLoop, pause, getExecutionAverage
         }
     }
