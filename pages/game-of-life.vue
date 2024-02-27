@@ -1,8 +1,33 @@
 <template>
     <section flex flex-col justify-center h-full overflow-hidden relative>
         <SidebarRight v-model="sidebarRightOpen">
-            <PatternList />
+            <template #controls><!-- Some other controls --></template>
+            <template #default>
+                <PatternList />
+            </template>
         </SidebarRight>
+        <SidebarLeft v-model="sidebarLeftOpen">
+            <template #controls>
+            </template>
+            <template #default>
+                <div px-4>
+                    <p>Settings</p>
+                    <hr>
+                    <div flex items-center justify-between>
+                        <SelectMenu label="Edge Mode :"
+                                    :options="[
+                                            { name: 'Mirror Edges', icon: 'i-carbon-compare', id: 2},
+                                            { name: 'Dead Edges', icon: 'i-carbon-compare', id: 0},
+                                            { name: 'Alive Edges', icon: 'i-carbon-compare', id: 1}]"
+                                    :selected="game.EDGEMODE"
+                                    @selected="(id) => game.EDGEMODE = id"
+                        />
+                        <ToggleSwitch />
+                    </div>
+<!--                    <RangeInputMinMax :min="100" :max="10000" :step="100" v-model:min-value="sliderMin" v-model:max-value="sliderMax"/>-->
+                </div>
+            </template>
+        </SidebarLeft>
 
         <NaiveCanvas ref="naiveCanvas" />
 
@@ -37,25 +62,6 @@
                 <RangeInput v-if="SPEED" :min="1" :max="1000" :step="1" v-model="SPEED" />
             </div>
         </div>
-
-
-
-<!--        <div flex flex-col absolute bottom-0>-->
-<!--            <div flex items-start justify-between my-1>-->
-<!--                <div flex items-center>-->
-<!--                    <SelectMenu label="Edge Mode :"-->
-<!--                                :options="[-->
-<!--                                    { name: 'Mirror Edges', icon: 'i-carbon-compare', id: 2},-->
-<!--                                    { name: 'Dead Edges', icon: 'i-carbon-compare', id: 0},-->
-<!--                                    { name: 'Alive Edges', icon: 'i-carbon-compare', id: 1}]"-->
-<!--                                :selected="game.EDGEMODE"-->
-<!--                                @selected="(id) => game.EDGEMODE = id"-->
-<!--                    />-->
-<!--                    <ToggleSwitch />-->
-<!--                </div>-->
-<!--            </div>-->
-<!--&lt;!&ndash;            <RangeInputMinMax :min="100" :max="10000" :step="100" v-model:min-value="sliderMin" v-model:max-value="sliderMax"/>&ndash;&gt;-->
-<!--        </div>-->
     </section>
 </template>
 
@@ -82,7 +88,7 @@ export default defineComponent({
         let startExecutionTime: number // for calculating execution time
         let lastTime: number | null // for calculating elapsed time
 
-        const { SPEED, sliderMin, sliderMax, sidebarRightOpen } = storeToRefs(useGameStore())
+        const { SPEED, sliderMin, sliderMax, sidebarLeftOpen, sidebarRightOpen } = storeToRefs(useGameStore())
         const timer = ref()
 
         const keys = useMagicKeys()
@@ -266,7 +272,7 @@ export default defineComponent({
         }
         // -------------------------------------------------------------------------------------------------------------
         return {
-            game, averageExecutionTime, executionTime, SPEED, sliderMin, sliderMax, naiveCanvas, pointerX, pointerY, sidebarRightOpen,
+            game, averageExecutionTime, executionTime, SPEED, sliderMin, sliderMax, naiveCanvas, pointerX, pointerY, sidebarLeftOpen, sidebarRightOpen,
             randomCells, killRandom, toggleIsRunning, startLoop, pause, getExecutionAverage
         }
     }

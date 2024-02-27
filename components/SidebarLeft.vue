@@ -1,20 +1,19 @@
 <template>
     <div>
-        <div my-3 mx-1 fixed right-0 z-10 :style="toggleBtnStyle">
-            <button rounded-full btn flex items-center p-4 id="sidebarRightBtn" bg="gray-800 hover:gray-900" @click="toggle">
-                <span i-tabler-list-details text-2xl></span>
+        <div my-3 mx-1 fixed left-0 z-10 :style="toggleBtnStyle">
+            <button rounded-full btn flex items-center p-4 id="sidebarLeftBtn" bg="gray-800 hover:gray-900" @click="toggle">
+                <span i-tabler-settings text-2xl></span>
             </button>
             <slot name="controls"></slot>
         </div>
-
         <Transition enter-active-class="transform transition-transform ease-out duration-300"
-                    enter-from-class="translate-x-full"
+                    enter-from-class="-translate-x-full"
                     enter-to-class="translate-x-0"
                     leave-active-class="transform transition-transform ease-in duration-200"
                     leave-from-class="translate-x-0"
-                    leave-to-class="translate-x-full">
+                    leave-to-class="-translate-x-full">
             <div v-show="modelValue" :style="`width: ${sidebarWidth}px`"
-                 class="z-50 fixed inset-y-0 right-0 max-w-full max-h-full flex overflow-hidden border-l border-gray-400"> <!-- inset-y-0 for fullheight sidebar -->
+                 class="z-50 fixed inset-y-0 left-0 max-w-full max-h-full flex overflow-hidden border-r border-gray-400"> <!-- inset-y-0 for fullheight sidebar -->
                 <div class="h-full w-full flex flex-col pb-4 pt-12 bg-gray-600 shadow-xl">
                     <slot></slot>
                 </div>
@@ -43,9 +42,9 @@ export default defineComponent({
 
         const toggleBtnStyle = computed(() => {
             return {
-                transition: `right 0.3s ${props.modelValue ? 'ease-out' : 'ease-in'}`,
+                transition: `left 0.3s ${props.modelValue ? 'ease-out' : 'ease-in'}`,
                 // transition: `right 0.3s ease-out`,
-                right: `${props.modelValue ? sidebarWidth.value : 0}px`
+                left: `${props.modelValue ? sidebarWidth.value : 0}px`
             }
         })
 
@@ -56,7 +55,7 @@ export default defineComponent({
 </script>
 
 <style scoped>
-#sidebarRightBtn {
+#sidebarLeftBtn {
 
 }
 </style>

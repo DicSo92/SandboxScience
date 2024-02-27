@@ -16,6 +16,7 @@ export const useGameStore = defineStore('game', () => {
     const sliderMin = ref<number>(1000)
     const sliderMax = ref<number>(8000)
 
+    const sidebarLeftOpen = ref<boolean>(false)
     const sidebarRightOpen = ref<boolean>(false)
 
     const population = ref<number>(0) // the population (number of living cells)
@@ -43,6 +44,7 @@ export const useGameStore = defineStore('game', () => {
         size, rows, cols,
         isRunning, wasRunning, hoveredSide,
         SPEED, EDGEMODE, BORN, SURVIVES,
-        sliderMin, sliderMax, maxNeighbours, sidebarRightOpen, $reset, population, generation
+        sliderMin, sliderMax, maxNeighbours,
+        sidebarLeftOpen, sidebarRightOpen, $reset, population, generation
     }
 })
