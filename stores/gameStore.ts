@@ -24,6 +24,10 @@ export const useGameStore = defineStore('game', () => {
 
     const maxNeighbours = computed(() => Math.max.apply(Math, BORN.value.concat(SURVIVES.value))) // the maximum number of neighbours
 
+
+    const twoStateTheme = ref({})
+    const multiStateTheme = ref({})
+
     function $reset() {
         size.value = 16
         rows.value = 256
