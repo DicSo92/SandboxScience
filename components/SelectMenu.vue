@@ -54,7 +54,7 @@ export default defineComponent({
             required: true
         },
         selected: {
-            type: Number,
+            type: [Number, String],
             required: true
         }
     },

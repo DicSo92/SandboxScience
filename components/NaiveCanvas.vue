@@ -7,6 +7,7 @@
 
 <script lang="ts">
 import { aliveNeighbours, initAliveNeighboursFunc, pixelToCell } from "~/helpers/utils/naiveLife";
+import { generateColorRange, hexToBgr, bgrToHex, themes } from "~/helpers/utils/themes";
 
 export default defineComponent({
     setup() {
@@ -31,6 +32,18 @@ export default defineComponent({
         const zoom = ref(0)
         const prevChangedCell = ref<{ x: number, y: number } | null>(null)
 
+        let aliveSteps = 0
+        let deadSteps = 0
+        let themeColors = {
+            background: <number | null>null,
+            alive: <number | null>null,
+            aliveRamp: <number | null>null,
+            dead: <number | null>null,
+            deadRamp: <number | null>null,
+            aliveColors: <number[] | null>null,
+            deadColors: <number[] | null>null
+        }
+
         onMounted(() => {
             ctx = canvas.value?.getContext('2d') || undefined
             overlayCtx = overlayCanvas.value?.getContext('2d') || undefined
@@ -39,6 +52,9 @@ export default defineComponent({
         watch(() => game.EDGEMODE, () => {
             console.log('EDGEMODE changed', game.EDGEMODE)
             initAliveNeighboursFunc(game.EDGEMODE)
+        })
+        watch(() => game.themeId, (newValue, prevValue) => {
+            initThemeAndRules(prevValue)
         })
         // -------------------------------------------------------------------------------------------------------------
         function toggleCell(cursorX: number, cursorY: number, type?: "draw" | "erase" | "toggle") {
@@ -119,6 +135,7 @@ export default defineComponent({
         }
         // -------------------------------------------------------------------------------------------------------------
         function initCanvas() {
+            initThemeAndRules(undefined, true)
             cellsArrayNext = Array(game.cols).fill(null).map(() => new Int32Array(game.rows).fill(0))
             cellsArray = Array(game.cols).fill(null).map(() => new Int32Array(game.rows).fill(0))
 
@@ -152,10 +169,7 @@ export default defineComponent({
                 for (let x = 0; x < cols; x++) {
                     const cellState = processRules(x, y, SURVIVES, BORN, aliveNeighbours(x, y, maxNeighbours, cellsArray, rows, cols))
                     cellsArrayNext[x][y] = cellState
-                    if (cellState === 1) {
-                        pop++
-                        fillSquare(x, y, size, colx, rowx)
-                    }
+                    processCell(cellState, x, y, size)
                 }
             }
             game.population = pop
@@ -173,19 +187,6 @@ export default defineComponent({
             ctx!.putImageData(imageData, 0, 0)
             drawGrid(cols, rows, size)
         }
-        function processRules(x: number, y: number, SURVIVES: any, BORN: any, aliveNeighbours: number): number { // return if cell has changed
-            const cell = cellsArray[x][y]
-            if (cell === 1 && SURVIVES.includes(aliveNeighbours)) { // Survives
-                // cellsArrayNext[x][y] = 1
-                return 1
-            } else if (cell !== 1 && BORN.includes(aliveNeighbours)) { // Born
-                // cellsArrayNext[x][y] = 1
-                return 1
-            } else { // Dies
-                // cellsArrayNext[x][y] = 0
-                return 0
-            }
-        }
         function drawCellsFromCellsArray() {
             ctx!.clearRect(0, 0, canvasWidth, canvasHeight)
 
@@ -198,10 +199,7 @@ export default defineComponent({
             pop = 0
             for (let y = 0; y < rows; y++) { // create cells array
                 for (let x = 0; x < cols; x++) {
-                    if (cellsArray[x][y] === 1) {
-                        pop++
-                        fillSquare(x, y, size, colx, rowx)
-                    }
+                    processCell(cellsArray[x][y], x, y, size)
                 }
             }
             game.population = pop
@@ -209,7 +207,75 @@ export default defineComponent({
             ctx!.putImageData(imageData, 0, 0)
             drawGrid(cols, rows, size)
         }
-        function fillSquare(x: number, y: number, floatCellSize: number, colx: number, rowx: number) { // fill a square by changing the imageDataArray values directly (faster than fillRect)
+        function initThemeAndRules(prevTheme?: number, isInit: boolean = false) {
+            aliveSteps = game.aliveSteps.valueOf()
+            deadSteps = game.deadSteps.valueOf()
+
+            const theme = themes[game.themeId]
+            setTheme(theme)
+            if (theme.type === 'simple') { // Dead Mode
+                processRules = processRulesClassic
+                processCell = processCellClassic
+                if (prevTheme !== undefined && themes[prevTheme].type === 'history') {
+                    cellsArray = cellsArray.map(row => row.map(cell => cell < 0 ? -1 : cell > 0 ? 1 : 0))
+                }
+            } else if (theme.type === 'history') { // Alive Mode
+                processRules = processRulesColors
+                processCell = processCellColors
+                if (prevTheme !== undefined && themes[prevTheme].type === 'simple') {
+                    cellsArray = cellsArray.map(row => row.map(cell => cell < 0 ? -deadSteps : cell))
+                }
+            } else {
+                console.log('EDGEMODE not found')
+            }
+            if (!isInit) drawCellsFromCellsArray()
+        }
+
+        let processRules: (x: number, y: number, SURVIVES: any, BORN: any, aliveNeighbours: number) => number
+        function processRulesClassic(x: number, y: number, SURVIVES: any, BORN: any, aliveNeighbours: number): number { // return if cell has changed
+            const cell = cellsArray[x][y]
+            if (cell === 1 && SURVIVES.includes(aliveNeighbours)) { // Survives
+                return 1
+            } else if (cell !== 1 && BORN.includes(aliveNeighbours)) { // Born
+                return 1
+            } else { // Dies
+                if (cell === 0) return 0
+                else return -1 // cell was alive and dies
+            }
+        }
+        function processRulesColors(x: number, y: number, SURVIVES: any, BORN: any, aliveNeighbours: number): number { // return if cell has changed
+            const cell = cellsArray[x][y]
+            if (cell > 0 && SURVIVES.includes(aliveNeighbours)) { // Survives
+                return Math.min(aliveSteps, cell + 1)
+            } else if (cell <= 0 && BORN.includes(aliveNeighbours)) { // Born
+                return 1
+            } else { // Dies or stays dead
+                if (cell > 0) return -1
+                else if (cell < 0) {
+                    return Math.max(-deadSteps, cell - 1)
+                } else {
+                    return 0
+                }
+            }
+        }
+        let processCell: (cellState: number, x: number, y: number, size: number) => void
+        function processCellClassic(cellState: number, x: number, y: number, size: number) {
+            if (cellState > 0) {
+                pop++
+                fillSquare(x, y, size, colx, rowx, themeColors.alive!)
+            }
+        }
+        function processCellColors(cellState: number, x: number, y: number, size: number) {
+            if (cellState > 0) {
+                pop++
+                // console.log('Applying alive color:', themeColors.aliveColors![cellState - 1]);
+                fillSquare(x, y, size, colx, rowx, themeColors.aliveColors![cellState - 1])
+            } else if (cellState < 0) {
+                // console.log('Applying dead color:', themeColors.deadColors![Math.abs(cellState) - 1])
+                fillSquare(x, y, size, colx, rowx, themeColors.deadColors![Math.abs(cellState) - 1])
+            }
+        }
+        function fillSquare(x: number, y: number, floatCellSize: number, colx: number, rowx: number, cellColor: number) { // fill a square by changing the imageDataArray values directly (faster than fillRect)
             x = x * floatCellSize
             y = y * floatCellSize
             let width = cellSize
@@ -219,23 +285,29 @@ export default defineComponent({
                 width += (x + Math.floor(colx))
                 x = -Math.floor(colx)
             }
-            if ((x + colx) + width > canvasWidth) { // if cell is outside the canvas on the right
+            else if ((x + colx) + width > canvasWidth) { // if cell is outside the canvas on the right
                 width = canvasWidth - (x + Math.floor(colx))
             }
+            if (width < 0) return // if cell is outside the canvas horizontally (or too small)
+
             if ((y + rowx) < 0) { // if cell is outside the canvas on the top
                 height += (y + Math.floor(rowx))
                 y = -Math.floor(rowx)
             }
-            if ((y + rowx) + height > canvasHeight) { // if cell is outside the canvas on the bottom
+            else if ((y + rowx) + height > canvasHeight) { // if cell is outside the canvas on the bottom
                 height = canvasHeight - (y + Math.floor(rowx))
             }
+            if (height < 0) return // if cell is outside the canvas vertically (or too small)
 
             let imageDataIndex = ((Math.floor(rowx) + Math.floor(y)) * canvasWidth) + (Math.floor(colx) + Math.floor(x)) // Get the index of the first pixel of the cell
-            for (let i = 0; i < Math.floor(height); i++) {
-                for (let j = 0; j < Math.floor(width); j++) { // fill a row
-                    imageDataArray![imageDataIndex++] = 0xff000000
+            width = Math.floor(width) // Make sure width is an integer
+            height = Math.floor(height) // Make sure height is an integer
+            const widthOffset = canvasWidth - width  // Offset to jump to the next row
+            for (let i = 0; i < height; i++) {
+                for (let j = 0; j < width; j++) { // fill a row
+                    imageDataArray![imageDataIndex++] = cellColor
                 }
-                imageDataIndex += canvasWidth - Math.floor(width) // jump to next row
+                imageDataIndex += widthOffset // jump to next row
             }
         }
         // -------------------------------------------------------------------------------------------------------------
@@ -343,6 +415,19 @@ export default defineComponent({
         function setCell(x: number, y: number, value: number) {
             cellsArray[x][y] = value
         }
+        function setTheme(theme: any) {
+            themeColors.background = theme.BACKGROUND
+            themeColors.alive = bgrToHex(hexToBgr(theme.ALIVE)!)
+            themeColors.dead = bgrToHex(hexToBgr(theme.DEAD)!)
+            if (theme.ALIVERAMP) {
+                themeColors.aliveRamp = theme.ALIVERAMP || null
+                themeColors.aliveColors = theme.ALIVERAMP ? generateColorRange(theme.ALIVE, theme.ALIVERAMP, aliveSteps) : null
+            }
+            if (theme.DEADRAMP) {
+                themeColors.deadRamp = theme.DEADRAMP || null
+                themeColors.deadColors = theme.DEADRAMP ? generateColorRange(theme.DEAD, theme.DEADRAMP, deadSteps) : null
+            }
+        }
         // -------------------------------------------------------------------------------------------------------------
         return { canvas, ctx, prevChangedCell, overlayCanvas, handleSideHover, drawOverlayGrid,
             newCycle, drawCellsFromCellsArray, handleZoom, handleResize, toggleCell,
@@ -354,7 +439,7 @@ export default defineComponent({
 
 <style scoped>
 #canvas {
-    @apply bg-gray-700;
+    background: #303030;
     width: 100%;
     height: 100%;
     cursor: crosshair;

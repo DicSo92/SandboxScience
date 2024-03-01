@@ -13,6 +13,10 @@ export const useGameStore = defineStore('game', () => {
     const BORN = shallowRef<number[]>([3]) // the number of neighbours for a dead cell to born
     const SURVIVES =  shallowRef<number[]>([2, 3]) // the number of neighbours for a living cell to survive
 
+    const themeId = ref<number>(0) // the theme id
+    const aliveSteps = ref<number>(48)
+    const deadSteps = ref<number>(48)
+
     const sliderMin = ref<number>(1000)
     const sliderMax = ref<number>(8000)
 
@@ -47,7 +51,7 @@ export const useGameStore = defineStore('game', () => {
     return {
         size, rows, cols,
         isRunning, wasRunning, hoveredSide,
-        SPEED, EDGEMODE, BORN, SURVIVES,
+        SPEED, EDGEMODE, BORN, SURVIVES, themeId, aliveSteps, deadSteps,
         sliderMin, sliderMax, maxNeighbours,
         sidebarLeftOpen, sidebarRightOpen, $reset, population, generation
     }

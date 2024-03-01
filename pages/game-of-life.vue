@@ -24,6 +24,11 @@
                         />
                         <ToggleSwitch />
                     </div>
+                    <SelectMenu label="Theme :"
+                                :options="themes.map((theme, index) => ({ name: theme.name, icon: 'i-carbon-compare', id: index }))"
+                                :selected="game.themeId"
+                                @selected="(id) => game.themeId = id"
+                    />
 <!--                    <RangeInputMinMax :min="100" :max="10000" :step="100" v-model:min-value="sliderMin" v-model:max-value="sliderMax"/>-->
                 </div>
             </template>
@@ -40,9 +45,6 @@
             <div>Execution Time: {{ Math.round(executionTime) }} ms ({{ averageExecutionTime }}ms)</div>
             <div>Generation: {{ game.generation }}</div>
             <div>Population: {{ game.population }}</div>
-            <div btn p1 mx-1 flex items-center bg="gray-700 hover:gray-800" @click="getColors">
-                <div i-game-icons-perspective-dice-six-faces-random text-2xl></div>
-            </div>
         </div>
 
         <div absolute w-full text-center transform top-2 class="-translate-x-1/2 left-1/2">x: {{ pointerX }} - y: {{ pointerY }}</div>
@@ -72,10 +74,9 @@
 import { defineComponent } from 'vue'
 import PatternList from "~/components/game-of-life/PatternList.vue";
 import Controls from "~/components/game-of-life/Controls.vue";
-import {generateColorRange} from "~/helpers/utils/themes";
+import { generateColorRange, themes } from "~/helpers/utils/themes";
 
 export default defineComponent({
-    methods: {generateColorRange},
     components: {Controls, PatternList },
     setup() {
         definePageMeta({ layout: 'life' })
@@ -276,13 +277,10 @@ export default defineComponent({
             averageExecutionTime.value = Math.floor(totalExecutionTime / totalCycles)
         }
         // -------------------------------------------------------------------------------------------------------------
-        function getColors() {
-            const colors = generateColorRange('#00ffff', '#ffffff', 10)
-            console.log(colors)
-        }
         return {
-            game, averageExecutionTime, executionTime, SPEED, sliderMin, sliderMax, naiveCanvas, pointerX, pointerY, sidebarLeftOpen, sidebarRightOpen,
-            randomCells, killRandom, toggleIsRunning, startLoop, pause, getExecutionAverage, getColors
+            game, averageExecutionTime, executionTime, SPEED, sliderMin, sliderMax,
+            naiveCanvas, pointerX, pointerY, sidebarLeftOpen, sidebarRightOpen, themes,
+            randomCells, killRandom, toggleIsRunning, startLoop, pause, getExecutionAverage
         }
     }
 })

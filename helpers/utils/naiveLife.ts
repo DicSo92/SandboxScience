@@ -26,7 +26,7 @@ const aliveNeighboursDead = (x: number, y: number, maxNeighbours: number, cellsA
         for (let dx = -1; dx <= 1; dx++) {
             if (dx === 0 && dy === 0) continue
             const newX = x + dx
-            if (newX >= 0 && newX < cols && cellsArray[newX][newY] === 1) {
+            if (newX >= 0 && newX < cols && cellsArray[newX][newY] > 0) {
                 numNeighbours++
                 if (numNeighbours > maxNeighbours) return numNeighbours
             }
@@ -53,7 +53,7 @@ const aliveNeighboursAlive = (x: number, y: number, maxNeighbours: number, cells
             if (dx === 0 && dy === 0) continue
             const newX = x + dx
             const newY = y + dy
-            if (newX < 0 || newX >= cols || newY < 0 || newY >= rows || cellsArray[newX][newY] === 1) { // if outside the grid or alive
+            if (newX < 0 || newX >= cols || newY < 0 || newY >= rows || cellsArray[newX][newY] > 0) { // if outside the grid or alive
                 numNeighbours++
                 if (numNeighbours > maxNeighbours) return numNeighbours
             }
@@ -77,7 +77,7 @@ const aliveNeighboursMirror = (x: number, y: number, maxNeighbours: number, cell
             // const newX = (x + dx + cols) & (cols - 1) // opposite x on the grid with bitwise operator
             // const newY = (y + dy + rows) & (rows - 1) // opposite y on the grid with bitwise operator
 
-            if (cellsArray[newX][newY] === 1) {
+            if (cellsArray[newX][newY] > 0) {
                 numNeighbours++
                 if (numNeighbours > maxNeighbours) return numNeighbours
             }
