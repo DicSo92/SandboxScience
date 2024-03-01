@@ -53,7 +53,7 @@
                   :naiveCanvas="naiveCanvas"
                   @getExecutionAverage="getExecutionAverage"
                   @randomCells="randomCells"
-                  @killRandom="killRandom"
+                  @clearCells="clearCells"
                   @toggleIsRunning="toggleIsRunning"
         />
 
@@ -74,7 +74,7 @@
 import { defineComponent } from 'vue'
 import PatternList from "~/components/game-of-life/PatternList.vue";
 import Controls from "~/components/game-of-life/Controls.vue";
-import { generateColorRange, themes } from "~/helpers/utils/themes";
+import { themes } from "~/helpers/utils/themes";
 
 export default defineComponent({
     components: {Controls, PatternList },
@@ -225,51 +225,38 @@ export default defineComponent({
             requestAnimationFrame(animate)
         }
         // -------------------------------------------------------------------------------------------------------------
-        const randomCells = (num: number) => {
+
+        const randomCells = (percentage: number) => {
             const cellsArray = naiveCanvas.value.getCellsArray()
-            const isAllCellsAlive = cellsArray.every((row: any[]) => row.every(cell => cell === 1))
-            if (isAllCellsAlive) {
-                console.log("All cells are already alive.")
-                return
-            }
-            let count = 0
-            let attempts = 0
-            while (count < num) {
-                if (attempts > game.cols * game.rows * 10) {
-                    console.log("Too many attempts to find dead cells. Stopping...")
-                    break
+            let totalDeadCells = 0
+            for (let i = 0; i < game.cols; i++) {
+                for (let j = 0; j < game.rows; j++) {
+                    if (cellsArray[i][j] <= 0) {
+                        totalDeadCells++
+                    }
                 }
+            }
+            console.log('totalDeadCells', totalDeadCells)
+            const cellsToLive = Math.floor(totalDeadCells * (percentage / 100))
+            let count = 0
+            while (count < cellsToLive) {
                 const randomX = Math.floor(Math.random() * game.cols)
                 const randomY = Math.floor(Math.random() * game.rows)
-                if (cellsArray[randomX][randomY] === 0) {
+                if (cellsArray[randomX][randomY] <= 0) {
                     naiveCanvas.value.setCell(randomX, randomY, 1)
                     count++
                 }
-                attempts++
             }
             if (!game.isRunning) naiveCanvas.value.drawCellsFromCellsArray()
         }
-        const killRandom = (num: number) => {
+        const clearCells = () => {
             const cellsArray = naiveCanvas.value.getCellsArray()
-            const isAllCellsAlive = cellsArray.every((row: any[]) => row.every(cell => cell !== 1))
-            if (isAllCellsAlive) {
-                console.log("All cells are already dead.")
-                return
-            }
-            let count = 0
-            let attempts = 0
-            while (count < num) {
-                if (attempts > game.cols * game.rows * 10) {
-                    console.log("Too many attempts to find alive cells. Stopping...")
-                    break
+            for (let i = 0; i < game.cols; i++) {
+                for (let j = 0; j < game.rows; j++) {
+                    if (cellsArray[i][j] !== 0) {
+                        naiveCanvas.value.setCell(i, j, 0)
+                    }
                 }
-                const randomX = Math.floor(Math.random() * game.cols)
-                const randomY = Math.floor(Math.random() * game.rows)
-                if (cellsArray[randomX][randomY] === 1) {
-                    naiveCanvas.value.setCell(randomX, randomY, 0)
-                    count++
-                }
-                attempts++
             }
             if (!game.isRunning) naiveCanvas.value.drawCellsFromCellsArray()
         }
@@ -280,7 +267,7 @@ export default defineComponent({
         return {
             game, averageExecutionTime, executionTime, SPEED, sliderMin, sliderMax,
             naiveCanvas, pointerX, pointerY, sidebarLeftOpen, sidebarRightOpen, themes,
-            randomCells, killRandom, toggleIsRunning, startLoop, pause, getExecutionAverage
+            randomCells, clearCells, toggleIsRunning, startLoop, pause, getExecutionAverage
         }
     }
 })

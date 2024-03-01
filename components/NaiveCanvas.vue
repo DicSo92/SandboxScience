@@ -417,6 +417,7 @@ export default defineComponent({
         }
         function setTheme(theme: any) {
             themeColors.background = theme.BACKGROUND
+            canvas.value!.style.background = theme.BACKGROUND
             themeColors.alive = bgrToHex(hexToBgr(theme.ALIVE)!)
             themeColors.dead = bgrToHex(hexToBgr(theme.DEAD)!)
             if (theme.ALIVERAMP) {

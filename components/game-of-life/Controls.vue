@@ -3,10 +3,10 @@
         <div btn p1 mx-1 flex items-center bg="gray-700 hover:gray-800" @click="$emit('getExecutionAverage')">
             <div i-game-icons-perspective-dice-six-faces-random text-2xl></div>
         </div>
-        <div btn p1 mx-1 flex items-center bg="orange-700 hover:orange-800" @click="$emit('randomCells', ((game.rows * game.cols) * 20) / 100)">
+        <div btn p1 mx-1 flex items-center bg="orange-700 hover:orange-800" @click="$emit('randomCells', 10)">
             <div i-fad-arprandom text-2xl></div>
         </div>
-        <div btn p1 mx-1 flex items-center bg="red-700 hover:red-900" @click="$emit('killRandom', ((game.rows * game.cols) * 20) / 100)">
+        <div btn p1 mx-1 flex items-center bg="red-700 hover:red-900" @click="$emit('clearCells')">
             <div i-tabler-skull text-2xl></div>
         </div>
         <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="naiveCanvas.newCycle()">
