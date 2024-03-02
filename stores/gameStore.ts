@@ -13,21 +13,21 @@ export const useGameStore = defineStore('game', () => {
     const BORN = shallowRef<number[]>([3]) // the number of neighbours for a dead cell to born
     const SURVIVES =  shallowRef<number[]>([2, 3]) // the number of neighbours for a living cell to survive
 
+    const grid = ref<boolean>(true)
     const themeId = ref<number>(0) // the theme id
     const aliveSteps = ref<number>(48)
     const deadSteps = ref<number>(48)
 
-    const sliderMin = ref<number>(1000)
-    const sliderMax = ref<number>(8000)
+    const population = ref<number>(0) // the population (number of living cells)
+    const generation = ref<number>(0) // the generation (number of iterations)
 
     const sidebarLeftOpen = ref<boolean>(false)
     const sidebarRightOpen = ref<boolean>(false)
 
-    const population = ref<number>(0) // the population (number of living cells)
-    const generation = ref<number>(0) // the generation (number of iterations)
-
     const maxNeighbours = computed(() => Math.max.apply(Math, BORN.value.concat(SURVIVES.value))) // the maximum number of neighbours
 
+    const sliderMin = ref<number>(1000)
+    const sliderMax = ref<number>(8000)
 
     const twoStateTheme = ref({})
     const multiStateTheme = ref({})
@@ -51,8 +51,10 @@ export const useGameStore = defineStore('game', () => {
     return {
         size, rows, cols,
         isRunning, wasRunning, hoveredSide,
-        SPEED, EDGEMODE, BORN, SURVIVES, themeId, aliveSteps, deadSteps,
-        sliderMin, sliderMax, maxNeighbours,
-        sidebarLeftOpen, sidebarRightOpen, $reset, population, generation
+        SPEED, EDGEMODE, BORN, SURVIVES,
+        grid, themeId, aliveSteps, deadSteps,
+        population, generation, sidebarLeftOpen, sidebarRightOpen,
+        maxNeighbours, $reset,
+        sliderMin, sliderMax,
     }
 })

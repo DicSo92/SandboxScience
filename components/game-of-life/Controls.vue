@@ -24,6 +24,9 @@
         <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="naiveCanvas.handleZoom(-1)">
             <div i-tabler-zoom-out text-xl></div>
         </div>
+        <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="naiveCanvas.toggleGrid">
+            <div text-xl :class="game.grid ? 'i-tabler-square' : 'i-tabler-grid-4x4'"></div>
+        </div>
 <!--        <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="naiveCanvas.expandGrid('left', 1)">-->
 <!--            <div i-tabler-arrow-bar-left text-xl></div>-->
 <!--        </div>-->

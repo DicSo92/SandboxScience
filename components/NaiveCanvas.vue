@@ -28,6 +28,7 @@ export default defineComponent({
         let canvasWidth: number = 0
         let canvasHeight: number = 0
         let cellSize: number = Math.max(1, game.size.valueOf())
+        let grid: boolean = true
 
         const zoom = ref(0)
         const prevChangedCell = ref<{ x: number, y: number } | null>(null)
@@ -76,6 +77,11 @@ export default defineComponent({
                 cellsArrayNext[cell.x][cell.y] = newState
             }
             prevChangedCell.value = cell
+            drawCellsFromCellsArray()
+        }
+        function toggleGrid() {
+            grid = !grid
+            game.grid = grid
             drawCellsFromCellsArray()
         }
         function handleZoom(zoomFactor: number, cursorX?: number, cursorY?: number) {
@@ -135,6 +141,7 @@ export default defineComponent({
         }
         // -------------------------------------------------------------------------------------------------------------
         function initCanvas() {
+            grid = game.grid
             initThemeAndRules(undefined, true)
             cellsArrayNext = Array(game.cols).fill(null).map(() => new Int32Array(game.rows).fill(0))
             cellsArray = Array(game.cols).fill(null).map(() => new Int32Array(game.rows).fill(0))
@@ -319,11 +326,13 @@ export default defineComponent({
                 drawVerticalLine(0, rows, size, ctx)
                 drawVerticalLine(cols, rows, size, ctx)
             } else {
-                for (let row = 0; row <= rows; row++) {
-                    drawHorizontalLine(row, cols, size, ctx)
-                }
-                for (let col = 0; col <= cols; col++) {
-                    drawVerticalLine(col, rows, size, ctx)
+                if (grid) {
+                    for (let row = 0; row <= rows; row++) {
+                        drawHorizontalLine(row, cols, size, ctx)
+                    }
+                    for (let col = 0; col <= cols; col++) {
+                        drawVerticalLine(col, rows, size, ctx)
+                    }
                 }
             }
             ctx!.strokeStyle = '#707070'
@@ -430,9 +439,10 @@ export default defineComponent({
             }
         }
         // -------------------------------------------------------------------------------------------------------------
-        return { canvas, ctx, prevChangedCell, overlayCanvas, handleSideHover, drawOverlayGrid,
-            newCycle, drawCellsFromCellsArray, handleZoom, handleResize, toggleCell,
-            handleMove, getCellsArray, setCell, expandGrid, handleGridResize
+        return { canvas, ctx, prevChangedCell, overlayCanvas,
+            handleSideHover, handleZoom, handleResize, handleGridResize, handleMove,
+            drawOverlayGrid, expandGrid, toggleGrid, toggleCell, setCell,
+            newCycle, drawCellsFromCellsArray, getCellsArray
         }
     }
 })
