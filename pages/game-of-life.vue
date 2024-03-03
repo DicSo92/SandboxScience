@@ -77,7 +77,7 @@ import Controls from "~/components/game-of-life/Controls.vue";
 import { themes } from "~/helpers/utils/themes";
 
 export default defineComponent({
-    components: {Controls, PatternList },
+    components: { Controls, PatternList },
     setup() {
         definePageMeta({ layout: 'life' })
         const game = useGameStore()
