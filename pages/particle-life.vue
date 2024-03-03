@@ -8,43 +8,44 @@
 import { defineComponent } from "vue";
 export default defineComponent({
     setup() {
-        // const canvasEl: Ref<HTMLCanvasElement | undefined> = ref()
-        const canvasRef = ref<HTMLCanvasElement | null>(null)
+        const canvasRef = ref<HTMLCanvasElement | undefined>()
         let ctx: CanvasRenderingContext2D | undefined
         let canvasWidth: number = 0
         let canvasHeight: number = 0
 
-        let particles: any[] = []
-        let particleGroups: any[] = []
+        const numParticles: number = 2000
+        const particleSize: number = 2
+        const numColors: number = 6
+
+        const colorList: string[] = ['yellow', 'red', 'green', 'cyan', 'magenta', 'blue', 'white', 'orange', 'purple', 'pink']
+        let currentColors: number[] = []
         let rulesMatrix: number[][] = []
 
-        const particleSize: number = 1
-        const forceRadius: number = 80 * 80
-        const numParticles: number = 500
-        let numColors: number = 4
-        let viscosity = 1
-        let time_scale = 0.85
+        let maxRadius: number = 40 // maximum distance for particles to start attracting
+        let minRadius: number = 20 // minimum distance for particles to start repelling
+        let repel: number = 1 // repel force for particles that are too close to each other
+        let forceFactor: number = 0.4 // Decrease will increase the impact of the force on the velocity
+        let frictionFactor: number = 0.5 // Slow down the particles (0 to 1, where 1 is no friction)
 
-        const colorList: string[] = ['yellow', 'red', 'green', 'cyan', 'magenta', 'blue', 'white']
-        let currentColors: number[] = []
+        let colors = new Int32Array(numParticles)
+        let positionX = new Float32Array(numParticles)
+        let positionY = new Float32Array(numParticles)
+        let velocityX = new Float32Array(numParticles).fill(0)
+        let velocityY = new Float32Array(numParticles).fill(0)
+
 
         onMounted(() => {
             ctx = canvasRef.value?.getContext('2d') || undefined
             canvasWidth = canvasRef.value!.width = canvasRef.value!.clientWidth
             canvasHeight = canvasRef.value!.height = canvasRef.value!.clientHeight
-            console.log(canvasHeight, canvasWidth)
-
             initLife()
-            rulesMatrix = makeRandomMatrix()
-            console.log(rulesMatrix)
-            console.table(rulesMatrix)
             update()
         })
         function initLife() {
             initColors()
-            for (let i = 0; i < numColors; ++i) {
-                particleGroups.push(create(numParticles, currentColors[i]))
-            }
+            initParticles()
+            rulesMatrix = makeRandomMatrix()
+            console.table(rulesMatrix)
         }
         function initColors() {
             currentColors = [];
@@ -52,7 +53,13 @@ export default defineComponent({
                 currentColors.push(i);
             }
         }
-
+        function initParticles() {
+            for (let i = 0; i < numParticles; ++i) {
+                colors[i] = currentColors[Math.floor(Math.random() * numColors)]
+                positionX[i] = Math.random() * canvasWidth
+                positionY[i] = Math.random() * canvasHeight
+            }
+        }
         function makeRandomMatrix() {
             let matrix: number[][] = []
             for (let i = 0; i < numColors; i++) {
@@ -63,150 +70,59 @@ export default defineComponent({
             }
             return matrix
         }
-
         function draw(x: number, y: number, color: number, size: number) {
             ctx!.fillStyle = colorList[color]
             ctx!.fillRect(x, y, size, size)
         }
-        function newParticle(x: number, y: number, color: string) {
-            // return { x: x, y: y, vx: 0, vy: 0, color: color }
-            return [x, y, 0, 0, color]
-        }
-        function random() {
-            return Math.random() * canvasWidth -50
-        }
-        function create(count: number, color: number) {
-            let group = []
-            for (let i = 0; i < count; i++) {
-                group.push([random(), random(), 0, 0, color])
-                particles.push(group[i])
+        function getForce(ruleFactor: number, distance: number) {
+            if (distance < minRadius) {
+                return (repel / minRadius) * distance - repel
+            } else if (distance > maxRadius) {
+                return 0
+            } else {
+                let mid = (minRadius + maxRadius) / 2
+                let slope = ruleFactor / (mid - minRadius)
+                return -(slope * Math.abs(distance - mid)) + ruleFactor
             }
-            return group
         }
+        function processRules() {
+            for (let i = 0; i < numParticles; i++) {
+                for (let j = 0; j < numParticles; j++) {
+                    if (i === j) continue
+                    let distanceX = Math.abs(positionX[i] - positionX[j])
+                    let distanceY = Math.abs(positionY[i] - positionY[j])
+                    const distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY)
+                    if (distance < maxRadius) {
+                        const force = getForce(rulesMatrix[colors[i]][colors[j]], distance)
 
-        function processRules(particlesA: any[], particlesB: any[], g: number) { // g is the gravitational constant
-            // for (const a of particles) {
-            //     let forceX = 0
-            //     let forceY = 0
-            //     for (const b of particles) {
-            //         if (a === b) continue
-            //         let distanceX = a[0] - b[0]
-            //         let distanceY = a[1] - b[1]
-            //         if (distanceX !== 0 && distanceY !== 0) {
-            //             // distance between the two particles (pythagorean theorem)
-            //             const distance = distanceX * distanceX + distanceY * distanceY
-            //             if (distance < forceRadius) {
-            //                 // gravitational force
-            //                 const force = rulesMatrix[a[4]][b[4]] / Math.sqrt(distance) // f = g * m1 * m2 / r^2 simplified to f = g / r where m1 and m2 are 1
-            //                 forceX += force * distanceX
-            //                 forceY += force * distanceY
-            //             }
-            //         }
-            //         const vmix = (1. - viscosity);
-            //         a[2] = a[2] * vmix + forceX * time_scale
-            //         a[3] = a[3] * vmix + forceY * time_scale
-            //
-            //         a[0] += a[2]
-            //         a[1] += a[3]
-            //
-            //         // When Atoms touch or bypass canvas borders
-            //         if (a[0] < 0) {
-            //             a[0] = -a[0];
-            //             a[2] *= -1;
-            //         }
-            //         if (a[0] >= canvasWidth) {
-            //             a[0] = 2 * canvasWidth - a[0];
-            //             a[2] *= -1;
-            //         }
-            //         if (a[1] < 0) {
-            //             a[1] = -a[1];
-            //             a[3] *= -1;
-            //         }
-            //         if (a[1] >= canvasHeight) {
-            //             a[1] = 2 * canvasHeight - a[1];
-            //             a[3] *= -1;
-            //         }
-            //     }
-            // }
+                        let dx = (positionX[j] - positionX[i])
+                        let dy = (positionY[j] - positionY[i])
 
-            for (let i = 0; i < particlesA.length; i++) {
-                let forceX = 0
-                let forceY = 0
-                let a = particlesA[i]
-                for (let j = 0; j < particlesB.length; j++) {
-                    let b = particlesB[j]
-                    if (a === b) continue
-                    let distanceX = a[0] - b[0]
-                    let distanceY = a[1] - b[1]
-                    if (distanceX !== 0 && distanceY !== 0) {
-                        // distance between the two particles (pythagorean theorem)
-                        const distance = distanceX * distanceX + distanceY * distanceY
-                        if (distance < forceRadius) {
-                            // gravitational force
-                            const force = g / Math.sqrt(distance) // f = g * m1 * m2 / r^2 simplified to f = g / r where m1 and m2 are 1
-                            forceX += force * distanceX
-                            forceY += force * distanceY
-                        }
+                        let cos = dx / distance
+                        let sin = dy / distance
+
+                        velocityX[i] += cos * force * (1 / forceFactor)
+                        velocityY[i] += sin * force * (1 / forceFactor)
                     }
                 }
-                const vmix = (1. - viscosity);
-                a[2] = a[2] * vmix + forceX * time_scale
-                a[3] = a[3] * vmix + forceY * time_scale
-
-                a[0] += a[2]
-                a[1] += a[3]
-
-                // When Atoms touch or bypass canvas borders
-                if (a[0] < 0) {
-                    a[0] = -a[0];
-                    a[2] *= -1;
-                }
-                if (a[0] >= canvasWidth) {
-                    a[0] = 2 * canvasWidth - a[0];
-                    a[2] *= -1;
-                }
-                if (a[1] < 0) {
-                    a[1] = -a[1];
-                    a[3] *= -1;
-                }
-                if (a[1] >= canvasHeight) {
-                    a[1] = 2 * canvasHeight - a[1];
-                    a[3] *= -1;
-                }
-
-
-                // // Velocity Verlet integration
-                // // v = u + at from the law of motion (velocity = initial velocity + acceleration * time)
-                // a[2] = (a[2] + forceX) * 0.5 // a = f / m where m = 1
-                // a[3] = (a[3] + forceY) * 0.5
-                // // Set the new positions
-                // a[0] += a[2]
-                // a[1] += a[3]
-                // // Reverse the direction of the particle if it hits the wall
-                // if (a[0] <= 0 || a[0] >= canvasWidth) { a[2] *= -1 }
-                // if (a[1] <= 0 || a[1] >= canvasHeight) { a[3] *= -1 }
+            }
+        }
+        function updateParticles() {
+            ctx!.clearRect(0, 0, canvasWidth, canvasHeight)
+            for (let i = 0; i < numParticles; i++) {
+                velocityX[i] *= frictionFactor
+                velocityY[i] *= frictionFactor
+                positionX[i] += velocityX[i]
+                positionY[i] += velocityY[i]
+                draw(positionX[i], positionY[i], currentColors[colors[i]], particleSize)
             }
         }
         function update() {
             const startExecutionTime = performance.now()
-
-            // processRules()
-
-            for (let i = 0; i < particleGroups.length; i++) {
-                const groupA = particleGroups[i]
-                for (let j = 0; j < particleGroups.length; j++) {
-                    const groupB = particleGroups[j]
-                    processRules(groupA, groupB, Math.random() * 2 - 1) // -1 attracts, 1 repels
-                }
-            }
-
-            ctx!.clearRect(0, 0, canvasWidth, canvasHeight)
-            for (let i = 0; i < particles.length; i++) {
-                const particle = particles[i]
-                draw(particle[0], particle[1], particle[4], particleSize)
-            }
+            processRules()
+            updateParticles()
             const executionTime = performance.now() - startExecutionTime
-            // console.log('Execution time: ', executionTime + 'ms')
+            console.log('Execution time: ', executionTime + 'ms')
             requestAnimationFrame(update)
         }
 
