@@ -16,7 +16,7 @@ export default defineComponent({
         const numParticles: number = 2000
         const particleSize: number = 2
         const numColors: number = 10
-        const randomZDepth: number = 20
+        const randomZDepth: number = 5
         const is3D: boolean = true
 
         const colorList: string[] = ['yellow', 'red', 'green', 'cyan', 'magenta', 'blue', 'white', 'orange', 'purple', 'pink']
@@ -45,6 +45,9 @@ export default defineComponent({
         let lastPointerX: number = 0
         let lastPointerY: number = 0
         let zoomFactor: number = 1
+
+        let endHorizontalX = 0
+        let endVerticalY = 0
 
         onMounted(() => {
             ctx = lifeCanvas.value?.getContext('2d') || undefined
@@ -83,6 +86,7 @@ export default defineComponent({
         function handleResize() {
             canvasWidth = lifeCanvas.value!.width = lifeCanvas.value!.clientWidth
             canvasHeight = lifeCanvas.value!.height = lifeCanvas.value!.clientHeight
+            setEndCoordinates()
         }
         function handleMove() {
             if (isDragging) {
@@ -90,6 +94,7 @@ export default defineComponent({
                 cameraOffsetY += (pointerY - lastPointerY) / zoomFactor
                 lastPointerX = pointerX
                 lastPointerY = pointerY
+                setEndCoordinates()
             }
         }
         function handleZoom(delta: number, x: number, y: number) {
@@ -104,6 +109,8 @@ export default defineComponent({
             const dy = (y - canvasHeight / 2) / (zoomFactor*zoomFactor)
             cameraOffsetX -= dx
             cameraOffsetY -= dy
+
+            setEndCoordinates()
         }
         // -------------------------------------------------------------------------------------------------------------
         function initLife() {
@@ -137,6 +144,15 @@ export default defineComponent({
             return matrix
         }
         // -------------------------------------------------------------------------------------------------------------
+        function update() {
+            const startExecutionTime = performance.now()
+            processRules()
+            updateParticles()
+            drawGrid()
+            const executionTime = performance.now() - startExecutionTime
+            // console.log('Execution time: ', executionTime + 'ms')
+            requestAnimationFrame(update)
+        }
         function draw(x: number, y: number, z: number, color: number, size: number) {
             const depthFactor = 1 - z / canvasHeight // Adjust this factor to control the depth effect
             const newSize = size * depthFactor * zoomFactor
@@ -208,13 +224,28 @@ export default defineComponent({
                 draw(positionX[i], positionY[i], positionZ[i], currentColors[colors[i]], particleSize)
             }
         }
-        function update() {
-            const startExecutionTime = performance.now()
-            processRules()
-            updateParticles()
-            const executionTime = performance.now() - startExecutionTime
-            // console.log('Execution time: ', executionTime + 'ms')
-            requestAnimationFrame(update)
+        // -------------------------------------------------------------------------------------------------------------
+        function drawGrid() {
+            ctx!.beginPath()
+            drawHorizontalLine(endHorizontalX, cameraOffsetY * zoomFactor) // Draw top line
+            drawHorizontalLine(endHorizontalX, (cameraOffsetY + canvasHeight) * zoomFactor) // Draw bottom line
+            drawVerticalLine(cameraOffsetX * zoomFactor, endVerticalY) // Draw left line
+            drawVerticalLine((cameraOffsetX + canvasWidth) * zoomFactor, endVerticalY) // Draw right line
+            ctx!.strokeStyle = 'rgba(255, 255, 255, 0.8)'
+            ctx!.lineWidth = 1
+            ctx!.stroke()
+        }
+        function drawHorizontalLine(x: number, y: number) {
+            ctx!.moveTo(cameraOffsetX * zoomFactor, y)
+            ctx!.lineTo(x, y)
+        }
+        function drawVerticalLine(x: number, y: number) {
+            ctx!.moveTo(x, cameraOffsetY * zoomFactor)
+            ctx!.lineTo(x, y)
+        }
+        function setEndCoordinates() {
+            endHorizontalX = cameraOffsetX * zoomFactor + canvasWidth * zoomFactor
+            endVerticalY = cameraOffsetY * zoomFactor + canvasHeight * zoomFactor
         }
 
         return { lifeCanvas }
