@@ -99,18 +99,15 @@ export default defineComponent({
             }
         }
         function handleZoom(delta: number, x: number, y: number) {
+            const oldZoomFactor = zoomFactor
             const zoomIntensity = 0.1
-            zoomFactor += delta * zoomIntensity
+            const zoomDelta = delta * zoomIntensity
+            zoomFactor = Math.max(0.2, Math.min(10, zoomFactor + zoomDelta))
+
+            cameraOffsetX -= x * ((zoomFactor / oldZoomFactor) - 1)
+            cameraOffsetY -= y * ((zoomFactor / oldZoomFactor) - 1)
+
             console.log(zoomFactor)
-            zoomFactor = Math.max(0.1, Math.min(6, zoomFactor))
-            // cameraOffsetX = x - (x - cameraOffsetX) * zoomFactor
-            // cameraOffsetY = y - (y - cameraOffsetY) * zoomFactor
-
-            const dx = (x - canvasWidth / 2) / (zoomFactor*zoomFactor)
-            const dy = (y - canvasHeight / 2) / (zoomFactor*zoomFactor)
-            cameraOffsetX -= dx
-            cameraOffsetY -= dy
-
             setEndCoordinates()
         }
         // -------------------------------------------------------------------------------------------------------------
@@ -155,7 +152,7 @@ export default defineComponent({
             requestAnimationFrame(update)
         }
         function draw(x: number, y: number, z: number, color: number, size: number) {
-            const depthFactor = 1 - z / canvasHeight // Adjust this factor to control the depth effect
+            const depthFactor = 1 - z / canvasHeight * zoomFactor // Adjust this factor to control the depth effect
             const newSize = size * depthFactor * zoomFactor
             if (newSize <= 0) return
             ctx!.fillStyle = colorList[color]
