@@ -13,11 +13,12 @@ export default defineComponent({
         let canvasWidth: number = 0
         let canvasHeight: number = 0
 
-        const numParticles: number = 2000
+        const numParticles: number = 4000
         const particleSize: number = 2
         const numColors: number = 10
         const randomZDepth: number = 5
-        const is3D: boolean = true
+        const minZ: number = -180
+        const maxZ:number = 180
 
         const colorList: string[] = ['yellow', 'red', 'green', 'cyan', 'magenta', 'blue', 'white', 'orange', 'purple', 'pink']
         let currentColors: number[] = []
@@ -150,7 +151,7 @@ export default defineComponent({
             updateParticles()
             drawGrid()
             const executionTime = performance.now() - startExecutionTime
-            // console.log('Execution time: ', executionTime + 'ms')
+            console.log('Execution time: ', executionTime + 'ms')
             requestAnimationFrame(update)
         }
         function draw(x: number, y: number, z: number, color: number, size: number) {
@@ -178,39 +179,286 @@ export default defineComponent({
                 return -(slope * Math.abs(distance - mid)) + ruleFactor
             }
         }
+        // // Naive Original Function
+        // function processRules() {
+        //     for (let i = 0; i < numParticles; i++) {
+        //         const posXA = positionX[i]
+        //         const posYA = positionY[i]
+        //         const posZA = positionZ[i]
+        //         for (let j = 0; j < numParticles; j++) {
+        //             if (i === j) continue
+        //             const posXB = positionX[j]
+        //             const posYB = positionY[j]
+        //             const posZB = positionZ[j]
+        //
+        //             let distanceX = Math.abs(posXA - posXB)
+        //             let distanceY = Math.abs(posYA - posYB)
+        //             let distanceZ = Math.abs(posZA - posZB)
+        //             const distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY + distanceZ * distanceZ)
+        //             if (distance < maxRadius) {
+        //                 const force = getForce(rulesMatrix[colors[i]][colors[j]], distance)
+        //
+        //                 distanceX = (posXB - posXA)
+        //                 distanceY = (posYB - posYA)
+        //                 distanceZ = (posZB - posZA)
+        //
+        //                 // Wrap around the screen
+        //
+        //
+        //                 const cos = distanceX / distance
+        //                 const sin = distanceY / distance
+        //                 const tan = distanceZ / distance
+        //
+        //                 velocityX[i] += cos * force * (1 / forceFactor)
+        //                 velocityY[i] += sin * force * (1 / forceFactor)
+        //                 velocityZ[i] += tan * force * (1 / forceFactor)
+        //             }
+        //         }
+        //     }
+        // }
+
+
+        // // Map foreach Loop processRules()
+        // function processRules() {
+        //     const cellSize = maxRadius * 2
+        //     const cells = new Map<string, number[]>()
+        //
+        //     // Assign each particle to a cell
+        //     for (let i = 0; i < numParticles; i++) {
+        //         const cellX = Math.floor(positionX[i] / cellSize)
+        //         const cellY = Math.floor(positionY[i] / cellSize)
+        //         const cellKey = `${cellX},${cellY}`
+        //
+        //         if (!cells.has(cellKey)) {
+        //             cells.set(cellKey, [])
+        //         }
+        //
+        //         cells.get(cellKey)!.push(i)
+        //     }
+        //
+        //     // Process each cell
+        //     cells.forEach((particles, cellKey) => {
+        //         const [cellX, cellY] = cellKey.split(',').map(Number)
+        //
+        //         // Process each particle in the cell
+        //         particles.forEach(indexA => {
+        //             const posXA = positionX[indexA]
+        //             const posYA = positionY[indexA]
+        //             const posZA = positionZ[indexA]
+        //
+        //             // Process each neighboring cell
+        //             for (let offsetY = -1; offsetY <= 1; offsetY++) {
+        //                 for (let offsetX = -1; offsetX <= 1; offsetX++) {
+        //                     const neighborX = cellX + offsetX
+        //                     const neighborY = cellY + offsetY
+        //                     const neighborKey = `${neighborX},${neighborY}`
+        //
+        //                     const neighbors = cells.get(neighborKey) || []
+        //
+        //                     // Process each particle in the neighboring cell
+        //                     neighbors.forEach(indexB => {
+        //                         // Skip if processing the same particle
+        //                         if (indexA === indexB) {
+        //                             return
+        //                         }
+        //
+        //                         let posXB = positionX[indexB]
+        //                         let posYB = positionY[indexB]
+        //                         const posZB = positionZ[indexB]
+        //
+        //                         let distanceX = Math.abs(posXA - posXB)
+        //                         let distanceY = Math.abs(posYA - posYB)
+        //                         let distanceZ = Math.abs(posZA - posZB)
+        //
+        //                         const distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY + distanceZ * distanceZ)
+        //                         if (distance < maxRadius) {
+        //                             const force = getForce(rulesMatrix[colors[indexA]][colors[indexB]], distance)
+        //
+        //                             distanceX = (posXB - posXA)
+        //                             distanceY = (posYB - posYA)
+        //                             distanceZ = (posZB - posZA)
+        //
+        //                             const cos = distanceX / distance
+        //                             const sin = distanceY / distance
+        //                             const tan = distanceZ / distance
+        //
+        //                             velocityX[indexA] += cos * force * (1 / forceFactor)
+        //                             velocityY[indexA] += sin * force * (1 / forceFactor)
+        //                             velocityZ[indexA] += tan * force * (1 / forceFactor)
+        //                         }
+        //                     })
+        //                 }
+        //             }
+        //         })
+        //     })
+        //     console.log("cells :", cells.size)
+        // }
+
+
+        // For Loop processRules()
+        // function processRules() {
+        //     const cellSize = maxRadius * 2
+        //     const cells = new Map<string, number[]>()
+        //
+        //     // Assign each particle to a cell
+        //     for (let i = 0; i < numParticles; i++) {
+        //         const cellX = Math.floor(positionX[i] / cellSize)
+        //         const cellY = Math.floor(positionY[i] / cellSize)
+        //         const cellKey = `${cellX},${cellY}`
+        //
+        //         if (!cells.has(cellKey)) {
+        //             cells.set(cellKey, [])
+        //         }
+        //
+        //         cells.get(cellKey)!.push(i)
+        //     }
+        //
+        //     // Process each cell
+        //     for (let [cellKey, particles] of cells) {
+        //         const [cellX, cellY] = cellKey.split(',').map(Number)
+        //
+        //         // Process each particle in the cell
+        //         for (let i = 0; i < particles.length; i++) {
+        //             const indexA = particles[i]
+        //             const posXA = positionX[indexA]
+        //             const posYA = positionY[indexA]
+        //             const posZA = positionZ[indexA]
+        //
+        //             // Process each neighboring cell
+        //             for (let offsetY = -1; offsetY <= 1; offsetY++) {
+        //                 for (let offsetX = -1; offsetX <= 1; offsetX++) {
+        //                     const neighborX = cellX + offsetX
+        //                     const neighborY = cellY + offsetY
+        //                     const neighborKey = `${neighborX},${neighborY}`
+        //
+        //                     if (!cells.has(neighborKey)) {
+        //                         continue
+        //                     }
+        //
+        //                     const neighbors = cells.get(neighborKey)!
+        //
+        //                     // Process each particle in the neighboring cell
+        //                     for (let j = 0; j < neighbors.length; j++) {
+        //                         const indexB = neighbors[j]
+        //
+        //                         // Skip if processing the same particle
+        //                         if (indexA === indexB) {
+        //                             continue
+        //                         }
+        //
+        //                         let posXB = positionX[indexB]
+        //                         let posYB = positionY[indexB]
+        //                         const posZB = positionZ[indexB]
+        //
+        //                         let distanceX = Math.abs(posXA - posXB)
+        //                         let distanceY = Math.abs(posYA - posYB)
+        //                         let distanceZ = Math.abs(posZA - posZB)
+        //
+        //                         const distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY + distanceZ * distanceZ)
+        //                         if (distance < maxRadius) {
+        //                             const force = getForce(rulesMatrix[colors[indexA]][colors[indexB]], distance)
+        //
+        //                             distanceX = (posXB - posXA)
+        //                             distanceY = (posYB - posYA)
+        //                             distanceZ = (posZB - posZA)
+        //
+        //                             const cos = distanceX / distance
+        //                             const sin = distanceY / distance
+        //                             const tan = distanceZ / distance
+        //
+        //                             velocityX[indexA] += cos * force * (1 / forceFactor)
+        //                             velocityY[indexA] += sin * force * (1 / forceFactor)
+        //                             velocityZ[indexA] += tan * force * (1 / forceFactor)
+        //                         }
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+        //     console.log("cells :", cells.size)
+        // }
+
+        // For Loop Optimized
         function processRules() {
+            const cellSize = maxRadius * 2
+            const cells = new Map<string, number[]>()
+
+            // Assign each particle to a cell
             for (let i = 0; i < numParticles; i++) {
-                const posXA = positionX[i]
-                const posYA = positionY[i]
-                const posZA = positionZ[i]
-                for (let j = 0; j < numParticles; j++) {
-                    if (i === j) continue
-                    const posXB = positionX[j]
-                    const posYB = positionY[j]
-                    const posZB = positionZ[j]
+                const cellX = Math.floor(positionX[i] / cellSize)
+                const cellY = Math.floor(positionY[i] / cellSize)
+                const cellKey = `${cellX},${cellY}`
 
-                    let distanceX = Math.abs(posXA - posXB)
-                    let distanceY = Math.abs(posYA - posYB)
-                    let distanceZ = Math.abs(posZA - posZB)
-                    const distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY + distanceZ * distanceZ)
-                    if (distance < maxRadius) {
-                        const force = getForce(rulesMatrix[colors[i]][colors[j]], distance)
+                if (!cells.has(cellKey)) {
+                    cells.set(cellKey, [])
+                }
 
-                        distanceX = (posXB - posXA)
-                        distanceY = (posYB - posYA)
-                        distanceZ = (posZB - posZA)
+                cells.get(cellKey)!.push(i)
+            }
 
-                        const cos = distanceX / distance
-                        const sin = distanceY / distance
-                        const tan = distanceZ / distance
+            // Process each cell
+            for (let [cellKey, particles] of cells) {
+                const [cellX, cellY] = cellKey.split(',').map(Number)
 
-                        velocityX[i] += cos * force * (1 / forceFactor)
-                        velocityY[i] += sin * force * (1 / forceFactor)
-                        velocityZ[i] += tan * force * (1 / forceFactor)
+                // Process each particle in the cell
+                for (let i = 0; i < particles.length; i++) {
+                    const indexA = particles[i]
+                    const posXA = positionX[indexA]
+                    const posYA = positionY[indexA]
+                    const posZA = positionZ[indexA]
+
+                    // Process each neighboring cell
+                    for (let offsetY = -1; offsetY <= 1; offsetY++) {
+                        for (let offsetX = -1; offsetX <= 1; offsetX++) {
+                            const neighborX = cellX + offsetX
+                            const neighborY = cellY + offsetY
+                            const neighborKey = `${neighborX},${neighborY}`
+
+                            if (!cells.has(neighborKey)) {
+                                continue
+                            }
+
+                            const neighbors = cells.get(neighborKey)!
+
+                            // Process each particle in the neighboring cell
+                            for (let j = 0; j < neighbors.length; j++) {
+                                const indexB = neighbors[j]
+                                if (indexA === indexB) continue // Skip if processing the same particle
+
+                                let posXB = positionX[indexB]
+                                let posYB = positionY[indexB]
+                                const posZB = positionZ[indexB]
+
+                                let distanceX = Math.abs(posXA - posXB)
+                                let distanceY = Math.abs(posYA - posYB)
+                                let distanceZ = Math.abs(posZA - posZB)
+
+                                const distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY + distanceZ * distanceZ)
+                                if (distance < maxRadius) {
+                                    const force = getForce(rulesMatrix[colors[indexA]][colors[indexB]], distance)
+
+                                    distanceX = posXB - posXA
+                                    distanceY = posYB - posYA
+                                    distanceZ = posZB - posZA
+
+                                    const cos = distanceX / distance
+                                    const sin = distanceY / distance
+                                    const tan = distanceZ / distance
+
+                                    const newForce = force * (1 / forceFactor)
+                                    velocityX[indexA] += cos * newForce
+                                    velocityY[indexA] += sin * newForce
+                                    velocityZ[indexA] += tan * newForce
+                                }
+                            }
+                        }
                     }
                 }
             }
+            // console.log("cells :", cells.size)
         }
+
+
         function updateParticles() {
             ctx!.clearRect(0, 0, canvasWidth, canvasHeight)
             for (let i = 0; i < numParticles; i++) {
@@ -220,6 +468,34 @@ export default defineComponent({
                 positionX[i] += velocityX[i]
                 positionY[i] += velocityY[i]
                 positionZ[i] += velocityZ[i]
+
+                // // Bounce off the walls
+                // if (positionX[i] > canvasWidth || positionX[i] < 0) {
+                //     positionX[i] -= velocityX[i];
+                //     velocityX[i] *= -1;
+                // }
+                // if (positionY[i] > canvasHeight || positionY[i] < 0) {
+                //     positionY[i] -= velocityY[i];
+                //     velocityY[i] *= -1;
+                // }
+                if (positionZ[i] > maxZ || positionZ[i] < minZ) {
+                    positionZ[i] -= velocityZ[i];
+                    velocityZ[i] *= -1;
+                }
+
+                // // Wrap around the screen
+                // if (positionX[i] > canvasWidth) {
+                //     positionX[i] -= canvasWidth
+                // }
+                // if (positionX[i] < 0) {
+                //     positionX[i] = canvasWidth - positionX[i]
+                // }
+                // if (positionY[i] > canvasHeight) {
+                //     positionY[i] -= canvasHeight
+                // }
+                // if (positionY[i] < 0) {
+                //     positionY[i] = canvasHeight - positionY[i]
+                // }
 
                 draw(positionX[i], positionY[i], positionZ[i], currentColors[colors[i]], particleSize)
             }
