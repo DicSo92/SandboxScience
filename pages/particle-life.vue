@@ -1,6 +1,6 @@
 <template>
     <section h-full flex>
-        <canvas ref="canvasRef" @contextmenu.prevent w-full h-full></canvas>
+        <canvas ref="lifeCanvas" @contextmenu.prevent w-full h-full></canvas>
     </section>
 </template>
 
@@ -8,14 +8,15 @@
 import { defineComponent } from "vue";
 export default defineComponent({
     setup() {
-        const canvasRef = ref<HTMLCanvasElement | undefined>()
+        const lifeCanvas = ref<HTMLCanvasElement | undefined>()
         let ctx: CanvasRenderingContext2D | undefined
         let canvasWidth: number = 0
         let canvasHeight: number = 0
 
         const numParticles: number = 2000
         const particleSize: number = 2
-        const numColors: number = 8
+        const numColors: number = 10
+        const randomZDepth: number = 20
         const is3D: boolean = true
 
         const colorList: string[] = ['yellow', 'red', 'green', 'cyan', 'magenta', 'blue', 'white', 'orange', 'purple', 'pink']
@@ -36,13 +37,75 @@ export default defineComponent({
         let velocityY = new Float32Array(numParticles).fill(0)
         let velocityZ = new Float32Array(numParticles).fill(0)
 
+        let pointerX: number = 0
+        let pointerY: number = 0
+        let isDragging: boolean = false
+        let cameraOffsetX: number = 0
+        let cameraOffsetY: number = 0
+        let lastPointerX: number = 0
+        let lastPointerY: number = 0
+        let zoomFactor: number = 1
+
         onMounted(() => {
-            ctx = canvasRef.value?.getContext('2d') || undefined
-            canvasWidth = canvasRef.value!.width = canvasRef.value!.clientWidth
-            canvasHeight = canvasRef.value!.height = canvasRef.value!.clientHeight
+            ctx = lifeCanvas.value?.getContext('2d') || undefined
+            handleResize()
             initLife()
             update()
+
+            useEventListener('resize', handleResize)
+            useEventListener(lifeCanvas, ['mousedown'], (e) => {
+                lastPointerX = e.x - lifeCanvas.value!.getBoundingClientRect().left
+                lastPointerY = e.y - lifeCanvas.value!.getBoundingClientRect().top
+            })
+            useEventListener(lifeCanvas, ['mousemove'], (e) => {
+                pointerX = e.x - lifeCanvas.value!.getBoundingClientRect().left
+                pointerY = e.y - lifeCanvas.value!.getBoundingClientRect().top
+
+                if (e.buttons > 0) { // if mouse is pressed
+                    isDragging = true
+                    if (e.buttons === 1) { // if primary button is pressed (left click)
+                        handleMove()
+                    }
+                }
+                if (e.buttons === 0) {
+                    isDragging = false
+                }
+            })
+            useEventListener(lifeCanvas, 'wheel', (e) => {
+                if (e.deltaY < 0) { // Zoom in
+                    handleZoom(1, pointerX, pointerY)
+                } else { // Zoom out
+                    handleZoom(-1, pointerX, pointerY)
+                }
+            })
         })
+        // -------------------------------------------------------------------------------------------------------------
+        function handleResize() {
+            canvasWidth = lifeCanvas.value!.width = lifeCanvas.value!.clientWidth
+            canvasHeight = lifeCanvas.value!.height = lifeCanvas.value!.clientHeight
+        }
+        function handleMove() {
+            if (isDragging) {
+                cameraOffsetX += (pointerX - lastPointerX) / zoomFactor
+                cameraOffsetY += (pointerY - lastPointerY) / zoomFactor
+                lastPointerX = pointerX
+                lastPointerY = pointerY
+            }
+        }
+        function handleZoom(delta: number, x: number, y: number) {
+            const zoomIntensity = 0.1
+            zoomFactor += delta * zoomIntensity
+            console.log(zoomFactor)
+            zoomFactor = Math.max(0.1, Math.min(6, zoomFactor))
+            // cameraOffsetX = x - (x - cameraOffsetX) * zoomFactor
+            // cameraOffsetY = y - (y - cameraOffsetY) * zoomFactor
+
+            const dx = (x - canvasWidth / 2) / (zoomFactor*zoomFactor)
+            const dy = (y - canvasHeight / 2) / (zoomFactor*zoomFactor)
+            cameraOffsetX -= dx
+            cameraOffsetY -= dy
+        }
+        // -------------------------------------------------------------------------------------------------------------
         function initLife() {
             initColors()
             initParticles()
@@ -60,7 +123,7 @@ export default defineComponent({
                 colors[i] = currentColors[Math.floor(Math.random() * numColors)]
                 positionX[i] = Math.random() * canvasWidth
                 positionY[i] = Math.random() * canvasHeight
-                positionZ[i] = Math.random() * 5
+                positionZ[i] = Math.random() * randomZDepth
             }
         }
         function makeRandomMatrix() {
@@ -73,11 +136,20 @@ export default defineComponent({
             }
             return matrix
         }
+        // -------------------------------------------------------------------------------------------------------------
         function draw(x: number, y: number, z: number, color: number, size: number) {
-            ctx!.fillStyle = colorList[color]
             const depthFactor = 1 - z / canvasHeight // Adjust this factor to control the depth effect
-            const newSize = size * depthFactor
-            ctx!.fillRect(x, y, newSize, newSize)
+            const newSize = size * depthFactor * zoomFactor
+            if (newSize <= 0) return
+            ctx!.fillStyle = colorList[color]
+            ctx!.beginPath()
+
+            const drawX = (x + cameraOffsetX) * zoomFactor
+            const drawY = (y + cameraOffsetY) * zoomFactor
+
+            ctx!.fillRect(drawX, drawY, newSize, newSize)
+            // ctx!.arc(x + cameraOffsetX, y + cameraOffsetY, newSize, 0, Math.PI * 2)
+            // ctx!.fill()
         }
         function getForce(ruleFactor: number, distance: number) {
             if (distance < minRadius) {
@@ -141,11 +213,11 @@ export default defineComponent({
             processRules()
             updateParticles()
             const executionTime = performance.now() - startExecutionTime
-            console.log('Execution time: ', executionTime + 'ms')
+            // console.log('Execution time: ', executionTime + 'ms')
             requestAnimationFrame(update)
         }
 
-        return { canvasRef }
+        return { lifeCanvas }
     }
 })
 </script>
