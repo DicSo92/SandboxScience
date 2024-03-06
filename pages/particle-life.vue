@@ -36,11 +36,14 @@ export default defineComponent({
         const numColors: number = 8 // Number of colors to be used
         const depthLimit: number = 240 // Maximum Z axis depth (0 means almost 2D because there is friction with the walls && can be negative)
         const isCircle: boolean = true // Enable circular shape for the particles
-        const hasWalls: boolean = true // Enable walls X and Y for the particles
+        const hasGrid: boolean = false // Enable grid
+        const hasCells: boolean = false // Enable cells
+        const hasWalls: boolean = false // Enable walls X and Y for the particles
         const hasDepthSize: boolean = true // Enable depth size effect
-        const hasDepthOpacity: boolean = true // Enable depth opacity effect
+        const hasDepthOpacity: boolean = false // Enable depth opacity effect
         const maxOpacity = 1 // Maximum opacity when hasDepthOpacity is enabled
         const minOpacity = 0.5 // Depth effect will be stronger with lower opacity
+        const cellGroupSize: number = 0 // Minimum number of particles to be considered a group (0 to visualize all cells)
 
         // Define depth limits for randomly placed particles
         const minZDepthRandomParticle: number = depthLimit * 0.2 // The minimum Z-depth for randomly placed particles, in percentage of the depthLimit
@@ -71,6 +74,7 @@ export default defineComponent({
         let pointerY: number = 0 // Pointer Y
 
         // Define the arrays for storing the properties of each particle
+        let cells: Map<string, number[]> // Map to store the particles in each cell
         let colors = new Int32Array(numParticles) // Color of each particle
         let positionX = new Float32Array(numParticles) // X position of each particle
         let positionY = new Float32Array(numParticles) // Y position of each particle
@@ -83,7 +87,7 @@ export default defineComponent({
             ctx = lifeCanvas.value?.getContext('2d') || undefined
             handleResize()
             initLife()
-            if (!isRunning.value) simpleDrawParticules()
+            if (!isRunning.value) simpleDrawParticles()
             requestAnimationFrame(update) // Start the game loop
 
             onKeyStroke(' ', (e) => { // Space bar pressed
@@ -93,7 +97,7 @@ export default defineComponent({
             onKeyStroke('c', (e) => { // Space bar pressed
                 console.log('Key C pressed')
                 centerView()
-                if (!isRunning.value) simpleDrawParticules()
+                if (!isRunning.value) simpleDrawParticles()
             })
             useEventListener('resize', handleResize)
             useEventListener(lifeCanvas, ['mousedown'], (e) => {
@@ -150,7 +154,7 @@ export default defineComponent({
 
             console.log(zoomFactor)
             setEndCoordinates()
-            if (!isRunning.value) simpleDrawParticules()
+            if (!isRunning.value) simpleDrawParticles()
         }
         // -------------------------------------------------------------------------------------------------------------
         function initLife() {
@@ -196,14 +200,64 @@ export default defineComponent({
             if (isRunning.value) {
                 processRules()
                 updateParticles()
-                drawGrid()
+                if (hasGrid) drawGrid()
+                if (hasCells) drawCells()
             } else {
-                if (isDragging) simpleDrawParticules()
+                if (isDragging) simpleDrawParticles()
             }
             const exeTime = performance.now() - startExecutionTime
             executionTime.value = exeTime
             // console.log('Execution time: ', exeTime + 'ms')
             requestAnimationFrame(update)
+        }
+        function drawCells() {
+            cells.forEach((particles, cell) => {
+                if (particles.length <= cellGroupSize) return // Detect groups of particles
+                let centerX = 0
+                let centerY = 0
+                // const centerX = particles.reduce((sum, p) => sum + positionX[p], 0)
+                // const centerY = particles.reduce((sum, p) => sum + positionY[p], 0)
+                for (let p = 0; p < particles.length; p++) {
+                    centerX += positionX[particles[p]]
+                    centerY += positionY[particles[p]]
+                }
+                centerX /= particles.length
+                centerY /= particles.length
+
+                const drawX = (centerX + gridOffsetX) * zoomFactor
+                const drawY = (centerY + gridOffsetY) * zoomFactor
+                const radius = maxRadius * zoomFactor
+
+                // Skip if the cell is outside the canvas
+                if (drawX < -radius || drawX > canvasWidth + radius || drawY < -radius || drawY > canvasHeight + radius) return
+
+                ctx!.beginPath()
+                ctx!.arc(drawX, drawY, radius, 0, Math.PI * 2)
+                ctx!.strokeStyle = `hsl(${0}, 100%, 50%, 0.55)`
+                ctx!.stroke()
+            })
+
+
+            // Just cell 1,1 for testing
+            // const cellKey = `${1},${1}`
+            // if (!cells.has(cellKey)) return
+            // const cellParticles = cells.get(cellKey)
+            // let centerX = 0
+            // let centerY = 0
+            // for (let p = 0; p < cellParticles!.length; p++) {
+            //     centerX += positionX[cellParticles![p]]
+            //     centerY += positionY[cellParticles![p]]
+            // }
+            // centerX /= cellParticles!.length
+            // centerY /= cellParticles!.length
+            //
+            // const drawX = (centerX + gridOffsetX) * zoomFactor
+            // const drawY = (centerY + gridOffsetY) * zoomFactor
+            //
+            // ctx!.beginPath()
+            // ctx!.arc(drawX, drawY, maxRadius * zoomFactor, 0, Math.PI * 2)
+            // ctx!.strokeStyle = `hsl(${0}, 100%, 50%, 0.55)`
+            // ctx!.stroke()
         }
         function draw(x: number, y: number, z: number, color: number, size: number) {
             let depthFactor = 1
@@ -250,7 +304,7 @@ export default defineComponent({
         // For Loop Optimized
         function processRules() {
             const cellSize = maxRadius * 2
-            const cells = new Map<string, number[]>()
+            cells = new Map<string, number[]>()
 
             // Assign each particle to a cell
             for (let i = 0; i < numParticles; i++) {
@@ -323,7 +377,6 @@ export default defineComponent({
                 }
             }
             cellCount.value = cells.size
-            // console.log("cells :", cells.size)
         }
         function updateParticles() {
             ctx!.clearRect(0, 0, canvasWidth, canvasHeight)
@@ -379,12 +432,13 @@ export default defineComponent({
             gridOffsetY -= offsetY
             setEndCoordinates()
         }
-        function simpleDrawParticules() {
+        function simpleDrawParticles() {
             ctx!.clearRect(0, 0, canvasWidth, canvasHeight)
             for (let i = 0; i < numParticles; i++) {
                 draw(positionX[i], positionY[i], positionZ[i], currentColors[colors[i]], particleSize)
             }
-            drawGrid()
+            if (hasGrid) drawGrid()
+            if (hasCells) drawCells()
         }
         function drawGrid() {
             ctx!.beginPath()
