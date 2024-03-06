@@ -1,6 +1,11 @@
 <template>
     <section h-full flex>
         <canvas ref="lifeCanvas" @contextmenu.prevent w-full h-full></canvas>
+        <div>
+            <p>Fps: {{ fps }}</p>
+            <p>Cells: {{ cellCount }}</p>
+            <p>Process: {{ Math.round(executionTime) }}</p>
+        </div>
     </section>
 </template>
 
@@ -8,24 +13,41 @@
 import { defineComponent } from "vue";
 export default defineComponent({
     setup() {
+        // Define canvas and context for drawing
         const lifeCanvas = ref<HTMLCanvasElement | undefined>()
         let ctx: CanvasRenderingContext2D | undefined
         let canvasWidth: number = 0
         let canvasHeight: number = 0
 
+        // Define the reactive variables for the game state
+        const fps = useFps()
+        const cellCount = ref<number>(0)
+        const executionTime = ref<number>(0)
+        const isRunning = ref<boolean>(true)
+
+        // Define color list and rules matrix for the particles
         const colorList: string[] = ['yellow', 'red', 'green', 'cyan', 'magenta', 'blue', 'white', 'orange', 'purple', 'pink']
         let currentColors: number[] = []
         let rulesMatrix: number[][] = []
 
+        // Define world properties
         const numParticles: number = 8000 // Number of particles
         const particleSize: number = 4 // Size of the particles at zoomFactor = 1
         const numColors: number = 8 // Number of colors to be used
-        const depthLimit: number = 240 // Maximum Z axis depth (0 means almost 2D because there is friction with the walls)
+        const depthLimit: number = 240 // Maximum Z axis depth (0 means almost 2D because there is friction with the walls && can be negative)
+        const isCircle: boolean = true // Enable circular shape for the particles
+        const hasWalls: boolean = true // Enable walls X and Y for the particles
+        const hasDepthSize: boolean = true // Enable depth size effect
+        const hasDepthOpacity: boolean = true // Enable depth opacity effect
+        const maxOpacity = 1 // Maximum opacity when hasDepthOpacity is enabled
+        const minOpacity = 0.5 // Depth effect will be stronger with lower opacity
 
-        const minZDepthRandomParticle: number = depthLimit * 0.2 // Particles will be drawn in the last X% of the depth
-        const maxZDepthRandomParticle: number = depthLimit * 0.45 // Particles will be drawn in the first X% of the depth
+        // Define depth limits for randomly placed particles
+        const minZDepthRandomParticle: number = depthLimit * 0.2 // The minimum Z-depth for randomly placed particles, in percentage of the depthLimit
+        const maxZDepthRandomParticle: number = depthLimit * 0.45 // The maximum Z-depth for randomly placed particles, in percentage of the depthLimit
         const screenMultiplierForGridSize: number = 2.5 // Multiplier for the grid size based on the screen size
 
+        // Define force properties
         let maxRadius: number = 60 // maximum distance for particles to start attracting
         let minRadius: number = 20 // minimum distance for particles to start repelling
         let repel: number = 1 // repel force for particles that are too close to each other
@@ -33,6 +55,7 @@ export default defineComponent({
         let frictionFactor: number = 0.6 // Slow down the particles (0 to 1, where 1 is no friction)
         let zoomFactor: number = 1 // Zoom level
 
+        // Define grid properties
         let gridOffsetX: number = 0 // Grid offset X
         let gridOffsetY: number = 0 // Grid offset Y
         let gridWidth: number = 0 // Grid width
@@ -40,12 +63,14 @@ export default defineComponent({
         let endGridX: number = 0 // Position X of the end of the grid
         let endGridY: number = 0 // Position Y of the end of the grid
 
+        // Define arrays for storing the properties of each particle
         let isDragging: boolean = false // Flag to check if the mouse is being dragged
         let lastPointerX: number = 0 // For dragging
         let lastPointerY: number = 0 // For dragging
         let pointerX: number = 0 // Pointer X
         let pointerY: number = 0 // Pointer Y
 
+        // Define the arrays for storing the properties of each particle
         let colors = new Int32Array(numParticles) // Color of each particle
         let positionX = new Float32Array(numParticles) // X position of each particle
         let positionY = new Float32Array(numParticles) // Y position of each particle
@@ -58,8 +83,18 @@ export default defineComponent({
             ctx = lifeCanvas.value?.getContext('2d') || undefined
             handleResize()
             initLife()
-            update()
+            if (!isRunning.value) simpleDrawParticules()
+            requestAnimationFrame(update) // Start the game loop
 
+            onKeyStroke(' ', (e) => { // Space bar pressed
+                console.log('Key Space pressed')
+                isRunning.value = !isRunning.value
+            })
+            onKeyStroke('c', (e) => { // Space bar pressed
+                console.log('Key C pressed')
+                centerView()
+                if (!isRunning.value) simpleDrawParticules()
+            })
             useEventListener('resize', handleResize)
             useEventListener(lifeCanvas, ['mousedown'], (e) => {
                 lastPointerX = e.x - lifeCanvas.value!.getBoundingClientRect().left
@@ -108,11 +143,14 @@ export default defineComponent({
             const zoomDelta = delta * zoomIntensity
             zoomFactor = Math.max(0.1, Math.min(3.2, zoomFactor + zoomDelta))
 
-            gridOffsetX -= x * ((zoomFactor / oldZoomFactor) - 1)
-            gridOffsetY -= y * ((zoomFactor / oldZoomFactor) - 1)
+            // Adjust grid offsets by scaling the cursor position with the ratio of the new and old zoom factors
+            // This maintains the cursor's position on the grid during zoom operations
+            gridOffsetX -= (x / zoomFactor) * ((zoomFactor / oldZoomFactor) - 1)
+            gridOffsetY -= (y / zoomFactor) * ((zoomFactor / oldZoomFactor) - 1)
 
             console.log(zoomFactor)
             setEndCoordinates()
+            if (!isRunning.value) simpleDrawParticules()
         }
         // -------------------------------------------------------------------------------------------------------------
         function initLife() {
@@ -127,24 +165,16 @@ export default defineComponent({
             rulesMatrix = makeRandomMatrix()
             console.table(rulesMatrix)
         }
-        function centerView() {
-            const centerX = canvasWidth / 2 / zoomFactor - gridOffsetX
-            const centerY = canvasHeight / 2 / zoomFactor - gridOffsetY
-            const offsetX = gridWidth / 2 - centerX
-            const offsetY = gridHeight / 2 - centerY
-            gridOffsetX -= offsetX
-            gridOffsetY -= offsetY
-            setEndCoordinates()
-        }
         function initColors() {
             currentColors = [];
             for (let i = 0; i < numColors; ++i) {
-                currentColors.push(i);
+                // currentColors.push(i)
+                currentColors.push(i * 360 / numColors) // HSL color (precalculated)
             }
         }
         function initParticles() {
             for (let i = 0; i < numParticles; ++i) {
-                colors[i] = currentColors[Math.floor(Math.random() * numColors)]
+                colors[i] = Math.floor(Math.random() * numColors)
                 positionX[i] = Math.random() * gridWidth
                 positionY[i] = Math.random() * gridHeight
                 positionZ[i] = Math.random() * (maxZDepthRandomParticle - minZDepthRandomParticle) + minZDepthRandomParticle
@@ -163,29 +193,41 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         function update() {
             const startExecutionTime = performance.now()
-            processRules()
-            updateParticles()
-            drawGrid()
-            const executionTime = performance.now() - startExecutionTime
-            console.log('Execution time: ', executionTime + 'ms')
+            if (isRunning.value) {
+                processRules()
+                updateParticles()
+                drawGrid()
+            } else {
+                if (isDragging) simpleDrawParticules()
+            }
+            const exeTime = performance.now() - startExecutionTime
+            executionTime.value = exeTime
+            // console.log('Execution time: ', exeTime + 'ms')
             requestAnimationFrame(update)
         }
         function draw(x: number, y: number, z: number, color: number, size: number) {
-            const depthFactor = 1 - z / gridHeight / zoomFactor // Adjust this factor to control the depth effect
-            const newSize = size * depthFactor * zoomFactor
+            let depthFactor = 1
+            if (hasDepthSize) {
+                depthFactor = 1 - z / gridHeight / zoomFactor // Adjust this factor to control the depth effect
+            }
+            const newSize = size * depthFactor * zoomFactor // Adjust the size based on the depth factor and zoom factor
             if (newSize <= 0) return // Skip if the particle is too small
-            const drawX = (x + gridOffsetX) * zoomFactor
-            const drawY = (y + gridOffsetY) * zoomFactor
+            const drawX = (x + gridOffsetX) * zoomFactor // Adjust the position X based on the grid offset and zoom factor
+            const drawY = (y + gridOffsetY) * zoomFactor // Adjust the position Y based on the grid offset and zoom factor
             if (drawX < 0 || drawX > canvasWidth || drawY < 0 || drawY > canvasHeight) return // Skip if the particle is outside the canvas
 
-            // Opacity depth effect
-            const maxOpacity = 1
-            const minOpacity = 0.5 // Depth effect will be stronger with lower opacity
-            const opacity = depthLimit > 0 ? maxOpacity - (z / depthLimit) * (maxOpacity - minOpacity) : 1
-            ctx!.fillStyle = `hsl(${color * 360 / numColors}, 100%, 50%, ${opacity})`
+            // Handle depth opacity effect
+            if (hasDepthOpacity) {
+                // Opacity depth effect
+                const opacity = depthLimit !== 0 ? maxOpacity - (z / depthLimit) * (maxOpacity - minOpacity) : 1
+                ctx!.fillStyle = `hsl(${color * 360 / numColors}, 100%, 50%, ${opacity})`
+            } else {
+                // No opacity depth effect
+                ctx!.fillStyle = `hsl(${color}, 100%, 50%, 1)`
+            }
 
-            // ctx!.fillStyle = colorList[color]
-            if (newSize <= 2) { // Draw squares for small particles
+            // Handle particle drawing
+            if (newSize < 2 || !isCircle) { // Draw squares for small particles
                 ctx!.fillRect(drawX, drawY, newSize, newSize)
             } else { // Draw circles for larger particles
                 ctx!.beginPath()
@@ -280,10 +322,9 @@ export default defineComponent({
                     }
                 }
             }
+            cellCount.value = cells.size
             // console.log("cells :", cells.size)
         }
-
-
         function updateParticles() {
             ctx!.clearRect(0, 0, canvasWidth, canvasHeight)
             for (let i = 0; i < numParticles; i++) {
@@ -294,15 +335,18 @@ export default defineComponent({
                 positionY[i] += velocityY[i]
                 positionZ[i] += velocityZ[i]
 
-                // // Bounce off the walls
-                if (positionX[i] > gridWidth || positionX[i] < 0) {
-                    positionX[i] -= velocityX[i]
-                    velocityX[i] *= -1
+                // // Bounce off the walls X and Y
+                if (hasWalls) {
+                    if (positionX[i] > gridWidth || positionX[i] < 0) {
+                        positionX[i] -= velocityX[i]
+                        velocityX[i] *= -1
+                    }
+                    if (positionY[i] > gridHeight || positionY[i] < 0) {
+                        positionY[i] -= velocityY[i]
+                        velocityY[i] *= -1
+                    }
                 }
-                if (positionY[i] > gridHeight || positionY[i] < 0) {
-                    positionY[i] -= velocityY[i]
-                    velocityY[i] *= -1
-                }
+                // Bounce off the depth limit
                 if (positionZ[i] > depthLimit || positionZ[i] < 0) {
                     positionZ[i] -= velocityZ[i]
                     velocityZ[i] *= -1
@@ -326,6 +370,22 @@ export default defineComponent({
             }
         }
         // -------------------------------------------------------------------------------------------------------------
+        function centerView() {
+            const centerX = canvasWidth / 2 / zoomFactor - gridOffsetX
+            const centerY = canvasHeight / 2 / zoomFactor - gridOffsetY
+            const offsetX = gridWidth / 2 - centerX
+            const offsetY = gridHeight / 2 - centerY
+            gridOffsetX -= offsetX
+            gridOffsetY -= offsetY
+            setEndCoordinates()
+        }
+        function simpleDrawParticules() {
+            ctx!.clearRect(0, 0, canvasWidth, canvasHeight)
+            for (let i = 0; i < numParticles; i++) {
+                draw(positionX[i], positionY[i], positionZ[i], currentColors[colors[i]], particleSize)
+            }
+            drawGrid()
+        }
         function drawGrid() {
             ctx!.beginPath()
             drawHorizontalLine(endGridX, gridOffsetY * zoomFactor) // Draw top line
@@ -349,7 +409,7 @@ export default defineComponent({
             endGridY = gridOffsetY * zoomFactor + gridHeight * zoomFactor
         }
 
-        return { lifeCanvas }
+        return { lifeCanvas, fps, cellCount, executionTime }
     }
 })
 </script>
