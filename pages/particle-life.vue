@@ -1,10 +1,30 @@
 <template>
-    <section h-full flex>
+    <section flex flex-col justify-center h-full overflow-hidden relative>
         <canvas ref="lifeCanvas" @contextmenu.prevent w-full h-full></canvas>
-        <div>
+        <div absolute top-0 right-0 text-right pr-1>
             <p>Fps: {{ fps }}</p>
             <p>Cells: {{ cellCount }}</p>
             <p>Process: {{ Math.round(executionTime) }}</p>
+        </div>
+        <div absolute bottom-0 w-full flex justify-center items-center="">
+            <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="toggleHasGrid">
+                <div i-tabler-grid-3x3 text-xl></div>
+            </div>
+            <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="toggleHasWalls">
+                <div i-tabler-square text-xl></div>
+            </div>
+            <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="toggleHasCells">
+                <div i-tabler-circle text-xl></div>
+            </div>
+            <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="toggleHasDepthOpacity">
+                <div i-tabler-chart-scatter-3d text-xl></div>
+            </div>
+            <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="toggleHasDepthSize">
+                <div i-tabler-chart-scatter-3d text-xl></div>
+            </div>
+            <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="toggleIsCircle">
+                <div i-tabler-grid-dots text-xl></div>
+            </div>
         </div>
     </section>
 </template>
@@ -35,12 +55,12 @@ export default defineComponent({
         const particleSize: number = 4 // Size of the particles at zoomFactor = 1
         const numColors: number = 8 // Number of colors to be used
         const depthLimit: number = 240 // Maximum Z axis depth (0 means almost 2D because there is friction with the walls && can be negative)
-        const isCircle: boolean = true // Enable circular shape for the particles
-        const hasGrid: boolean = false // Enable grid
-        const hasCells: boolean = false // Enable cells
-        const hasWalls: boolean = false // Enable walls X and Y for the particles
-        const hasDepthSize: boolean = true // Enable depth size effect
-        const hasDepthOpacity: boolean = false // Enable depth opacity effect
+        let isCircle: boolean = true // Enable circular shape for the particles
+        let hasGrid: boolean = true // Enable grid
+        let hasCells: boolean = true // Enable cells
+        let hasWalls: boolean = false // Enable walls X and Y for the particles
+        let hasDepthSize: boolean = true // Enable depth size effect
+        let hasDepthOpacity: boolean = false // Enable depth opacity effect
         const maxOpacity = 1 // Maximum opacity when hasDepthOpacity is enabled
         const minOpacity = 0.5 // Depth effect will be stronger with lower opacity
         const cellGroupSize: number = 0 // Minimum number of particles to be considered a group (0 to visualize all cells)
@@ -90,11 +110,11 @@ export default defineComponent({
             if (!isRunning.value) simpleDrawParticles()
             requestAnimationFrame(update) // Start the game loop
 
-            onKeyStroke(' ', (e) => { // Space bar pressed
+            onKeyStroke(' ', () => { // Space bar pressed
                 console.log('Key Space pressed')
                 isRunning.value = !isRunning.value
             })
-            onKeyStroke('c', (e) => { // Space bar pressed
+            onKeyStroke('c', () => { // Space bar pressed
                 console.log('Key C pressed')
                 centerView()
                 if (!isRunning.value) simpleDrawParticles()
@@ -259,7 +279,7 @@ export default defineComponent({
             // ctx!.strokeStyle = `hsl(${0}, 100%, 50%, 0.55)`
             // ctx!.stroke()
         }
-        function draw(x: number, y: number, z: number, color: number, size: number) {
+        function drawParticle(x: number, y: number, z: number, color: number, size: number) {
             let depthFactor = 1
             if (hasDepthSize) {
                 depthFactor = 1 - z / gridHeight / zoomFactor // Adjust this factor to control the depth effect
@@ -274,7 +294,7 @@ export default defineComponent({
             if (hasDepthOpacity) {
                 // Opacity depth effect
                 const opacity = depthLimit !== 0 ? maxOpacity - (z / depthLimit) * (maxOpacity - minOpacity) : 1
-                ctx!.fillStyle = `hsl(${color * 360 / numColors}, 100%, 50%, ${opacity})`
+                ctx!.fillStyle = `hsl(${color}, 100%, 50%, ${opacity})`
             } else {
                 // No opacity depth effect
                 ctx!.fillStyle = `hsl(${color}, 100%, 50%, 1)`
@@ -282,7 +302,7 @@ export default defineComponent({
 
             // Handle particle drawing
             if (newSize < 2 || !isCircle) { // Draw squares for small particles
-                ctx!.fillRect(drawX, drawY, newSize, newSize)
+                ctx!.fillRect(drawX - newSize / 2, drawY - newSize / 2, newSize, newSize)
             } else { // Draw circles for larger particles
                 ctx!.beginPath()
                 ctx!.arc(drawX, drawY, newSize / 2, 0, Math.PI * 2)
@@ -405,21 +425,7 @@ export default defineComponent({
                     velocityZ[i] *= -1
                 }
 
-                // // Wrap around the screen
-                // if (positionX[i] > canvasWidth) {
-                //     positionX[i] -= canvasWidth
-                // }
-                // if (positionX[i] < 0) {
-                //     positionX[i] = canvasWidth - positionX[i]
-                // }
-                // if (positionY[i] > canvasHeight) {
-                //     positionY[i] -= canvasHeight
-                // }
-                // if (positionY[i] < 0) {
-                //     positionY[i] = canvasHeight - positionY[i]
-                // }
-
-                draw(positionX[i], positionY[i], positionZ[i], currentColors[colors[i]], particleSize)
+                drawParticle(positionX[i], positionY[i], positionZ[i], currentColors[colors[i]], particleSize)
             }
         }
         // -------------------------------------------------------------------------------------------------------------
@@ -435,7 +441,7 @@ export default defineComponent({
         function simpleDrawParticles() {
             ctx!.clearRect(0, 0, canvasWidth, canvasHeight)
             for (let i = 0; i < numParticles; i++) {
-                draw(positionX[i], positionY[i], positionZ[i], currentColors[colors[i]], particleSize)
+                drawParticle(positionX[i], positionY[i], positionZ[i], currentColors[colors[i]], particleSize)
             }
             if (hasGrid) drawGrid()
             if (hasCells) drawCells()
@@ -462,8 +468,18 @@ export default defineComponent({
             endGridX = gridOffsetX * zoomFactor + gridWidth * zoomFactor
             endGridY = gridOffsetY * zoomFactor + gridHeight * zoomFactor
         }
+        const toggleHasCells = () => hasCells = !hasCells
+        const toggleHasGrid = () => hasGrid = !hasGrid
+        const toggleIsCircle = () => isCircle = !isCircle
+        const toggleHasWalls = () => hasWalls = !hasWalls
+        const toggleHasDepthSize = () => hasDepthSize = !hasDepthSize
+        const toggleHasDepthOpacity = () => hasDepthOpacity = !hasDepthOpacity
 
-        return { lifeCanvas, fps, cellCount, executionTime }
+
+        return {
+            lifeCanvas, fps, cellCount, executionTime,
+            toggleHasCells, toggleHasGrid, toggleIsCircle, toggleHasWalls, toggleHasDepthSize, toggleHasDepthOpacity
+        }
     }
 })
 </script>
