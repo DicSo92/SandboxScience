@@ -33,7 +33,6 @@ export default defineComponent({
         }
     },
     setup(props, { emit }) {
-        const game = useGameStore()
         const sidebarWidth = ref(400)
 
         function toggle() {
@@ -49,7 +48,7 @@ export default defineComponent({
         })
 
 
-        return { game, toggle, toggleBtnStyle, sidebarWidth }
+        return { toggle, toggleBtnStyle, sidebarWidth }
     }
 })
 </script>

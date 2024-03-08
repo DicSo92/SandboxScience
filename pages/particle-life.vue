@@ -1,5 +1,29 @@
 <template>
     <section flex flex-col justify-center h-full overflow-hidden relative>
+        <SidebarLeft v-model="particleLife.sidebarLeftOpen">
+            <template #controls>
+            </template>
+            <template #default>
+                <div px-4 flex flex-col>
+                    <p>Settings</p>
+                    <hr>
+                    <div grid grid-cols-2 gap-4 mt-3>
+                        <ToggleSwitch label="Grid" v-model="particleLife.hasGrid" />
+                        <ToggleSwitch label="Walls" v-model="particleLife.hasWalls" />
+                        <ToggleSwitch label="Cells" v-model="particleLife.hasCells" />
+                        <ToggleSwitch label="Depth Opacity" v-model="particleLife.hasDepthOpacity" />
+                        <ToggleSwitch label="Depth Size" v-model="particleLife.hasDepthSize" />
+                        <ToggleSwitch label="Circle Shape" v-model="particleLife.isCircle" />
+                    </div>
+                    <RangeInput input label="Min. Radius" :min="1" :max="particleLife.maxRadius" :step="1" v-model="particleLife.minRadius" mt-2 />
+                    <RangeInput input label="Max. Radius" :min="particleLife.minRadius" :max="256" :step="1" v-model="particleLife.maxRadius" mt-2 />
+                    <RangeInput input label="Repel Force" :min="0" :max="4" :step="0.05" v-model="particleLife.repel" mt-2 />
+                    <RangeInput input label="Force Factor" :min="0" :max="2" :step="0.05" v-model="particleLife.forceFactor" mt-2 />
+                    <RangeInput input label="Friction Factor" :min="0" :max="1" :step="0.05" v-model="particleLife.frictionFactor" mt-2 />
+
+                </div>
+            </template>
+        </SidebarLeft>
         <canvas ref="lifeCanvas" @contextmenu.prevent w-full h-full></canvas>
         <div absolute top-0 right-0 text-right pr-1>
             <p>Fps: {{ fps }}</p>
@@ -7,22 +31,22 @@
             <p>Process: {{ Math.round(executionTime) }}</p>
         </div>
         <div absolute bottom-0 w-full flex justify-center items-center="">
-            <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="toggleHasGrid">
+            <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="particleLife.hasGrid = !particleLife.hasGrid">
                 <div i-tabler-grid-3x3 text-xl></div>
             </div>
-            <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="toggleHasWalls">
+            <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="particleLife.hasWalls = !particleLife.hasWalls">
                 <div i-tabler-square text-xl></div>
             </div>
-            <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="toggleHasCells">
+            <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="particleLife.hasCells = !particleLife.hasCells">
                 <div i-tabler-circle text-xl></div>
             </div>
-            <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="toggleHasDepthOpacity">
+            <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="particleLife.hasDepthOpacity = !particleLife.hasDepthOpacity">
                 <div i-tabler-chart-scatter-3d text-xl></div>
             </div>
-            <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="toggleHasDepthSize">
+            <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="particleLife.hasDepthSize = !particleLife.hasDepthSize">
                 <div i-tabler-chart-scatter-3d text-xl></div>
             </div>
-            <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="toggleIsCircle">
+            <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="particleLife.isCircle = !particleLife.isCircle">
                 <div i-tabler-grid-dots text-xl></div>
             </div>
         </div>
@@ -33,11 +57,15 @@
 import { defineComponent } from "vue";
 export default defineComponent({
     setup() {
+        definePageMeta({ layout: 'life' })
+        const particleLife = useParticleLifeStore()
+
         // Define canvas and context for drawing
         const lifeCanvas = ref<HTMLCanvasElement | undefined>()
         let ctx: CanvasRenderingContext2D | undefined
         let canvasWidth: number = 0
         let canvasHeight: number = 0
+        let animationFrameId: number | null = null
 
         // Define the reactive variables for the game state
         const fps = useFps()
@@ -51,16 +79,16 @@ export default defineComponent({
         let rulesMatrix: number[][] = []
 
         // Define world properties
-        const numParticles: number = 8000 // Number of particles
+        const numParticles: number = 6000 // Number of particles
         const particleSize: number = 4 // Size of the particles at zoomFactor = 1
         const numColors: number = 8 // Number of colors to be used
         const depthLimit: number = 240 // Maximum Z axis depth (0 means almost 2D because there is friction with the walls && can be negative)
         let isCircle: boolean = true // Enable circular shape for the particles
-        let hasGrid: boolean = true // Enable grid
-        let hasCells: boolean = true // Enable cells
-        let hasWalls: boolean = false // Enable walls X and Y for the particles
-        let hasDepthSize: boolean = true // Enable depth size effect
-        let hasDepthOpacity: boolean = false // Enable depth opacity effect
+        let hasGrid: boolean = particleLife.hasGrid // Enable grid
+        let hasCells: boolean = particleLife.hasCells // Enable cells
+        let hasWalls: boolean = particleLife.hasWalls // Enable walls X and Y for the particles
+        let hasDepthSize: boolean = particleLife.hasDepthSize // Enable depth size effect
+        let hasDepthOpacity: boolean = particleLife.hasDepthOpacity // Enable depth opacity effect
         const maxOpacity = 1 // Maximum opacity when hasDepthOpacity is enabled
         const minOpacity = 0.5 // Depth effect will be stronger with lower opacity
         const cellGroupSize: number = 0 // Minimum number of particles to be considered a group (0 to visualize all cells)
@@ -68,14 +96,14 @@ export default defineComponent({
         // Define depth limits for randomly placed particles
         const minZDepthRandomParticle: number = depthLimit * 0.2 // The minimum Z-depth for randomly placed particles, in percentage of the depthLimit
         const maxZDepthRandomParticle: number = depthLimit * 0.45 // The maximum Z-depth for randomly placed particles, in percentage of the depthLimit
-        const screenMultiplierForGridSize: number = 2.5 // Multiplier for the grid size based on the screen size
+        const screenMultiplierForGridSize: number = 2 // Multiplier for the grid size based on the screen size
 
         // Define force properties
-        let maxRadius: number = 60 // maximum distance for particles to start attracting
-        let minRadius: number = 20 // minimum distance for particles to start repelling
-        let repel: number = 1 // repel force for particles that are too close to each other
-        let forceFactor: number = 0.4 // Decrease will increase the impact of the force on the velocity (the higher the value, the slower the particles will move)
-        let frictionFactor: number = 0.6 // Slow down the particles (0 to 1, where 1 is no friction)
+        let maxRadius: number = particleLife.maxRadius // maximum distance for particles to start attracting
+        let minRadius: number = particleLife.minRadius // minimum distance for particles to start repelling
+        let repel: number = particleLife.repel // repel force for particles that are too close to each other
+        let forceFactor: number = particleLife.forceFactor // Decrease will increase the impact of the force on the velocity (the higher the value, the slower the particles will move)
+        let frictionFactor: number = particleLife.frictionFactor // Slow down the particles (0 to 1, where 1 is no friction)
         let zoomFactor: number = 1 // Zoom level
 
         // Define grid properties
@@ -108,7 +136,7 @@ export default defineComponent({
             handleResize()
             initLife()
             if (!isRunning.value) simpleDrawParticles()
-            requestAnimationFrame(update) // Start the game loop
+            animationFrameId = requestAnimationFrame(update) // Start the game loop
 
             onKeyStroke(' ', () => { // Space bar pressed
                 console.log('Key Space pressed')
@@ -228,7 +256,7 @@ export default defineComponent({
             const exeTime = performance.now() - startExecutionTime
             executionTime.value = exeTime
             // console.log('Execution time: ', exeTime + 'ms')
-            requestAnimationFrame(update)
+            animationFrameId = requestAnimationFrame(update)
         }
         function drawCells() {
             cells.forEach((particles, cell) => {
@@ -468,17 +496,26 @@ export default defineComponent({
             endGridX = gridOffsetX * zoomFactor + gridWidth * zoomFactor
             endGridY = gridOffsetY * zoomFactor + gridHeight * zoomFactor
         }
-        const toggleHasCells = () => hasCells = !hasCells
-        const toggleHasGrid = () => hasGrid = !hasGrid
-        const toggleIsCircle = () => isCircle = !isCircle
-        const toggleHasWalls = () => hasWalls = !hasWalls
-        const toggleHasDepthSize = () => hasDepthSize = !hasDepthSize
-        const toggleHasDepthOpacity = () => hasDepthOpacity = !hasDepthOpacity
 
+        watch(() => particleLife.hasCells, (value) => hasCells = value)
+        watch(() => particleLife.hasGrid, (value) => hasGrid = value)
+        watch(() => particleLife.isCircle, (value) => isCircle = value)
+        watch(() => particleLife.hasWalls, (value) => hasWalls = value)
+        watch(() => particleLife.hasDepthSize, (value) => hasDepthSize = value)
+        watch(() => particleLife.hasDepthOpacity, (value) => hasDepthOpacity = value)
+
+        watch(() => particleLife.minRadius, (value) => minRadius = value)
+        watch(() => particleLife.maxRadius, (value) => maxRadius = value)
+        watch(() => particleLife.repel, (value) => repel = value)
+        watch(() => particleLife.forceFactor, (value) => forceFactor = value)
+        watch(() => particleLife.frictionFactor, (value) => frictionFactor = value)
+
+        onBeforeUnmount(() => {
+            if (animationFrameId) cancelAnimationFrame(animationFrameId)
+        })
 
         return {
-            lifeCanvas, fps, cellCount, executionTime,
-            toggleHasCells, toggleHasGrid, toggleIsCircle, toggleHasWalls, toggleHasDepthSize, toggleHasDepthOpacity
+            lifeCanvas, fps, cellCount, executionTime, particleLife,
         }
     }
 })
