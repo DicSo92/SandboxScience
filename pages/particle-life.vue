@@ -8,7 +8,7 @@
                     <p>Settings</p>
                     <hr>
                     <div grid grid-cols-2 gap-4 mt-3>
-                        <ToggleSwitch label="Grid" v-model="particleLife.hasGrid" />
+                        <ToggleSwitch label="Grid" v-model="particleLife.hasGrid" :disabled="!particleLife.hasWalls"/>
                         <ToggleSwitch label="Walls" v-model="particleLife.hasWalls" />
                         <ToggleSwitch label="Cells" v-model="particleLife.hasCells" />
                         <ToggleSwitch label="Depth Opacity" v-model="particleLife.hasDepthOpacity" />
@@ -500,7 +500,10 @@ export default defineComponent({
         watch(() => particleLife.hasCells, (value) => hasCells = value)
         watch(() => particleLife.hasGrid, (value) => hasGrid = value)
         watch(() => particleLife.isCircle, (value) => isCircle = value)
-        watch(() => particleLife.hasWalls, (value) => hasWalls = value)
+        watch(() => particleLife.hasWalls, (value) => {
+            hasWalls = value
+            particleLife.hasGrid = !!value
+        })
         watch(() => particleLife.hasDepthSize, (value) => hasDepthSize = value)
         watch(() => particleLife.hasDepthOpacity, (value) => hasDepthOpacity = value)
 
