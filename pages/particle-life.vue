@@ -17,7 +17,7 @@
                     </div>
                     <div flex flex-col>
                         <RangeInput input label="Particle Number" :min="particleLife.numColors" :max="20000" :step="10" v-model="particleLife.numParticles" mt-2 />
-                        <RangeInput input label="Color Number" :min="1" :max="10" :step="1" v-model="particleLife.numColors" mt-2 />
+                        <RangeInput input label="Color Number" :min="1" :max="20" :step="1" v-model="particleLife.numColors" mt-2 />
                         <RangeInput input label="Particle Size" :min="1" :max="20" :step="1" v-model="particleLife.particleSize" mt-2 />
                         <RangeInput input label="Depth Limit" :min="0" :max="1000" :step="1" v-model="particleLife.depthLimit" mt-2 />
                     </div>
@@ -26,7 +26,7 @@
                         <hr>
                         <RangeInput input label="Min. Opacity" :min="0" :max="Math.min(1, particleLife.maxOpacity)" :step="0.01" v-model="particleLife.minOpacity" mt-2 />
                         <RangeInput input label="Max. Opacity" :min="particleLife.minOpacity" :max="2" :step="0.01" v-model="particleLife.maxOpacity" mt-2 />
-                        <RangeInput input label="Cell Group Size" :min="0" :max="100" :step="1" v-model="particleLife.cellGroupSize" mt-3 />
+                        <RangeInput input label="Cell Group Size" :min="0" :max="100" :step="1" v-model="particleLife.cellGroupSize" mt-2 />
                     </div>
                     <div flex flex-col mt-4>
                         <p>Forces</p>
@@ -34,7 +34,7 @@
                         <RangeInput input label="Min. Radius" :min="1" :max="particleLife.maxRadius" :step="1" v-model="particleLife.minRadius" mt-2 />
                         <RangeInput input label="Max. Radius" :min="particleLife.minRadius" :max="256" :step="1" v-model="particleLife.maxRadius" mt-2 />
                         <RangeInput input label="Repel Force" :min="0.01" :max="4" :step="0.01" v-model="particleLife.repel" mt-2 />
-                        <RangeInput input label="Force Factor" :min="0.01" :max="2" :step="0.015" v-model="particleLife.forceFactor" mt-2 />
+                        <RangeInput input label="Force Factor" :min="0.01" :max="2" :step="0.01" v-model="particleLife.forceFactor" mt-2 />
                         <RangeInput input label="Friction Factor" :min="0" :max="1" :step="0.01" v-model="particleLife.frictionFactor" mt-2 />
                     </div>
                 </div>
@@ -217,7 +217,6 @@ export default defineComponent({
             gridOffsetX -= (x / zoomFactor) * ((zoomFactor / oldZoomFactor) - 1)
             gridOffsetY -= (y / zoomFactor) * ((zoomFactor / oldZoomFactor) - 1)
 
-            console.log(zoomFactor)
             setEndCoordinates()
             if (!isRunning.value) simpleDrawParticles()
         }
@@ -244,9 +243,10 @@ export default defineComponent({
         function initParticles() {
             for (let i = 0; i < numParticles; ++i) {
                 colors[i] = Math.floor(Math.random() * numColors)
-                positionX[i] = Math.random() * gridWidth
-                positionY[i] = Math.random() * gridHeight
-                positionZ[i] = Math.random() * (maxZDepthRandomParticle - minZDepthRandomParticle) + minZDepthRandomParticle
+                const newPositions = getRandomPositions()
+                positionX[i] = newPositions.x
+                positionY[i] = newPositions.y
+                positionZ[i] = newPositions.z
             }
         }
         function makeRandomMatrix() {
@@ -258,6 +258,13 @@ export default defineComponent({
                 }
             }
             return matrix
+        }
+        function getRandomPositions() {
+            return {
+                x: Math.random() * gridWidth,
+                y: Math.random() * gridHeight,
+                z: Math.random() * (maxZDepthRandomParticle - minZDepthRandomParticle) + minZDepthRandomParticle
+            }
         }
         // -------------------------------------------------------------------------------------------------------------
         function update() {
@@ -473,50 +480,6 @@ export default defineComponent({
                 drawParticle(positionX[i], positionY[i], positionZ[i], currentColors[colors[i]], particleSize)
             }
         }
-        function updateNumParticles(newNumParticles: number) {
-            if (newNumParticles === numParticles) return // Skip if the number of particles is the same
-            if (newNumParticles < numParticles) { // Remove particles
-                colors = colors.slice(0, newNumParticles)
-                positionX = positionX.slice(0, newNumParticles)
-                positionY = positionY.slice(0, newNumParticles)
-                positionZ = positionZ.slice(0, newNumParticles)
-                velocityX = velocityX.slice(0, newNumParticles)
-                velocityY = velocityY.slice(0, newNumParticles)
-                velocityZ = velocityZ.slice(0, newNumParticles)
-            } else { // Add particles
-                const newColors = new Int32Array(newNumParticles)
-                const newPositionX = new Float32Array(newNumParticles)
-                const newPositionY = new Float32Array(newNumParticles)
-                const newPositionZ = new Float32Array(newNumParticles)
-                const newVelocityX = new Float32Array(newNumParticles).fill(0)
-                const newVelocityY = new Float32Array(newNumParticles).fill(0)
-                const newVelocityZ = new Float32Array(newNumParticles).fill(0)
-                for (let i = 0; i < newNumParticles; i++) {
-                    if (i < numParticles) {
-                        newColors[i] = colors[i]
-                        newPositionX[i] = positionX[i]
-                        newPositionY[i] = positionY[i]
-                        newPositionZ[i] = positionZ[i]
-                        newVelocityX[i] = velocityX[i]
-                        newVelocityY[i] = velocityY[i]
-                        newVelocityZ[i] = velocityZ[i]
-                    } else {
-                        newColors[i] = Math.floor(Math.random() * numColors)
-                        newPositionX[i] = Math.random() * gridWidth
-                        newPositionY[i] = Math.random() * gridHeight
-                        newPositionZ[i] = Math.random() * (maxZDepthRandomParticle - minZDepthRandomParticle) + minZDepthRandomParticle
-                    }
-                }
-                colors = newColors
-                positionX = newPositionX
-                positionY = newPositionY
-                positionZ = newPositionZ
-                velocityX = newVelocityX
-                velocityY = newVelocityY
-                velocityZ = newVelocityZ
-            }
-            numParticles = newNumParticles // Update the number of particles
-        }
         // -------------------------------------------------------------------------------------------------------------
         function centerView() {
             const centerX = canvasWidth / 2 / zoomFactor - gridOffsetX
@@ -558,29 +521,151 @@ export default defineComponent({
             endGridY = gridOffsetY * zoomFactor + gridHeight * zoomFactor
         }
         // -------------------------------------------------------------------------------------------------------------
+        function updateNumParticles(newNumParticles: number) {
+            if (newNumParticles === numParticles) return // Skip if the number of particles is the same
+            if (newNumParticles < numParticles) { // Remove particles
+                colors = colors.slice(0, newNumParticles)
+                positionX = positionX.slice(0, newNumParticles)
+                positionY = positionY.slice(0, newNumParticles)
+                positionZ = positionZ.slice(0, newNumParticles)
+                velocityX = velocityX.slice(0, newNumParticles)
+                velocityY = velocityY.slice(0, newNumParticles)
+                velocityZ = velocityZ.slice(0, newNumParticles)
+            } else { // Add particles
+                const newColors = new Int32Array(newNumParticles)
+                const newPositionX = new Float32Array(newNumParticles)
+                const newPositionY = new Float32Array(newNumParticles)
+                const newPositionZ = new Float32Array(newNumParticles)
+                const newVelocityX = new Float32Array(newNumParticles).fill(0)
+                const newVelocityY = new Float32Array(newNumParticles).fill(0)
+                const newVelocityZ = new Float32Array(newNumParticles).fill(0)
+                for (let i = 0; i < newNumParticles; i++) {
+                    if (i < numParticles) {
+                        newColors[i] = colors[i]
+                        newPositionX[i] = positionX[i]
+                        newPositionY[i] = positionY[i]
+                        newPositionZ[i] = positionZ[i]
+                        newVelocityX[i] = velocityX[i]
+                        newVelocityY[i] = velocityY[i]
+                        newVelocityZ[i] = velocityZ[i]
+                    } else {
+                        newColors[i] = Math.floor(Math.random() * numColors)
+                        const newPositions = getRandomPositions()
+                        newPositionX[i] = newPositions.x
+                        newPositionY[i] = newPositions.y
+                        newPositionZ[i] = newPositions.z
+                    }
+                }
+                colors = newColors
+                positionX = newPositionX
+                positionY = newPositionY
+                positionZ = newPositionZ
+                velocityX = newVelocityX
+                velocityY = newVelocityY
+                velocityZ = newVelocityZ
+            }
+            numParticles = newNumParticles // Update the number of particles
+            if (!isRunning.value) simpleDrawParticles() // Redraw the particles if the game is not running
+        }
+        function updateNumColors(newNumColors: number) {
+            if (newNumColors === numColors) return // Skip if the number of colors is the same
+            if (newNumColors < numColors) { // Remove colors
+                removeFromRulesMatrix(newNumColors)
+                colors = colors.map((color) => color % newNumColors)
+            } else { // Add colors
+                addToRulesMatrix(newNumColors)
+                for (let i = 0; i < numParticles; i++) {
+                    colors[i] = Math.floor(Math.random() * newNumColors)
+                }
+            }
+            numColors = newNumColors // Update the number of colors
+            initColors() // Reinitialize the colors (currentColors)
+            if (!isRunning.value) simpleDrawParticles() // Redraw the particles if the game is not running
+        }
+        function addToRulesMatrix(newNumColors: number) {
+            const matrix: number[][] = []
+            for (let i = 0; i < newNumColors; i++) {
+                if (i < numColors) {
+                    matrix.push(rulesMatrix[i])
+                } else {
+                    matrix.push([])
+                }
+                for (let j = 0; j < newNumColors; j++) {
+                    if (i < numColors && j < numColors) {
+                        matrix[i][j] = rulesMatrix[i][j]
+                    } else {
+                        matrix[i][j] = Math.random() * 2 - 1
+                    }
+                }
+            }
+            rulesMatrix = matrix
+        }
+        function removeFromRulesMatrix(newNumColors: number) {
+            const matrix: number[][] = []
+            for (let i = 0; i < newNumColors; i++) {
+                if (i < numColors) {
+                    matrix.push(rulesMatrix[i].slice(0, newNumColors)) // Truncate the row to the new size
+                } else {
+                    const newRow: number[] = []
+                    for (let j = 0; j < newNumColors; j++) {
+                        newRow[j] = Math.random() * 2 - 1
+                    }
+                    matrix.push(newRow)
+                }
+            }
+            rulesMatrix = matrix
+        }
+        function updateParticleSettings () {
+            numParticles = particleLife.numParticles
+            numColors = particleLife.numColors
+            particleSize = particleLife.particleSize
+            depthLimit = particleLife.depthLimit
+
+            hasCells = particleLife.hasCells
+            hasWalls = particleLife.hasWalls
+            hasGrid = particleLife.hasGrid
+            isCircle = particleLife.isCircle
+            hasDepthSize = particleLife.hasDepthSize
+            hasDepthOpacity = particleLife.hasDepthOpacity
+
+            minOpacity = particleLife.minOpacity
+            maxOpacity = particleLife.maxOpacity
+            cellGroupSize = particleLife.cellGroupSize
+
+            minRadius = particleLife.minRadius
+            maxRadius = particleLife.maxRadius
+            repel = particleLife.repel
+            forceFactor = particleLife.forceFactor
+            frictionFactor = particleLife.frictionFactor
+
+            if (!isRunning.value) simpleDrawParticles() // Redraw the particles if the game is not running
+        }
+        // -------------------------------------------------------------------------------------------------------------
+
         watch(() => particleLife.numParticles, (value) => updateNumParticles(value))
-        watch(() => particleLife.numColors, (value) => numColors = value)
-        watch(() => particleLife.particleSize, (value) => particleSize = value)
-        watch(() => particleLife.depthLimit, (value) => depthLimit = value)
+        watch(() => particleLife.numColors, (value) => updateNumColors(value))
+        watch(() => particleLife.particleSize, (value) => updateParticleSettings())
+        watch(() => particleLife.depthLimit, (value) => updateParticleSettings())
 
-        watch(() => particleLife.hasCells, (value) => hasCells = value)
-        watch(() => particleLife.hasGrid, (value) => hasGrid = value)
-        watch(() => particleLife.isCircle, (value) => isCircle = value)
+        watch(() => particleLife.hasCells, (value) => updateParticleSettings())
         watch(() => particleLife.hasWalls, (value) => {
-            hasWalls = value
             particleLife.hasGrid = !!value
+            updateParticleSettings()
         })
-        watch(() => particleLife.hasDepthSize, (value) => hasDepthSize = value)
-        watch(() => particleLife.hasDepthOpacity, (value) => hasDepthOpacity = value)
+        watch(() => particleLife.hasGrid, (value) => updateParticleSettings())
+        watch(() => particleLife.isCircle, (value) => updateParticleSettings())
+        watch(() => particleLife.hasDepthSize, (value) => updateParticleSettings())
+        watch(() => particleLife.hasDepthOpacity, (value) => updateParticleSettings())
 
-        watch(() => particleLife.minRadius, (value) => minRadius = value)
-        watch(() => particleLife.maxRadius, (value) => maxRadius = value)
-        watch(() => particleLife.repel, (value) => repel = value)
-        watch(() => particleLife.forceFactor, (value) => forceFactor = value)
-        watch(() => particleLife.frictionFactor, (value) => frictionFactor = value)
-        watch(() => particleLife.cellGroupSize, (value) => cellGroupSize = value)
-        watch(() => particleLife.minOpacity, (value) => minOpacity = value)
-        watch(() => particleLife.maxOpacity, (value) => maxOpacity = value)
+        watch(() => particleLife.minOpacity, (value) => updateParticleSettings())
+        watch(() => particleLife.maxOpacity, (value) => updateParticleSettings())
+        watch(() => particleLife.cellGroupSize, (value) => updateParticleSettings())
+
+        watch(() => particleLife.minRadius, (value) => updateParticleSettings())
+        watch(() => particleLife.maxRadius, (value) => updateParticleSettings())
+        watch(() => particleLife.repel, (value) => updateParticleSettings())
+        watch(() => particleLife.forceFactor, (value) => updateParticleSettings())
+        watch(() => particleLife.frictionFactor, (value) => updateParticleSettings())
 
 
         onBeforeUnmount(() => {
