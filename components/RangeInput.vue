@@ -17,7 +17,7 @@
                 </div>
             </div>
             <div v-if="input" w-16>
-                <input type="text" maxlength="5" :value="modelValue" @input="updateValue($event.target.value)" class="w-full border border-gray-200 rounded text-center text-black">
+                <input type="text" maxlength="5" :value="modelValue" @input="inputTextUpdate($event.target.value)" class="w-full border border-gray-200 rounded text-center text-black">
             </div>
         </div>
     </div>
@@ -60,11 +60,14 @@ export default defineComponent({
         const maxOffset = computed(() => {
             return 100 - (((props.modelValue - props.min) / (props.max - props.min)) * 100) // get the percentage from the right
         })
+        const inputTextUpdate = useDebounceFn((value: number) => {
+            emit("update:modelValue", Number(value))
+        }, 750, { maxWait: 2500 })
         function updateValue(value: any) {
             emit("update:modelValue", Number(value))
         }
 
-        return { minOffset, maxOffset, updateValue }
+        return { minOffset, maxOffset, updateValue, inputTextUpdate }
     }
 })
 </script>

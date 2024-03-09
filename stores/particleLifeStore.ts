@@ -1,12 +1,22 @@
 import { defineStore } from 'pinia'
 export const useParticleLifeStore = defineStore('particleLife', () => {
     const sidebarLeftOpen = ref<boolean>(false)
+
+    const numParticles = ref<number>(6000) // Number of particles
+    const particleSize = ref<number>(4) // Size of the particles at zoomFactor = 1
+    const numColors = ref<number>(8) // Number of colors to be used
+    const depthLimit = ref<number>(240) // Maximum Z axis depth (0 means almost 2D because there is friction with the walls && can be negative)
+
     const isCircle = ref<boolean>(true) // Enable circular shape for the particles
     const hasGrid = ref<boolean>(true) // Enable grid
     const hasCells = ref<boolean>(false) // Enable cells
     const hasWalls = ref<boolean>(true) // Enable walls X and Y for the particles
     const hasDepthSize = ref<boolean>(true) // Enable depth size effect
     const hasDepthOpacity = ref<boolean>(true) // Enable depth opacity effect
+    const maxOpacity = ref<number>(1) // Maximum opacity when hasDepthOpacity is enabled
+    const minOpacity = ref<number>(0.5) // Depth effect will be stronger with lower opacity
+
+    const cellGroupSize = ref<number>(0) // Minimum number of particles to be considered a group (0 to visualize all cells)
 
     // Define force properties
     const maxRadius = ref<number>(60) // maximum distance for particles to start attracting
@@ -21,8 +31,10 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
 
     return {
         sidebarLeftOpen,
-        isCircle, hasGrid, hasCells, hasWalls, hasDepthSize, hasDepthOpacity,
+        numParticles, particleSize, numColors, depthLimit,
+        isCircle, hasGrid, hasCells, hasWalls, hasDepthSize, hasDepthOpacity, maxOpacity, minOpacity,
         maxRadius, minRadius, repel, forceFactor, frictionFactor,
+        cellGroupSize,
         $reset
     }
 })
