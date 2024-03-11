@@ -27,6 +27,7 @@
                         <RangeInput input label="Min. Opacity" :min="0" :max="Math.min(1, particleLife.maxOpacity)" :step="0.01" v-model="particleLife.minOpacity" mt-2 />
                         <RangeInput input label="Max. Opacity" :min="particleLife.minOpacity" :max="2" :step="0.01" v-model="particleLife.maxOpacity" mt-2 />
                         <RangeInput input label="Cell Group Size" :min="0" :max="100" :step="1" v-model="particleLife.cellGroupSize" mt-2 />
+                        <RangeInput input label="Cell Size Factor" :min="1" :max="2" :step="0.01" v-model="particleLife.cellSizeFactor" mt-2 />
                     </div>
                     <div flex flex-col mt-4>
                         <p>Forces</p>
@@ -109,11 +110,6 @@ export default defineComponent({
         let minOpacity: number = particleLife.minOpacity // Depth effect will be stronger with lower opacity
         let cellGroupSize: number = particleLife.cellGroupSize // Minimum number of particles to be considered a group (0 to visualize all cells)
 
-        // Define depth limits for randomly placed particles
-        const minZDepthRandomParticle: number = depthLimit * 0.2 // The minimum Z-depth for randomly placed particles, in percentage of the depthLimit
-        const maxZDepthRandomParticle: number = depthLimit * 0.45 // The maximum Z-depth for randomly placed particles, in percentage of the depthLimit
-        const screenMultiplierForGridSize: number = 2 // Multiplier for the grid size based on the screen size
-
         // Define force properties
         let maxRadius: number = particleLife.maxRadius // maximum distance for particles to start attracting
         let minRadius: number = particleLife.minRadius // minimum distance for particles to start repelling
@@ -121,6 +117,13 @@ export default defineComponent({
         let forceFactor: number = particleLife.forceFactor // Decrease will increase the impact of the force on the velocity (the higher the value, the slower the particles will move) (can't be 0)
         let frictionFactor: number = particleLife.frictionFactor // Slow down the particles (0 to 1, where 1 is no friction)
         let zoomFactor: number = 1 // Zoom level
+
+        let cellSizeFactor: number = particleLife.cellSizeFactor // Adjust the cell size based on the particle size
+
+        // Define depth limits for randomly placed particles
+        const minZDepthRandomParticle: number = depthLimit * 0.2 // The minimum Z-depth for randomly placed particles, in percentage of the depthLimit
+        const maxZDepthRandomParticle: number = depthLimit * 0.45 // The maximum Z-depth for randomly placed particles, in percentage of the depthLimit
+        const screenMultiplierForGridSize: number = 2 // Multiplier for the grid size based on the screen size
 
         // Define grid properties
         let gridOffsetX: number = 0 // Grid offset X
@@ -277,9 +280,7 @@ export default defineComponent({
             } else {
                 if (isDragging) simpleDrawParticles()
             }
-            const exeTime = performance.now() - startExecutionTime
-            executionTime.value = exeTime
-            // console.log('Execution time: ', exeTime + 'ms')
+            executionTime.value = performance.now() - startExecutionTime
             animationFrameId = requestAnimationFrame(update)
         }
         function drawCells() {
@@ -298,7 +299,7 @@ export default defineComponent({
 
                 const drawX = (centerX + gridOffsetX) * zoomFactor
                 const drawY = (centerY + gridOffsetY) * zoomFactor
-                const radius = maxRadius * zoomFactor
+                const radius = maxRadius / (2 / cellSizeFactor) * zoomFactor
 
                 // Skip if the cell is outside the canvas
                 if (drawX < -radius || drawX > canvasWidth + radius || drawY < -radius || drawY > canvasHeight + radius) return
@@ -375,7 +376,7 @@ export default defineComponent({
 
         // For Loop Optimized
         function processRules() {
-            const cellSize = maxRadius * 2
+            const cellSize = maxRadius * cellSizeFactor
             cells = new Map<string, number[]>()
 
             // Assign each particle to a cell
@@ -403,9 +404,9 @@ export default defineComponent({
 
                     // Process each neighboring cell
                     for (let offsetY = -1; offsetY <= 1; offsetY++) {
+                        const neighborY = cellY + offsetY
                         for (let offsetX = -1; offsetX <= 1; offsetX++) {
                             const neighborX = cellX + offsetX
-                            const neighborY = cellY + offsetY
                             const neighborKey = `${neighborX},${neighborY}`
 
                             if (!cells.has(neighborKey)) {
@@ -638,35 +639,38 @@ export default defineComponent({
             forceFactor = particleLife.forceFactor
             frictionFactor = particleLife.frictionFactor
 
+            cellSizeFactor = particleLife.cellSizeFactor
+
             if (!isRunning.value) simpleDrawParticles() // Redraw the particles if the game is not running
         }
         // -------------------------------------------------------------------------------------------------------------
 
         watch(() => particleLife.numParticles, (value) => updateNumParticles(value))
         watch(() => particleLife.numColors, (value) => updateNumColors(value))
-        watch(() => particleLife.particleSize, (value) => updateParticleSettings())
-        watch(() => particleLife.depthLimit, (value) => updateParticleSettings())
+        watch(() => particleLife.particleSize, () => updateParticleSettings())
+        watch(() => particleLife.depthLimit, () => updateParticleSettings())
 
-        watch(() => particleLife.hasCells, (value) => updateParticleSettings())
+        watch(() => particleLife.hasCells, () => updateParticleSettings())
         watch(() => particleLife.hasWalls, (value) => {
             particleLife.hasGrid = !!value
             updateParticleSettings()
         })
-        watch(() => particleLife.hasGrid, (value) => updateParticleSettings())
-        watch(() => particleLife.isCircle, (value) => updateParticleSettings())
-        watch(() => particleLife.hasDepthSize, (value) => updateParticleSettings())
-        watch(() => particleLife.hasDepthOpacity, (value) => updateParticleSettings())
+        watch(() => particleLife.hasGrid, () => updateParticleSettings())
+        watch(() => particleLife.isCircle, () => updateParticleSettings())
+        watch(() => particleLife.hasDepthSize, () => updateParticleSettings())
+        watch(() => particleLife.hasDepthOpacity, () => updateParticleSettings())
 
-        watch(() => particleLife.minOpacity, (value) => updateParticleSettings())
-        watch(() => particleLife.maxOpacity, (value) => updateParticleSettings())
-        watch(() => particleLife.cellGroupSize, (value) => updateParticleSettings())
+        watch(() => particleLife.minOpacity, () => updateParticleSettings())
+        watch(() => particleLife.maxOpacity, () => updateParticleSettings())
+        watch(() => particleLife.cellGroupSize, () => updateParticleSettings())
 
-        watch(() => particleLife.minRadius, (value) => updateParticleSettings())
-        watch(() => particleLife.maxRadius, (value) => updateParticleSettings())
-        watch(() => particleLife.repel, (value) => updateParticleSettings())
-        watch(() => particleLife.forceFactor, (value) => updateParticleSettings())
-        watch(() => particleLife.frictionFactor, (value) => updateParticleSettings())
+        watch(() => particleLife.minRadius, () => updateParticleSettings())
+        watch(() => particleLife.maxRadius, () => updateParticleSettings())
+        watch(() => particleLife.repel, () => updateParticleSettings())
+        watch(() => particleLife.forceFactor, () => updateParticleSettings())
+        watch(() => particleLife.frictionFactor, () => updateParticleSettings())
 
+        watch(() => particleLife.cellSizeFactor, () => updateParticleSettings())
 
         onBeforeUnmount(() => {
             if (animationFrameId) cancelAnimationFrame(animationFrameId)
