@@ -91,9 +91,10 @@ export default defineComponent({
         const isRunning = ref<boolean>(true)
 
         // Define color list and rules matrix for the particles
-        const colorList: string[] = ['yellow', 'red', 'green', 'cyan', 'magenta', 'blue', 'white', 'orange', 'purple', 'pink']
-        let currentColors: number[] = []
-        let rulesMatrix: number[][] = []
+        let currentColors: number[] = [] // Current colors for the particles
+        let rulesMatrix: number[][] = [] // Rules matrix for each color
+        let maxRadiusMatrix: number[][] = [] // Max radius matrix for each color
+        let minRadiusMatrix: number[][] = [] // Min radius matrix for each color
 
         // Define world properties
         let numParticles: number = particleLife.numParticles // Number of particles
@@ -117,8 +118,15 @@ export default defineComponent({
         let forceFactor: number = particleLife.forceFactor // Decrease will increase the impact of the force on the velocity (the higher the value, the slower the particles will move) (can't be 0)
         let frictionFactor: number = particleLife.frictionFactor // Slow down the particles (0 to 1, where 1 is no friction)
         let zoomFactor: number = 1 // Zoom level
-
         let cellSizeFactor: number = particleLife.cellSizeFactor // Adjust the cell size based on the particle size
+
+        let currentMinRadius: number = 0 // Max value between all colors min radius
+        let currentMaxRadius: number = 0 // Max value between all colors max radius (for cell size)
+
+        // Define properties for randomizing radius matrix
+        let colorMinRadiusRange: number[] = particleLife.colorMinRadiusRange // Range for the minRadius of each color
+        let maxRadiusRangeOffset: number = particleLife.maxRadiusRangeOffset // Offset for the range of the maxRadius of each color
+        let maxRadiusRangeMax: number = particleLife.maxRadiusRangeMax // Max range for the maxRadius of each color
 
         // Define depth limits for randomly placed particles
         const minZDepthRandomParticle: number = depthLimit * 0.2 // The minimum Z-depth for randomly placed particles, in percentage of the depthLimit
@@ -233,7 +241,11 @@ export default defineComponent({
             initColors()
             centerView()
             initParticles()
-            rulesMatrix = makeRandomMatrix()
+            rulesMatrix = makeRandomRulesMatrix()
+            minRadiusMatrix = makeRandomMinRadiusMatrix()
+            maxRadiusMatrix = makeRandomMaxRadiusMatrix()
+            console.table(minRadiusMatrix)
+            console.table(maxRadiusMatrix)
             console.table(rulesMatrix)
         }
         function initColors() {
@@ -252,7 +264,7 @@ export default defineComponent({
                 positionZ[i] = newPositions.z
             }
         }
-        function makeRandomMatrix() {
+        function makeRandomRulesMatrix() {
             let matrix: number[][] = []
             for (let i = 0; i < numColors; i++) {
                 matrix.push([])
@@ -260,6 +272,42 @@ export default defineComponent({
                     matrix[i].push(Math.random() * 2 - 1)
                 }
             }
+            return matrix
+        }
+        function makeRandomMinRadiusMatrix() {
+            let matrix: number[][] = []
+            const min: number = colorMinRadiusRange[0]
+            const max: number = colorMinRadiusRange[1]
+            let maxRandom: number = min
+            for (let i = 0; i < numColors; i++) {
+                matrix.push([])
+                for (let j = 0; j < numColors; j++) {
+                    const random = Math.floor(Math.random() * (max - min + 1) + min)
+                    matrix[i].push(random)
+                    if (random > maxRandom) {
+                        maxRandom = random
+                    }
+                }
+            }
+            currentMinRadius = maxRandom
+            return matrix
+        }
+        function makeRandomMaxRadiusMatrix() {
+            let matrix: number[][] = []
+            const min: number = currentMinRadius + maxRadiusRangeOffset
+            const max: number = maxRadiusRangeMax
+            let maxRandom: number = min
+            for (let i = 0; i < numColors; i++) {
+                matrix.push([])
+                for (let j = 0; j < numColors; j++) {
+                    const random = Math.floor(Math.random() * (max - min + 1) + min)
+                    matrix[i].push(random)
+                    if (random > maxRandom) {
+                        maxRandom = random
+                    }
+                }
+            }
+            currentMaxRadius = maxRandom
             return matrix
         }
         function getRandomPositions() {
@@ -299,7 +347,7 @@ export default defineComponent({
 
                 const drawX = (centerX + gridOffsetX) * zoomFactor
                 const drawY = (centerY + gridOffsetY) * zoomFactor
-                const radius = maxRadius / (2 / cellSizeFactor) * zoomFactor
+                const radius = currentMaxRadius / (2 / cellSizeFactor) * zoomFactor
 
                 // Skip if the cell is outside the canvas
                 if (drawX < -radius || drawX > canvasWidth + radius || drawY < -radius || drawY > canvasHeight + radius) return
@@ -362,21 +410,21 @@ export default defineComponent({
                 ctx!.fill()
             }
         }
-        function getForce(ruleFactor: number, distance: number) {
-            if (distance < minRadius) {
-                return (repel / minRadius) * distance - repel
-            } else if (distance > maxRadius) {
+        function getForce(ruleFactor: number, colorMinRadius: number, colorMaxRadius: number, distance: number) {
+            if (distance < colorMinRadius) {
+                return (repel / colorMinRadius) * distance - repel
+            } else if (distance > colorMaxRadius) {
                 return 0
             } else {
-                let mid = (minRadius + maxRadius) / 2
-                let slope = ruleFactor / (mid - minRadius)
+                let mid = (colorMinRadius + colorMaxRadius) / 2
+                let slope = ruleFactor / (mid - colorMinRadius)
                 return -(slope * Math.abs(distance - mid)) + ruleFactor
             }
         }
 
         // For Loop Optimized
         function processRules() {
-            const cellSize = maxRadius * cellSizeFactor
+            const cellSize = currentMaxRadius * cellSizeFactor
             cells = new Map<string, number[]>()
 
             // Assign each particle to a cell
@@ -426,10 +474,14 @@ export default defineComponent({
                                 let distanceX = Math.abs(posXA - posXB)
                                 let distanceY = Math.abs(posYA - posYB)
                                 let distanceZ = Math.abs(posZA - posZB)
-
                                 const distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY + distanceZ * distanceZ)
-                                if (distance < maxRadius) {
-                                    const force = getForce(rulesMatrix[colors[indexA]][colors[indexB]], distance)
+
+                                const colorA = colors[indexA]
+                                const colorB = colors[indexB]
+                                const colorMaxRadius = maxRadiusMatrix[colorA][colorB]
+
+                                if (distance < colorMaxRadius) {
+                                    const force = getForce(rulesMatrix[colorA][colorB], minRadiusMatrix[colorA][colorB], colorMaxRadius, distance)
 
                                     distanceX = posXB - posXA
                                     distanceY = posYB - posYA
@@ -571,10 +623,10 @@ export default defineComponent({
         function updateNumColors(newNumColors: number) {
             if (newNumColors === numColors) return // Skip if the number of colors is the same
             if (newNumColors < numColors) { // Remove colors
-                removeFromRulesMatrix(newNumColors)
+                removeFromMatrix(newNumColors)
                 colors = colors.map((color) => color % newNumColors)
             } else { // Add colors
-                addToRulesMatrix(newNumColors)
+                addToMatrix(newNumColors)
                 for (let i = 0; i < numParticles; i++) {
                     colors[i] = Math.floor(Math.random() * newNumColors)
                 }
@@ -583,38 +635,63 @@ export default defineComponent({
             initColors() // Reinitialize the colors (currentColors)
             if (!isRunning.value) simpleDrawParticles() // Redraw the particles if the game is not running
         }
-        function addToRulesMatrix(newNumColors: number) {
-            const matrix: number[][] = []
+        function addToMatrix(newNumColors: number) {
+            const newRulesMatrix: number[][] = []
+            const newMinRadiusMatrix: number[][] = []
+            const newMaxRadiusMatrix: number[][] = []
+
             for (let i = 0; i < newNumColors; i++) {
-                if (i < numColors) {
-                    matrix.push(rulesMatrix[i])
-                } else {
-                    matrix.push([])
+                if (i < numColors) { // Copy the existing rules for the existing colors
+                    newRulesMatrix.push(rulesMatrix[i])
+                    newMinRadiusMatrix.push(minRadiusMatrix[i])
+                    newMaxRadiusMatrix.push(maxRadiusMatrix[i])
+                } else { // Set new rules for the new colors
+                    newRulesMatrix.push([])
+                    newMinRadiusMatrix.push([])
+                    newMaxRadiusMatrix.push([])
                 }
                 for (let j = 0; j < newNumColors; j++) {
-                    if (i < numColors && j < numColors) {
-                        matrix[i][j] = rulesMatrix[i][j]
-                    } else {
-                        matrix[i][j] = Math.random() * 2 - 1
+                    if (i < numColors && j < numColors) { // Copy the existing rules for the existing colors
+                        newRulesMatrix[i][j] = rulesMatrix[i][j]
+                        newMinRadiusMatrix[i][j] = minRadiusMatrix[i][j]
+                        newMaxRadiusMatrix[i][j] = maxRadiusMatrix[i][j]
+                    } else { // Set new rules for the new colors
+                        newRulesMatrix[i][j] = Math.random() * 2 - 1 // Set a random rule between -1 and 1
+
+                        // Set a random min radius between the range
+                        const minRandom = Math.floor(Math.random() * (colorMinRadiusRange[1] - colorMinRadiusRange[0] + 1) + colorMinRadiusRange[0])
+                        newMinRadiusMatrix[i][j] = minRandom
+                        if (minRandom > currentMinRadius) currentMinRadius = minRandom
+
+                        // Set a random max radius between the range
+                        const min = minRandom + maxRadiusRangeOffset
+                        const maxRandom = Math.floor(Math.random() * (maxRadiusRangeMax - min + 1) + min)
+                        newMaxRadiusMatrix[i][j] = maxRandom
+                        if (maxRandom > currentMaxRadius) currentMaxRadius = maxRandom
                     }
                 }
             }
-            rulesMatrix = matrix
+            rulesMatrix = newRulesMatrix
+            minRadiusMatrix = newMinRadiusMatrix
+            maxRadiusMatrix = newMaxRadiusMatrix
+
+            console.table(maxRadiusMatrix)
         }
-        function removeFromRulesMatrix(newNumColors: number) {
-            const matrix: number[][] = []
+        function removeFromMatrix(newNumColors: number) {
+            const newRulesMatrix: number[][] = []
+            const newMinRadiusMatrix: number[][] = []
+            const newMaxRadiusMatrix: number[][] = []
+
             for (let i = 0; i < newNumColors; i++) {
-                if (i < numColors) {
-                    matrix.push(rulesMatrix[i].slice(0, newNumColors)) // Truncate the row to the new size
-                } else {
-                    const newRow: number[] = []
-                    for (let j = 0; j < newNumColors; j++) {
-                        newRow[j] = Math.random() * 2 - 1
-                    }
-                    matrix.push(newRow)
-                }
+                newRulesMatrix.push(rulesMatrix[i].slice(0, newNumColors)) // Truncate the row to the new size
+                newMinRadiusMatrix.push(minRadiusMatrix[i].slice(0, newNumColors)) // Truncate the row to the new size
+                newMaxRadiusMatrix.push(maxRadiusMatrix[i].slice(0, newNumColors)) // Truncate the row to the new size
             }
-            rulesMatrix = matrix
+            rulesMatrix = newRulesMatrix
+            minRadiusMatrix = newMinRadiusMatrix
+            maxRadiusMatrix = newMaxRadiusMatrix
+
+            console.table(maxRadiusMatrix)
         }
         function updateParticleSettings () {
             numParticles = particleLife.numParticles
