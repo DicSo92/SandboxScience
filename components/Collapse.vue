@@ -6,7 +6,7 @@
             <div :class="isOpen && 'rotate-180'" class="icon i-tabler-caret-up-filled" text-2xl></div>
         </div>
         <transition name="collapse">
-            <div v-show="isOpen" class="content" p-2 bg-gray-700 pt-6 rounded-b-lg relative -mt-4 z-40>
+            <div v-show="isOpen" class="content -mt-4" p-2 bg-gray-700 pt-6 rounded-b-lg relative z-40>
                 <slot></slot>
             </div>
         </transition>
