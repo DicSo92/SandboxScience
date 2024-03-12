@@ -4,39 +4,46 @@
             <template #controls>
             </template>
             <template #default>
-                <div px-4 flex flex-col>
+                <div px-2 flex flex-col>
                     <p>World Settings</p>
                     <hr>
                     <div grid grid-cols-2 gap-4 mt-3>
                         <ToggleSwitch label="Grid" v-model="particleLife.hasGrid" :disabled="!particleLife.hasWalls"/>
                         <ToggleSwitch label="Walls" v-model="particleLife.hasWalls" />
                         <ToggleSwitch label="Cells" v-model="particleLife.hasCells" />
-                        <ToggleSwitch label="Depth Opacity" v-model="particleLife.hasDepthOpacity" />
-                        <ToggleSwitch label="Depth Size" v-model="particleLife.hasDepthSize" />
                         <ToggleSwitch label="Circle Shape" v-model="particleLife.isCircle" />
                     </div>
-                    <div flex flex-col>
-                        <RangeInput input label="Particle Number" :min="particleLife.numColors" :max="20000" :step="10" v-model="particleLife.numParticles" mt-2 />
-                        <RangeInput input label="Color Number" :min="1" :max="20" :step="1" v-model="particleLife.numColors" mt-2 />
-                        <RangeInput input label="Particle Size" :min="1" :max="20" :step="1" v-model="particleLife.particleSize" mt-2 />
-                        <RangeInput input label="Depth Limit" :min="0" :max="1000" :step="1" v-model="particleLife.depthLimit" mt-2 />
-                    </div>
-                    <div flex flex-col mt-4>
-                        <p>Advanced World Settings</p>
-                        <hr>
-                        <RangeInput input label="Min. Opacity" :min="0" :max="Math.min(1, particleLife.maxOpacity)" :step="0.01" v-model="particleLife.minOpacity" mt-2 />
-                        <RangeInput input label="Max. Opacity" :min="particleLife.minOpacity" :max="2" :step="0.01" v-model="particleLife.maxOpacity" mt-2 />
-                        <RangeInput input label="Cell Group Size" :min="0" :max="100" :step="1" v-model="particleLife.cellGroupSize" mt-2 />
-                        <RangeInput input label="Cell Size Factor" :min="1" :max="2" :step="0.01" v-model="particleLife.cellSizeFactor" mt-2 />
-                    </div>
-                    <div flex flex-col mt-4>
-                        <p>Forces</p>
-                        <hr>
-                        <RangeInput input label="Min. Radius" :min="1" :max="particleLife.maxRadius" :step="1" v-model="particleLife.minRadius" mt-2 />
-                        <RangeInput input label="Max. Radius" :min="particleLife.minRadius" :max="256" :step="1" v-model="particleLife.maxRadius" mt-2 />
-                        <RangeInput input label="Repel Force" :min="0.01" :max="4" :step="0.01" v-model="particleLife.repel" mt-2 />
-                        <RangeInput input label="Force Factor" :min="0.01" :max="2" :step="0.01" v-model="particleLife.forceFactor" mt-2 />
-                        <RangeInput input label="Friction Factor" :min="0" :max="1" :step="0.01" v-model="particleLife.frictionFactor" mt-2 />
+                    <div>
+                        <Collapse label="World Settings" opened mt-2>
+                            <RangeInput input label="Particle Number" :min="particleLife.numColors" :max="20000" :step="10" v-model="particleLife.numParticles" />
+                            <RangeInput input label="Color Number" :min="1" :max="20" :step="1" v-model="particleLife.numColors" mt-2 />
+                            <RangeInput input label="Particle Size" :min="1" :max="20" :step="1" v-model="particleLife.particleSize" mt-2 />
+                            <RangeInput input label="Depth Limit" :min="0" :max="1000" :step="1" v-model="particleLife.depthLimit" mt-2 />
+                        </Collapse>
+                        <Collapse label="Force Settings" opened mt-2>
+                            <RangeInput input label="Repel Force" :min="0.01" :max="4" :step="0.01" v-model="particleLife.repel" />
+                            <RangeInput input label="Force Factor" :min="0.01" :max="2" :step="0.01" v-model="particleLife.forceFactor" mt-2 />
+                            <RangeInput input label="Friction Factor" :min="0" :max="1" :step="0.01" v-model="particleLife.frictionFactor" mt-2 />
+                        </Collapse>
+                        <Collapse label="3D Depth Settings" mt-2>
+                            <div grid grid-cols-2 gap-4>
+                                <ToggleSwitch label="Depth Size" v-model="particleLife.hasDepthSize" />
+                                <ToggleSwitch label="Depth Opacity" v-model="particleLife.hasDepthOpacity" />
+                            </div>
+                            <RangeInput input label="Min. Opacity" :min="0" :max="Math.min(1, particleLife.maxOpacity)" :step="0.01" v-model="particleLife.minOpacity" mt-2 />
+                            <RangeInput input label="Max. Opacity" :min="particleLife.minOpacity" :max="2" :step="0.01" v-model="particleLife.maxOpacity" mt-2 />
+                        </Collapse>
+                        <Collapse label="Cells Settings" mt-2>
+                            <RangeInput input label="Cell Group Size" :min="0" :max="100" :step="1" v-model="particleLife.cellGroupSize" />
+                            <RangeInput input label="Cell Size Factor" :min="1" :max="2" :step="0.01" v-model="particleLife.cellSizeFactor" mt-2 />
+                        </Collapse>
+                        <Collapse label="Randomizer Settings" mt-2>
+                            <RangeInput input label="Min. Radius" :min="1" :max="particleLife.maxRadius" :step="1" v-model="particleLife.minRadius" />
+                            <RangeInput input label="Max. Radius" :min="particleLife.minRadius" :max="256" :step="1" v-model="particleLife.maxRadius" mt-2 />
+
+                            <RangeInput input label="Max. Radius Range Offset" :min="1" :max="particleLife.maxRadiusRangeMax" :step="1" v-model="particleLife.maxRadiusRangeOffset" mt-2 />
+                            <RangeInput input label="Max. Radius Range Max" :min="particleLife.minRadiusRange[0] + particleLife.maxRadiusRangeOffset" :max="300" :step="1" v-model="particleLife.maxRadiusRangeMax" mt-2 />
+                        </Collapse>
                     </div>
                 </div>
             </template>
@@ -124,7 +131,7 @@ export default defineComponent({
         let currentMaxRadius: number = 0 // Max value between all colors max radius (for cell size)
 
         // Define properties for randomizing radius matrix
-        let colorMinRadiusRange: number[] = particleLife.colorMinRadiusRange // Range for the minRadius of each color
+        let minRadiusRange: number[] = particleLife.minRadiusRange // Range for the minRadius of each color
         let maxRadiusRangeOffset: number = particleLife.maxRadiusRangeOffset // Offset for the range of the maxRadius of each color
         let maxRadiusRangeMax: number = particleLife.maxRadiusRangeMax // Max range for the maxRadius of each color
 
@@ -276,8 +283,8 @@ export default defineComponent({
         }
         function makeRandomMinRadiusMatrix() {
             let matrix: number[][] = []
-            const min: number = colorMinRadiusRange[0]
-            const max: number = colorMinRadiusRange[1]
+            const min: number = minRadiusRange[0]
+            const max: number = minRadiusRange[1]
             let maxRandom: number = min
             for (let i = 0; i < numColors; i++) {
                 matrix.push([])
@@ -659,7 +666,7 @@ export default defineComponent({
                         newRulesMatrix[i][j] = Math.random() * 2 - 1 // Set a random rule between -1 and 1
 
                         // Set a random min radius between the range
-                        const minRandom = Math.floor(Math.random() * (colorMinRadiusRange[1] - colorMinRadiusRange[0] + 1) + colorMinRadiusRange[0])
+                        const minRandom = Math.floor(Math.random() * (minRadiusRange[1] - minRadiusRange[0] + 1) + minRadiusRange[0])
                         newMinRadiusMatrix[i][j] = minRandom
                         if (minRandom > currentMinRadius) currentMinRadius = minRandom
 

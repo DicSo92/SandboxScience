@@ -26,7 +26,8 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
     const forceFactor = ref<number>(0.4) // Decrease will increase the impact of the force on the velocity (the higher the value, the slower the particles will move)
     const frictionFactor = ref<number>(0.6) // Slow down the particles (0 to 1, where 1 is no friction)
 
-    const colorMinRadiusRange = ref<number[]>([30, 60]) // Range for the minRadius of each color
+    // Define properties for randomizing radius matrix
+    const minRadiusRange = ref<number[]>([30, 60]) // Range for the minRadius of each color
     const maxRadiusRangeOffset = ref<number>(30) // Offset for the range of the maxRadius of each color
     const maxRadiusRangeMax = ref<number>(160) // Max range for the maxRadius of each color
 
@@ -38,7 +39,7 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
         sidebarLeftOpen,
         numParticles, particleSize, numColors, depthLimit,
         isCircle, hasGrid, hasCells, hasWalls, hasDepthSize, hasDepthOpacity, maxOpacity, minOpacity,
-        colorMinRadiusRange, maxRadiusRangeOffset, maxRadiusRangeMax,
+        minRadiusRange, maxRadiusRangeOffset, maxRadiusRangeMax,
         maxRadius, minRadius, repel, forceFactor, frictionFactor,
         cellGroupSize, cellSizeFactor,
         $reset
