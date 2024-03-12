@@ -40,9 +40,10 @@
                         <Collapse label="Randomizer Settings" mt-2>
                             <RangeInput input label="Min. Radius" :min="1" :max="particleLife.maxRadius" :step="1" v-model="particleLife.minRadius" />
                             <RangeInput input label="Max. Radius" :min="particleLife.minRadius" :max="256" :step="1" v-model="particleLife.maxRadius" mt-2 />
-
+                            <hr border-gray-500 mt-3>
+                            <RangeInputMinMax input label="Min. Radius Range" :min="0" :max="100" :step="1" v-model="particleLife.minRadiusRange" mt-2 />
                             <RangeInput input label="Max. Radius Range Offset" :min="1" :max="particleLife.maxRadiusRangeMax" :step="1" v-model="particleLife.maxRadiusRangeOffset" mt-2 />
-                            <RangeInput input label="Max. Radius Range Max" :min="particleLife.minRadiusRange[0] + particleLife.maxRadiusRangeOffset" :max="300" :step="1" v-model="particleLife.maxRadiusRangeMax" mt-2 />
+                            <RangeInput input label="Max. Radius Range Max" :min="particleLife.minRadiusRange[1] + particleLife.maxRadiusRangeOffset" :max="300" :step="1" v-model="particleLife.maxRadiusRangeMax" mt-2 />
                         </Collapse>
                     </div>
                 </div>
@@ -119,8 +120,6 @@ export default defineComponent({
         let cellGroupSize: number = particleLife.cellGroupSize // Minimum number of particles to be considered a group (0 to visualize all cells)
 
         // Define force properties
-        let maxRadius: number = particleLife.maxRadius // maximum distance for particles to start attracting
-        let minRadius: number = particleLife.minRadius // minimum distance for particles to start repelling
         let repel: number = particleLife.repel // repel force for particles that are too close to each other (can't be 0)
         let forceFactor: number = particleLife.forceFactor // Decrease will increase the impact of the force on the velocity (the higher the value, the slower the particles will move) (can't be 0)
         let frictionFactor: number = particleLife.frictionFactor // Slow down the particles (0 to 1, where 1 is no friction)
@@ -129,11 +128,6 @@ export default defineComponent({
 
         let currentMinRadius: number = 0 // Max value between all colors min radius
         let currentMaxRadius: number = 0 // Max value between all colors max radius (for cell size)
-
-        // Define properties for randomizing radius matrix
-        let minRadiusRange: number[] = particleLife.minRadiusRange // Range for the minRadius of each color
-        let maxRadiusRangeOffset: number = particleLife.maxRadiusRangeOffset // Offset for the range of the maxRadius of each color
-        let maxRadiusRangeMax: number = particleLife.maxRadiusRangeMax // Max range for the maxRadius of each color
 
         // Define depth limits for randomly placed particles
         const minZDepthRandomParticle: number = depthLimit * 0.2 // The minimum Z-depth for randomly placed particles, in percentage of the depthLimit
@@ -283,8 +277,8 @@ export default defineComponent({
         }
         function makeRandomMinRadiusMatrix() {
             let matrix: number[][] = []
-            const min: number = minRadiusRange[0]
-            const max: number = minRadiusRange[1]
+            const min: number = particleLife.minRadiusRange[0]
+            const max: number = particleLife.minRadiusRange[1]
             let maxRandom: number = min
             for (let i = 0; i < numColors; i++) {
                 matrix.push([])
@@ -301,8 +295,8 @@ export default defineComponent({
         }
         function makeRandomMaxRadiusMatrix() {
             let matrix: number[][] = []
-            const min: number = currentMinRadius + maxRadiusRangeOffset
-            const max: number = maxRadiusRangeMax
+            const min: number = currentMinRadius + particleLife.maxRadiusRangeOffset
+            const max: number = particleLife.maxRadiusRangeMax
             let maxRandom: number = min
             for (let i = 0; i < numColors; i++) {
                 matrix.push([])
@@ -666,13 +660,13 @@ export default defineComponent({
                         newRulesMatrix[i][j] = Math.random() * 2 - 1 // Set a random rule between -1 and 1
 
                         // Set a random min radius between the range
-                        const minRandom = Math.floor(Math.random() * (minRadiusRange[1] - minRadiusRange[0] + 1) + minRadiusRange[0])
+                        const minRandom = Math.floor(Math.random() * (particleLife.minRadiusRange[1] - particleLife.minRadiusRange[0] + 1) + particleLife.minRadiusRange[0])
                         newMinRadiusMatrix[i][j] = minRandom
                         if (minRandom > currentMinRadius) currentMinRadius = minRandom
 
                         // Set a random max radius between the range
-                        const min = minRandom + maxRadiusRangeOffset
-                        const maxRandom = Math.floor(Math.random() * (maxRadiusRangeMax - min + 1) + min)
+                        const min = minRandom + particleLife.maxRadiusRangeOffset
+                        const maxRandom = Math.floor(Math.random() * (particleLife.maxRadiusRangeMax - min + 1) + min)
                         newMaxRadiusMatrix[i][j] = maxRandom
                         if (maxRandom > currentMaxRadius) currentMaxRadius = maxRandom
                     }
@@ -717,8 +711,6 @@ export default defineComponent({
             maxOpacity = particleLife.maxOpacity
             cellGroupSize = particleLife.cellGroupSize
 
-            minRadius = particleLife.minRadius
-            maxRadius = particleLife.maxRadius
             repel = particleLife.repel
             forceFactor = particleLife.forceFactor
             frictionFactor = particleLife.frictionFactor
@@ -748,8 +740,6 @@ export default defineComponent({
         watch(() => particleLife.maxOpacity, () => updateParticleSettings())
         watch(() => particleLife.cellGroupSize, () => updateParticleSettings())
 
-        watch(() => particleLife.minRadius, () => updateParticleSettings())
-        watch(() => particleLife.maxRadius, () => updateParticleSettings())
         watch(() => particleLife.repel, () => updateParticleSettings())
         watch(() => particleLife.forceFactor, () => updateParticleSettings())
         watch(() => particleLife.frictionFactor, () => updateParticleSettings())

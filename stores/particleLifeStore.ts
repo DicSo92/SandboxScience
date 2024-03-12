@@ -29,7 +29,7 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
     // Define properties for randomizing radius matrix
     const minRadiusRange = ref<number[]>([30, 60]) // Range for the minRadius of each color
     const maxRadiusRangeOffset = ref<number>(30) // Offset for the range of the maxRadius of each color
-    const maxRadiusRangeMax = ref<number>(160) // Max range for the maxRadius of each color
+    const maxRadiusRangeMax = ref<number>(150) // Max range for the maxRadius of each color
 
     function $reset() {
         sidebarLeftOpen.value = false

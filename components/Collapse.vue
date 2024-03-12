@@ -1,6 +1,7 @@
 <template>
     <section w-full>
-        <div py-1 px-4 flex justify-between items-center bg-gray-800 cursor-pointer rounded-full relative z-50 @click="toggle">
+        <div py-1 px-4 flex justify-between items-center bg-gray-800 cursor-pointer rounded-full relative z-50
+             @click="toggle" :class="isOpen && 'shadow-lg'">
             <p>{{ label }}</p>
             <div :class="isOpen && 'rotate-180'" class="icon i-tabler-caret-up-filled" text-2xl></div>
         </div>
