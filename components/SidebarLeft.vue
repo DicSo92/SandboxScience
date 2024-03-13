@@ -13,7 +13,7 @@
                     leave-from-class="translate-x-0"
                     leave-to-class="-translate-x-full">
             <div v-show="modelValue" :style="`width: ${sidebarWidth}px`"
-                 class="z-50 fixed inset-y-0 left-0 max-w-full max-h-full flex overflow-hidden border-r border-gray-400"> <!-- inset-y-0 for fullheight sidebar -->
+                 class="z-50 fixed inset-y-0 left-0 max-w-full max-h-full flex border-r border-gray-400"> <!-- inset-y-0 for fullheight sidebar -->
                 <div class="h-full w-full flex flex-col pb-4 pt-12 bg-gray-600 shadow-xl">
                     <slot></slot>
                 </div>

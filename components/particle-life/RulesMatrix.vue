@@ -1,0 +1,70 @@
+<template>
+    <section w-full flex>
+        <div flex-1>
+            <div grid gap-px :style="`grid-template-rows: repeat(${ cellRowCount }, minmax(0, 1fr))`">
+                <div v-for="(col, i) in cellRowCount" :key="i" w-full grid gap-px :style="`grid-template-columns: repeat(${ cellRowCount }, minmax(0, 1fr))`">
+                    <div v-for="(row, j) in cellRowCount" :key="j" class="aspect-square">
+                        <div v-if="j === 0 && i === 0" h-full w-full p-1>
+                            <div bg-black w-full h-full></div>
+                        </div>
+                        <div v-else-if="i === 0 && j > 0" h-full w-full class="pp-10">
+                            <div rounded-full w-full h-full :style="`background-color: hsl(${particleLife.currentColors[j-1]}, 100%, 50%)`"></div>
+                        </div>
+                        <div v-else-if="j === 0 && i > 0" h-full w-full class="pp-10">
+                            <div rounded-full w-full h-full :style="`background-color: hsl(${particleLife.currentColors[i-1]}, 100%, 50%)`"></div>
+                        </div>
+                        <div v-else h-full w-full relative cursor-ew-resize class="has-tooltip" :style="`background-color: ${interpolateColor(particleLife.rulesMatrix[i-1][j-1])}`">
+                            <div class="tooltip -mt-9 -translate-x-1/2 left-1/2" invisible absolute px-3 py-2 bg-gray-800 rounded-full pointer-events-none>
+                                <p text-sm m-0>{{ particleLife.rulesMatrix[i-1][j-1] }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</template>
+
+<script lang="ts">
+import { defineComponent } from "vue";
+export default defineComponent({
+    setup() {
+        const particleLife = useParticleLifeStore()
+        const cellRowCount = computed(() => particleLife.rulesMatrix.length + 1)
+        const totalCells = computed(() => cellRowCount.value * cellRowCount.value)
+
+        const repulsionColor = [214, 40, 57]
+        const attractionColor = [137, 189, 158]
+        const neutralColor = [12, 12, 12]
+
+        function interpolateColor(value: number) {
+            const color1 = value < 0 ? repulsionColor : value > 0 ? neutralColor : neutralColor
+            const color2 = value < 0 ? neutralColor : value > 0 ? attractionColor : neutralColor
+            value = Math.abs(value)
+            const [r1, g1, b1] = color1
+            const [r2, g2, b2] = color2
+
+            const r = Math.round(r1 + (r2 - r1) * value)
+            const g = Math.round(g1 + (g2 - g1) * value)
+            const b = Math.round(b1 + (b2 - b1) * value)
+
+            return `rgb(${r}, ${g}, ${b})`
+        }
+
+        return { particleLife, cellRowCount, totalCells, attractionColor, repulsionColor, neutralColor, interpolateColor }
+    }
+})
+</script>
+
+<style scoped>
+.pp-10 {
+    padding: 5%;
+}
+
+.has-tooltip:hover {
+    box-shadow: inset 0 0 2px 2px rgba(180,180,180,0.9);
+    .tooltip {
+        @apply visible;
+    }
+}
+</style>

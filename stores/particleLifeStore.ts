@@ -2,9 +2,12 @@ import { defineStore } from 'pinia'
 export const useParticleLifeStore = defineStore('particleLife', () => {
     const sidebarLeftOpen = ref<boolean>(false)
 
+    const currentColors = ref<number[]>([]) // Current colors for the particles
+    const rulesMatrix = ref<number[][]>([]) // Rules matrix for each color
+
     const numParticles = ref<number>(6000) // Number of particles
     const particleSize = ref<number>(4) // Size of the particles at zoomFactor = 1
-    const numColors = ref<number>(8) // Number of colors to be used
+    const numColors = ref<number>(12) // Number of colors to be used
     const depthLimit = ref<number>(240) // Maximum Z axis depth (0 means almost 2D because there is friction with the walls && can be negative)
 
     const isCircle = ref<boolean>(true) // Enable circular shape for the particles
@@ -36,7 +39,7 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
     }
 
     return {
-        sidebarLeftOpen,
+        sidebarLeftOpen, rulesMatrix, currentColors,
         numParticles, particleSize, numColors, depthLimit,
         isCircle, hasGrid, hasCells, hasWalls, hasDepthSize, hasDepthOpacity, maxOpacity, minOpacity,
         minRadiusRange, maxRadiusRangeOffset, maxRadiusRangeMax,

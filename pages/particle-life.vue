@@ -5,7 +5,12 @@
             </template>
             <template #default>
                 <div px-2 flex flex-col>
-                    <p>World Settings</p>
+                    <div flex justify-between items-end mb-1>
+                        <p>World Settings</p>
+                        <div rounded-lg border-2 border-white style="width: 72px;">
+                            <div i-tabler-badge-3d style="font-size: 30px" class="-my-1"></div>
+                        </div>
+                    </div>
                     <hr>
                     <div grid grid-cols-2 gap-4 mt-3>
                         <ToggleSwitch label="Grid" v-model="particleLife.hasGrid" :disabled="!particleLife.hasWalls"/>
@@ -14,6 +19,9 @@
                         <ToggleSwitch label="Circle Shape" v-model="particleLife.isCircle" />
                     </div>
                     <div>
+                        <Collapse label="Rules Matrix" opened mt-2>
+                            <RulesMatrix />
+                        </Collapse>
                         <Collapse label="World Settings" opened mt-2>
                             <RangeInput input label="Particle Number" :min="particleLife.numColors" :max="20000" :step="10" v-model="particleLife.numParticles" />
                             <RangeInput input label="Color Number" :min="1" :max="20" :step="1" v-model="particleLife.numColors" mt-2 />
@@ -50,10 +58,16 @@
             </template>
         </SidebarLeft>
         <canvas ref="lifeCanvas" id="lifeCanvas" @contextmenu.prevent w-full h-full></canvas>
-        <div absolute top-0 right-0 text-right pr-1>
-            <p>Fps: {{ fps }}</p>
-            <p>Cells: {{ cellCount }}</p>
-            <p>Process: {{ Math.round(executionTime) }}</p>
+        <div absolute top-0 right-0 flex flex-col items-end text-right pr-1>
+            <div class="inline-grid grid-cols-2 gap-x-4">
+                <div>Fps</div>
+                <div>{{ fps }}</div>
+                <div>Cells</div>
+                <div>{{ cellCount }}</div>
+                <div>Process</div>
+                <div>{{ Math.round(executionTime) }}</div>
+            </div>
+            <Memory />
         </div>
         <div absolute bottom-0 w-full flex justify-center items-center="">
             <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="particleLife.hasGrid = !particleLife.hasGrid">
@@ -80,7 +94,10 @@
 
 <script lang="ts">
 import { defineComponent } from "vue";
+import RulesMatrix from "~/components/particle-life/RulesMatrix.vue";
+import Memory from "~/components/particle-life/Memory.vue";
 export default defineComponent({
+    components: { RulesMatrix, Memory },
     setup() {
         definePageMeta({ layout: 'life' })
         const particleLife = useParticleLifeStore()
@@ -132,7 +149,7 @@ export default defineComponent({
         // Define depth limits for randomly placed particles
         const minZDepthRandomParticle: number = depthLimit * 0.2 // The minimum Z-depth for randomly placed particles, in percentage of the depthLimit
         const maxZDepthRandomParticle: number = depthLimit * 0.45 // The maximum Z-depth for randomly placed particles, in percentage of the depthLimit
-        const screenMultiplierForGridSize: number = 2 // Multiplier for the grid size based on the screen size
+        const screenMultiplierForGridSize: number = 2.5 // Multiplier for the grid size based on the screen size
 
         // Define grid properties
         let gridOffsetX: number = 0 // Grid offset X
@@ -242,7 +259,7 @@ export default defineComponent({
             initColors()
             centerView()
             initParticles()
-            rulesMatrix = makeRandomRulesMatrix()
+            setRulesMatrix(makeRandomRulesMatrix())
             minRadiusMatrix = makeRandomMinRadiusMatrix()
             maxRadiusMatrix = makeRandomMaxRadiusMatrix()
             console.table(minRadiusMatrix)
@@ -255,6 +272,7 @@ export default defineComponent({
                 // currentColors.push(i)
                 currentColors.push(i * 360 / numColors) // HSL color (precalculated)
             }
+            particleLife.currentColors = currentColors
         }
         function initParticles() {
             for (let i = 0; i < numParticles; ++i) {
@@ -270,7 +288,7 @@ export default defineComponent({
             for (let i = 0; i < numColors; i++) {
                 matrix.push([])
                 for (let j = 0; j < numColors; j++) {
-                    matrix[i].push(Math.random() * 2 - 1)
+                    matrix[i].push(Number((Math.random() * 2 - 1).toFixed(4)))
                 }
             }
             return matrix
@@ -514,21 +532,21 @@ export default defineComponent({
                 positionY[i] += velocityY[i]
                 positionZ[i] += velocityZ[i]
 
-                // // Bounce off the walls X and Y
+                // Bounce off the walls
                 if (hasWalls) {
                     if (positionX[i] > gridWidth || positionX[i] < 0) {
                         positionX[i] -= velocityX[i]
-                        velocityX[i] *= -1
+                        velocityX[i] *= -1.2
                     }
                     if (positionY[i] > gridHeight || positionY[i] < 0) {
                         positionY[i] -= velocityY[i]
-                        velocityY[i] *= -1
+                        velocityY[i] *= -1.2
                     }
                 }
                 // Bounce off the depth limit
                 if (positionZ[i] > depthLimit || positionZ[i] < 0) {
                     positionZ[i] -= velocityZ[i]
-                    velocityZ[i] *= -1
+                    velocityZ[i] *= -1.2
                 }
 
                 drawParticle(positionX[i], positionY[i], positionZ[i], currentColors[colors[i]], particleSize)
@@ -657,7 +675,7 @@ export default defineComponent({
                         newMinRadiusMatrix[i][j] = minRadiusMatrix[i][j]
                         newMaxRadiusMatrix[i][j] = maxRadiusMatrix[i][j]
                     } else { // Set new rules for the new colors
-                        newRulesMatrix[i][j] = Math.random() * 2 - 1 // Set a random rule between -1 and 1
+                        newRulesMatrix[i][j] = Number((Math.random() * 2 - 1).toFixed(4)) // Set a random rule between -1 and 1
 
                         // Set a random min radius between the range
                         const minRandom = Math.floor(Math.random() * (particleLife.minRadiusRange[1] - particleLife.minRadiusRange[0] + 1) + particleLife.minRadiusRange[0])
@@ -672,7 +690,7 @@ export default defineComponent({
                     }
                 }
             }
-            rulesMatrix = newRulesMatrix
+            setRulesMatrix(newRulesMatrix)
             minRadiusMatrix = newMinRadiusMatrix
             maxRadiusMatrix = newMaxRadiusMatrix
 
@@ -688,11 +706,15 @@ export default defineComponent({
                 newMinRadiusMatrix.push(minRadiusMatrix[i].slice(0, newNumColors)) // Truncate the row to the new size
                 newMaxRadiusMatrix.push(maxRadiusMatrix[i].slice(0, newNumColors)) // Truncate the row to the new size
             }
-            rulesMatrix = newRulesMatrix
+            setRulesMatrix(newRulesMatrix)
             minRadiusMatrix = newMinRadiusMatrix
             maxRadiusMatrix = newMaxRadiusMatrix
 
             console.table(maxRadiusMatrix)
+        }
+        function setRulesMatrix(newRules: number[][]) {
+            rulesMatrix = newRules
+            particleLife.rulesMatrix = rulesMatrix
         }
         function updateParticleSettings () {
             numParticles = particleLife.numParticles
@@ -751,7 +773,8 @@ export default defineComponent({
         })
 
         return {
-            lifeCanvas, fps, cellCount, executionTime, particleLife,
+            lifeCanvas, particleLife,
+            fps, cellCount, executionTime,
         }
     }
 })
