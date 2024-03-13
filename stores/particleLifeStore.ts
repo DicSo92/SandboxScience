@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 export const useParticleLifeStore = defineStore('particleLife', () => {
-    const sidebarLeftOpen = ref<boolean>(false)
+    const sidebarLeftOpen = ref<boolean>(false) // Is sidebar left open
+    const isLockedPointer = ref<boolean>(false) // Prevent lifeCanvas events from being triggered
 
     const currentColors = ref<number[]>([]) // Current colors for the particles
     const rulesMatrix = ref<number[][]>([]) // Rules matrix for each color
@@ -39,7 +40,8 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
     }
 
     return {
-        sidebarLeftOpen, rulesMatrix, currentColors,
+        sidebarLeftOpen, isLockedPointer,
+        rulesMatrix, currentColors,
         numParticles, particleSize, numColors, depthLimit,
         isCircle, hasGrid, hasCells, hasWalls, hasDepthSize, hasDepthOpacity, maxOpacity, minOpacity,
         minRadiusRange, maxRadiusRangeOffset, maxRadiusRangeMax,

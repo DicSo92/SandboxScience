@@ -20,7 +20,7 @@
                     </div>
                     <div>
                         <Collapse label="Rules Matrix" opened mt-2>
-                            <RulesMatrix />
+                            <RulesMatrix @update="updateRulesMatrixValue"/>
                         </Collapse>
                         <Collapse label="World Settings" opened mt-2>
                             <RangeInput input label="Particle Number" :min="particleLife.numColors" :max="20000" :step="10" v-model="particleLife.numParticles" />
@@ -203,6 +203,7 @@ export default defineComponent({
                 pointerY = e.y - lifeCanvas!.getBoundingClientRect().top
 
                 if (e.buttons > 0) { // if mouse is pressed
+                    if (particleLife.isLockedPointer) return // Prevent canvas dragging if the pointer is locked
                     isDragging = true
                     if (e.buttons === 1) { // if primary button is pressed (left click)
                         handleMove()
@@ -716,6 +717,10 @@ export default defineComponent({
             rulesMatrix = newRules
             particleLife.rulesMatrix = rulesMatrix
         }
+        function updateRulesMatrixValue(x: number, y: number, value: number) {
+            particleLife.rulesMatrix[x][y] = value
+            rulesMatrix[x][y] = value
+        }
         function updateParticleSettings () {
             numParticles = particleLife.numParticles
             numColors = particleLife.numColors
@@ -775,6 +780,7 @@ export default defineComponent({
         return {
             lifeCanvas, particleLife,
             fps, cellCount, executionTime,
+            updateRulesMatrixValue
         }
     }
 })

@@ -13,8 +13,16 @@
                         <div v-else-if="j === 0 && i > 0" h-full w-full class="pp-10">
                             <div rounded-full w-full h-full :style="`background-color: hsl(${particleLife.currentColors[i-1]}, 100%, 50%)`"></div>
                         </div>
-                        <div v-else h-full w-full relative cursor-ew-resize class="has-tooltip" :style="`background-color: ${interpolateColor(particleLife.rulesMatrix[i-1][j-1])}`">
-                            <div class="tooltip -mt-9 -translate-x-1/2 left-1/2" invisible absolute px-3 py-2 bg-gray-800 rounded-full pointer-events-none>
+                        <div v-else h-full w-full relative cursor-ew-resize select-none
+                             :class="(hoveredCell && hoveredCell[0] === i-1 && hoveredCell[1] === j-1) && 'hovered-cell'"
+                             :style="{ backgroundColor: interpolateColor(particleLife.rulesMatrix[i-1][j-1]) }"
+                             @mouseenter="hoveredCell = [i-1, j-1]"
+                             @mouseleave="mouseleave(i-1, j-1)"
+                             @mousedown="startDrag($event, i-1, j-1)"
+                             @mousemove="handleDrag($event, i-1, j-1)"
+                             @mouseup="endDrag">
+                            <div class="tooltip -mt-9 -translate-x-1/2 left-1/2" invisible
+                                 absolute px-3 py-2 bg-gray-800 rounded-full pointer-events-none>
                                 <p text-sm m-0>{{ particleLife.rulesMatrix[i-1][j-1] }}</p>
                             </div>
                         </div>
@@ -28,7 +36,7 @@
 <script lang="ts">
 import { defineComponent } from "vue";
 export default defineComponent({
-    setup() {
+    setup(props, { emit }) {
         const particleLife = useParticleLifeStore()
         const cellRowCount = computed(() => particleLife.rulesMatrix.length + 1)
         const totalCells = computed(() => cellRowCount.value * cellRowCount.value)
@@ -37,9 +45,51 @@ export default defineComponent({
         const attractionColor = [137, 189, 158]
         const neutralColor = [12, 12, 12]
 
+        const dragging = ref(false)
+        const wasDragging = ref(false)
+        const hoveredCell = ref<[number, number] | null>(null)
+
+        async function startDrag(event: MouseEvent, i: number, j: number) {
+            particleLife.isLockedPointer = true
+            dragging.value = true
+
+            const targetElement = event.target as HTMLElement
+            if(targetElement.requestPointerLock) {
+                await targetElement.requestPointerLock()
+                hoveredCell.value = [i, j]
+            } else {
+                console.log('PointerLock API not supported in this device.')
+            }
+        }
+        function handleDrag(event: MouseEvent, i: number, j: number) {
+            if (dragging.value) {
+                if (event.movementX === 0) return
+                let newValue = particleLife.rulesMatrix[i][j] + (event.movementX > 0 ? 0.01 : -0.01)
+                setValue(i, j, newValue)
+            }
+        }
+        function setValue(i: number, j: number, newValue: number = 0) {
+            newValue = Math.max(-1, Math.min(1, newValue))
+            newValue = Number(newValue.toFixed(4))
+            emit('update', i, j, newValue)
+        }
+        function mouseleave(i: number, j: number) {
+            if (hoveredCell.value || !wasDragging.value) {
+                hoveredCell.value = null
+            }
+            wasDragging.value = false
+        }
+        function endDrag() {
+            document.exitPointerLock()
+            wasDragging.value = true
+            dragging.value = false
+            particleLife.isLockedPointer = false
+        }
+
         function interpolateColor(value: number) {
-            const color1 = value < 0 ? repulsionColor : value > 0 ? neutralColor : neutralColor
-            const color2 = value < 0 ? neutralColor : value > 0 ? attractionColor : neutralColor
+            const color1 = value < 0 ? neutralColor : value > 0 ? neutralColor : neutralColor
+            const color2 = value < 0 ? repulsionColor : value > 0 ? attractionColor : neutralColor
+
             value = Math.abs(value)
             const [r1, g1, b1] = color1
             const [r2, g2, b2] = color2
@@ -51,7 +101,10 @@ export default defineComponent({
             return `rgb(${r}, ${g}, ${b})`
         }
 
-        return { particleLife, cellRowCount, totalCells, attractionColor, repulsionColor, neutralColor, interpolateColor }
+        return {
+            particleLife, cellRowCount, totalCells, attractionColor, repulsionColor, neutralColor,
+            dragging, hoveredCell, startDrag, handleDrag, endDrag, mouseleave, interpolateColor
+        }
     }
 })
 </script>
@@ -61,7 +114,7 @@ export default defineComponent({
     padding: 5%;
 }
 
-.has-tooltip:hover {
+.hovered-cell {
     box-shadow: inset 0 0 2px 2px rgba(180,180,180,0.9);
     .tooltip {
         @apply visible;
