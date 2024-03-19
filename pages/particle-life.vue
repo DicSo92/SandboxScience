@@ -19,8 +19,8 @@
                         <ToggleSwitch label="Circle Shape" v-model="particleLife.isCircle" />
                     </div>
                     <div>
-                        <Collapse label="Rules Matrix" opened mt-2>
-                            <RulesMatrix @update="updateRulesMatrixValue"/>
+                        <Collapse label="Matrix Settings" opened mt-2>
+                            <MatrixSettings @updateRulesMatrix="updateRulesMatrixValue"/>
                         </Collapse>
                         <Collapse label="World Settings" opened mt-2>
                             <RangeInput input label="Particle Number" :min="particleLife.numColors" :max="20000" :step="10" v-model="particleLife.numParticles" />
@@ -94,10 +94,11 @@
 
 <script lang="ts">
 import { defineComponent } from "vue";
+import MatrixSettings from "~/components/particle-life/MatrixSettings.vue";
 import RulesMatrix from "~/components/particle-life/RulesMatrix.vue";
 import Memory from "~/components/particle-life/Memory.vue";
 export default defineComponent({
-    components: { RulesMatrix, Memory },
+    components: { MatrixSettings, RulesMatrix, Memory },
     setup() {
         definePageMeta({ layout: 'life' })
         const particleLife = useParticleLifeStore()

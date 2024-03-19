@@ -49,13 +49,13 @@ export default defineComponent({
         const wasDragging = ref(false)
         const hoveredCell = ref<[number, number] | null>(null)
 
-        async function startDrag(event: MouseEvent, i: number, j: number) {
+        function startDrag(event: MouseEvent, i: number, j: number) {
             particleLife.isLockedPointer = true
             dragging.value = true
 
             const targetElement = event.target as HTMLElement
             if(targetElement.requestPointerLock) {
-                await targetElement.requestPointerLock()
+                targetElement.requestPointerLock()
                 hoveredCell.value = [i, j]
             } else {
                 console.log('PointerLock API not supported in this device.')
