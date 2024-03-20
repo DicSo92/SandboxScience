@@ -15,7 +15,7 @@
                         </div>
                         <div v-else h-full w-full relative cursor-ew-resize select-none
                              :class="(hoveredCell && hoveredCell[0] === i-1 && hoveredCell[1] === j-1) && 'hovered-cell'"
-                             :style="{ backgroundColor: interpolateColor(particleLife.rulesMatrix[i-1][j-1]) }"
+                             :style="{ backgroundColor: interpolateColor(particleLife.minRadiusMatrix[i-1][j-1]) }"
                              @mouseenter="hoveredCell = [i-1, j-1]"
                              @mouseleave="mouseleave(i-1, j-1)"
                              @mousedown="startDrag($event, i-1, j-1)"
@@ -23,7 +23,7 @@
                              @mouseup="endDrag">
                             <div class="tooltip -mt-9 -translate-x-1/2 left-1/2" invisible
                                  absolute px-3 py-2 bg-gray-800 rounded-full pointer-events-none>
-                                <p text-sm m-0>{{ particleLife.rulesMatrix[i-1][j-1] }}</p>
+                                <p text-sm m-0>{{ particleLife.minRadiusMatrix[i-1][j-1] }}</p>
                             </div>
                         </div>
                     </div>
@@ -38,12 +38,14 @@ import { defineComponent } from "vue";
 export default defineComponent({
     setup(props, { emit }) {
         const particleLife = useParticleLifeStore()
-        const cellRowCount = computed(() => particleLife.rulesMatrix.length + 1)
+        const cellRowCount = computed(() => particleLife.minRadiusMatrix.length + 1)
         const totalCells = computed(() => cellRowCount.value * cellRowCount.value)
 
-        const repulsionColor = [214, 40, 57]
-        const attractionColor = [137, 189, 158]
+        const minValue = computed(() => particleLife.minRadiusMatrix.reduce((min, row) => Math.min(min, ...row), Infinity))
+        const maxValue = computed(() => particleLife.minRadiusMatrix.reduce((max, row) => Math.max(max, ...row), -Infinity))
+
         const neutralColor = [12, 12, 12]
+        const targetColor = [12, 116, 137] // blue cerulean
 
         const dragging = ref(false)
         const wasDragging = ref(false)
@@ -64,20 +66,13 @@ export default defineComponent({
         function handleDrag(event: MouseEvent, i: number, j: number) {
             if (dragging.value) {
                 if (event.movementX === 0) return
-                let newValue = particleLife.rulesMatrix[i][j] + (event.movementX > 0 ? 0.01 : -0.01)
+                let newValue = particleLife.minRadiusMatrix[i][j] + event.movementX
                 setValue(i, j, newValue)
             }
         }
         function setValue(i: number, j: number, newValue: number = 0) {
-            newValue = Math.max(-1, Math.min(1, newValue))
-            newValue = Number(newValue.toFixed(4))
+            newValue = Math.max(0, Math.min(particleLife.maxRadiusMatrix[i][j], newValue))
             emit('update', i, j, newValue)
-        }
-        function mouseleave(i: number, j: number) {
-            if (hoveredCell.value || !wasDragging.value) {
-                hoveredCell.value = null
-            }
-            wasDragging.value = false
         }
         function endDrag() {
             document.exitPointerLock()
@@ -86,11 +81,17 @@ export default defineComponent({
             particleLife.isLockedPointer = false
         }
 
+        function mouseleave(i: number, j: number) {
+            if (hoveredCell.value || !wasDragging.value) {
+                hoveredCell.value = null
+            }
+            wasDragging.value = false
+        }
         function interpolateColor(value: number) {
             const color1 = neutralColor
-            const color2 = value < 0 ? repulsionColor : value > 0 ? attractionColor : neutralColor
+            const color2 = targetColor
 
-            value = Math.abs(value)
+            value = Math.abs(value - minValue.value) / (maxValue.value - minValue.value)
             const [r1, g1, b1] = color1
             const [r2, g2, b2] = color2
 

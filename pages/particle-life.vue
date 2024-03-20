@@ -20,7 +20,11 @@
                     </div>
                     <div>
                         <Collapse label="Matrix Settings" opened mt-2>
-                            <MatrixSettings @updateRulesMatrix="updateRulesMatrixValue"/>
+                            <MatrixSettings
+                                @updateRulesMatrix="updateRulesMatrixValue"
+                                @updateMinMatrix="updateMinMatrixValue"
+                                @updateMaxMatrix="updateMaxMatrixValue">
+                            </MatrixSettings>
                         </Collapse>
                         <Collapse label="World Settings" opened mt-2>
                             <RangeInput input label="Particle Number" :min="particleLife.numColors" :max="20000" :step="10" v-model="particleLife.numParticles" />
@@ -262,8 +266,8 @@ export default defineComponent({
             centerView()
             initParticles()
             setRulesMatrix(makeRandomRulesMatrix())
-            minRadiusMatrix = makeRandomMinRadiusMatrix()
-            maxRadiusMatrix = makeRandomMaxRadiusMatrix()
+            setMinRadiusMatrix(makeRandomMinRadiusMatrix())
+            setMaxRadiusMatrix(makeRandomMaxRadiusMatrix())
             console.table(minRadiusMatrix)
             console.table(maxRadiusMatrix)
             console.table(rulesMatrix)
@@ -693,8 +697,8 @@ export default defineComponent({
                 }
             }
             setRulesMatrix(newRulesMatrix)
-            minRadiusMatrix = newMinRadiusMatrix
-            maxRadiusMatrix = newMaxRadiusMatrix
+            setMinRadiusMatrix(newMinRadiusMatrix)
+            setMaxRadiusMatrix(newMaxRadiusMatrix)
 
             console.table(maxRadiusMatrix)
         }
@@ -709,8 +713,8 @@ export default defineComponent({
                 newMaxRadiusMatrix.push(maxRadiusMatrix[i].slice(0, newNumColors)) // Truncate the row to the new size
             }
             setRulesMatrix(newRulesMatrix)
-            minRadiusMatrix = newMinRadiusMatrix
-            maxRadiusMatrix = newMaxRadiusMatrix
+            setMinRadiusMatrix(newMinRadiusMatrix)
+            setMaxRadiusMatrix(newMaxRadiusMatrix)
 
             console.table(maxRadiusMatrix)
         }
@@ -718,9 +722,27 @@ export default defineComponent({
             rulesMatrix = newRules
             particleLife.rulesMatrix = rulesMatrix
         }
+        function setMaxRadiusMatrix(newMaxRadius: number[][]) {
+            maxRadiusMatrix = newMaxRadius
+            particleLife.maxRadiusMatrix = maxRadiusMatrix
+        }
+        function setMinRadiusMatrix(newMinRadius: number[][]) {
+            minRadiusMatrix = newMinRadius
+            particleLife.minRadiusMatrix = minRadiusMatrix
+        }
         function updateRulesMatrixValue(x: number, y: number, value: number) {
             particleLife.rulesMatrix[x][y] = value
             rulesMatrix[x][y] = value
+        }
+        function updateMinMatrixValue(x: number, y: number, value: number) {
+            particleLife.minRadiusMatrix[x][y] = value
+            minRadiusMatrix[x][y] = value
+            currentMinRadius = minRadiusMatrix.reduce((min, row) => Math.min(min, ...row), Infinity)
+        }
+        function updateMaxMatrixValue(x: number, y: number, value: number) {
+            particleLife.maxRadiusMatrix[x][y] = value
+            maxRadiusMatrix[x][y] = value
+            currentMaxRadius = maxRadiusMatrix.reduce((max, row) => Math.max(max, ...row), -Infinity)
         }
         function updateParticleSettings () {
             numParticles = particleLife.numParticles
@@ -781,7 +803,7 @@ export default defineComponent({
         return {
             lifeCanvas, particleLife,
             fps, cellCount, executionTime,
-            updateRulesMatrixValue
+            updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue
         }
     }
 })
