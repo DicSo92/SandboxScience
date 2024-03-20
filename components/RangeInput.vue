@@ -1,6 +1,7 @@
 <template>
     <div flex items-center>
         <p v-if="label" class="w-2/3">{{ label }}</p>
+        <slot name="customLabel"></slot>
         <div flex items-center w-full>
             <div relative mx-2 flex-1>
                 <input type="range"

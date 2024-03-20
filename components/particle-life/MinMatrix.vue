@@ -1,5 +1,5 @@
 <template>
-    <section w-full flex>
+    <section w-full flex flex-col>
         <div flex-1>
             <div grid gap-px :style="`grid-template-rows: repeat(${ cellRowCount }, minmax(0, 1fr))`">
                 <div v-for="(col, i) in cellRowCount" :key="i" w-full grid gap-px :style="`grid-template-columns: repeat(${ cellRowCount }, minmax(0, 1fr))`">
@@ -14,13 +14,11 @@
                             <div rounded-full w-full h-full :style="`background-color: hsl(${particleLife.currentColors[i-1]}, 100%, 50%)`"></div>
                         </div>
                         <div v-else h-full w-full relative cursor-ew-resize select-none
-                             :class="(hoveredCell && hoveredCell[0] === i-1 && hoveredCell[1] === j-1) && 'hovered-cell'"
+                             :class="((hoveredCell && hoveredCell[0] === i-1 && hoveredCell[1] === j-1) || selectedCell && selectedCell[0] === i-1 && selectedCell[1] === j-1) && 'hovered-cell'"
                              :style="{ backgroundColor: interpolateColor(particleLife.minRadiusMatrix[i-1][j-1]) }"
-                             @mouseenter="hoveredCell = [i-1, j-1]"
+                             @mouseenter="mouseenter(i-1, j-1)"
                              @mouseleave="mouseleave(i-1, j-1)"
-                             @mousedown="startDrag($event, i-1, j-1)"
-                             @mousemove="handleDrag($event, i-1, j-1)"
-                             @mouseup="endDrag">
+                             @mousedown="mousedown($event, i-1, j-1)">
                             <div class="tooltip -mt-9 -translate-x-1/2 left-1/2" invisible
                                  absolute px-3 py-2 bg-gray-800 rounded-full pointer-events-none>
                                 <p text-sm m-0>{{ particleLife.minRadiusMatrix[i-1][j-1] }}</p>
@@ -30,6 +28,18 @@
                 </div>
             </div>
         </div>
+        <RangeInput input :min="0" :max="selectedCell ? particleLife.maxRadiusMatrix[selectedCell[0]][selectedCell[1]] : particleLife.maxRadius" :step="1" v-model="selectedCellValue" mt-2 >
+            <template #customLabel>
+                <div class="w-2/3" border-2 border-gray-500 bg-gray-700 rounded-lg px-3 py-2>
+                    <div v-if="selectedCell" flex items-center justify-between>
+                        <div rounded-full w-6 h-6 :style="`background-color: hsl(${particleLife.currentColors[selectedCell[0]]}, 100%, 50%)`"></div>
+                        <div i-tabler-arrow-narrow-right text-xl mx-1 text-gray></div>
+                        <div rounded-full w-6 h-6 :style="`background-color: hsl(${particleLife.currentColors[selectedCell[1]]}, 100%, 50%)`"></div>
+                    </div>
+                    <div v-else font-black text-center text-gray-300>All Colors</div>
+                </div>
+            </template>
+        </RangeInput>
     </section>
 </template>
 
@@ -50,42 +60,116 @@ export default defineComponent({
         const dragging = ref(false)
         const wasDragging = ref(false)
         const hoveredCell = ref<[number, number] | null>(null)
+        const selectedCell = ref<[number, number] | null>(null)
 
-        function startDrag(event: MouseEvent, i: number, j: number) {
-            particleLife.isLockedPointer = true
-            dragging.value = true
+        let toDeselect = ref(false)
 
-            const targetElement = event.target as HTMLElement
-            if(targetElement.requestPointerLock) {
-                targetElement.requestPointerLock()
-                hoveredCell.value = [i, j]
+        const selectedCellValue = ref<number>(particleLife.minRadius)
+        watch(selectedCell, (value) => {
+            if (value) {
+                selectedCellValue.value = particleLife.minRadiusMatrix[value[0]][value[1]]
             } else {
-                console.log('PointerLock API not supported in this device.')
+                selectedCellValue.value = particleLife.minRadius
             }
+        })
+        watch(selectedCellValue, (value) => {
+            if (selectedCell.value) {
+                setValue(selectedCell.value[0], selectedCell.value[1], value)
+            } else {
+                particleLife.minRadius = value
+            }
+        })
+
+        onMounted(() => {
+            useEventListener(document, "pointerlockerror", () => {
+                nextTick(() => {
+                    console.error('PointerLock error')
+                    particleLife.isLockedPointer = false
+                    dragging.value = false
+                    wasDragging.value = false
+                    document.exitPointerLock()
+                })
+            }, false);
+            useEventListener(document, "pointerlockchange", () => {
+                nextTick(() => {
+                    if (document.pointerLockElement && !particleLife.isLockedPointer) {
+                        document.exitPointerLock()
+                        dragging.value = false
+                        wasDragging.value = false
+                    }
+                })
+            }, false);
+            useEventListener(document, "mouseup", () => {
+                nextTick(() => {
+                    if (toDeselect.value) {
+                        selectedCell.value = null
+                        hoveredCell.value = null
+                        toDeselect.value = false
+                    }
+                    particleLife.isLockedPointer = false
+                    dragging.value = false
+                    wasDragging.value = false
+                    document.exitPointerLock()
+                    document.removeEventListener('mousemove', handleDrag, true)
+                })
+            }, false);
+        })
+        function select(i: number, j: number) {
+            if (selectedCell.value && selectedCell.value[0] === i && selectedCell.value[1] === j) {
+                selectedCell.value = null
+                return
+            }
+            selectedCell.value = [i, j]
         }
-        function handleDrag(event: MouseEvent, i: number, j: number) {
+        function mousedown(event: MouseEvent, i: number, j: number) {
+            hoveredCell.value = [i, j]
+
+            if (selectedCell.value && selectedCell.value[0] === i && selectedCell.value[1] === j) {
+                toDeselect.value = true
+            }
+            if ((selectedCell.value && (selectedCell.value[0] !== i || selectedCell.value[1] !== j)) || !selectedCell.value) {
+                select(i, j)
+            }
+            dragging.value = true
+            document.addEventListener('mousemove', handleDrag, true)
+        }
+        function handleDrag(event: MouseEvent) {
             if (dragging.value) {
-                if (event.movementX === 0) return
+                toDeselect.value = false
+                const targetElement = event.target as HTMLElement
+                if(targetElement.requestPointerLock) {
+                    if (!particleLife.isLockedPointer && !document.pointerLockElement) {
+                        particleLife.isLockedPointer = true
+                        targetElement.requestPointerLock()
+                        // hoveredCell.value = [i, j]
+                    }
+                } else {
+                    console.log('PointerLock API not supported in this device.')
+                }
+
+                wasDragging.value = true
+                if (event.movementX === 0 || Math.abs(event.movementX) > 16) return // Prevent movementX error with pointer lock
+                const i = selectedCell.value![0]
+                const j = selectedCell.value![1]
                 let newValue = particleLife.minRadiusMatrix[i][j] + event.movementX
                 setValue(i, j, newValue)
             }
         }
-        function setValue(i: number, j: number, newValue: number = 0) {
-            newValue = Math.max(0, Math.min(particleLife.maxRadiusMatrix[i][j], newValue))
-            emit('update', i, j, newValue)
+        function mouseenter(i: number, j: number) {
+            if (!particleLife.isLockedPointer && !wasDragging.value) {
+                hoveredCell.value = [i, j]
+            }
         }
-        function endDrag() {
-            document.exitPointerLock()
-            wasDragging.value = true
-            dragging.value = false
-            particleLife.isLockedPointer = false
-        }
-
         function mouseleave(i: number, j: number) {
-            if (hoveredCell.value || !wasDragging.value) {
+            if ((!particleLife.isLockedPointer && !wasDragging.value) || hoveredCell.value) {
                 hoveredCell.value = null
             }
             wasDragging.value = false
+        }
+
+        function setValue(i: number, j: number, newValue: number = 0) {
+            newValue = Math.max(0, Math.min(particleLife.maxRadiusMatrix[i][j], newValue))
+            emit('update', i, j, newValue)
         }
         function interpolateColor(value: number) {
             const color1 = neutralColor
@@ -104,8 +188,8 @@ export default defineComponent({
 
         return {
             particleLife, cellRowCount, totalCells,
-            dragging, hoveredCell,
-            startDrag, handleDrag, endDrag, mouseleave, interpolateColor
+            dragging, hoveredCell, selectedCell, selectedCellValue,
+            mousedown, mouseenter, mouseleave, interpolateColor, select
         }
     }
 })

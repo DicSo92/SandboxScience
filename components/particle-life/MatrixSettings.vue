@@ -13,16 +13,17 @@
         </div>
 
         <div mt-2>
-            <div v-show="openTab === 1" class="p-2 rounded-lg shadow-md bg-gray-600">
+            <div v-if="openTab === 1" class="p-2 rounded-lg shadow-md bg-gray-600">
                 <RulesMatrix @update="(...args) => $emit('updateRulesMatrix', ...args)" />
             </div>
 
-            <div v-show="openTab === 2" class="p-2 rounded-lg shadow-md bg-gray-600">
+            <div v-if="openTab === 2" class="p-2 rounded-lg shadow-md bg-gray-600">
                 <MinMatrix @update="(...args) => $emit('updateMinMatrix', ...args)" />
             </div>
 
-            <div v-show="openTab === 3" class="p-2 rounded-lg shadow-md bg-gray-600">
+            <div v-if="openTab === 3" class="p-2 rounded-lg shadow-md bg-gray-600">
                 <MaxMatrix @update="(...args) => $emit('updateMaxMatrix', ...args)" />
+
             </div>
         </div>
     </div>
@@ -36,9 +37,11 @@ import MaxMatrix from "~/components/particle-life/MaxMatrix.vue";
 export default defineComponent({
     components: { MaxMatrix, MinMatrix, RulesMatrix },
     setup(props, { emit }) {
+        const particleLife = useParticleLifeStore()
+
         const openTab = ref(1)
 
-        return { openTab }
+        return { particleLife, openTab }
     }
 })
 </script>

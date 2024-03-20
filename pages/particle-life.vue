@@ -37,6 +37,14 @@
                             <RangeInput input label="Force Factor" :min="0.01" :max="2" :step="0.01" v-model="particleLife.forceFactor" mt-2 />
                             <RangeInput input label="Friction Factor" :min="0" :max="1" :step="0.01" v-model="particleLife.frictionFactor" mt-2 />
                         </Collapse>
+                        <Collapse label="Randomizer Settings" mt-2>
+                            <RangeInput input label="Min. Radius" :min="1" :max="particleLife.maxRadius" :step="1" v-model="particleLife.minRadius" />
+                            <RangeInput input label="Max. Radius" :min="particleLife.minRadius" :max="256" :step="1" v-model="particleLife.maxRadius" mt-2 />
+                            <hr border-gray-500 mt-3>
+                            <RangeInputMinMax input label="Min. Radius Range" :min="0" :max="100" :step="1" v-model="particleLife.minRadiusRange" mt-2 />
+                            <RangeInput input label="Max. Radius Range Offset" :min="1" :max="particleLife.maxRadiusRangeMax" :step="1" v-model="particleLife.maxRadiusRangeOffset" mt-2 />
+                            <RangeInput input label="Max. Radius Range Max" :min="particleLife.minRadiusRange[1] + particleLife.maxRadiusRangeOffset" :max="300" :step="1" v-model="particleLife.maxRadiusRangeMax" mt-2 />
+                        </Collapse>
                         <Collapse label="3D Depth Settings" mt-2>
                             <div grid grid-cols-2 gap-4>
                                 <ToggleSwitch label="Depth Size" v-model="particleLife.hasDepthSize" />
@@ -48,14 +56,6 @@
                         <Collapse label="Cells Settings" mt-2>
                             <RangeInput input label="Cell Group Size" :min="0" :max="100" :step="1" v-model="particleLife.cellGroupSize" />
                             <RangeInput input label="Cell Size Factor" :min="1" :max="2" :step="0.01" v-model="particleLife.cellSizeFactor" mt-2 />
-                        </Collapse>
-                        <Collapse label="Randomizer Settings" mt-2>
-                            <RangeInput input label="Min. Radius" :min="1" :max="particleLife.maxRadius" :step="1" v-model="particleLife.minRadius" />
-                            <RangeInput input label="Max. Radius" :min="particleLife.minRadius" :max="256" :step="1" v-model="particleLife.maxRadius" mt-2 />
-                            <hr border-gray-500 mt-3>
-                            <RangeInputMinMax input label="Min. Radius Range" :min="0" :max="100" :step="1" v-model="particleLife.minRadiusRange" mt-2 />
-                            <RangeInput input label="Max. Radius Range Offset" :min="1" :max="particleLife.maxRadiusRangeMax" :step="1" v-model="particleLife.maxRadiusRangeOffset" mt-2 />
-                            <RangeInput input label="Max. Radius Range Max" :min="particleLife.minRadiusRange[1] + particleLife.maxRadiusRangeOffset" :max="300" :step="1" v-model="particleLife.maxRadiusRangeMax" mt-2 />
                         </Collapse>
                     </div>
                 </div>
