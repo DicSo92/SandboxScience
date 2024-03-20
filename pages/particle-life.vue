@@ -4,7 +4,7 @@
             <template #controls>
             </template>
             <template #default>
-                <div px-2 flex flex-col>
+                <div h-full px-2 flex flex-col>
                     <div flex justify-between items-end mb-1>
                         <p>World Settings</p>
                         <div rounded-lg border-2 border-white style="width: 72px;">
@@ -12,14 +12,14 @@
                         </div>
                     </div>
                     <hr>
-                    <div grid grid-cols-2 gap-4 mt-3>
+                    <div grid grid-cols-2 gap-4 mt-3 mb-2>
                         <ToggleSwitch label="Grid" v-model="particleLife.hasGrid" :disabled="!particleLife.hasWalls"/>
                         <ToggleSwitch label="Walls" v-model="particleLife.hasWalls" />
                         <ToggleSwitch label="Cells" v-model="particleLife.hasCells" />
                         <ToggleSwitch label="Circle Shape" v-model="particleLife.isCircle" />
                     </div>
-                    <div>
-                        <Collapse label="Matrix Settings" opened mt-2>
+                    <div overflow-auto flex-1 class="scrollableArea">
+                        <Collapse label="Matrix Settings">
                             <MatrixSettings
                                 @updateRulesMatrix="updateRulesMatrixValue"
                                 @updateMinMatrix="updateMinMatrixValue"
@@ -813,4 +813,24 @@ export default defineComponent({
 canvas {
     background: black;
 }
+.scrollableArea {
+    scrollbar-color: #a5a5a5 transparent;
+    scrollbar-width: none;
+}
+/*
+.scrollableArea::-webkit-scrollbar {
+    width: 8px;
+}
+
+.scrollableArea::-webkit-scrollbar-track {
+    background-color: #e4e4e4;
+    border-radius: 100px;
+}
+
+.scrollableArea::-webkit-scrollbar-thumb {
+    background-color: #d4aa70;
+    border-radius: 100px;
+}
+*/
+
 </style>
