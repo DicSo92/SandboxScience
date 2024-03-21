@@ -15,9 +15,9 @@
                         </div>
                         <div v-else h-full w-full relative cursor-ew-resize select-none
                              :class="((hoveredCell && hoveredCell[0] === i-1 && hoveredCell[1] === j-1) || selectedCell && selectedCell[0] === i-1 && selectedCell[1] === j-1) && 'hovered-cell'"
-                             :style="{ backgroundColor: interpolateColor(particleLife.minRadiusMatrix[i-1][j-1]) }"
+                             :style="{ backgroundColor: hasSameValues ? 'rgb(12, 12, 12)' : interpolateColor(particleLife.minRadiusMatrix[i-1][j-1]) }"
                              @mouseenter="mouseenter(i-1, j-1)"
-                             @mouseleave="mouseleave(i-1, j-1)"
+                             @mouseleave="mouseleave"
                              @mousedown="mousedown($event, i-1, j-1)">
                             <div class="tooltip -mt-9 -translate-x-1/2 left-1/2" invisible
                                  absolute px-3 py-2 bg-gray-800 rounded-full pointer-events-none>
@@ -28,7 +28,7 @@
                 </div>
             </div>
         </div>
-        <RangeInput input :min="0" :max="selectedCell ? particleLife.maxRadiusMatrix[selectedCell[0]][selectedCell[1]] : particleLife.maxRadius" :step="1" v-model="selectedCellValue" mt-2 >
+        <RangeInput input :min="0" :max="selectedCell ? particleLife.maxRadiusMatrix[selectedCell[0]][selectedCell[1]] : 300" :step="1" v-model="selectedMinRadius" mt-2 >
             <template #customLabel>
                 <div class="w-2/3" border-2 border-gray-500 bg-gray-700 rounded-lg px-3 py-2>
                     <div v-if="selectedCell" flex items-center justify-between>
@@ -57,26 +57,43 @@ export default defineComponent({
         const neutralColor = [12, 12, 12]
         const targetColor = [12, 116, 137] // blue cerulean
 
-        const dragging = ref(false)
-        const wasDragging = ref(false)
+        const dragging = ref<boolean>(false)
+        const wasDragging = ref<boolean>(false)
         const hoveredCell = ref<[number, number] | null>(null)
         const selectedCell = ref<[number, number] | null>(null)
+        const toDeselect = ref<boolean>(false)
 
-        let toDeselect = ref(false)
+        const hasSameValues = computed(() => {
+            for (let i = 0; i < particleLife.numColors; i++) {
+                for (let j = 0; j < particleLife.numColors; j++) {
+                    if (particleLife.minRadiusMatrix[i][j] !== particleLife.minRadius) {
+                        return false
+                    }
+                }
+            }
+            return true
+        })
 
-        const selectedCellValue = ref<number>(particleLife.minRadius)
-        watch(selectedCell, (value) => {
-            if (value) {
-                selectedCellValue.value = particleLife.minRadiusMatrix[value[0]][value[1]]
-            } else {
-                selectedCellValue.value = particleLife.minRadius
+        const selectedMinRadius = computed({
+            get: () => {
+                if (selectedCell.value) {
+                    return particleLife.minRadiusMatrix[selectedCell.value[0]][selectedCell.value[1]]
+                }
+                return particleLife.minRadius
+            },
+            set: (newValue) => {
+                if (selectedCell.value) {
+                    particleLife.minRadiusMatrix[selectedCell.value[0]][selectedCell.value[1]] = newValue
+                } else {
+                    particleLife.minRadius = newValue
+                }
             }
         })
-        watch(selectedCellValue, (value) => {
-            if (selectedCell.value) {
-                setValue(selectedCell.value[0], selectedCell.value[1], value)
-            } else {
-                particleLife.minRadius = value
+        watch(() => particleLife.minRadius, (newValue) => {
+            for (let i = 0; i < particleLife.numColors; i++) {
+                for (let j = 0; j < particleLife.numColors; j++) {
+                    particleLife.minRadiusMatrix[i][j] = newValue
+                }
             }
         })
 
@@ -160,7 +177,7 @@ export default defineComponent({
                 hoveredCell.value = [i, j]
             }
         }
-        function mouseleave(i: number, j: number) {
+        function mouseleave() {
             if ((!particleLife.isLockedPointer && !wasDragging.value) || hoveredCell.value) {
                 hoveredCell.value = null
             }
@@ -188,7 +205,7 @@ export default defineComponent({
 
         return {
             particleLife, cellRowCount, totalCells,
-            dragging, hoveredCell, selectedCell, selectedCellValue,
+            dragging, hoveredCell, selectedCell, selectedMinRadius, hasSameValues,
             mousedown, mouseenter, mouseleave, interpolateColor, select
         }
     }
