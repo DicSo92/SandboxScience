@@ -96,6 +96,10 @@ export default defineComponent({
                 }
             }
         })
+        watch(() => particleLife.numColors, (newValue) => {
+            selectedCell.value = null
+            hoveredCell.value = null
+        })
 
         onMounted(() => {
             useEventListener(document, "pointerlockerror", () => {
