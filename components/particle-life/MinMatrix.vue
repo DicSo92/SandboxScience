@@ -48,32 +48,29 @@ import { defineComponent } from "vue";
 export default defineComponent({
     setup(props, { emit }) {
         const particleLife = useParticleLifeStore()
-        const cellRowCount = computed(() => particleLife.minRadiusMatrix.length + 1)
-        const totalCells = computed(() => cellRowCount.value * cellRowCount.value)
-
-        const minValue = computed(() => particleLife.minRadiusMatrix.reduce((min, row) => Math.min(min, ...row), Infinity))
-        const maxValue = computed(() => particleLife.minRadiusMatrix.reduce((max, row) => Math.max(max, ...row), -Infinity))
+        const hoveredCell = ref<[number, number] | null>(null)
+        const selectedCell = ref<[number, number] | null>(null)
 
         const neutralColor = [12, 12, 12]
         const targetColor = [12, 116, 137] // blue cerulean
 
-        const dragging = ref<boolean>(false)
-        const wasDragging = ref<boolean>(false)
-        const hoveredCell = ref<[number, number] | null>(null)
-        const selectedCell = ref<[number, number] | null>(null)
-        const toDeselect = ref<boolean>(false)
-
+        let dragging = false
+        let wasDragging = false
+        let toDeselect = false
+        // -------------------------------------------------------------------------------------------------------------
+        const cellRowCount = computed(() => particleLife.minRadiusMatrix.length + 1)
+        const minValue = computed(() => particleLife.minRadiusMatrix.reduce((min, row) => Math.min(min, ...row), Infinity))
+        const maxValue = computed(() => particleLife.minRadiusMatrix.reduce((max, row) => Math.max(max, ...row), -Infinity))
         const hasSameValues = computed(() => {
             for (let i = 0; i < particleLife.numColors; i++) {
                 for (let j = 0; j < particleLife.numColors; j++) {
-                    if (particleLife.minRadiusMatrix[i][j] !== particleLife.minRadius) {
+                    if (particleLife.minRadiusMatrix[i][j] !== particleLife.minRadiusMatrix[0][0]) {
                         return false
                     }
                 }
             }
             return true
         })
-
         const selectedMinRadius = computed({
             get: () => {
                 if (selectedCell.value) {
@@ -89,6 +86,7 @@ export default defineComponent({
                 }
             }
         })
+        // -------------------------------------------------------------------------------------------------------------
         watch(() => particleLife.minRadius, (newValue) => {
             for (let i = 0; i < particleLife.numColors; i++) {
                 for (let j = 0; j < particleLife.numColors; j++) {
@@ -100,14 +98,14 @@ export default defineComponent({
             selectedCell.value = null
             hoveredCell.value = null
         })
-
+        // -------------------------------------------------------------------------------------------------------------
         onMounted(() => {
             useEventListener(document, "pointerlockerror", () => {
                 nextTick(() => {
                     console.error('PointerLock error')
                     particleLife.isLockedPointer = false
-                    dragging.value = false
-                    wasDragging.value = false
+                    dragging = false
+                    wasDragging = false
                     document.exitPointerLock()
                 })
             }, false);
@@ -115,26 +113,27 @@ export default defineComponent({
                 nextTick(() => {
                     if (document.pointerLockElement && !particleLife.isLockedPointer) {
                         document.exitPointerLock()
-                        dragging.value = false
-                        wasDragging.value = false
+                        dragging = false
+                        wasDragging = false
                     }
                 })
             }, false);
             useEventListener(document, "mouseup", () => {
                 nextTick(() => {
-                    if (toDeselect.value) {
+                    if (toDeselect) {
                         selectedCell.value = null
                         hoveredCell.value = null
-                        toDeselect.value = false
+                        toDeselect = false
                     }
                     particleLife.isLockedPointer = false
-                    dragging.value = false
-                    wasDragging.value = false
+                    dragging = false
+                    wasDragging = false
                     document.exitPointerLock()
                     document.removeEventListener('mousemove', handleDrag, true)
                 })
             }, false);
         })
+        // -------------------------------------------------------------------------------------------------------------
         function select(i: number, j: number) {
             if (selectedCell.value && selectedCell.value[0] === i && selectedCell.value[1] === j) {
                 selectedCell.value = null
@@ -146,17 +145,17 @@ export default defineComponent({
             hoveredCell.value = [i, j]
 
             if (selectedCell.value && selectedCell.value[0] === i && selectedCell.value[1] === j) {
-                toDeselect.value = true
+                toDeselect = true
             }
             if ((selectedCell.value && (selectedCell.value[0] !== i || selectedCell.value[1] !== j)) || !selectedCell.value) {
                 select(i, j)
             }
-            dragging.value = true
+            dragging = true
             document.addEventListener('mousemove', handleDrag, true)
         }
         function handleDrag(event: MouseEvent) {
-            if (dragging.value) {
-                toDeselect.value = false
+            if (dragging) {
+                toDeselect = false
                 const targetElement = event.target as HTMLElement
                 if(targetElement.requestPointerLock) {
                     if (!particleLife.isLockedPointer && !document.pointerLockElement) {
@@ -168,7 +167,7 @@ export default defineComponent({
                     console.log('PointerLock API not supported in this device.')
                 }
 
-                wasDragging.value = true
+                wasDragging = true
                 if (event.movementX === 0 || Math.abs(event.movementX) > 16) return // Prevent movementX error with pointer lock
                 const i = selectedCell.value![0]
                 const j = selectedCell.value![1]
@@ -177,17 +176,17 @@ export default defineComponent({
             }
         }
         function mouseenter(i: number, j: number) {
-            if (!particleLife.isLockedPointer && !wasDragging.value) {
+            if (!particleLife.isLockedPointer && !wasDragging) {
                 hoveredCell.value = [i, j]
             }
         }
         function mouseleave() {
-            if ((!particleLife.isLockedPointer && !wasDragging.value) || hoveredCell.value) {
+            if ((!particleLife.isLockedPointer && !wasDragging) || hoveredCell.value) {
                 hoveredCell.value = null
             }
-            wasDragging.value = false
+            wasDragging = false
         }
-
+        // -------------------------------------------------------------------------------------------------------------
         function setValue(i: number, j: number, newValue: number = 0) {
             newValue = Math.max(0, Math.min(particleLife.maxRadiusMatrix[i][j], newValue))
             emit('update', i, j, newValue)
@@ -206,10 +205,9 @@ export default defineComponent({
 
             return `rgb(${r}, ${g}, ${b})`
         }
-
+        // -------------------------------------------------------------------------------------------------------------
         return {
-            particleLife, cellRowCount, totalCells,
-            dragging, hoveredCell, selectedCell, selectedMinRadius, hasSameValues,
+            particleLife, cellRowCount, hoveredCell, selectedCell, selectedMinRadius, hasSameValues,
             mousedown, mouseenter, mouseleave, interpolateColor, select
         }
     }
