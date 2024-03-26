@@ -80,7 +80,8 @@ export default defineComponent({
             },
             set: (newValue) => {
                 if (selectedCell.value) {
-                    particleLife.minRadiusMatrix[selectedCell.value[0]][selectedCell.value[1]] = newValue
+                    // particleLife.minRadiusMatrix[selectedCell.value[0]][selectedCell.value[1]] = newValue
+                    setValue(selectedCell.value[0], selectedCell.value[1], newValue)
                 } else {
                     particleLife.minRadius = newValue
                 }
@@ -90,7 +91,8 @@ export default defineComponent({
         watch(() => particleLife.minRadius, (newValue) => {
             for (let i = 0; i < particleLife.numColors; i++) {
                 for (let j = 0; j < particleLife.numColors; j++) {
-                    particleLife.minRadiusMatrix[i][j] = newValue
+                    // particleLife.minRadiusMatrix[i][j] = newValue
+                    setValue(i, j, newValue)
                 }
             }
         })

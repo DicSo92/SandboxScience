@@ -770,7 +770,6 @@ export default defineComponent({
             if (!isRunning.value) simpleDrawParticles() // Redraw the particles if the game is not running
         }
         // -------------------------------------------------------------------------------------------------------------
-
         watch(() => particleLife.numParticles, (value) => updateNumParticles(value))
         watch(() => particleLife.numColors, (value) => updateNumColors(value))
         watch(() => particleLife.particleSize, () => updateParticleSettings())

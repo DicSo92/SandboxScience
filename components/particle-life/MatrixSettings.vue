@@ -23,7 +23,6 @@
 
             <div v-if="openTab === 3" class="p-2 rounded-lg shadow-md bg-gray-600">
                 <MaxMatrix @update="(...args) => $emit('updateMaxMatrix', ...args)" />
-
             </div>
         </div>
     </div>
