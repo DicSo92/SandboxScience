@@ -15,8 +15,6 @@
                     <div grid grid-cols-2 gap-4 mt-3 mb-2>
                         <ToggleSwitch label="Grid" v-model="particleLife.hasGrid" :disabled="!particleLife.hasWalls"/>
                         <ToggleSwitch label="Walls" v-model="particleLife.hasWalls" />
-                        <ToggleSwitch label="Cells" v-model="particleLife.hasCells" />
-                        <ToggleSwitch label="Circle Shape" v-model="particleLife.isCircle" />
                     </div>
                     <div overflow-auto flex-1 class="scrollableArea">
                         <Collapse label="Matrix Settings">
@@ -29,7 +27,6 @@
                         <Collapse label="World Settings" opened mt-2>
                             <RangeInput input label="Particle Number" :min="particleLife.numColors" :max="20000" :step="10" v-model="particleLife.numParticles" />
                             <RangeInput input label="Color Number" :min="1" :max="20" :step="1" v-model="particleLife.numColors" mt-2 />
-                            <RangeInput input label="Particle Size" :min="1" :max="20" :step="1" v-model="particleLife.particleSize" mt-2 />
                             <RangeInput input label="Depth Limit" :min="0" :max="1000" :step="1" v-model="particleLife.depthLimit" mt-2 />
                         </Collapse>
                         <Collapse label="Force Settings" opened mt-2>
@@ -45,15 +42,18 @@
                             <RangeInput input label="Max. Radius Range Offset" :min="1" :max="particleLife.maxRadiusRangeMax" :step="1" v-model="particleLife.maxRadiusRangeOffset" mt-2 />
                             <RangeInput input label="Max. Radius Range Max" :min="particleLife.minRadiusRange[1] + particleLife.maxRadiusRangeOffset" :max="300" :step="1" v-model="particleLife.maxRadiusRangeMax" mt-2 />
                         </Collapse>
-                        <Collapse label="3D Depth Settings" mt-2>
+                        <Collapse label="Graphics Settings" mt-2>
                             <div grid grid-cols-2 gap-4>
                                 <ToggleSwitch label="Depth Size" v-model="particleLife.hasDepthSize" />
                                 <ToggleSwitch label="Depth Opacity" v-model="particleLife.hasDepthOpacity" />
+                                <ToggleSwitch label="Circle Shape" v-model="particleLife.isCircle" />
                             </div>
+                            <RangeInput input label="Particle Size" :min="1" :max="20" :step="1" v-model="particleLife.particleSize" mt-2 />
                             <RangeInput input label="Min. Opacity" :min="0" :max="Math.min(1, particleLife.maxOpacity)" :step="0.01" v-model="particleLife.minOpacity" mt-2 />
                             <RangeInput input label="Max. Opacity" :min="particleLife.minOpacity" :max="2" :step="0.01" v-model="particleLife.maxOpacity" mt-2 />
                         </Collapse>
-                        <Collapse label="Cells Settings" mt-2>
+                        <Collapse label="Debug Tools" mt-2>
+                            <ToggleSwitch label="Cells" v-model="particleLife.hasCells" />
                             <RangeInput input label="Cell Group Size" :min="0" :max="100" :step="1" v-model="particleLife.cellGroupSize" />
                             <RangeInput input label="Cell Size Factor" :min="1" :max="2" :step="0.01" v-model="particleLife.cellSizeFactor" mt-2 />
                         </Collapse>
@@ -73,15 +73,21 @@
             </div>
             <Memory />
         </div>
-        <div absolute bottom-0 w-full flex justify-center items-center="">
-            <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="regenerateLife">
+        <div absolute bottom-2 w-full flex justify-center items-center="">
+            <div btn p2 mx-1 flex items-center bg="#094F5D hover:#0B5F6F" @click="regenerateLife">
                 <div i-game-icons-perspective-dice-six-faces-random text-xl></div>
             </div>
-            <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="particleLife.isRunning = !particleLife.isRunning">
+            <div btn p2 mx-1 flex items-center bg="#212121 hover:#333333" @click="particleLife.isRunning = !particleLife.isRunning">
+                <div i-tabler-player-track-prev-filled text-xl></div>
+            </div>
+            <div btn p2 mx-1 flex items-center bg="#212121 hover:#333333" @click="particleLife.isRunning = !particleLife.isRunning">
                 <div :class="particleLife.isRunning ? 'i-tabler-player-pause-filled' : 'i-tabler-player-play-filled'" text-xl></div>
             </div>
-            <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="particleLife.hasCells = !particleLife.hasCells">
-                <div i-tabler-circle text-xl></div>
+            <div btn p2 mx-1 flex items-center bg="#212121 hover:#333333" @click="particleLife.isRunning = !particleLife.isRunning">
+                <div i-tabler-player-track-next-filled text-xl></div>
+            </div>
+            <div btn p2 mx-1 flex items-center bg="#D62839 hover:#DC4151" @click="particleLife.hasCells = !particleLife.hasCells">
+                <div :class="particleLife.hasCells ? 'i-tabler-bug-filled' : 'i-tabler-bug'" text-xl></div>
             </div>
         </div>
     </section>
@@ -97,6 +103,8 @@ export default defineComponent({
     setup() {
         definePageMeta({ layout: 'life' })
         const particleLife = useParticleLifeStore()
+
+        let customRulesMatrix: number[][] = [[0,1,0,1,0,0,0,0,0],[0,0,1,0,1,0,0,0,0],[1,0,0,0,0,1,0,0,0],[0,0,0,0,1,0,1,0,0],[0,0,0,0,0,1,0,1,0],[0,0,0,1,0,0,0,0,1],[1,0,0,0,0,0,0,1,0],[0,1,0,0,0,0,0,0,1],[0,0,1,0,0,0,1,0,0]]
 
         // Define canvas and context for drawing
         let lifeCanvas: HTMLCanvasElement | undefined
