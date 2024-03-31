@@ -77,6 +77,9 @@
             <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="regenerateLife">
                 <div i-game-icons-perspective-dice-six-faces-random text-xl></div>
             </div>
+            <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="particleLife.isRunning = !particleLife.isRunning">
+                <div :class="particleLife.isRunning ? 'i-tabler-player-pause-filled' : 'i-tabler-player-play-filled'" text-xl></div>
+            </div>
             <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="particleLife.hasCells = !particleLife.hasCells">
                 <div i-tabler-circle text-xl></div>
             </div>
@@ -106,7 +109,7 @@ export default defineComponent({
         const fps = useFps()
         const cellCount = ref<number>(0)
         const executionTime = ref<number>(0)
-        const isRunning = ref<boolean>(true)
+        let isRunning = particleLife.isRunning
 
         // Define color list and rules matrix for the particles
         let currentColors: number[] = [] // Current colors for the particles
@@ -152,7 +155,7 @@ export default defineComponent({
         let endGridX: number = 0 // Position X of the end of the grid
         let endGridY: number = 0 // Position Y of the end of the grid
 
-        // Define arrays for storing the properties of each particle
+        // Define the properties for dragging and zooming
         let isDragging: boolean = false // Flag to check if the mouse is being dragged
         let lastPointerX: number = 0 // For dragging
         let lastPointerY: number = 0 // For dragging
@@ -174,17 +177,17 @@ export default defineComponent({
             ctx = lifeCanvas?.getContext('2d') || undefined
             handleResize()
             initLife()
-            if (!isRunning.value) simpleDrawParticles()
+            if (!isRunning) simpleDrawParticles()
             animationFrameId = requestAnimationFrame(update) // Start the game loop
 
             onKeyStroke(' ', () => { // Space bar pressed
                 console.log('Key Space pressed')
-                isRunning.value = !isRunning.value
+                particleLife.isRunning = !particleLife.isRunning
             })
             onKeyStroke('c', () => { // Space bar pressed
                 console.log('Key C pressed')
                 centerView()
-                if (!isRunning.value) simpleDrawParticles()
+                if (!isRunning) simpleDrawParticles()
             })
             useEventListener('resize', handleResize)
             useEventListener(lifeCanvas, ['mousedown'], (e) => {
@@ -241,7 +244,7 @@ export default defineComponent({
             gridOffsetY -= (y / zoomFactor) * ((zoomFactor / oldZoomFactor) - 1)
 
             setEndCoordinates()
-            if (!isRunning.value) simpleDrawParticles()
+            if (!isRunning) simpleDrawParticles()
         }
         // -------------------------------------------------------------------------------------------------------------
         function initLife() {
@@ -269,7 +272,7 @@ export default defineComponent({
             setMinRadiusMatrix(makeRandomMinRadiusMatrix())
             setMaxRadiusMatrix(makeRandomMaxRadiusMatrix())
 
-            if (!isRunning.value) simpleDrawParticles()
+            if (!isRunning) simpleDrawParticles()
             animationFrameId = requestAnimationFrame(update) // Start the game loop
         }
         function initColors() {
@@ -345,7 +348,7 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         function update() {
             const startExecutionTime = performance.now()
-            if (isRunning.value) {
+            if (isRunning) {
                 processRules()
                 updateParticles()
                 if (hasGrid) drawGrid()
@@ -643,7 +646,7 @@ export default defineComponent({
                 velocityZ = newVelocityZ
             }
             numParticles = newNumParticles // Update the number of particles
-            if (!isRunning.value) simpleDrawParticles() // Redraw the particles if the game is not running
+            if (!isRunning) simpleDrawParticles() // Redraw the particles if the game is not running
         }
         function updateNumColors(newNumColors: number) {
             if (newNumColors === numColors) return // Skip if the number of colors is the same
@@ -658,7 +661,7 @@ export default defineComponent({
             }
             numColors = newNumColors // Update the number of colors
             initColors() // Reinitialize the colors (currentColors)
-            if (!isRunning.value) simpleDrawParticles() // Redraw the particles if the game is not running
+            if (!isRunning) simpleDrawParticles() // Redraw the particles if the game is not running
         }
         function addToMatrix(newNumColors: number) {
             const newRulesMatrix: number[][] = []
@@ -750,11 +753,12 @@ export default defineComponent({
         function watchAndDraw(effect: any, callback: any) {
             watch(effect, (value) => {
                 callback(value);
-                if (!isRunning.value) simpleDrawParticles();
+                if (!isRunning) simpleDrawParticles();
             });
         }
         watch(() => particleLife.numParticles, (value) => updateNumParticles(value))
         watch(() => particleLife.numColors, (value) => updateNumColors(value))
+        watchAndDraw(() => particleLife.isRunning, (value: boolean) => isRunning = value)
         watchAndDraw(() => particleLife.particleSize, (value: number) => particleSize = value)
         watchAndDraw(() => particleLife.depthLimit, (value: number) => depthLimit = value)
         watchAndDraw(() => particleLife.hasWalls, (value: boolean) => {

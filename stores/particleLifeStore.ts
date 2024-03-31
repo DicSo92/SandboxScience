@@ -3,6 +3,8 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
     const sidebarLeftOpen = ref<boolean>(false) // Is sidebar left open
     const isLockedPointer = ref<boolean>(false) // Prevent lifeCanvas events from being triggered
 
+    const isRunning = ref<boolean>(true) // Is the simulation running
+
     const currentColors = ref<number[]>([]) // Current colors for the particles
     const rulesMatrix = ref<number[][]>([]) // Rules matrix for each color
     const minRadiusMatrix = ref<number[][]>([]) // Min radius matrix for each color
@@ -43,6 +45,7 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
 
     return {
         sidebarLeftOpen, isLockedPointer,
+        isRunning,
         rulesMatrix, minRadiusMatrix, maxRadiusMatrix, currentColors,
         numParticles, particleSize, numColors, depthLimit,
         isCircle, hasGrid, hasCells, hasWalls, hasDepthSize, hasDepthOpacity, maxOpacity, minOpacity,
