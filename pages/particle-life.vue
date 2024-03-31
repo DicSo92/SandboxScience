@@ -77,23 +77,8 @@
             <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="regenerateLife">
                 <div i-game-icons-perspective-dice-six-faces-random text-xl></div>
             </div>
-            <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="particleLife.hasGrid = !particleLife.hasGrid">
-                <div i-tabler-grid-3x3 text-xl></div>
-            </div>
-            <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="particleLife.hasWalls = !particleLife.hasWalls">
-                <div i-tabler-square text-xl></div>
-            </div>
             <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="particleLife.hasCells = !particleLife.hasCells">
                 <div i-tabler-circle text-xl></div>
-            </div>
-            <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="particleLife.hasDepthOpacity = !particleLife.hasDepthOpacity">
-                <div i-tabler-chart-scatter-3d text-xl></div>
-            </div>
-            <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="particleLife.hasDepthSize = !particleLife.hasDepthSize">
-                <div i-tabler-chart-scatter-3d text-xl></div>
-            </div>
-            <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="particleLife.isCircle = !particleLife.isCircle">
-                <div i-tabler-grid-dots text-xl></div>
             </div>
         </div>
     </section>
@@ -759,57 +744,36 @@ export default defineComponent({
             maxRadiusMatrix[x][y] = value
             currentMaxRadius = maxRadiusMatrix.reduce((max, row) => Math.max(max, ...row), -Infinity)
         }
-        function updateParticleSettings () {
-            numParticles = particleLife.numParticles
-            numColors = particleLife.numColors
-            particleSize = particleLife.particleSize
-            depthLimit = particleLife.depthLimit
-
-            hasCells = particleLife.hasCells
-            hasWalls = particleLife.hasWalls
-            hasGrid = particleLife.hasGrid
-            isCircle = particleLife.isCircle
-            hasDepthSize = particleLife.hasDepthSize
-            hasDepthOpacity = particleLife.hasDepthOpacity
-
-            minOpacity = particleLife.minOpacity
-            maxOpacity = particleLife.maxOpacity
-            cellGroupSize = particleLife.cellGroupSize
-
-            repel = particleLife.repel
-            forceFactor = particleLife.forceFactor
-            frictionFactor = particleLife.frictionFactor
-
-            cellSizeFactor = particleLife.cellSizeFactor
-
-            if (!isRunning.value) simpleDrawParticles() // Redraw the particles if the game is not running
-        }
         // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
+        function watchAndDraw(effect: any, callback: any) {
+            watch(effect, (value) => {
+                callback(value);
+                if (!isRunning.value) simpleDrawParticles();
+            });
+        }
         watch(() => particleLife.numParticles, (value) => updateNumParticles(value))
         watch(() => particleLife.numColors, (value) => updateNumColors(value))
-        watch(() => particleLife.particleSize, () => updateParticleSettings())
-        watch(() => particleLife.depthLimit, () => updateParticleSettings())
-
-        watch(() => particleLife.hasCells, () => updateParticleSettings())
-        watch(() => particleLife.hasWalls, (value) => {
-            particleLife.hasGrid = !!value
-            updateParticleSettings()
+        watchAndDraw(() => particleLife.particleSize, (value: number) => particleSize = value)
+        watchAndDraw(() => particleLife.depthLimit, (value: number) => depthLimit = value)
+        watchAndDraw(() => particleLife.hasWalls, (value: boolean) => {
+            hasWalls = value
+            particleLife.hasGrid = value
         })
-        watch(() => particleLife.hasGrid, () => updateParticleSettings())
-        watch(() => particleLife.isCircle, () => updateParticleSettings())
-        watch(() => particleLife.hasDepthSize, () => updateParticleSettings())
-        watch(() => particleLife.hasDepthOpacity, () => updateParticleSettings())
-
-        watch(() => particleLife.minOpacity, () => updateParticleSettings())
-        watch(() => particleLife.maxOpacity, () => updateParticleSettings())
-        watch(() => particleLife.cellGroupSize, () => updateParticleSettings())
-
-        watch(() => particleLife.repel, () => updateParticleSettings())
-        watch(() => particleLife.forceFactor, () => updateParticleSettings())
-        watch(() => particleLife.frictionFactor, () => updateParticleSettings())
-
-        watch(() => particleLife.cellSizeFactor, () => updateParticleSettings())
-
+        watchAndDraw(() => particleLife.hasGrid, (value: boolean) => hasGrid = value)
+        watchAndDraw(() => particleLife.hasCells, (value: boolean) => hasCells = value)
+        watchAndDraw(() => particleLife.isCircle, (value: boolean) => isCircle = value)
+        watchAndDraw(() => particleLife.hasDepthSize, (value: boolean) => hasDepthSize = value)
+        watchAndDraw(() => particleLife.hasDepthOpacity, (value: boolean) => hasDepthOpacity = value)
+        watchAndDraw(() => particleLife.minOpacity, (value: number) => minOpacity = value)
+        watchAndDraw(() => particleLife.maxOpacity, (value: number) => maxOpacity = value)
+        watchAndDraw(() => particleLife.cellGroupSize, (value: number) => cellGroupSize = value)
+        watchAndDraw(() => particleLife.repel, (value: number) => repel = value)
+        watchAndDraw(() => particleLife.forceFactor, (value: number) => forceFactor = value)
+        watchAndDraw(() => particleLife.frictionFactor, (value: number) => frictionFactor = value)
+        watchAndDraw(() => particleLife.cellSizeFactor, (value: number) => cellSizeFactor = value)
+        // -------------------------------------------------------------------------------------------------------------
         onBeforeUnmount(() => {
             if (animationFrameId) cancelAnimationFrame(animationFrameId)
         })
