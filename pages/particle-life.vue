@@ -74,6 +74,9 @@
             <Memory />
         </div>
         <div absolute bottom-0 w-full flex justify-center items-center="">
+            <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="regenerateLife">
+                <div i-game-icons-perspective-dice-six-faces-random text-xl></div>
+            </div>
             <div btn p2 mx-1 flex items-center bg="green-900 hover:green-800" @click="particleLife.hasGrid = !particleLife.hasGrid">
                 <div i-tabler-grid-3x3 text-xl></div>
             </div>
@@ -271,6 +274,18 @@ export default defineComponent({
             console.table(minRadiusMatrix)
             console.table(maxRadiusMatrix)
             console.table(rulesMatrix)
+        }
+        function regenerateLife() {
+            if (animationFrameId) cancelAnimationFrame(animationFrameId)
+
+            initColors()
+            initParticles()
+            setRulesMatrix(makeRandomRulesMatrix())
+            setMinRadiusMatrix(makeRandomMinRadiusMatrix())
+            setMaxRadiusMatrix(makeRandomMaxRadiusMatrix())
+
+            if (!isRunning.value) simpleDrawParticles()
+            animationFrameId = requestAnimationFrame(update) // Start the game loop
         }
         function initColors() {
             currentColors = [];
@@ -582,7 +597,7 @@ export default defineComponent({
             drawHorizontalLine(endGridX, (gridOffsetY + gridHeight) * zoomFactor) // Draw bottom line
             drawVerticalLine(gridOffsetX * zoomFactor, endGridY) // Draw left line
             drawVerticalLine((gridOffsetX + gridWidth) * zoomFactor, endGridY) // Draw right line
-            ctx!.strokeStyle = 'rgba(255, 255, 255, 0.8)'
+            ctx!.strokeStyle = 'rgba(128, 128, 128, 0.8)'
             ctx!.lineWidth = 1
             ctx!.stroke()
         }
@@ -802,7 +817,7 @@ export default defineComponent({
         return {
             lifeCanvas, particleLife,
             fps, cellCount, executionTime,
-            updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue
+            updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, regenerateLife
         }
     }
 })
