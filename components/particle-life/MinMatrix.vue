@@ -80,22 +80,18 @@ export default defineComponent({
             },
             set: (newValue) => {
                 if (selectedCell.value) {
-                    // particleLife.minRadiusMatrix[selectedCell.value[0]][selectedCell.value[1]] = newValue
                     setValue(selectedCell.value[0], selectedCell.value[1], newValue)
                 } else {
                     particleLife.minRadius = newValue
+                    for (let i = 0; i < particleLife.numColors; i++) {
+                        for (let j = 0; j < particleLife.numColors; j++) {
+                            setValue(i, j, newValue)
+                        }
+                    }
                 }
             }
         })
         // -------------------------------------------------------------------------------------------------------------
-        watch(() => particleLife.minRadius, (newValue) => {
-            for (let i = 0; i < particleLife.numColors; i++) {
-                for (let j = 0; j < particleLife.numColors; j++) {
-                    // particleLife.minRadiusMatrix[i][j] = newValue
-                    setValue(i, j, newValue)
-                }
-            }
-        })
         watch(() => particleLife.numColors, (newValue) => {
             selectedCell.value = null
             hoveredCell.value = null

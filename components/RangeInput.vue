@@ -56,10 +56,10 @@ export default defineComponent({
     },
     setup(props, { emit }) {
         const minOffset = computed(() => {
-            return ((props.modelValue - props.min) / (props.max - props.min)) * 100 // get the percentage from the left
+            return Math.max(0, Math.min(100, ((props.modelValue - props.min) / (props.max - props.min)) * 100)) // get the percentage from the left
         })
         const maxOffset = computed(() => {
-            return 100 - (((props.modelValue - props.min) / (props.max - props.min)) * 100) // get the percentage from the right
+            return Math.max(0, Math.min(100, 100 - (((props.modelValue - props.min) / (props.max - props.min)) * 100))) // get the percentage from the right
         })
         const inputTextUpdate = useDebounceFn((value: number) => {
             emit("update:modelValue", Number(value))

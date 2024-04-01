@@ -26,8 +26,8 @@
             </div>
 
             <div class="flex justify-between items-center pt-2 ml-2">
-                <input type="text" maxlength="5" :value="modelValue[0]" @input="updateMinValue($event.target.value)" class="w-16 border border-gray-200 rounded text-center text-black">
-                <input type="text" maxlength="5" :value="modelValue[1]" @input="updateMaxValue($event.target.value)" class="w-16 border border-gray-200 rounded text-center text-black">
+                <input type="text" maxlength="5" :value="modelValue[0]" @input="inputTextUpdateMin($event.target.value)" class="w-16 border border-gray-200 rounded text-center text-black">
+                <input type="text" maxlength="5" :value="modelValue[1]" @input="inputTextUpdateMax($event.target.value)" class="w-16 border border-gray-200 rounded text-center text-black">
             </div>
         </div>
     </div>
@@ -62,23 +62,30 @@ export default defineComponent({
         }
     },
     setup(props, { emit }) {
+        const rangeOffset = 6
         const minOffset = computed(() => {
-            return ((props.modelValue[0] - props.min) / (props.max - props.min)) * 100 // get the percentage from the left
+            return Math.max(0, Math.min(100, ((props.modelValue[0] - props.min) / (props.max - props.min)) * 100)) // get the percentage from the left
         })
         const maxOffset = computed(() => {
-            return 100 - (((props.modelValue[1] - props.min) / (props.max - props.min)) * 100) // get the percentage from the right
+            return Math.max(0, Math.min(100, 100 - (((props.modelValue[1] - props.min) / (props.max - props.min)) * 100))) // get the percentage from the right
         })
 
+        const inputTextUpdateMin = useDebounceFn((value: number) => {
+            updateMinValue(isNaN(value) ? props.min : value)
+        }, 750, { maxWait: 2500 })
+        const inputTextUpdateMax = useDebounceFn((value: number) => {
+            updateMaxValue(isNaN(value) ? props.min : value)
+        }, 750, { maxWait: 2500 })
         function updateMinValue(value: any) {
-            const newRange = [Math.min(value, props.modelValue[1] - 10), props.modelValue[1]]
+            const newRange = [Math.min(value, props.modelValue[1] - rangeOffset), props.modelValue[1]]
             emit("update:modelValue", newRange)
         }
         function updateMaxValue(value: any) {
-            const newRange = [props.modelValue[0], Math.max(value, props.modelValue[0] + 10)]
+            const newRange = [props.modelValue[0], Math.max(value, props.modelValue[0] + rangeOffset)]
             emit("update:modelValue", newRange)
         }
 
-        return { minOffset, maxOffset, updateMinValue, updateMaxValue }
+        return { minOffset, maxOffset, inputTextUpdateMin, inputTextUpdateMax, updateMinValue, updateMaxValue }
     }
 })
 </script>
