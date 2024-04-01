@@ -36,8 +36,6 @@
 
 <script lang="ts">
 import { defineComponent } from 'vue'
-import {SymbolKind} from "vscode-languageserver-types";
-import Array = SymbolKind.Array;
 export default defineComponent({
     props: {
         min: {

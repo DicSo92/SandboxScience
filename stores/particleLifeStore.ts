@@ -15,6 +15,7 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
     const numColors = ref<number>(7) // Number of colors to be used
     const depthLimit = ref<number>(420) // Maximum Z axis depth (0 means almost 2D because there is friction with the walls && can be negative)
 
+    const is3D = ref<boolean>(true) // Enable 3D Algorithm
     const isCircle = ref<boolean>(true) // Enable circular shape for the particles
     const hasGrid = ref<boolean>(true) // Enable grid
     const hasCells = ref<boolean>(false) // Enable cells
@@ -48,7 +49,7 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
         isRunning,
         rulesMatrix, minRadiusMatrix, maxRadiusMatrix, currentColors,
         numParticles, particleSize, numColors, depthLimit,
-        isCircle, hasGrid, hasCells, hasWalls, hasDepthSize, hasDepthOpacity, maxOpacity, minOpacity,
+        is3D, isCircle, hasGrid, hasCells, hasWalls, hasDepthSize, hasDepthOpacity, maxOpacity, minOpacity,
         minRadiusRange, maxRadiusRangeOffset, maxRadiusRangeMax,
         maxRadius, minRadius, repel, forceFactor, frictionFactor,
         cellGroupSize, cellSizeFactor,

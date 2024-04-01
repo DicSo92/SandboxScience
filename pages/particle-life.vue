@@ -7,9 +7,10 @@
                 <div h-full px-2 flex flex-col>
                     <div flex justify-between items-end mb-1>
                         <p>World Settings</p>
-                        <div rounded-lg border-2 border-white style="width: 72px;">
-                            <div i-tabler-badge-3d style="font-size: 30px" class="-my-1"></div>
-                        </div>
+<!--                        <div rounded-lg border-2 border-white style="width: 72px;">-->
+<!--                            <div i-tabler-badge-3d style="font-size: 30px" class="-my-1"></div>-->
+<!--                        </div>-->
+                        <ToggleSwitch inactive-label="2D" label="3D" colorful-label v-model="particleLife.is3D" />
                     </div>
                     <hr>
                     <div grid grid-cols-2 gap-4 mt-3 mb-2>
@@ -39,8 +40,8 @@
                             <RangeInput input label="Max. Radius" :min="particleLife.minRadius" :max="256" :step="1" v-model="particleLife.maxRadius" mt-2 />
                             <hr border-gray-500 mt-3>
                             <RangeInputMinMax input label="Min. Radius Range" :min="0" :max="100" :step="1" v-model="particleLife.minRadiusRange" mt-2 />
-                            <RangeInput input label="Max. Radius Range Offset" :min="1" :max="particleLife.maxRadiusRangeMax" :step="1" v-model="particleLife.maxRadiusRangeOffset" mt-2 />
-                            <RangeInput input label="Max. Radius Range Max" :min="particleLife.minRadiusRange[1] + particleLife.maxRadiusRangeOffset" :max="300" :step="1" v-model="particleLife.maxRadiusRangeMax" mt-2 />
+                            <RangeInput input label="Max. Radius Offset" :min="1" :max="particleLife.maxRadiusRangeMax" :step="1" v-model="particleLife.maxRadiusRangeOffset" mt-2 />
+                            <RangeInput input label="Max. Radius Max" :min="particleLife.minRadiusRange[1] + particleLife.maxRadiusRangeOffset" :max="300" :step="1" v-model="particleLife.maxRadiusRangeMax" mt-2 />
                         </Collapse>
                         <Collapse label="Graphics Settings" icon="i-tabler-photo-cog" mt-2>
                             <div grid grid-cols-2 gap-4>
@@ -88,6 +89,9 @@
             </div>
             <div btn p2 mx-1 flex items-center bg="#D62839 hover:#DC4151" @click="particleLife.hasCells = !particleLife.hasCells">
                 <div :class="particleLife.hasCells ? 'i-tabler-bug-filled' : 'i-tabler-bug'" text-xl></div>
+            </div>
+            <div btn p2 mx-1 flex items-center bg="#E07F00 hover:#FF8F00" @click="particleLife.is3D = !particleLife.is3D">
+                <div text-lg font-700 style="line-height: normal">{{ particleLife.is3D ? '2D' : '3D' }}</div>
             </div>
         </div>
     </section>
@@ -184,6 +188,7 @@ export default defineComponent({
             lifeCanvas = document.getElementById('lifeCanvas') as HTMLCanvasElement
             ctx = lifeCanvas?.getContext('2d') || undefined
             handleResize()
+            setDimensionAlgorithm()
             initLife()
             if (!isRunning) simpleDrawParticles()
             animationFrameId = requestAnimationFrame(update) // Start the game loop
@@ -255,6 +260,17 @@ export default defineComponent({
             if (!isRunning) simpleDrawParticles()
         }
         // -------------------------------------------------------------------------------------------------------------
+        function setDimensionAlgorithm() {
+            if (particleLife.is3D) {
+                processRules = processRules3D
+                updateParticles = updateParticles3D
+                drawParticle = drawParticle3D
+            } else {
+                processRules = processRules2D
+                updateParticles = updateParticles2D
+                drawParticle = drawParticle2D
+            }
+        }
         function initLife() {
             // Set the grid size and zoom factor based on the screen size
             gridWidth = Math.floor(canvasWidth * screenMultiplierForGridSize)
@@ -394,7 +410,6 @@ export default defineComponent({
                 ctx!.stroke()
             })
 
-
             // Just cell 1,1 for testing
             // const cellKey = `${1},${1}`
             // if (!cells.has(cellKey)) return
@@ -416,7 +431,27 @@ export default defineComponent({
             // ctx!.strokeStyle = `hsl(${0}, 100%, 50%, 0.55)`
             // ctx!.stroke()
         }
-        function drawParticle(x: number, y: number, z: number, color: number, size: number) {
+        // -------------------------------------------------------------------------------------------------------------
+        let drawParticle: (x: number, y: number, z: number, color: number, size: number) => void
+        function drawParticle2D(x: number, y: number, z: number, color: number, size: number) {
+            const newSize = size * zoomFactor // Adjust the size based on the depth factor and zoom factor
+            if (newSize <= 0) return // Skip if the particle is too small
+            const drawX = (x + gridOffsetX) * zoomFactor // Adjust the position X based on the grid offset and zoom factor
+            const drawY = (y + gridOffsetY) * zoomFactor // Adjust the position Y based on the grid offset and zoom factor
+            if (drawX < 0 || drawX > canvasWidth || drawY < 0 || drawY > canvasHeight) return // Skip if the particle is outside the canvas
+
+            ctx!.fillStyle = `hsl(${color}, 100%, 50%, 1)`
+
+            // Handle particle drawing
+            if (newSize < 2 || !isCircle) { // Draw squares for small particles
+                ctx!.fillRect(drawX - newSize / 2, drawY - newSize / 2, newSize, newSize)
+            } else { // Draw circles for larger particles
+                ctx!.beginPath()
+                ctx!.arc(drawX, drawY, newSize / 2, 0, Math.PI * 2)
+                ctx!.fill()
+            }
+        }
+        function drawParticle3D(x: number, y: number, z: number, color: number, size: number) {
             let depthFactor = 1
             if (hasDepthSize) {
                 depthFactor = 1 - z / gridHeight / zoomFactor // Adjust this factor to control the depth effect
@@ -446,6 +481,7 @@ export default defineComponent({
                 ctx!.fill()
             }
         }
+        // -------------------------------------------------------------------------------------------------------------
         function getForce(ruleFactor: number, colorMinRadius: number, colorMaxRadius: number, distance: number) {
             if (distance < colorMinRadius) {
                 return (repel / colorMinRadius) * distance - repel
@@ -457,9 +493,83 @@ export default defineComponent({
                 return -(slope * Math.abs(distance - mid)) + ruleFactor
             }
         }
+        // -------------------------------------------------------------------------------------------------------------
+        let processRules: () => void
+        function processRules2D() {
+            const cellSize = currentMaxRadius * cellSizeFactor
+            cells = new Map<string, number[]>()
 
-        // For Loop Optimized
-        function processRules() {
+            // Assign each particle to a cell
+            for (let i = 0; i < numParticles; i++) {
+                const cellX = Math.floor(positionX[i] / cellSize)
+                const cellY = Math.floor(positionY[i] / cellSize)
+                const cellKey = `${cellX},${cellY}`
+
+                if (!cells.has(cellKey)) {
+                    cells.set(cellKey, [])
+                }
+                cells.get(cellKey)!.push(i)
+            }
+
+            // Process each cell
+            for (let [cellKey, particles] of cells) {
+                const [cellX, cellY] = cellKey.split(',').map(Number)
+
+                // Process each particle in the cell
+                for (let i = 0; i < particles.length; i++) {
+                    const indexA = particles[i]
+                    const posXA = positionX[indexA]
+                    const posYA = positionY[indexA]
+
+                    // Process each neighboring cell
+                    for (let offsetY = -1; offsetY <= 1; offsetY++) {
+                        const neighborY = cellY + offsetY
+                        for (let offsetX = -1; offsetX <= 1; offsetX++) {
+                            const neighborX = cellX + offsetX
+                            const neighborKey = `${neighborX},${neighborY}`
+
+                            if (!cells.has(neighborKey)) {
+                                continue
+                            }
+                            const neighbors = cells.get(neighborKey)!
+
+                            // Process each particle in the neighboring cell
+                            for (let j = 0; j < neighbors.length; j++) {
+                                const indexB = neighbors[j]
+                                if (indexA === indexB) continue // Skip if processing the same particle
+
+                                let posXB = positionX[indexB]
+                                let posYB = positionY[indexB]
+
+                                let distanceX = Math.abs(posXA - posXB)
+                                let distanceY = Math.abs(posYA - posYB)
+                                const distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY)
+
+                                const colorA = colors[indexA]
+                                const colorB = colors[indexB]
+                                const colorMaxRadius = maxRadiusMatrix[colorA][colorB]
+
+                                if (distance < colorMaxRadius) {
+                                    const force = getForce(rulesMatrix[colorA][colorB], minRadiusMatrix[colorA][colorB], colorMaxRadius, distance)
+
+                                    distanceX = posXB - posXA
+                                    distanceY = posYB - posYA
+
+                                    const cos = distanceX / distance
+                                    const sin = distanceY / distance
+
+                                    const newForce = force * (1 / forceFactor)
+                                    velocityX[indexA] += cos * newForce
+                                    velocityY[indexA] += sin * newForce
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            cellCount.value = cells.size
+        }
+        function processRules3D() {
             const cellSize = currentMaxRadius * cellSizeFactor
             cells = new Map<string, number[]>()
 
@@ -539,7 +649,31 @@ export default defineComponent({
             }
             cellCount.value = cells.size
         }
-        function updateParticles() {
+        // -------------------------------------------------------------------------------------------------------------
+        let updateParticles: () => void
+        function updateParticles2D() {
+            ctx!.clearRect(0, 0, canvasWidth, canvasHeight)
+            for (let i = 0; i < numParticles; i++) {
+                velocityX[i] *= frictionFactor
+                velocityY[i] *= frictionFactor
+                positionX[i] += velocityX[i]
+                positionY[i] += velocityY[i]
+
+                // Bounce off the walls
+                if (hasWalls) {
+                    if (positionX[i] > gridWidth || positionX[i] < 0) {
+                        positionX[i] -= velocityX[i]
+                        velocityX[i] *= -1.2
+                    }
+                    if (positionY[i] > gridHeight || positionY[i] < 0) {
+                        positionY[i] -= velocityY[i]
+                        velocityY[i] *= -1.2
+                    }
+                }
+                drawParticle(positionX[i], positionY[i], 0, currentColors[colors[i]], particleSize)
+            }
+        }
+        function updateParticles3D() {
             ctx!.clearRect(0, 0, canvasWidth, canvasHeight)
             for (let i = 0; i < numParticles; i++) {
                 velocityX[i] *= frictionFactor
@@ -569,6 +703,8 @@ export default defineComponent({
                 drawParticle(positionX[i], positionY[i], positionZ[i], currentColors[colors[i]], particleSize)
             }
         }
+        // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         function centerView() {
             const centerX = canvasWidth / 2 / zoomFactor - gridOffsetX
@@ -609,6 +745,7 @@ export default defineComponent({
             endGridX = gridOffsetX * zoomFactor + gridWidth * zoomFactor
             endGridY = gridOffsetY * zoomFactor + gridHeight * zoomFactor
         }
+        // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         function updateNumParticles(newNumParticles: number) {
             if (newNumParticles === numParticles) return // Skip if the number of particles is the same
@@ -766,6 +903,7 @@ export default defineComponent({
         }
         watch(() => particleLife.numParticles, (value) => updateNumParticles(value))
         watch(() => particleLife.numColors, (value) => updateNumColors(value))
+        watchAndDraw(() => particleLife.is3D, (value: boolean) => setDimensionAlgorithm())
         watchAndDraw(() => particleLife.isRunning, (value: boolean) => isRunning = value)
         watchAndDraw(() => particleLife.particleSize, (value: number) => particleSize = value)
         watchAndDraw(() => particleLife.depthLimit, (value: number) => depthLimit = value)

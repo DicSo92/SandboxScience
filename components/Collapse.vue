@@ -33,7 +33,7 @@ export default defineComponent({
             required: false
         }
     },
-    setup(props, { emit }) {
+    setup(props) {
         const isOpen = ref(false)
 
         onMounted(() => {
