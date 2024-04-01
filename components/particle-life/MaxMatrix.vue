@@ -4,13 +4,13 @@
             <div grid gap-px :style="`grid-template-rows: repeat(${ cellRowCount }, minmax(0, 1fr))`">
                 <div v-for="(col, i) in cellRowCount" :key="i" w-full grid gap-px :style="`grid-template-columns: repeat(${ cellRowCount }, minmax(0, 1fr))`">
                     <div v-for="(row, j) in cellRowCount" :key="j" class="aspect-square">
-                        <div v-if="j === 0 && i === 0" h-full w-full p-1>
-                            <div bg-black w-full h-full></div>
+                        <div v-if="j === 0 && i === 0" h-full w-full class="pp-12">
+                            <div bg-black w-full h-full rounded-full></div>
                         </div>
-                        <div v-else-if="i === 0 && j > 0" h-full w-full class="pp-10">
+                        <div v-else-if="i === 0 && j > 0" h-full w-full class="pp-6">
                             <div rounded-full w-full h-full :style="`background-color: hsl(${particleLife.currentColors[j-1]}, 100%, 50%)`"></div>
                         </div>
-                        <div v-else-if="j === 0 && i > 0" h-full w-full class="pp-10">
+                        <div v-else-if="j === 0 && i > 0" h-full w-full class="pp-6">
                             <div rounded-full w-full h-full :style="`background-color: hsl(${particleLife.currentColors[i-1]}, 100%, 50%)`"></div>
                         </div>
                         <div v-else h-full w-full relative cursor-ew-resize select-none
@@ -217,8 +217,11 @@ export default defineComponent({
 </script>
 
 <style scoped>
-.pp-10 {
-    padding: 5%;
+.pp-6 {
+    padding: 6%;
+}
+.pp-12 {
+    padding: 12%;
 }
 
 .hovered-cell {

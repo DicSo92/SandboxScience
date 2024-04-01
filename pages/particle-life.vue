@@ -17,24 +17,24 @@
                         <ToggleSwitch label="Walls" v-model="particleLife.hasWalls" />
                     </div>
                     <div overflow-auto flex-1 class="scrollableArea">
-                        <Collapse label="Matrix Settings">
+                        <Collapse label="Matrix Settings" icon="i-tabler-grid-4x4">
                             <MatrixSettings
                                 @updateRulesMatrix="updateRulesMatrixValue"
                                 @updateMinMatrix="updateMinMatrixValue"
                                 @updateMaxMatrix="updateMaxMatrixValue">
                             </MatrixSettings>
                         </Collapse>
-                        <Collapse label="World Settings" opened mt-2>
+                        <Collapse label="World Settings" icon="i-tabler-world-cog" opened mt-2>
                             <RangeInput input label="Particle Number" :min="particleLife.numColors" :max="20000" :step="10" v-model="particleLife.numParticles" />
                             <RangeInput input label="Color Number" :min="1" :max="20" :step="1" v-model="particleLife.numColors" mt-2 />
                             <RangeInput input label="Depth Limit" :min="0" :max="1000" :step="1" v-model="particleLife.depthLimit" mt-2 />
                         </Collapse>
-                        <Collapse label="Force Settings" opened mt-2>
+                        <Collapse label="Force Settings" icon="i-tabler-atom" opened mt-2>
                             <RangeInput input label="Repel Force" :min="0.01" :max="4" :step="0.01" v-model="particleLife.repel" />
                             <RangeInput input label="Force Factor" :min="0.01" :max="2" :step="0.01" v-model="particleLife.forceFactor" mt-2 />
                             <RangeInput input label="Friction Factor" :min="0" :max="1" :step="0.01" v-model="particleLife.frictionFactor" mt-2 />
                         </Collapse>
-                        <Collapse label="Randomizer Settings" mt-2>
+                        <Collapse label="Randomizer Settings" icon="i-game-icons-perspective-dice-six-faces-random" mt-2>
                             <RangeInput input label="Min. Radius" :min="1" :max="particleLife.maxRadius" :step="1" v-model="particleLife.minRadius" />
                             <RangeInput input label="Max. Radius" :min="particleLife.minRadius" :max="256" :step="1" v-model="particleLife.maxRadius" mt-2 />
                             <hr border-gray-500 mt-3>
@@ -42,7 +42,7 @@
                             <RangeInput input label="Max. Radius Range Offset" :min="1" :max="particleLife.maxRadiusRangeMax" :step="1" v-model="particleLife.maxRadiusRangeOffset" mt-2 />
                             <RangeInput input label="Max. Radius Range Max" :min="particleLife.minRadiusRange[1] + particleLife.maxRadiusRangeOffset" :max="300" :step="1" v-model="particleLife.maxRadiusRangeMax" mt-2 />
                         </Collapse>
-                        <Collapse label="Graphics Settings" mt-2>
+                        <Collapse label="Graphics Settings" icon="i-tabler-photo-cog" mt-2>
                             <div grid grid-cols-2 gap-4>
                                 <ToggleSwitch label="Depth Size" v-model="particleLife.hasDepthSize" />
                                 <ToggleSwitch label="Depth Opacity" v-model="particleLife.hasDepthOpacity" />
@@ -52,7 +52,7 @@
                             <RangeInput input label="Min. Opacity" :min="0" :max="Math.min(1, particleLife.maxOpacity)" :step="0.01" v-model="particleLife.minOpacity" mt-2 />
                             <RangeInput input label="Max. Opacity" :min="particleLife.minOpacity" :max="2" :step="0.01" v-model="particleLife.maxOpacity" mt-2 />
                         </Collapse>
-                        <Collapse label="Debug Tools" mt-2>
+                        <Collapse label="Debug Tools" icon="i-tabler-bug" mt-2>
                             <ToggleSwitch label="Cells" v-model="particleLife.hasCells" />
                             <RangeInput input label="Cell Group Size" :min="0" :max="100" :step="1" v-model="particleLife.cellGroupSize" />
                             <RangeInput input label="Cell Size Factor" :min="1" :max="2" :step="0.01" v-model="particleLife.cellSizeFactor" mt-2 />
@@ -73,7 +73,7 @@
             </div>
             <Memory />
         </div>
-        <div absolute bottom-2 w-full flex justify-center items-center="">
+        <div absolute bottom-2 w-full flex justify-center items-center>
             <div btn p2 mx-1 flex items-center bg="#094F5D hover:#0B5F6F" @click="regenerateLife">
                 <div i-game-icons-perspective-dice-six-faces-random text-xl></div>
             </div>

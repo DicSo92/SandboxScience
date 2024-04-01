@@ -13,8 +13,8 @@
 
                 <div class="relative z-10 h-2 flex items-center">
                     <div class="absolute z-10 left-0 right-0 bottom-0 top-0 rounded-md bg-gray-200"></div>
-                    <div class="absolute z-20 top-0 left-0 bottom-0 rounded-md bg-purple-400" :style="`right: ${maxOffset}%;`"></div>
-                    <div class="absolute z-30 w-5 h-5 left-0 bg-purple-500 rounded-full -translate-x-1/2" :style="`left: ${minOffset}%;`"></div>
+                    <div class="absolute z-20 top-0 left-0 bottom-0 rounded-md bg-#0C7489" :style="`right: ${maxOffset}%;`"></div>
+                    <div class="absolute z-30 w-5 h-5 left-0 bg-#0A5F71 rounded-full -translate-x-1/2" :style="`left: ${minOffset}%;`"></div>
                 </div>
             </div>
             <div v-if="input" w-16>
