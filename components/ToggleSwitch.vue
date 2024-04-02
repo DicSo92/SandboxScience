@@ -1,6 +1,6 @@
 <template>
     <div flex items-center>
-        <p v-if="inactiveLabel" mr-2 :class="(colorfulLabel && !modelValue) ? 'text-white font-600' : (colorfulLabel && modelValue) ? 'text-#0C7489 font-600' : ''">{{ inactiveLabel }}</p>
+        <p v-if="inactiveLabel" mr-2 :class="(colorfulLabel && !modelValue) ? 'text-white font-600' : (colorfulLabel && modelValue) ? 'text-gray-800 font-600' : ''">{{ inactiveLabel }}</p>
         <label class="relative inline-flex items-center cursor-pointer">
             <input type="checkbox" class="sr-only peer" @change="toggle" :value="modelValue" :checked="modelValue" :disabled="disabled">
             <span :class="disabled && 'cursor-not-allowed'"
@@ -10,7 +10,7 @@
                   after:absolute after:top-0.5 after:start-[2px] after:border after:rounded-full after:h-5 after:w-5 after:transition-all">
             </span>
         </label>
-        <p v-if="label" ml-2 :class="(colorfulLabel && modelValue) ? 'text-white font-600' : (colorfulLabel && !modelValue) ? 'text-#0C7489 font-600' : ''">{{ label }}</p>
+        <p v-if="label" ml-2 :class="(colorfulLabel && modelValue) ? 'text-white font-600' : (colorfulLabel && !modelValue) ? 'text-gray-800 font-600' : ''">{{ label }}</p>
     </div>
 </template>
 

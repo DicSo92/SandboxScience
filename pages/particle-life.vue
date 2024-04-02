@@ -44,12 +44,17 @@
                             <RangeInput input label="Max. Radius Max" :min="particleLife.minRadiusRange[1] + particleLife.maxRadiusRangeOffset" :max="300" :step="1" v-model="particleLife.maxRadiusRangeMax" mt-2 />
                         </Collapse>
                         <Collapse label="Graphics Settings" icon="i-tabler-photo-cog" mt-2>
+                            <p underline text-gray-300 mb-2 class="-mt-1">General Settings :</p>
                             <div grid grid-cols-2 gap-4>
-                                <ToggleSwitch label="Depth Size" v-model="particleLife.hasDepthSize" />
-                                <ToggleSwitch label="Depth Opacity" v-model="particleLife.hasDepthOpacity" />
                                 <ToggleSwitch label="Circle Shape" v-model="particleLife.isCircle" />
                             </div>
                             <RangeInput input label="Particle Size" :min="1" :max="20" :step="1" v-model="particleLife.particleSize" mt-2 />
+                            <hr border-gray-500 my-2>
+                            <p underline text-gray-300 mb-2 >3D Settings :</p>
+                            <div grid grid-cols-2 gap-4>
+                                <ToggleSwitch label="Depth Size" v-model="particleLife.hasDepthSize" />
+                                <ToggleSwitch label="Depth Opacity" v-model="particleLife.hasDepthOpacity" />
+                            </div>
                             <RangeInput input label="Min. Opacity" :min="0" :max="Math.min(1, particleLife.maxOpacity)" :step="0.01" v-model="particleLife.minOpacity" mt-2 />
                             <RangeInput input label="Max. Opacity" :min="particleLife.minOpacity" :max="2" :step="0.01" v-model="particleLife.maxOpacity" mt-2 />
                         </Collapse>
