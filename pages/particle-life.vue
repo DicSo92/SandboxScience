@@ -80,24 +80,21 @@
             <Memory />
         </div>
         <div absolute bottom-2 w-full flex justify-center items-center>
-            <div btn p2 mx-1 flex items-center bg="#094F5D hover:#0B5F6F" @click="regenerateLife">
-                <div i-game-icons-perspective-dice-six-faces-random text-xl></div>
-            </div>
-            <div btn p2 mx-1 flex items-center bg="#212121 hover:#333333" @click="particleLife.isRunning = !particleLife.isRunning">
-                <div i-tabler-player-track-prev-filled text-xl></div>
-            </div>
-            <div btn p2 mx-1 flex items-center bg="#212121 hover:#333333" @click="particleLife.isRunning = !particleLife.isRunning">
-                <div :class="particleLife.isRunning ? 'i-tabler-player-pause-filled' : 'i-tabler-player-play-filled'" text-xl></div>
-            </div>
-            <div btn p2 mx-1 flex items-center bg="#212121 hover:#333333" @click="particleLife.isRunning = !particleLife.isRunning">
-                <div i-tabler-player-track-next-filled text-xl></div>
-            </div>
-            <div btn p2 mx-1 flex items-center bg="#D62839 hover:#DC4151" @click="particleLife.hasCells = !particleLife.hasCells">
-                <div :class="particleLife.hasCells ? 'i-tabler-bug-filled' : 'i-tabler-bug'" text-xl></div>
-            </div>
-            <div btn p2 mx-1 flex items-center bg="#E07F00 hover:#FF8F00" @click="particleLife.is3D = !particleLife.is3D">
-                <div text-lg font-700 style="line-height: normal">{{ particleLife.is3D ? '2D' : '3D' }}</div>
-            </div>
+            <button type="button" btn p2 mx-1 flex items-center bg="#094F5D hover:#0B5F6F" @click="regenerateLife">
+                <span i-game-icons-perspective-dice-six-faces-random text-xl></span>
+            </button>
+            <button type="button" btn p2 mx-1 flex items-center bg="#E07F00 hover:#FF8F00" @click="particleLife.is3D = !particleLife.is3D">
+                <span text-lg font-700 style="line-height: normal">{{ particleLife.is3D ? '2D' : '3D' }}</span>
+            </button>
+            <button type="button" btn p2 mx-1 flex items-center bg="#212121 hover:#333333" @click="particleLife.isRunning = !particleLife.isRunning">
+                <span :class="particleLife.isRunning ? 'i-tabler-player-pause-filled' : 'i-tabler-player-play-filled'" text-xl></span>
+            </button>
+            <button type="button" btn p2 mx-1 flex items-center bg="#212121 hover:#333333" :disabled="particleLife.isRunning" @click="step">
+                <span i-tabler-player-track-next-filled text-xl></span>
+            </button>
+            <button type="button" btn p2 mx-1 flex items-center bg="#D62839 hover:#DC4151" @click="particleLife.hasCells = !particleLife.hasCells">
+                <span :class="particleLife.hasCells ? 'i-tabler-bug-filled' : 'i-tabler-bug'" text-xl></span>
+            </button>
         </div>
     </section>
 </template>
@@ -387,6 +384,14 @@ export default defineComponent({
             }
             executionTime.value = performance.now() - startExecutionTime
             animationFrameId = requestAnimationFrame(update)
+        }
+        function step() {
+            if (!isRunning) {
+                processRules()
+                updateParticles()
+                if (hasGrid) drawGrid()
+                if (hasCells) drawCells()
+            }
         }
         function drawCells() {
             cells.forEach((particles, cell) => {
@@ -935,7 +940,7 @@ export default defineComponent({
 
         return {
             lifeCanvas, particleLife,
-            fps, cellCount, executionTime,
+            fps, cellCount, executionTime, step,
             updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, regenerateLife
         }
     }
