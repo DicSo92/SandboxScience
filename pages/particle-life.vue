@@ -21,6 +21,7 @@
                         <Collapse label="Matrix Settings" icon="i-tabler-grid-4x4">
                             <MatrixSettings
                                 @updateRulesMatrix="updateRulesMatrixValue"
+                                @randomRulesMatrix="newRandomRulesMatrix"
                                 @updateMinMatrix="updateMinMatrixValue"
                                 @updateMaxMatrix="updateMaxMatrixValue">
                             </MatrixSettings>
@@ -317,6 +318,10 @@ export default defineComponent({
                 positionY[i] = newPositions.y
                 positionZ[i] = newPositions.z
             }
+        }
+        function newRandomRulesMatrix() {
+            setRulesMatrix(makeRandomRulesMatrix())
+            if (!isRunning) simpleDrawParticles()
         }
         function makeRandomRulesMatrix() {
             let matrix: number[][] = []
@@ -940,7 +945,7 @@ export default defineComponent({
 
         return {
             lifeCanvas, particleLife,
-            fps, cellCount, executionTime, step,
+            fps, cellCount, executionTime, step, newRandomRulesMatrix,
             updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, regenerateLife
         }
     }

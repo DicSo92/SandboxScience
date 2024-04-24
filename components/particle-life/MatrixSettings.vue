@@ -15,6 +15,10 @@
         <div mt-2>
             <div v-if="openTab === 1" class="p-2 rounded-lg shadow-md bg-gray-600">
                 <RulesMatrix @update="(...args) => $emit('updateRulesMatrix', ...args)" />
+                <button type="button" btn p2 mx-1 mt-2 flex items-center rounded-full bg="#212121 hover:#333333" @click="$emit('randomRulesMatrix')">
+                    <span i-game-icons-perspective-dice-six-faces-random text-xl></span>
+                    <span class="ml-2 mr-1">Randomize</span>
+                </button>
             </div>
 
             <div v-if="openTab === 2" class="p-2 rounded-lg shadow-md bg-gray-600">
