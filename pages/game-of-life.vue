@@ -62,9 +62,9 @@
                 <div>Speed: {{game.SPEED}}ms/gen</div>
             </div>
 
-            <div class="p-2 flex items-center bg-gray-600 border-t-1 border-r-1 border-gray rounded-tr-2xl">
+            <div class="p-2 flex items-center bg-gray-600 border-t-1 border-r-1 border-gray rounded-tr-2xl min-w-48">
                 <div class="block text-sm font-medium leading-6 mr-1">Speed</div>
-                <RangeInput v-if="SPEED" :min="1" :max="1000" :step="1" v-model="SPEED" />
+                <RangeInput v-if="SPEED" :min="1" :max="1000" :step="1" v-model="SPEED" flex-1/>
             </div>
         </div>
     </section>
@@ -77,7 +77,7 @@ import Controls from "~/components/game-of-life/Controls.vue";
 import { themes } from "~/helpers/utils/themes";
 
 export default defineComponent({
-    components: {Controls, PatternList },
+    components: { Controls, PatternList },
     setup() {
         definePageMeta({ layout: 'life' })
         const game = useGameStore()
