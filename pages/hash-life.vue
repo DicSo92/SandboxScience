@@ -24,7 +24,8 @@ export default defineComponent({
         const cellSize = ref<number>(16)
         const rowx = ref<number>(0) // starting row
         const colx = ref<number>(0) // starting column
-        const isDragging = ref(false)
+        const zoom = ref<number>(4)
+        const isDragging = ref<boolean>(false)
 
         const MIN_GRID_CELL_SIZE = 8
         let hasGrid: boolean = true
@@ -95,6 +96,10 @@ export default defineComponent({
         //--------------------------------------------------------------------------------------------------------------
         //--------------------------------------------------------------------------------------------------------------
         function handleZoom(delta: number, x: number, y: number) {
+            if (zoom.value + delta > 8 || zoom.value + delta < -8) return
+            zoom.value += delta
+            console.log(zoom.value)
+
             const cx = colx.value + x / cellSize.value
             const cy = rowx.value + y / cellSize.value
             cellSize.value *= Math.pow(2, delta)
@@ -149,6 +154,23 @@ export default defineComponent({
             }
             ctx!.strokeStyle = '#707070'
             ctx!.stroke()
+        }
+
+
+        class Node {
+            nw: Node | null;
+            ne: Node | null;
+            sw: Node | null;
+            se: Node | null;
+            level: number;
+
+            constructor(level: number) {
+                this.nw = null;
+                this.ne = null;
+                this.sw = null;
+                this.se = null;
+                this.level = level;
+            }
         }
     }
 })

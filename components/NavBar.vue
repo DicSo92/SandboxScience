@@ -6,7 +6,7 @@
         <div class="ml-8 flex">
             <NuxtLink to="/game-of-life" class="mx-2">Game Of Life</NuxtLink>
             <NuxtLink to="/particle-life" class="mx-2">Particle Life</NuxtLink>
-            <NuxtLink to="/quad-tree" class="mx-2">Quad Tree</NuxtLink>
+            <NuxtLink to="/hash-life" class="mx-2">Hash Life</NuxtLink>
         </div>
     </nav>
 </template>
