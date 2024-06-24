@@ -2,10 +2,10 @@ import { appDescription } from './constants/index'
 
 export default defineNuxtConfig({
     devtools: {
-      enabled: true,
-      timeline: {
         enabled: false,
-      },
+        timeline: {
+            enabled: false,
+        },
     },
     modules: [
         '@vueuse/nuxt',
@@ -17,7 +17,8 @@ export default defineNuxtConfig({
     ],
 
     alias: {
-        pinia: process.env.NODE_ENV === 'production' ? '/node_modules/pinia/dist/pinia.mjs' : '/node_modules/@pinia/nuxt/node_modules/pinia/dist/pinia.mjs',
+        // pinia: process.env.NODE_ENV === 'production' ? '/node_modules/pinia/dist/pinia.mjs' : '/node_modules/@pinia/nuxt/node_modules/pinia/dist/pinia.mjs',
+        // pinia: '/node_modules/@pinia/nuxt/node_modules/pinia/dist/pinia.mjs',
     },
 
     app: {
@@ -25,8 +26,8 @@ export default defineNuxtConfig({
             viewport: 'width=device-width,initial-scale=1',
             link: [
                 { rel: 'icon', href: '/favicon.ico', sizes: 'any' },
-                { rel: 'icon', type: 'image/svg+xml', href: '/nuxt.svg' },
-                { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
+                // { rel: 'icon', type: 'image/svg+xml', href: '/nuxt.svg' },
+                // { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
             ],
             meta: [
                 { name: 'viewport', content: 'width=device-width, initial-scale=1' },
