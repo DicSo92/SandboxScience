@@ -96,6 +96,12 @@
             <button type="button" btn p2 mx-1 flex items-center bg="#D62839 hover:#DC4151" @click="particleLife.hasCells = !particleLife.hasCells">
                 <span :class="particleLife.hasCells ? 'i-tabler-bug-filled' : 'i-tabler-bug'" text-xl></span>
             </button>
+            <button type="button" btn p2 mx-1 flex items-center bg="#212121 hover:#333333" @click="handleZoom(-1, lifeCanvas!.clientWidth / 2, lifeCanvas!.clientHeight / 2)">
+                <span i-tabler-zoom-out text-xl></span>
+            </button>
+            <button type="button" btn p2 mx-1 flex items-center bg="#212121 hover:#333333" @click="handleZoom(1, lifeCanvas!.clientWidth / 2, lifeCanvas!.clientHeight / 2)">
+                <span i-tabler-zoom-in text-xl></span>
+            </button>
         </div>
     </section>
 </template>
@@ -945,7 +951,7 @@ export default defineComponent({
 
         return {
             lifeCanvas, particleLife,
-            fps, cellCount, executionTime, step, newRandomRulesMatrix,
+            fps, cellCount, executionTime, step, newRandomRulesMatrix, handleZoom,
             updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, regenerateLife
         }
     }
