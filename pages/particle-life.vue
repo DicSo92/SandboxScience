@@ -65,6 +65,11 @@
                             <RangeInput input label="Cell Size Factor" :min="1" :max="2" :step="0.01" v-model="particleLife.cellSizeFactor" mt-2 />
                         </Collapse>
                     </div>
+                    <div flex justify-end mt-2>
+                        <button rounded btn flex items-center p-2 bg="gray-800 hover:gray-900" @click="particleLife.sidebarLeftOpen = false">
+                            <span i-tabler-chevron-left text-2xl></span>
+                        </button>
+                    </div>
                 </div>
             </template>
         </SidebarLeft>
@@ -95,6 +100,12 @@
             </button>
             <button type="button" btn p2 mx-1 flex items-center bg="#D62839 hover:#DC4151" @click="particleLife.hasCells = !particleLife.hasCells">
                 <span :class="particleLife.hasCells ? 'i-tabler-bug-filled' : 'i-tabler-bug'" text-xl></span>
+            </button>
+            <button type="button" btn p2 mx-1 flex items-center bg="#212121 hover:#333333" @click="handleZoom(-1, lifeCanvas!.clientWidth / 2, lifeCanvas!.clientHeight / 2)">
+                <span i-tabler-zoom-out text-xl></span>
+            </button>
+            <button type="button" btn p2 mx-1 flex items-center bg="#212121 hover:#333333" @click="handleZoom(1, lifeCanvas!.clientWidth / 2, lifeCanvas!.clientHeight / 2)">
+                <span i-tabler-zoom-in text-xl></span>
             </button>
         </div>
     </section>
@@ -225,6 +236,23 @@ export default defineComponent({
                     isDragging = false
                 }
             })
+            useEventListener(lifeCanvas, ['touchstart'], (e) => {
+                lastPointerX = e.touches[0].clientX - lifeCanvas!.getBoundingClientRect().left
+                lastPointerY = e.touches[0].clientY - lifeCanvas!.getBoundingClientRect().top
+            })
+            useEventListener(lifeCanvas, ['touchmove'], (e) => {
+                pointerX = e.touches[0].clientX - lifeCanvas!.getBoundingClientRect().left
+                pointerY = e.touches[0].clientY - lifeCanvas!.getBoundingClientRect().top
+
+                if (particleLife.isLockedPointer) return // Prevent canvas dragging if the pointer is locked
+                isDragging = true
+                handleMove()
+            })
+            useEventListener(lifeCanvas, ['touchend'], (e) => {
+                console.log('end touch')
+                isDragging = false
+            })
+
             useEventListener(lifeCanvas, 'wheel', (e) => {
                 if (e.deltaY < 0) { // Zoom in
                     handleZoom(1, pointerX, pointerY)
@@ -945,7 +973,7 @@ export default defineComponent({
 
         return {
             lifeCanvas, particleLife,
-            fps, cellCount, executionTime, step, newRandomRulesMatrix,
+            fps, cellCount, executionTime, step, newRandomRulesMatrix, handleZoom,
             updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, regenerateLife
         }
     }
