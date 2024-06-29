@@ -30,6 +30,14 @@
                             <RangeInput input label="Particle Number" :min="particleLife.numColors" :max="20000" :step="10" v-model="particleLife.numParticles" />
                             <RangeInput input label="Color Number" :min="1" :max="20" :step="1" v-model="particleLife.numColors" mt-2 />
                             <RangeInput input label="Depth Limit" :min="0" :max="1000" :step="1" v-model="particleLife.depthLimit" mt-2 />
+                            <div flex items-center mt-2>
+                                <p class="w-2/3">Grid Size</p>
+                                <Input label="X" v-model="particleLife.gridWidth" @change="updateGridWidth" mr-2 />
+                                <Input label="Y" v-model="particleLife.gridHeight" @change="updateGridHeight" mr-2 />
+                                <button type="button" btn rounded-12 p2 flex items-center bg="#212121aa hover:#333333aa" @click="particleLife.linkProportions = !particleLife.linkProportions">
+                                    <span :class="particleLife.linkProportions ? 'i-tabler-link' : 'i-tabler-unlink'" text-sm></span>
+                                </button>
+                            </div>
                         </Collapse>
                         <Collapse label="Force Settings" icon="i-tabler-atom" opened mt-2>
                             <RangeInput input label="Repel Force" :min="0.01" :max="4" :step="0.01" v-model="particleLife.repel" />
@@ -304,8 +312,8 @@ export default defineComponent({
         }
         function initLife() {
             // Set the grid size and zoom factor based on the screen size
-            gridWidth = Math.floor(canvasWidth * screenMultiplierForGridSize)
-            gridHeight = Math.floor(canvasHeight * screenMultiplierForGridSize)
+            particleLife.gridWidth = gridWidth = Math.floor(canvasWidth * screenMultiplierForGridSize)
+            particleLife.gridHeight = gridHeight = Math.floor(canvasHeight * screenMultiplierForGridSize)
             zoomFactor /= screenMultiplierForGridSize
 
             initColors()
@@ -790,6 +798,20 @@ export default defineComponent({
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
+        function updateGridWidth(newWidth: number | Event) {
+            if (typeof(newWidth) !== 'number') return // Prevent input event like unfocus
+            if (particleLife.linkProportions) particleLife.gridHeight = gridHeight = Math.round(gridHeight * (newWidth / gridWidth))
+            particleLife.gridWidth = gridWidth = newWidth
+            setEndCoordinates()
+            if (!isRunning) simpleDrawParticles()
+        }
+        function updateGridHeight(newHeight: number | Event) {
+            if (typeof(newHeight) !== 'number') return // Prevent input event like unfocus
+            if (particleLife.linkProportions) particleLife.gridWidth = gridWidth = Math.round(gridWidth * (newHeight / gridHeight))
+            particleLife.gridHeight = gridHeight = newHeight
+            setEndCoordinates()
+            if (!isRunning) simpleDrawParticles()
+        }
         function updateNumParticles(newNumParticles: number) {
             if (newNumParticles === numParticles) return // Skip if the number of particles is the same
             if (newNumParticles < numParticles) { // Remove particles
@@ -973,7 +995,7 @@ export default defineComponent({
 
         return {
             lifeCanvas, particleLife,
-            fps, cellCount, executionTime, step, newRandomRulesMatrix, handleZoom,
+            fps, cellCount, executionTime, step, newRandomRulesMatrix, handleZoom, updateGridWidth, updateGridHeight,
             updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, regenerateLife
         }
     }

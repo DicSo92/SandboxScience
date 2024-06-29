@@ -10,6 +10,10 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
     const minRadiusMatrix = ref<number[][]>([]) // Min radius matrix for each color
     const maxRadiusMatrix = ref<number[][]>([]) // Max radius matrix for each color
 
+    const gridWidth = ref<number>(0) // Grid width
+    const gridHeight = ref<number>(0) // Grid height
+    const linkProportions = ref<boolean>(false) // Constraint x y grid proportions
+
     const numParticles = ref<number>(6000) // Number of particles
     const particleSize = ref<number>(4) // Size of the particles at zoomFactor = 1
     const numColors = ref<number>(7) // Number of colors to be used
@@ -48,6 +52,7 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
         sidebarLeftOpen, isLockedPointer,
         isRunning,
         rulesMatrix, minRadiusMatrix, maxRadiusMatrix, currentColors,
+        gridWidth, gridHeight, linkProportions,
         numParticles, particleSize, numColors, depthLimit,
         is3D, isCircle, hasGrid, hasCells, hasWalls, hasDepthSize, hasDepthOpacity, maxOpacity, minOpacity,
         minRadiusRange, maxRadiusRangeOffset, maxRadiusRangeMax,
