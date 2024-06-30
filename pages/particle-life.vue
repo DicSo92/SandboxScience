@@ -421,12 +421,16 @@ export default defineComponent({
                     z: Math.random() * (maxZDepthRandomParticle - minZDepthRandomParticle) + minZDepthRandomParticle
                 }
             } else { // Circle
-                const angle = Math.random() * Math.PI * 2
-                const radius = Math.random() * circleRadius
-                return {
-                    x: circleCenterX + Math.cos(angle) * radius,
-                    y: circleCenterY + Math.sin(angle) * radius,
-                    z: Math.random() * (maxZDepthRandomParticle - minZDepthRandomParticle) + minZDepthRandomParticle
+                while (true) {
+                    const x = Math.random() * 2 * circleRadius - circleRadius;
+                    const y = Math.random() * 2 * circleRadius - circleRadius;
+                    if (x * x + y * y <= circleRadius * circleRadius) {
+                        return {
+                            x: circleCenterX + x,
+                            y: circleCenterY + y,
+                            z: Math.random() * (maxZDepthRandomParticle - minZDepthRandomParticle) + minZDepthRandomParticle
+                        }
+                    }
                 }
             }
         }
@@ -741,9 +745,9 @@ export default defineComponent({
                         }
                     }
                     else { // Circle Shape
-                        const dx = positionX[i] - circleCenterX; // X distance between the particle and the center of the circle
-                        const dy = positionY[i] - circleCenterY; // Y distance between the particle and the center of the circle
-                        const distanceSquared = dx * dx + dy * dy; // Square of the distance between the particle and the center of the circle
+                        const dx = positionX[i] - circleCenterX // X distance between the particle and the center of the circle
+                        const dy = positionY[i] - circleCenterY // Y distance between the particle and the center of the circle
+                        const distanceSquared = dx * dx + dy * dy // Square of the distance between the particle and the center of the circle
 
                         if (distanceSquared > circleRadius * circleRadius) {
                             positionX[i] -= velocityX[i]
@@ -779,17 +783,11 @@ export default defineComponent({
                         }
                     }
                     else { // Circle Shape
-                        const dx = positionX[i] - circleCenterX; // X distance between the particle and the center of the circle
-                        const dy = positionY[i] - circleCenterY; // Y distance between the particle and the center of the circle
-                        const distanceSquared = dx * dx + dy * dy; // Square of the distance between the particle and the center of the circle
+                        const dx = positionX[i] - circleCenterX // X distance between the particle and the center of the circle
+                        const dy = positionY[i] - circleCenterY // Y distance between the particle and the center of the circle
+                        const distanceSquared = dx * dx + dy * dy // Square of the distance between the particle and the center of the circle
 
                         if (distanceSquared > circleRadius * circleRadius) {
-                            // const distance = Math.sqrt(distanceSquared)
-                            // const normalizedDx = dx / distance
-                            // const normalizedDy = dy / distance
-                            // positionX[i] = circleCenterX + circleRadius * normalizedDx
-                            // positionY[i] = circleCenterY + circleRadius * normalizedDy
-
                             positionX[i] -= velocityX[i]
                             positionY[i] -= velocityY[i]
                             velocityX[i] *= -1.2;
