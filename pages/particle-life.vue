@@ -32,11 +32,21 @@
                             <RangeInput input label="Depth Limit" :min="0" :max="1000" :step="1" v-model="particleLife.depthLimit" mt-2 />
 
                             <div flex items-start justify-between mt-3 mb-2>
-                                <p underline text-gray-300>World Shape :</p>
+                                <p underline text-gray-300>Walls Settings :</p>
                                 <div flex>
                                     <SelectButton :id="0" label="Rectangle" v-model="particleLife.wallShape" mr-2 />
                                     <SelectButton :id="1" label="Circle" v-model="particleLife.wallShape" />
                                 </div>
+                            </div>
+                            <div flex mb-1>
+                                <SelectButton :id="1" label="Screen" v-model="particleLife.screenMultiplierForGridSize" mr-2 />
+                                <SelectButton :id="1.5" label="x1.5" v-model="particleLife.screenMultiplierForGridSize" mr-2 />
+                                <SelectButton :id="2" label="x2" v-model="particleLife.screenMultiplierForGridSize" mr-2 />
+                                <SelectButton :id="2.5" label="x2.5" v-model="particleLife.screenMultiplierForGridSize" mr-2 />
+                                <SelectButton :id="3" label="x3" v-model="particleLife.screenMultiplierForGridSize" mr-2 />
+                                <SelectButton :id="3.5" label="x3.5" v-model="particleLife.screenMultiplierForGridSize" mr-2 />
+                                <SelectButton :id="4" label="x4" v-model="particleLife.screenMultiplierForGridSize" mr-2 />
+                                <SelectButton :id="5" label="x5" v-model="particleLife.screenMultiplierForGridSize" />
                             </div>
                             <div flex items-center v-if="particleLife.wallShape === 0">
                                 <p class="w-2/3">Rectangle Size</p>
@@ -178,6 +188,7 @@ export default defineComponent({
         let minOpacity: number = particleLife.minOpacity // Depth effect will be stronger with lower opacity
         let cellGroupSize: number = particleLife.cellGroupSize // Minimum number of particles to be considered a group (0 to visualize all cells)
         let wallShape: number = particleLife.wallShape // 0: Rectangle, 1: Circle
+        let screenMultiplierForGridSize: number = particleLife.screenMultiplierForGridSize // Multiplier for the grid size based on the screen size
 
         // Define force properties
         let repel: number = particleLife.repel // repel force for particles that are too close to each other (can't be 0)
@@ -188,11 +199,6 @@ export default defineComponent({
 
         let currentMinRadius: number = 0 // Max value between all colors min radius
         let currentMaxRadius: number = 0 // Max value between all colors max radius (for cell size)
-
-        // Define depth limits for randomly placed particles
-        const minZDepthRandomParticle: number = depthLimit * 0.2 // The minimum Z-depth for randomly placed particles, in percentage of the depthLimit
-        const maxZDepthRandomParticle: number = depthLimit * 0.45 // The maximum Z-depth for randomly placed particles, in percentage of the depthLimit
-        const screenMultiplierForGridSize: number = 3 // Multiplier for the grid size based on the screen size
 
         // Define grid properties
         let gridOffsetX: number = 0 // Grid offset X
@@ -328,8 +334,7 @@ export default defineComponent({
         }
         function initLife() {
             // Set the grid size and zoom factor based on the screen size
-            particleLife.gridWidth = gridWidth = Math.floor(canvasWidth * screenMultiplierForGridSize)
-            particleLife.gridHeight = gridHeight = Math.floor(canvasHeight * screenMultiplierForGridSize)
+            setGridSizeBasedOnScreen()
             zoomFactor /= screenMultiplierForGridSize
 
             initColors()
@@ -422,6 +427,9 @@ export default defineComponent({
             return matrix
         }
         function getRandomPositions() {
+            const minZDepthRandomParticle = depthLimit * 0.2 // The minimum Z-depth for randomly placed particles, in percentage of the depthLimit
+            const maxZDepthRandomParticle = depthLimit * 0.45 // The maximum Z-depth for randomly placed particles, in percentage of the depthLimit
+
             if (wallShape === 0) { // Rectangle
                 return {
                     x: Math.random() * gridWidth,
@@ -881,6 +889,18 @@ export default defineComponent({
             initParticles()
             if (!isRunning) simpleDrawParticles()
         }
+        function setGridSizeBasedOnScreen() {
+            particleLife.gridWidth = gridWidth = Math.floor(canvasWidth * screenMultiplierForGridSize)
+            particleLife.gridHeight = gridHeight = Math.floor(canvasHeight * screenMultiplierForGridSize)
+            // zoomFactor = 1 / screenMultiplierForGridSize
+            centerView()
+        }
+        function updateScreenMultiplier(multiplier: number) {
+            screenMultiplierForGridSize = multiplier
+            setGridSizeBasedOnScreen()
+            setShapesProperties()
+            initParticles()
+        }
         function updateNumParticles(newNumParticles: number) {
             if (newNumParticles === numParticles) return // Skip if the number of particles is the same
             if (newNumParticles < numParticles) { // Remove particles
@@ -1049,6 +1069,7 @@ export default defineComponent({
             wallShape = value
             initParticles()
         })
+        watchAndDraw(() => particleLife.screenMultiplierForGridSize, (value: number) => updateScreenMultiplier(value))
         watchAndDraw(() => particleLife.hasGrid, (value: boolean) => hasGrid = value)
         watchAndDraw(() => particleLife.hasCells, (value: boolean) => hasCells = value)
         watchAndDraw(() => particleLife.isCircle, (value: boolean) => isCircle = value)

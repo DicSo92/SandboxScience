@@ -29,6 +29,7 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
     const maxOpacity = ref<number>(1) // Maximum opacity when hasDepthOpacity is enabled
     const minOpacity = ref<number>(0.5) // Depth effect will be stronger with lower opacity
     const wallShape = ref<number>(0) // 0: Rectangle, 1: Circle
+    const screenMultiplierForGridSize = ref<number>(3) // Multiplier for the grid size (1 means the grid will be the same size as the screen)
 
     const cellGroupSize = ref<number>(0) // Minimum number of particles to be considered a group (0 to visualize all cells)
     const cellSizeFactor = ref<number>(1) // Size of the cells at zoomFactor = 1
@@ -55,7 +56,7 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
         rulesMatrix, minRadiusMatrix, maxRadiusMatrix, currentColors,
         gridWidth, gridHeight, linkProportions,
         numParticles, particleSize, numColors, depthLimit,
-        is3D, isCircle, hasGrid, hasCells, hasWalls, hasDepthSize, hasDepthOpacity, maxOpacity, minOpacity, wallShape,
+        is3D, isCircle, hasGrid, hasCells, hasWalls, hasDepthSize, hasDepthOpacity, maxOpacity, minOpacity, wallShape, screenMultiplierForGridSize,
         minRadiusRange, maxRadiusRangeOffset, maxRadiusRangeMax,
         maxRadius, minRadius, repel, forceFactor, frictionFactor,
         cellGroupSize, cellSizeFactor,
