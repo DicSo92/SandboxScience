@@ -1,5 +1,5 @@
 <template>
-    <button @click="select" :class="modelValue === id ? 'bg-blue-500' : 'bg-gray-500'" rounded p1>
+    <button @click="select" :class="modelValue === id ? 'bg-gray-800' : 'bg-gray-600'" rounded px-2 py-1 text-sm>
         {{ label }}
     </button>
 </template>

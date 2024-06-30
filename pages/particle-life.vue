@@ -13,13 +13,9 @@
                         <ToggleSwitch inactive-label="2D" label="3D" colorful-label v-model="particleLife.is3D" />
                     </div>
                     <hr>
-                    <div grid grid-cols-2 gap-4 mt-3 mb-2>
-                        <ToggleSwitch label="Grid" v-model="particleLife.hasGrid" :disabled="!particleLife.hasWalls"/>
-                        <ToggleSwitch label="Walls" v-model="particleLife.hasWalls" />
-                    </div>
-                    <div flex mb-2>
-                        <SelectButton :id="0" label="Rectangle" v-model="particleLife.wallShape" mr-2 />
-                        <SelectButton :id="1" label="Circle" v-model="particleLife.wallShape" />
+                    <div grid grid-cols-2 gap-4 mt-3 mb-2 ml-2>
+                        <ToggleSwitch label="Show Grid" v-model="particleLife.hasGrid" :disabled="!particleLife.hasWalls" mr-4/>
+                        <ToggleSwitch label="Repel Walls" v-model="particleLife.hasWalls" />
                     </div>
                     <div overflow-auto flex-1 class="scrollableArea">
                         <Collapse label="Matrix Settings" icon="i-tabler-grid-4x4">
@@ -34,13 +30,25 @@
                             <RangeInput input label="Particle Number" :min="particleLife.numColors" :max="20000" :step="10" v-model="particleLife.numParticles" />
                             <RangeInput input label="Color Number" :min="1" :max="20" :step="1" v-model="particleLife.numColors" mt-2 />
                             <RangeInput input label="Depth Limit" :min="0" :max="1000" :step="1" v-model="particleLife.depthLimit" mt-2 />
-                            <div flex items-center mt-2>
-                                <p class="w-2/3">Grid Size</p>
-                                <Input label="X" v-model="particleLife.gridWidth" @change="updateGridWidth" mr-2 />
-                                <Input label="Y" v-model="particleLife.gridHeight" @change="updateGridHeight" mr-2 />
+
+                            <div flex items-start justify-between mt-3 mb-2>
+                                <p underline text-gray-300>World Shape :</p>
+                                <div flex>
+                                    <SelectButton :id="0" label="Rectangle" v-model="particleLife.wallShape" mr-2 />
+                                    <SelectButton :id="1" label="Circle" v-model="particleLife.wallShape" />
+                                </div>
+                            </div>
+                            <div flex items-center v-if="particleLife.wallShape === 0">
+                                <p class="w-2/3">Rectangle Size</p>
+                                <Input label="x" v-model="particleLife.gridWidth" @change="updateGridWidth" mr-2 />
+                                <Input label="y" v-model="particleLife.gridHeight" @change="updateGridHeight" mr-2 />
                                 <button type="button" btn rounded-12 p2 flex items-center bg="#212121aa hover:#333333aa" @click="particleLife.linkProportions = !particleLife.linkProportions">
                                     <span :class="particleLife.linkProportions ? 'i-tabler-link' : 'i-tabler-unlink'" text-sm></span>
                                 </button>
+                            </div>
+                            <div flex items-center justify-between mt-2 v-else>
+                                <p class="w-2/3">Circle Diameter</p>
+                                <Input label="d" v-model="particleLife.gridHeight" @change="updateGridHeight" mr-2 />
                             </div>
                         </Collapse>
                         <Collapse label="Force Settings" icon="i-tabler-atom" opened mt-2>
