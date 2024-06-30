@@ -17,6 +17,10 @@
                         <ToggleSwitch label="Grid" v-model="particleLife.hasGrid" :disabled="!particleLife.hasWalls"/>
                         <ToggleSwitch label="Walls" v-model="particleLife.hasWalls" />
                     </div>
+                    <div flex mb-2>
+                        <SelectButton :id="0" label="Rectangle" v-model="particleLife.wallShape" mr-2 />
+                        <SelectButton :id="1" label="Circle" v-model="particleLife.wallShape" />
+                    </div>
                     <div overflow-auto flex-1 class="scrollableArea">
                         <Collapse label="Matrix Settings" icon="i-tabler-grid-4x4">
                             <MatrixSettings
@@ -165,6 +169,7 @@ export default defineComponent({
         let maxOpacity: number = particleLife.maxOpacity // Maximum opacity when hasDepthOpacity is enabled
         let minOpacity: number = particleLife.minOpacity // Depth effect will be stronger with lower opacity
         let cellGroupSize: number = particleLife.cellGroupSize // Minimum number of particles to be considered a group (0 to visualize all cells)
+        let wallShape: number = particleLife.wallShape // 0: Rectangle, 1: Circle
 
         // Define force properties
         let repel: number = particleLife.repel // repel force for particles that are too close to each other (can't be 0)
@@ -179,15 +184,18 @@ export default defineComponent({
         // Define depth limits for randomly placed particles
         const minZDepthRandomParticle: number = depthLimit * 0.2 // The minimum Z-depth for randomly placed particles, in percentage of the depthLimit
         const maxZDepthRandomParticle: number = depthLimit * 0.45 // The maximum Z-depth for randomly placed particles, in percentage of the depthLimit
-        const screenMultiplierForGridSize: number = 2.5 // Multiplier for the grid size based on the screen size
+        const screenMultiplierForGridSize: number = 3 // Multiplier for the grid size based on the screen size
 
         // Define grid properties
         let gridOffsetX: number = 0 // Grid offset X
         let gridOffsetY: number = 0 // Grid offset Y
         let gridWidth: number = 0 // Grid width
         let gridHeight: number = 0 // Grid height
-        let endGridX: number = 0 // Position X of the end of the grid
-        let endGridY: number = 0 // Position Y of the end of the grid
+        let endGridX: number = 0 // Position X of the end of the rectangle grid
+        let endGridY: number = 0 // Position Y of the end of the rectangle grid
+        let circleRadius: number = 0 // Radius of the grid circle
+        let circleCenterX: number = 0 // Center X of the grid circle
+        let circleCenterY: number = 0 // Center Y of the grid circle
 
         // Define the properties for dragging and zooming
         let isDragging: boolean = false // Flag to check if the mouse is being dragged
@@ -273,7 +281,7 @@ export default defineComponent({
         function handleResize() {
             canvasWidth = lifeCanvas!.width = lifeCanvas!.clientWidth
             canvasHeight = lifeCanvas!.height = lifeCanvas!.clientHeight
-            setEndCoordinates()
+            setShapesProperties()
         }
         function handleMove() {
             if (isDragging) {
@@ -281,7 +289,7 @@ export default defineComponent({
                 gridOffsetY += (pointerY - lastPointerY) / zoomFactor
                 lastPointerX = pointerX
                 lastPointerY = pointerY
-                setEndCoordinates()
+                setShapesProperties()
             }
         }
         function handleZoom(delta: number, x: number, y: number) {
@@ -295,7 +303,7 @@ export default defineComponent({
             gridOffsetX -= (x / zoomFactor) * ((zoomFactor / oldZoomFactor) - 1)
             gridOffsetY -= (y / zoomFactor) * ((zoomFactor / oldZoomFactor) - 1)
 
-            setEndCoordinates()
+            setShapesProperties()
             if (!isRunning) simpleDrawParticles()
         }
         // -------------------------------------------------------------------------------------------------------------
@@ -406,10 +414,20 @@ export default defineComponent({
             return matrix
         }
         function getRandomPositions() {
-            return {
-                x: Math.random() * gridWidth,
-                y: Math.random() * gridHeight,
-                z: Math.random() * (maxZDepthRandomParticle - minZDepthRandomParticle) + minZDepthRandomParticle
+            if (wallShape === 0) { // Rectangle
+                return {
+                    x: Math.random() * gridWidth,
+                    y: Math.random() * gridHeight,
+                    z: Math.random() * (maxZDepthRandomParticle - minZDepthRandomParticle) + minZDepthRandomParticle
+                }
+            } else { // Circle
+                const angle = Math.random() * Math.PI * 2
+                const radius = Math.random() * circleRadius
+                return {
+                    x: circleCenterX + Math.cos(angle) * radius,
+                    y: circleCenterY + Math.sin(angle) * radius,
+                    z: Math.random() * (maxZDepthRandomParticle - minZDepthRandomParticle) + minZDepthRandomParticle
+                }
             }
         }
         // -------------------------------------------------------------------------------------------------------------
@@ -712,13 +730,27 @@ export default defineComponent({
 
                 // Bounce off the walls
                 if (hasWalls) {
-                    if (positionX[i] > gridWidth || positionX[i] < 0) {
-                        positionX[i] -= velocityX[i]
-                        velocityX[i] *= -1.2
+                    if (wallShape === 0) { // Rectangle Shape
+                        if (positionX[i] > gridWidth || positionX[i] < 0) {
+                            positionX[i] -= velocityX[i]
+                            velocityX[i] *= -1.2
+                        }
+                        if (positionY[i] > gridHeight || positionY[i] < 0) {
+                            positionY[i] -= velocityY[i]
+                            velocityY[i] *= -1.2
+                        }
                     }
-                    if (positionY[i] > gridHeight || positionY[i] < 0) {
-                        positionY[i] -= velocityY[i]
-                        velocityY[i] *= -1.2
+                    else { // Circle Shape
+                        const dx = positionX[i] - circleCenterX; // X distance between the particle and the center of the circle
+                        const dy = positionY[i] - circleCenterY; // Y distance between the particle and the center of the circle
+                        const distanceSquared = dx * dx + dy * dy; // Square of the distance between the particle and the center of the circle
+
+                        if (distanceSquared > circleRadius * circleRadius) {
+                            positionX[i] -= velocityX[i]
+                            positionY[i] -= velocityY[i]
+                            velocityX[i] *= -1.2;
+                            velocityY[i] *= -1.2;
+                        }
                     }
                 }
                 drawParticle(positionX[i], positionY[i], 0, currentColors[colors[i]], particleSize)
@@ -736,15 +768,36 @@ export default defineComponent({
 
                 // Bounce off the walls
                 if (hasWalls) {
-                    if (positionX[i] > gridWidth || positionX[i] < 0) {
-                        positionX[i] -= velocityX[i]
-                        velocityX[i] *= -1.2
+                    if (wallShape === 0) { // Rectangle Shape
+                        if (positionX[i] > gridWidth || positionX[i] < 0) {
+                            positionX[i] -= velocityX[i]
+                            velocityX[i] *= -1.2
+                        }
+                        if (positionY[i] > gridHeight || positionY[i] < 0) {
+                            positionY[i] -= velocityY[i]
+                            velocityY[i] *= -1.2
+                        }
                     }
-                    if (positionY[i] > gridHeight || positionY[i] < 0) {
-                        positionY[i] -= velocityY[i]
-                        velocityY[i] *= -1.2
+                    else { // Circle Shape
+                        const dx = positionX[i] - circleCenterX; // X distance between the particle and the center of the circle
+                        const dy = positionY[i] - circleCenterY; // Y distance between the particle and the center of the circle
+                        const distanceSquared = dx * dx + dy * dy; // Square of the distance between the particle and the center of the circle
+
+                        if (distanceSquared > circleRadius * circleRadius) {
+                            // const distance = Math.sqrt(distanceSquared)
+                            // const normalizedDx = dx / distance
+                            // const normalizedDy = dy / distance
+                            // positionX[i] = circleCenterX + circleRadius * normalizedDx
+                            // positionY[i] = circleCenterY + circleRadius * normalizedDy
+
+                            positionX[i] -= velocityX[i]
+                            positionY[i] -= velocityY[i]
+                            velocityX[i] *= -1.2;
+                            velocityY[i] *= -1.2;
+                        }
                     }
                 }
+
                 // Bounce off the depth limit
                 if (positionZ[i] > depthLimit || positionZ[i] < 0) {
                     positionZ[i] -= velocityZ[i]
@@ -764,7 +817,7 @@ export default defineComponent({
             const offsetY = gridHeight / 2 - centerY
             gridOffsetX -= offsetX
             gridOffsetY -= offsetY
-            setEndCoordinates()
+            setShapesProperties()
         }
         function simpleDrawParticles() {
             ctx!.clearRect(0, 0, canvasWidth, canvasHeight)
@@ -776,10 +829,14 @@ export default defineComponent({
         }
         function drawGrid() {
             ctx!.beginPath()
-            drawHorizontalLine(endGridX, gridOffsetY * zoomFactor) // Draw top line
-            drawHorizontalLine(endGridX, (gridOffsetY + gridHeight) * zoomFactor) // Draw bottom line
-            drawVerticalLine(gridOffsetX * zoomFactor, endGridY) // Draw left line
-            drawVerticalLine((gridOffsetX + gridWidth) * zoomFactor, endGridY) // Draw right line
+            if (wallShape === 0) { // Rectangle Shape
+                drawHorizontalLine(endGridX, gridOffsetY * zoomFactor) // Draw top line
+                drawHorizontalLine(endGridX, (gridOffsetY + gridHeight) * zoomFactor) // Draw bottom line
+                drawVerticalLine(gridOffsetX * zoomFactor, endGridY) // Draw left line
+                drawVerticalLine((gridOffsetX + gridWidth) * zoomFactor, endGridY) // Draw right line
+            } else { // Circle Shape
+                ctx!.arc((gridOffsetX + circleCenterX) * zoomFactor, (gridOffsetY + circleCenterY) * zoomFactor, circleRadius * zoomFactor, 0, Math.PI * 2)
+            }
             ctx!.strokeStyle = 'rgba(128, 128, 128, 0.8)'
             ctx!.lineWidth = 1
             ctx!.stroke()
@@ -792,9 +849,13 @@ export default defineComponent({
             ctx!.moveTo(x, gridOffsetY * zoomFactor)
             ctx!.lineTo(x, y)
         }
-        function setEndCoordinates() {
+        function setShapesProperties() {
             endGridX = gridOffsetX * zoomFactor + gridWidth * zoomFactor
             endGridY = gridOffsetY * zoomFactor + gridHeight * zoomFactor
+
+            circleRadius = gridHeight / 2
+            circleCenterX = gridWidth / 2
+            circleCenterY = circleRadius
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -802,14 +863,16 @@ export default defineComponent({
             if (typeof(newWidth) !== 'number') return // Prevent input event like unfocus
             if (particleLife.linkProportions) particleLife.gridHeight = gridHeight = Math.round(gridHeight * (newWidth / gridWidth))
             particleLife.gridWidth = gridWidth = newWidth
-            setEndCoordinates()
+            setShapesProperties()
+            initParticles()
             if (!isRunning) simpleDrawParticles()
         }
         function updateGridHeight(newHeight: number | Event) {
             if (typeof(newHeight) !== 'number') return // Prevent input event like unfocus
             if (particleLife.linkProportions) particleLife.gridWidth = gridWidth = Math.round(gridWidth * (newHeight / gridHeight))
             particleLife.gridHeight = gridHeight = newHeight
-            setEndCoordinates()
+            setShapesProperties()
+            initParticles()
             if (!isRunning) simpleDrawParticles()
         }
         function updateNumParticles(newNumParticles: number) {
@@ -975,6 +1038,10 @@ export default defineComponent({
         watchAndDraw(() => particleLife.hasWalls, (value: boolean) => {
             hasWalls = value
             particleLife.hasGrid = value
+        })
+        watchAndDraw(() => particleLife.wallShape, (value: number) => {
+            wallShape = value
+            initParticles()
         })
         watchAndDraw(() => particleLife.hasGrid, (value: boolean) => hasGrid = value)
         watchAndDraw(() => particleLife.hasCells, (value: boolean) => hasCells = value)
