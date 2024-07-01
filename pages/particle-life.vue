@@ -955,7 +955,10 @@ export default defineComponent({
                         newPositionX[numParticles + i] = posX
                         newPositionY[numParticles + i] = posY
                         newPositionZ[numParticles + i] = Math.random() * (maxZDepthRandomParticle - minZDepthRandomParticle) + minZDepthRandomParticle
-                        newColors[numParticles + i] = Math.floor(Math.random() * numColors)
+                        
+                        if (brushes.length > 0) newColors[numParticles + i] = brushes[Math.floor(Math.random() * brushes.length)]
+                        else newColors[numParticles + i] = Math.floor(Math.random() * numColors)
+
                         break // Exit the loop if the particle is placed successfully and move to the next particle
                     }
                 }
@@ -971,7 +974,6 @@ export default defineComponent({
 
             numParticles += brushIntensity
             particleLife.numParticles = numParticles
-            if (!isRunning) simpleDrawParticles()
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -1159,6 +1161,7 @@ export default defineComponent({
         }
         watch(() => particleLife.numParticles, (value) => updateNumParticles(value))
         watch(() => particleLife.numColors, (value) => updateNumColors(value))
+        watch(() => particleLife.brushes, (value) => brushes= value)
         watch(() => particleLife.brushRadius, (value) => brushRadius = value)
         watch(() => particleLife.brushIntensity, (value) => brushIntensity = value)
         watchAndDraw(() => particleLife.is3D, (value: boolean) => setDimensionAlgorithm())

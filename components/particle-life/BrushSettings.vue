@@ -9,12 +9,16 @@
             <span i-tabler-settings text-sm></span>
         </button>
         <div flex flex-col p1 rounded-full bg-gray-8>
-            <div w-6 aspect-square rounded-full class="rainbow"></div>
+            <button w-6 aspect-square rounded-full class="rainbow"
+                 :class="!particleLife.brushes.length && 'border-3 border-gray-400 shadow-inner'"
+                 @click="toggleBrushColor(null)">
+            </button>
             <hr mt-1 border-gray-600>
-            <div v-for="(color, index) in particleLife.currentColors" :key="index"
-                 w-6 aspect-square rounded-full mt-1
-                 :style="{ backgroundColor: `hsl(${color}, 100%, 50%, 1)`}">
-            </div>
+            <button v-for="(color, index) in particleLife.currentColors" :key="index"
+                 w-6 aspect-square rounded-full mt-1 :class="particleLife.brushes.includes(index) && 'border-3 border-gray-400 shadow-inner'"
+                 :style="{ backgroundColor: `hsl(${color}, 100%, 50%, 1)`}"
+                 @click="toggleBrushColor(index)">
+            </button>
         </div>
     </div>
 
@@ -27,7 +31,21 @@ export default defineComponent({
     setup(props, { emit }) {
         const particleLife = useParticleLifeStore()
 
-        return { particleLife }
+        function toggleBrushColor(index: number | null) {
+            particleLife.isBrushActive = true
+            if (index === null) {
+                particleLife.brushes = []
+                return
+            }
+            const idx = particleLife.brushes.indexOf(index)
+            if (idx === -1) {
+                particleLife.brushes.push(index)
+            } else {
+                particleLife.brushes.splice(idx, 1)
+            }
+        }
+
+        return { particleLife, toggleBrushColor }
     }
 })
 </script>
