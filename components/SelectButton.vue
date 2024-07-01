@@ -24,7 +24,7 @@ export default defineComponent({
     },
     setup(props, { emit }) {
         function select() {
-            this.$emit('update:modelValue', props.id)
+            emit('update:modelValue', props.id)
         }
         return { select }
     }

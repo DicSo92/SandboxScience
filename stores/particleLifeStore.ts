@@ -4,6 +4,10 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
     const isLockedPointer = ref<boolean>(false) // Prevent lifeCanvas events from being triggered
 
     const isRunning = ref<boolean>(true) // Is the simulation running
+    const isBrushActive = ref<boolean>(false) // Is the brush active
+    const brushes = ref<number[]>([]) // Brush particles
+    const brushRadius = ref<number>(300) // Brush radius
+    const brushIntensity = ref<number>(10) // Brush intensity (number of particles)
 
     const currentColors = ref<number[]>([]) // Current colors for the particles
     const rulesMatrix = ref<number[][]>([]) // Rules matrix for each color
@@ -52,7 +56,7 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
 
     return {
         sidebarLeftOpen, isLockedPointer,
-        isRunning,
+        isRunning, isBrushActive, brushes, brushRadius, brushIntensity,
         rulesMatrix, minRadiusMatrix, maxRadiusMatrix, currentColors,
         gridWidth, gridHeight, linkProportions,
         numParticles, particleSize, numColors, depthLimit,

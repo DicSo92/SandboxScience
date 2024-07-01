@@ -52,7 +52,7 @@
                                 <p class="w-2/3">Rectangle Size</p>
                                 <Input label="x" v-model="particleLife.gridWidth" @change="updateGridWidth" mr-2 />
                                 <Input label="y" v-model="particleLife.gridHeight" @change="updateGridHeight" mr-2 />
-                                <button type="button" btn rounded-12 p2 flex items-center bg="#212121aa hover:#333333aa" @click="particleLife.linkProportions = !particleLife.linkProportions">
+                                <button type="button" btn rounded-full p2 flex items-center bg="#212121aa hover:#333333aa" @click="particleLife.linkProportions = !particleLife.linkProportions">
                                     <span :class="particleLife.linkProportions ? 'i-tabler-link' : 'i-tabler-unlink'" text-sm></span>
                                 </button>
                             </div>
@@ -104,7 +104,7 @@
             </template>
         </SidebarLeft>
         <canvas ref="lifeCanvas" id="lifeCanvas" @contextmenu.prevent w-full h-full></canvas>
-        <div absolute top-0 right-0 flex flex-col items-end text-right pr-1>
+        <div absolute top-0 right-0 flex flex-col items-end text-right pr-1 pointer-events-none>
             <div class="inline-grid grid-cols-2 gap-x-4">
                 <div>Fps</div>
                 <div>{{ fps }}</div>
@@ -114,6 +114,7 @@
                 <div>{{ Math.round(executionTime) }}</div>
             </div>
             <Memory />
+            <BrushSettings pointer-events-auto />
         </div>
         <div absolute bottom-2 w-full flex justify-center items-center>
             <button type="button" btn p2 mx-1 flex items-center bg="#094F5D hover:#0B5F6F" @click="regenerateLife">
@@ -146,8 +147,9 @@ import { defineComponent } from "vue";
 import MatrixSettings from "~/components/particle-life/MatrixSettings.vue";
 import RulesMatrix from "~/components/particle-life/RulesMatrix.vue";
 import Memory from "~/components/particle-life/Memory.vue";
+import BrushSettings from "~/components/particle-life/BrushSettings.vue";
 export default defineComponent({
-    components: { MatrixSettings, RulesMatrix, Memory },
+    components: { MatrixSettings, RulesMatrix, Memory, BrushSettings },
     setup() {
         definePageMeta({ layout: 'life' })
         const particleLife = useParticleLifeStore()
@@ -166,6 +168,10 @@ export default defineComponent({
         const cellCount = ref<number>(0)
         const executionTime = ref<number>(0)
         let isRunning = particleLife.isRunning
+        let isBrushActive: boolean = particleLife.isBrushActive
+        let brushes: number[] = particleLife.brushes
+        let brushRadius: number = particleLife.brushRadius
+        let brushIntensity: number = particleLife.brushIntensity
 
         // Define color list and rules matrix for the particles
         let currentColors: number[] = [] // Current colors for the particles
@@ -250,6 +256,11 @@ export default defineComponent({
             useEventListener(lifeCanvas, ['mousedown'], (e) => {
                 lastPointerX = e.x - lifeCanvas!.getBoundingClientRect().left
                 lastPointerY = e.y - lifeCanvas!.getBoundingClientRect().top
+                if (e.buttons > 0) {
+                    if (e.buttons === 2 && isBrushActive) { // if secondary button is pressed (right click)
+                        drawWithBrush()
+                    }
+                }
             })
             useEventListener(lifeCanvas, ['mousemove'], (e) => {
                 pointerX = e.x - lifeCanvas!.getBoundingClientRect().left
@@ -260,6 +271,9 @@ export default defineComponent({
                     isDragging = true
                     if (e.buttons === 1) { // if primary button is pressed (left click)
                         handleMove()
+                    }
+                    if (e.buttons === 2 && isBrushActive) { // if secondary button is pressed (right click)
+                        drawWithBrush()
                     }
                 }
                 if (e.buttons === 0) {
@@ -459,8 +473,10 @@ export default defineComponent({
                 if (hasGrid) drawGrid()
                 if (hasCells) drawCells()
             } else {
-                if (isDragging) simpleDrawParticles()
+                if (isDragging || isBrushActive) simpleDrawParticles()
             }
+            if (isBrushActive) drawBrush()
+
             executionTime.value = performance.now() - startExecutionTime
             animationFrameId = requestAnimationFrame(update)
         }
@@ -871,6 +887,59 @@ export default defineComponent({
             circleCenterX = gridWidth / 2
             circleCenterY = circleRadius
         }
+        function drawBrush() {
+            ctx!.beginPath()
+            ctx!.arc(pointerX, pointerY, brushRadius * zoomFactor, 0, Math.PI * 2)
+            ctx!.strokeStyle = 'rgba(0,0,255,0.4)'
+            ctx!.lineWidth = 1
+            ctx!.stroke()
+        }
+        function drawWithBrush() {
+            const minZDepthRandomParticle = depthLimit * 0.2 // The minimum Z-depth for randomly placed particles, in percentage of the depthLimit
+            const maxZDepthRandomParticle = depthLimit * 0.45 // The maximum Z-depth for randomly placed particles, in percentage of the depthLimit
+
+            const newColors = new Int32Array(numParticles + brushIntensity)
+            const newPositionX = new Float32Array(numParticles + brushIntensity)
+            const newPositionY = new Float32Array(numParticles + brushIntensity)
+            const newPositionZ = new Float32Array(numParticles + brushIntensity)
+            const newVelocityX = new Float32Array(numParticles + brushIntensity).fill(0)
+            const newVelocityY = new Float32Array(numParticles + brushIntensity).fill(0)
+            const newVelocityZ = new Float32Array(numParticles + brushIntensity).fill(0)
+
+            newColors.set(colors, 0)
+            newPositionX.set(positionX, 0)
+            newPositionY.set(positionY, 0)
+            newPositionZ.set(positionZ, 0)
+            newVelocityX.set(velocityX, 0)
+            newVelocityY.set(velocityY, 0)
+            newVelocityZ.set(velocityZ, 0)
+
+            for (let i = 0; i < brushIntensity; i++) {
+                while (true) {
+                    const x = Math.random() * 2 * brushRadius - brushRadius;
+                    const y = Math.random() * 2 * brushRadius - brushRadius;
+                    if (x * x + y * y <= brushRadius * brushRadius) {
+                        newPositionX[numParticles + i] = (pointerX / zoomFactor) - gridOffsetX + x
+                        newPositionY[numParticles + i] = (pointerY / zoomFactor) - gridOffsetY + y
+                        newPositionZ[numParticles + i] = Math.random() * (maxZDepthRandomParticle - minZDepthRandomParticle) + minZDepthRandomParticle
+                        newColors[numParticles + i] = Math.floor(Math.random() * numColors)
+                        break
+                    }
+                }
+            }
+
+            colors = newColors
+            positionX = newPositionX
+            positionY = newPositionY
+            positionZ = newPositionZ
+            velocityX = newVelocityX
+            velocityY = newVelocityY
+            velocityZ = newVelocityZ
+
+            numParticles += brushIntensity
+            particleLife.numParticles = numParticles
+            if (!isRunning) simpleDrawParticles()
+        }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         function updateGridWidth(newWidth: number | Event) {
@@ -1057,8 +1126,11 @@ export default defineComponent({
         }
         watch(() => particleLife.numParticles, (value) => updateNumParticles(value))
         watch(() => particleLife.numColors, (value) => updateNumColors(value))
+        watch(() => particleLife.brushRadius, (value) => brushRadius = value)
+        watch(() => particleLife.brushIntensity, (value) => brushIntensity = value)
         watchAndDraw(() => particleLife.is3D, (value: boolean) => setDimensionAlgorithm())
         watchAndDraw(() => particleLife.isRunning, (value: boolean) => isRunning = value)
+        watchAndDraw(() => particleLife.isBrushActive, (value: boolean) => isBrushActive = value)
         watchAndDraw(() => particleLife.particleSize, (value: number) => particleSize = value)
         watchAndDraw(() => particleLife.depthLimit, (value: number) => depthLimit = value)
         watchAndDraw(() => particleLife.hasWalls, (value: boolean) => {
