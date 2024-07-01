@@ -895,6 +895,22 @@ export default defineComponent({
             ctx!.stroke()
         }
         function drawWithBrush() {
+            if (hasWalls) {
+                const posX = (pointerX / zoomFactor) - gridOffsetX
+                const posY = (pointerY / zoomFactor) - gridOffsetY
+                if (wallShape === 0) { // Rectangle Shape
+                    if (posX > gridWidth || posX < 0 || posY > gridHeight || posY < 0) {
+                        return // Skip if brush is outside the rectangle
+                    }
+                } else { // Circle Shape
+                    const dx = posX - circleCenterX // X distance between the particle and the center of the circle
+                    const dy = posY - circleCenterY // Y distance between the particle and the center of the circle
+                    const distanceSquared = dx * dx + dy * dy // Square of the distance between the particle and the center of the circle
+                    if (distanceSquared > circleRadius * circleRadius) {
+                        return // Skip if brush is outside the circle
+                    }
+                }
+            }
             const minZDepthRandomParticle = depthLimit * 0.2 // The minimum Z-depth for randomly placed particles, in percentage of the depthLimit
             const maxZDepthRandomParticle = depthLimit * 0.45 // The maximum Z-depth for randomly placed particles, in percentage of the depthLimit
 
@@ -916,14 +932,31 @@ export default defineComponent({
 
             for (let i = 0; i < brushIntensity; i++) {
                 while (true) {
-                    const x = Math.random() * 2 * brushRadius - brushRadius;
-                    const y = Math.random() * 2 * brushRadius - brushRadius;
+                    const x = Math.random() * 2 * brushRadius - brushRadius // Random X position within the brush radius
+                    const y = Math.random() * 2 * brushRadius - brushRadius // Random Y position within the brush radius
+
                     if (x * x + y * y <= brushRadius * brushRadius) {
-                        newPositionX[numParticles + i] = (pointerX / zoomFactor) - gridOffsetX + x
-                        newPositionY[numParticles + i] = (pointerY / zoomFactor) - gridOffsetY + y
+                        const posX = (pointerX / zoomFactor) - gridOffsetX + x // Adjust the X position based on the grid offset and the random X position
+                        const posY = (pointerY / zoomFactor) - gridOffsetY + y // Adjust the Y position based on the grid offset and the random Y position
+                        if (hasWalls) {
+                            if (wallShape === 0) { // Rectangle Shape
+                                if (posX > gridWidth || posX < 0 || posY > gridHeight || posY < 0) {
+                                    continue // Skip if the particle is outside the rectangle
+                                }
+                            } else { // Circle Shape
+                                const dx = posX - circleCenterX // X distance between the particle and the center of the circle
+                                const dy = posY - circleCenterY // Y distance between the particle and the center of the circle
+                                const distanceSquared = dx * dx + dy * dy // Square of the distance between the particle and the center of the circle
+                                if (distanceSquared > circleRadius * circleRadius) {
+                                    continue // Skip if the particle is outside the circle
+                                }
+                            }
+                        }
+                        newPositionX[numParticles + i] = posX
+                        newPositionY[numParticles + i] = posY
                         newPositionZ[numParticles + i] = Math.random() * (maxZDepthRandomParticle - minZDepthRandomParticle) + minZDepthRandomParticle
                         newColors[numParticles + i] = Math.floor(Math.random() * numColors)
-                        break
+                        break // Exit the loop if the particle is placed successfully and move to the next particle
                     }
                 }
             }
