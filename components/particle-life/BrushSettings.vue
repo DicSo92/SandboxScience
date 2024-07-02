@@ -6,6 +6,9 @@
             <span i-tabler-brush text-sm></span>
         </button>
         <button type="button" btn w-8 aspect-square rounded-full p1 flex items-center justify-center bg="#212121aa hover:#333333aa">
+            <span i-tabler-eraser text-sm></span>
+        </button>
+        <button type="button" btn w-8 aspect-square rounded-full p1 flex items-center justify-center bg="#212121aa hover:#333333aa">
             <span i-tabler-settings text-sm></span>
         </button>
         <div flex flex-col p1 rounded-full bg-gray-8>
@@ -15,7 +18,7 @@
             </button>
             <hr mt-1 border-gray-600>
             <button v-for="(color, index) in particleLife.currentColors" :key="index"
-                 w-6 aspect-square rounded-full mt-1 :class="particleLife.brushes.includes(index) && 'border-3 border-gray-400 shadow-inner'"
+                 w-6 aspect-square rounded-full mt-1 :class="particleLife.brushes.includes(index) && 'border-3 border-gray-950 shadow-inner'"
                  :style="{ backgroundColor: `hsl(${color}, 100%, 50%, 1)`}"
                  @click="toggleBrushColor(index)">
             </button>

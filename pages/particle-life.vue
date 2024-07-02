@@ -127,7 +127,7 @@
                 <span :class="particleLife.isRunning ? 'i-tabler-player-pause-filled' : 'i-tabler-player-play-filled'" text-xl></span>
             </button>
             <button type="button" btn p2 mx-1 flex items-center bg="#212121 hover:#333333" :disabled="particleLife.isRunning" @click="step">
-                <span i-tabler-player-track-next-filled text-xl></span>
+                <span i-tabler-player-skip-forward-filled text-xl></span>
             </button>
             <button type="button" btn p2 mx-1 flex items-center bg="#D62839 hover:#DC4151" @click="particleLife.hasCells = !particleLife.hasCells">
                 <span :class="particleLife.hasCells ? 'i-tabler-bug-filled' : 'i-tabler-bug'" text-xl></span>
@@ -148,6 +148,7 @@ import MatrixSettings from "~/components/particle-life/MatrixSettings.vue";
 import RulesMatrix from "~/components/particle-life/RulesMatrix.vue";
 import Memory from "~/components/particle-life/Memory.vue";
 import BrushSettings from "~/components/particle-life/BrushSettings.vue";
+import { GPU } from 'gpu.js';
 export default defineComponent({
     components: { MatrixSettings, RulesMatrix, Memory, BrushSettings },
     setup() {
@@ -674,6 +675,9 @@ export default defineComponent({
             }
             cellCount.value = cells.size
         }
+
+        const gpu = new GPU();
+
         function processRules3D() {
             const cellSize = currentMaxRadius * cellSizeFactor
             cells = new Map<string, number[]>()
@@ -955,7 +959,7 @@ export default defineComponent({
                         newPositionX[numParticles + i] = posX
                         newPositionY[numParticles + i] = posY
                         newPositionZ[numParticles + i] = Math.random() * (maxZDepthRandomParticle - minZDepthRandomParticle) + minZDepthRandomParticle
-                        
+
                         if (brushes.length > 0) newColors[numParticles + i] = brushes[Math.floor(Math.random() * brushes.length)]
                         else newColors[numParticles + i] = Math.floor(Math.random() * numColors)
 
