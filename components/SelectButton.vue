@@ -1,6 +1,7 @@
 <template>
-    <button @click="select" :class="modelValue === id ? 'bg-gray-800' : 'bg-gray-600'" rounded px-2 py-1 text-sm>
-        {{ label }}
+    <button @click="select" :class="modelValue === id ? 'bg-gray-800' : 'bg-gray-600'" flex items-center rounded px-2 py-1 text-sm>
+        <span v-if="icon" :class="[icon, label && 'mr-1']"></span>
+        {{ label || '' }}
     </button>
 </template>
 
@@ -15,7 +16,11 @@ export default defineComponent({
         },
         label: {
             type: String,
-            required: true
+            required: false
+        },
+        icon: {
+            type: String,
+            required: false
         },
         modelValue: {
             type: [Number, String],

@@ -27,13 +27,15 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
     const isCircle = ref<boolean>(true) // Enable circular shape for the particles
     const hasGrid = ref<boolean>(true) // Enable grid
     const hasCells = ref<boolean>(false) // Enable cells
+    const isCellFollow = ref<boolean>(false) // Enable cells to follow the particles
     const hasWalls = ref<boolean>(true) // Enable walls X and Y for the particles
     const hasDepthSize = ref<boolean>(true) // Enable depth size effect
     const hasDepthOpacity = ref<boolean>(false) // Enable depth opacity effect
     const maxOpacity = ref<number>(1) // Maximum opacity when hasDepthOpacity is enabled
     const minOpacity = ref<number>(0.5) // Depth effect will be stronger with lower opacity
+    const cellShape = ref<number>(0) // 0: Rectangle, 1: Circle
     const wallShape = ref<number>(0) // 0: Rectangle, 1: Circle
-    const screenMultiplierForGridSize = ref<number>(3) // Multiplier for the grid size (1 means the grid will be the same size as the screen)
+    const screenMultiplierForGridSize = ref<number>(2.5) // Multiplier for the grid size (1 means the grid will be the same size as the screen)
 
     const cellGroupSize = ref<number>(0) // Minimum number of particles to be considered a group (0 to visualize all cells)
     const cellSizeFactor = ref<number>(1) // Size of the cells at zoomFactor = 1
@@ -60,7 +62,7 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
         rulesMatrix, minRadiusMatrix, maxRadiusMatrix, currentColors,
         gridWidth, gridHeight, linkProportions,
         numParticles, particleSize, numColors, depthLimit,
-        is3D, isCircle, hasGrid, hasCells, hasWalls, hasDepthSize, hasDepthOpacity, maxOpacity, minOpacity, wallShape, screenMultiplierForGridSize,
+        is3D, isCircle, hasGrid, hasCells, isCellFollow, hasWalls, hasDepthSize, hasDepthOpacity, maxOpacity, minOpacity, cellShape, wallShape, screenMultiplierForGridSize,
         minRadiusRange, maxRadiusRangeOffset, maxRadiusRangeMax,
         maxRadius, minRadius, repel, forceFactor, frictionFactor,
         cellGroupSize, cellSizeFactor,

@@ -90,8 +90,18 @@
                             <RangeInput input label="Max. Opacity" :min="particleLife.minOpacity" :max="2" :step="0.01" v-model="particleLife.maxOpacity" mt-2 />
                         </Collapse>
                         <Collapse label="Debug Tools" icon="i-tabler-bug" mt-2>
-                            <ToggleSwitch label="Cells" v-model="particleLife.hasCells" />
-                            <RangeInput input label="Cell Group Size" :min="0" :max="100" :step="1" v-model="particleLife.cellGroupSize" />
+                            <div flex items-center justify-between>
+                                <div flex>
+                                    <ToggleSwitch label="Show Cells" v-model="particleLife.hasCells" mr-4 />
+                                    <ToggleSwitch label="Follow" v-model="particleLife.isCellFollow" :disabled="!particleLife.hasCells" />
+                                </div>
+                                <div flex>
+                                    <SelectButton :id="0" icon="i-tabler-square" v-model="particleLife.cellShape" mr-2 />
+                                    <SelectButton :id="1" icon="i-tabler-circle" v-model="particleLife.cellShape" />
+                                </div>
+                            </div>
+
+                            <RangeInput input label="Cell Group Size" :min="0" :max="100" :step="1" v-model="particleLife.cellGroupSize" mt-2 />
                             <RangeInput input label="Cell Size Factor" :min="1" :max="2" :step="0.01" v-model="particleLife.cellSizeFactor" mt-2 />
                         </Collapse>
                     </div>
@@ -190,12 +200,14 @@ export default defineComponent({
         let isCircle: boolean = particleLife.isCircle // Enable circular shape for the particles
         let hasGrid: boolean = particleLife.hasGrid // Enable grid
         let hasCells: boolean = particleLife.hasCells // Enable cells
+        let isCellFollow: boolean = particleLife.isCellFollow // Enable cell follow
         let hasWalls: boolean = particleLife.hasWalls // Enable walls X and Y for the particles
         let hasDepthSize: boolean = particleLife.hasDepthSize // Enable depth size effect
         let hasDepthOpacity: boolean = particleLife.hasDepthOpacity // Enable depth opacity effect
         let maxOpacity: number = particleLife.maxOpacity // Maximum opacity when hasDepthOpacity is enabled
         let minOpacity: number = particleLife.minOpacity // Depth effect will be stronger with lower opacity
         let cellGroupSize: number = particleLife.cellGroupSize // Minimum number of particles to be considered a group (0 to visualize all cells)
+        let cellShape: number = particleLife.cellShape // 0: Rectangle, 1: Circle
         let wallShape: number = particleLife.wallShape // 0: Rectangle, 1: Circle
         let screenMultiplierForGridSize: number = particleLife.screenMultiplierForGridSize // Multiplier for the grid size based on the screen size
 
@@ -492,52 +504,42 @@ export default defineComponent({
             }
         }
         function drawCells() {
+            const cellSize = currentMaxRadius * cellSizeFactor
             cells.forEach((particles, cell) => {
                 if (particles.length <= cellGroupSize) return // Detect groups of particles
-                let centerX = 0
-                let centerY = 0
-                // const centerX = particles.reduce((sum, p) => sum + positionX[p], 0)
-                // const centerY = particles.reduce((sum, p) => sum + positionY[p], 0)
-                for (let p = 0; p < particles.length; p++) {
-                    centerX += positionX[particles[p]]
-                    centerY += positionY[particles[p]]
-                }
-                centerX /= particles.length
-                centerY /= particles.length
 
+                let centerX = 0, centerY = 0
+                if (isCellFollow) { // Follow the particles in the cell
+                    for (let p = 0; p < particles.length; p++) {
+                        centerX += positionX[particles[p]]
+                        centerY += positionY[particles[p]]
+                    }
+                    centerX /= particles.length
+                    centerY /= particles.length
+                } else { // Static cell position
+                    const [cellX, cellY] = cell.split(',').map(Number)
+                    centerX = cellX * cellSize + currentMaxRadius / 2
+                    centerY = cellY * cellSize + currentMaxRadius / 2
+                }
+
+                // Adjust the position based on the grid offset and zoom factor
                 const drawX = (centerX + gridOffsetX) * zoomFactor
                 const drawY = (centerY + gridOffsetY) * zoomFactor
-                const radius = currentMaxRadius / (2 / cellSizeFactor) * zoomFactor
+                const radius = currentMaxRadius / 2 / cellSizeFactor * zoomFactor
 
                 // Skip if the cell is outside the canvas
                 if (drawX < -radius || drawX > canvasWidth + radius || drawY < -radius || drawY > canvasHeight + radius) return
 
+                // Draw the cell
                 ctx!.beginPath()
-                ctx!.arc(drawX, drawY, radius, 0, Math.PI * 2)
+                if (cellShape === 0) { // Rectangle
+                    ctx!.roundRect(drawX - radius, drawY - radius, radius * 2, radius * 2, radius / 4)
+                } else { // Circle
+                    ctx!.arc(drawX, drawY, radius, 0, Math.PI * 2)
+                }
                 ctx!.strokeStyle = `hsl(${0}, 100%, 50%, 0.55)`
                 ctx!.stroke()
             })
-
-            // Just cell 1,1 for testing
-            // const cellKey = `${1},${1}`
-            // if (!cells.has(cellKey)) return
-            // const cellParticles = cells.get(cellKey)
-            // let centerX = 0
-            // let centerY = 0
-            // for (let p = 0; p < cellParticles!.length; p++) {
-            //     centerX += positionX[cellParticles![p]]
-            //     centerY += positionY[cellParticles![p]]
-            // }
-            // centerX /= cellParticles!.length
-            // centerY /= cellParticles!.length
-            //
-            // const drawX = (centerX + gridOffsetX) * zoomFactor
-            // const drawY = (centerY + gridOffsetY) * zoomFactor
-            //
-            // ctx!.beginPath()
-            // ctx!.arc(drawX, drawY, maxRadius * zoomFactor, 0, Math.PI * 2)
-            // ctx!.strokeStyle = `hsl(${0}, 100%, 50%, 0.55)`
-            // ctx!.stroke()
         }
         // -------------------------------------------------------------------------------------------------------------
         let drawParticle: (x: number, y: number, z: number, color: number, size: number) => void
@@ -1199,9 +1201,11 @@ export default defineComponent({
             wallShape = value
             initParticles()
         })
+        watchAndDraw(() => particleLife.cellShape, (value: number) => cellShape = value)
         watchAndDraw(() => particleLife.screenMultiplierForGridSize, (value: number) => updateScreenMultiplier(value))
         watchAndDraw(() => particleLife.hasGrid, (value: boolean) => hasGrid = value)
         watchAndDraw(() => particleLife.hasCells, (value: boolean) => hasCells = value)
+        watchAndDraw(() => particleLife.isCellFollow, (value: boolean) => isCellFollow = value)
         watchAndDraw(() => particleLife.isCircle, (value: boolean) => isCircle = value)
         watchAndDraw(() => particleLife.hasDepthSize, (value: boolean) => hasDepthSize = value)
         watchAndDraw(() => particleLife.hasDepthOpacity, (value: boolean) => hasDepthOpacity = value)
