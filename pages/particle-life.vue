@@ -158,14 +158,11 @@ import MatrixSettings from "~/components/particle-life/MatrixSettings.vue";
 import RulesMatrix from "~/components/particle-life/RulesMatrix.vue";
 import Memory from "~/components/particle-life/Memory.vue";
 import BrushSettings from "~/components/particle-life/BrushSettings.vue";
-// import { GPU } from 'gpu.js';
 export default defineComponent({
     components: { MatrixSettings, RulesMatrix, Memory, BrushSettings },
     setup() {
         definePageMeta({ layout: 'life' })
         const particleLife = useParticleLifeStore()
-
-        // const gpu = new GPU();
 
         let customRulesMatrix: number[][] = [[0,1,0,1,0,0,0,0,0],[0,0,1,0,1,0,0,0,0],[1,0,0,0,0,1,0,0,0],[0,0,0,0,1,0,1,0,0],[0,0,0,0,0,1,0,1,0],[0,0,0,1,0,0,0,0,1],[1,0,0,0,0,0,0,1,0],[0,1,0,0,0,0,0,0,1],[0,0,1,0,0,0,1,0,0]]
 
