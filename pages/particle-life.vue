@@ -1,5 +1,5 @@
 <template>
-    <section flex flex-col justify-center h-full overflow-hidden relative>
+    <section flex flex-col justify-center h-full overflow-hidden relative ref="mainContainer">
         <SidebarLeft v-model="particleLife.sidebarLeftOpen">
             <template #controls>
             </template>
@@ -128,25 +128,28 @@
         </div>
         <div absolute bottom-2 w-full flex justify-center items-center>
             <button type="button" btn p2 mx-1 flex items-center bg="#094F5D hover:#0B5F6F" @click="regenerateLife">
-                <span i-game-icons-perspective-dice-six-faces-random text-xl></span>
+                <span i-game-icons-perspective-dice-six-faces-random text-lg></span>
             </button>
             <button type="button" btn p2 mx-1 flex items-center bg="#E07F00 hover:#FF8F00" @click="particleLife.is3D = !particleLife.is3D">
                 <span text-lg font-700 style="line-height: normal">{{ particleLife.is3D ? '2D' : '3D' }}</span>
             </button>
             <button type="button" btn p2 mx-1 flex items-center bg="#212121 hover:#333333" @click="particleLife.isRunning = !particleLife.isRunning">
-                <span :class="particleLife.isRunning ? 'i-tabler-player-pause-filled' : 'i-tabler-player-play-filled'" text-xl></span>
+                <span :class="particleLife.isRunning ? 'i-tabler-player-pause-filled' : 'i-tabler-player-play-filled'" text-lg></span>
             </button>
             <button type="button" btn p2 mx-1 flex items-center bg="#212121 hover:#333333" :disabled="particleLife.isRunning" @click="step">
-                <span i-tabler-player-skip-forward-filled text-xl></span>
+                <span i-tabler-player-skip-forward-filled text-lg></span>
             </button>
             <button type="button" btn p2 mx-1 flex items-center bg="#D62839 hover:#DC4151" @click="particleLife.hasCells = !particleLife.hasCells">
-                <span :class="particleLife.hasCells ? 'i-tabler-bug-filled' : 'i-tabler-bug'" text-xl></span>
+                <span :class="particleLife.hasCells ? 'i-tabler-bug-filled' : 'i-tabler-bug'" text-lg></span>
             </button>
             <button type="button" btn p2 mx-1 flex items-center bg="#212121 hover:#333333" @click="handleZoom(-1, lifeCanvas!.clientWidth / 2, lifeCanvas!.clientHeight / 2)">
-                <span i-tabler-zoom-out text-xl></span>
+                <span i-tabler-zoom-out text-lg></span>
             </button>
             <button type="button" btn p2 mx-1 flex items-center bg="#212121 hover:#333333" @click="handleZoom(1, lifeCanvas!.clientWidth / 2, lifeCanvas!.clientHeight / 2)">
-                <span i-tabler-zoom-in text-xl></span>
+                <span i-tabler-zoom-in text-lg></span>
+            </button>
+            <button type="button" btn p2 mx-1 flex items-center bg="#212121 hover:#333333" @click="toggleFullscreen">
+                <span :class="isFullscreen ? 'i-tabler-maximize-off' : 'i-tabler-maximize'" text-lg></span>
             </button>
         </div>
     </section>
@@ -163,6 +166,9 @@ export default defineComponent({
     setup() {
         definePageMeta({ layout: 'life' })
         const particleLife = useParticleLifeStore()
+
+        const mainContainer = ref<HTMLElement | null>(null)
+        const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(mainContainer)
 
         let customRulesMatrix: number[][] = [[0,1,0,1,0,0,0,0,0],[0,0,1,0,1,0,0,0,0],[1,0,0,0,0,1,0,0,0],[0,0,0,0,1,0,1,0,0],[0,0,0,0,0,1,0,1,0],[0,0,0,1,0,0,0,0,1],[1,0,0,0,0,0,0,1,0],[0,1,0,0,0,0,0,0,1],[0,0,1,0,0,0,1,0,0]]
 
@@ -1219,7 +1225,7 @@ export default defineComponent({
         })
 
         return {
-            lifeCanvas, particleLife,
+            lifeCanvas, particleLife, toggleFullscreen, isFullscreen,
             fps, cellCount, executionTime, step, newRandomRulesMatrix, handleZoom, updateGridWidth, updateGridHeight,
             updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, regenerateLife
         }
