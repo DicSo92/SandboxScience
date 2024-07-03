@@ -1,5 +1,5 @@
 <template>
-    <div class="brush-settings">
+    <div class="faded-hover-effect">
         <button type="button" btn w-8 aspect-square rounded-full p1 flex items-center justify-center
                 :class="particleLife.isBrushActive ? 'bg-blue-900 hover:bg-gray-700' : 'bg-#212121 hover:bg-#333333'"
                 @click="particleLife.isBrushActive = !particleLife.isBrushActive">
@@ -54,13 +54,6 @@ export default defineComponent({
 </script>
 
 <style scoped>
-.brush-settings {
-    transition: all 100ms ease-in-out;
-    opacity: 40%;
-    &:hover {
-        opacity: 100%;
-    }
-}
 .rainbow {
     background: conic-gradient(
         hsl(360, 100%, 50%),

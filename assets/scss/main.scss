@@ -1,0 +1,7 @@
+.faded-hover-effect {
+  transition: opacity 120ms ease-in-out;
+  opacity: 40%;
+  &:hover {
+    opacity: 100%;
+  }
+}

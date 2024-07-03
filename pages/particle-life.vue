@@ -114,42 +114,52 @@
             </template>
         </SidebarLeft>
         <canvas ref="lifeCanvas" id="lifeCanvas" @contextmenu.prevent w-full h-full></canvas>
-        <div absolute top-0 right-0 flex flex-col items-end text-right pr-1 pointer-events-none>
-            <div class="inline-grid grid-cols-2 gap-x-4">
-                <div>Fps</div>
-                <div>{{ fps }}</div>
-                <div>Cells</div>
-                <div>{{ cellCount }}</div>
-                <div>Process</div>
-                <div>{{ Math.round(executionTime) }}</div>
+        <div absolute top-0 right-0 flex flex-col items-end text-right pointer-events-none>
+            <div inline-grid grid-cols-3 gap-x-3 text-start text-xs pl-4 pr-1 bg-gray-800 rounded-bl-xl style="padding-bottom: 1px; opacity: 75%">
+                <div>Fps: {{ fps }}</div>
+                <div>Cells: {{ cellCount }}</div>
+                <div>Process: {{ Math.round(executionTime) }}</div>
             </div>
-<!--            <Memory />-->
-            <BrushSettings pointer-events-auto mt-2 />
+<!--            <Memory mr-1 />-->
+            <BrushSettings pointer-events-auto mt-2 mr-1 />
+
+            <div class="faded-hover-effect" pointer-events-auto mr-1>
+                <button type="button" btn w-8 aspect-square rounded-full p1 flex items-center justify-center bg="#D62839 hover:#DC4151" mt-2
+                        @click="particleLife.hasCells = !particleLife.hasCells">
+                    <span text-sm :class="particleLife.hasCells ? 'i-tabler-bug-filled' : 'i-tabler-bug'"></span>
+                </button>
+                <button type="button" btn w-8 aspect-square rounded-full p1 flex items-center justify-center bg="#212121 hover:#333333" mt-2
+                        @click="particleLife.hasGrid = !particleLife.hasGrid" :disabled="!particleLife.hasWalls">
+                    <span text-sm :class="particleLife.hasGrid ? 'i-tabler-bread' : 'i-tabler-bread-off'"></span>
+                </button>
+                <button type="button" btn w-8 aspect-square rounded-full p1 flex items-center justify-center bg="#212121 hover:#333333" mt-2
+                        @click="particleLife.hasWalls = !particleLife.hasWalls">
+                    <span text-sm :class="particleLife.hasWalls ? 'i-tabler-infinity-off' : 'i-tabler-infinity'"></span>
+                </button>
+            </div>
+
         </div>
-        <div absolute bottom-2 w-full flex justify-center items-center>
-            <button type="button" btn p2 mx-1 flex items-center bg="#094F5D hover:#0B5F6F" @click="regenerateLife">
-                <span i-game-icons-perspective-dice-six-faces-random text-lg></span>
+        <div absolute bottom-2 w-full flex justify-center items-end class="faded-hover-effect">
+            <button type="button" btn p2 rounded-full mx-1 flex items-center bg="#094F5D hover:#0B5F6F" @click="regenerateLife">
+                <span i-game-icons-perspective-dice-six-faces-random></span>
             </button>
-            <button type="button" btn p2 mx-1 flex items-center bg="#E07F00 hover:#FF8F00" @click="particleLife.is3D = !particleLife.is3D">
-                <span text-lg font-700 style="line-height: normal">{{ particleLife.is3D ? '2D' : '3D' }}</span>
+            <button type="button" btn p2 rounded-full mx-1 flex items-center bg="#E07F00 hover:#FF8F00" @click="particleLife.is3D = !particleLife.is3D">
+                <span text-sm font-700 style="line-height: normal">{{ particleLife.is3D ? '2D' : '3D' }}</span>
             </button>
-            <button type="button" btn p2 mx-1 flex items-center bg="#212121 hover:#333333" @click="particleLife.isRunning = !particleLife.isRunning">
-                <span :class="particleLife.isRunning ? 'i-tabler-player-pause-filled' : 'i-tabler-player-play-filled'" text-lg></span>
+            <button type="button" btn p2 rounded-full mx-1 flex items-center bg="#212121 hover:#333333" @click="handleZoom(-1, lifeCanvas!.clientWidth / 2, lifeCanvas!.clientHeight / 2)">
+                <span i-tabler-zoom-out></span>
             </button>
-            <button type="button" btn p2 mx-1 flex items-center bg="#212121 hover:#333333" :disabled="particleLife.isRunning" @click="step">
-                <span i-tabler-player-skip-forward-filled text-lg></span>
+            <button type="button" btn p3 rounded-full mx-1 flex items-center bg="#212121 hover:#333333" @click="particleLife.isRunning = !particleLife.isRunning">
+                <span text-xl :class="particleLife.isRunning ? 'i-tabler-player-pause-filled' : 'i-tabler-player-play-filled'"></span>
             </button>
-            <button type="button" btn p2 mx-1 flex items-center bg="#D62839 hover:#DC4151" @click="particleLife.hasCells = !particleLife.hasCells">
-                <span :class="particleLife.hasCells ? 'i-tabler-bug-filled' : 'i-tabler-bug'" text-lg></span>
+            <button type="button" btn p2 rounded-full mx-1 flex items-center bg="#212121 hover:#333333" :disabled="particleLife.isRunning" @click="step">
+                <span i-tabler-player-skip-forward-filled></span>
             </button>
-            <button type="button" btn p2 mx-1 flex items-center bg="#212121 hover:#333333" @click="handleZoom(-1, lifeCanvas!.clientWidth / 2, lifeCanvas!.clientHeight / 2)">
-                <span i-tabler-zoom-out text-lg></span>
+            <button type="button" btn p2 rounded-full mx-1 flex items-center bg="#212121 hover:#333333" @click="handleZoom(1, lifeCanvas!.clientWidth / 2, lifeCanvas!.clientHeight / 2)">
+                <span i-tabler-zoom-in></span>
             </button>
-            <button type="button" btn p2 mx-1 flex items-center bg="#212121 hover:#333333" @click="handleZoom(1, lifeCanvas!.clientWidth / 2, lifeCanvas!.clientHeight / 2)">
-                <span i-tabler-zoom-in text-lg></span>
-            </button>
-            <button type="button" btn p2 mx-1 flex items-center bg="#212121 hover:#333333" @click="toggleFullscreen">
-                <span :class="isFullscreen ? 'i-tabler-maximize-off' : 'i-tabler-maximize'" text-lg></span>
+            <button type="button" btn p2 rounded-full mx-1 flex items-center bg="#212121 hover:#333333" @click="toggleFullscreen">
+                <span :class="isFullscreen ? 'i-tabler-maximize-off' : 'i-tabler-maximize'"></span>
             </button>
         </div>
     </section>
