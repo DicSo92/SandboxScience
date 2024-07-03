@@ -612,67 +612,77 @@ export default defineComponent({
                 const cellX = Math.floor(positionX[i] / cellSize)
                 const cellY = Math.floor(positionY[i] / cellSize)
                 const cellKey = `${cellX},${cellY}`
-
                 if (!cells.has(cellKey)) {
                     cells.set(cellKey, [])
                 }
                 cells.get(cellKey)!.push(i)
             }
 
-            // Process each cell
-            for (let [cellKey, particles] of cells) {
+            const cellKeys = Array.from(cells.keys())
+            const cellNeighbors = new Map()
+
+            // Precompute neighboring cells for each cell
+            for (let i = 0; i < cellKeys.length; i++) {
+                const cellKey = cellKeys[i]
                 const [cellX, cellY] = cellKey.split(',').map(Number)
+                const neighbors = []
+                for (let offsetY = -1; offsetY <= 1; offsetY++) {
+                    for (let offsetX = -1; offsetX <= 1; offsetX++) {
+                        const neighborX = cellX + offsetX
+                        const neighborY = cellY + offsetY
+                        const neighborKey = `${neighborX},${neighborY}`
+                        if (cells.has(neighborKey)) {
+                            neighbors.push(neighborKey)
+                        }
+                    }
+                }
+                cellNeighbors.set(cellKey, neighbors)
+            }
+
+            // Process each cell
+            for (let i = 0; i < cellKeys.length; i++) {
+                const cellKey = cellKeys[i]
+                const particles = cells.get(cellKey)
+                const neighbors = cellNeighbors.get(cellKey)
 
                 // Process each particle in the cell
-                for (let i = 0; i < particles.length; i++) {
-                    const indexA = particles[i]
+                for (let j = 0; j < particles!.length; j++) {
+                    const indexA = particles![j]
                     const posXA = positionX[indexA]
                     const posYA = positionY[indexA]
 
+                    let velocityXSum = 0, velocityYSum = 0
+
                     // Process each neighboring cell
-                    for (let offsetY = -1; offsetY <= 1; offsetY++) {
-                        const neighborY = cellY + offsetY
-                        for (let offsetX = -1; offsetX <= 1; offsetX++) {
-                            const neighborX = cellX + offsetX
-                            const neighborKey = `${neighborX},${neighborY}`
+                    for (let k = 0; k < neighbors.length; k++) {
+                        const neighborKey = neighbors[k]
+                        const neighborParticles = cells.get(neighborKey)
 
-                            if (!cells.has(neighborKey)) {
-                                continue
-                            }
-                            const neighbors = cells.get(neighborKey)!
+                        // Process each particle in the neighboring cell
+                        for (let l = 0; l < neighborParticles!.length; l++) {
+                            const indexB = neighborParticles![l]
+                            if (indexA === indexB) continue
 
-                            // Process each particle in the neighboring cell
-                            for (let j = 0; j < neighbors.length; j++) {
-                                const indexB = neighbors[j]
-                                if (indexA === indexB) continue // Skip if processing the same particle
+                            const dx = positionX[indexB] - posXA
+                            const dy = positionY[indexB] - posYA
+                            const distance = Math.sqrt(dx * dx + dy * dy)
 
-                                let posXB = positionX[indexB]
-                                let posYB = positionY[indexB]
+                            const colorA = colors[indexA]
+                            const colorB = colors[indexB]
+                            const colorMaxRadius = maxRadiusMatrix[colorA][colorB]
 
-                                let distanceX = Math.abs(posXA - posXB)
-                                let distanceY = Math.abs(posYA - posYB)
-                                const distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY)
+                            // Apply force if the particles are close enough
+                            if (distance < colorMaxRadius) {
+                                const force = getForce(rulesMatrix[colorA][colorB], minRadiusMatrix[colorA][colorB], colorMaxRadius, distance)
 
-                                const colorA = colors[indexA]
-                                const colorB = colors[indexB]
-                                const colorMaxRadius = maxRadiusMatrix[colorA][colorB]
-
-                                if (distance < colorMaxRadius) {
-                                    const force = getForce(rulesMatrix[colorA][colorB], minRadiusMatrix[colorA][colorB], colorMaxRadius, distance)
-
-                                    distanceX = posXB - posXA
-                                    distanceY = posYB - posYA
-
-                                    const cos = distanceX / distance
-                                    const sin = distanceY / distance
-
-                                    const newForce = force * (1 / forceFactor)
-                                    velocityX[indexA] += cos * newForce
-                                    velocityY[indexA] += sin * newForce
-                                }
+                                velocityXSum += dx / distance * force
+                                velocityYSum += dy / distance * force
                             }
                         }
                     }
+                    // Update the velocity of the particle
+                    velocityX[indexA] += velocityXSum / forceFactor
+                    velocityY[indexA] += velocityYSum / forceFactor
                 }
             }
             cellCount.value = cells.size
