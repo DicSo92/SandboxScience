@@ -123,8 +123,8 @@
                 <div>Process</div>
                 <div>{{ Math.round(executionTime) }}</div>
             </div>
-            <Memory />
-            <BrushSettings pointer-events-auto />
+<!--            <Memory />-->
+            <BrushSettings pointer-events-auto mt-2 />
         </div>
         <div absolute bottom-2 w-full flex justify-center items-center>
             <button type="button" btn p2 mx-1 flex items-center bg="#094F5D hover:#0B5F6F" @click="regenerateLife">
