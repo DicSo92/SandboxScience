@@ -239,8 +239,11 @@ export default defineComponent({
         let gridOffsetY: number = 0 // Grid offset Y
         let gridWidth: number = 0 // Grid width
         let gridHeight: number = 0 // Grid height
+        let startGridX: number = 0 // Position X of the start of the rectangle grid
+        let startGridY: number = 0 // Position Y of the start of the rectangle grid
         let endGridX: number = 0 // Position X of the end of the rectangle grid
         let endGridY: number = 0 // Position Y of the end of the rectangle grid
+        let halfParticleSize: number = 0 // Half of the particle size with zoom factor
         let circleRadius: number = 0 // Radius of the grid circle
         let circleCenterX: number = 0 // Center X of the grid circle
         let circleCenterY: number = 0 // Center Y of the grid circle
@@ -266,7 +269,7 @@ export default defineComponent({
             lifeCanvas = document.getElementById('lifeCanvas') as HTMLCanvasElement
             ctx = lifeCanvas?.getContext('2d') || undefined
             handleResize()
-            setDimensionAlgorithm()
+            setDimensionalAlgorithm()
             initLife()
             if (!isRunning) simpleDrawParticles()
             animationFrameId = requestAnimationFrame(update) // Start the game loop
@@ -363,7 +366,7 @@ export default defineComponent({
             if (!isRunning) simpleDrawParticles()
         }
         // -------------------------------------------------------------------------------------------------------------
-        function setDimensionAlgorithm() {
+        function setDimensionalAlgorithm() {
             if (particleLife.is3D) {
                 processRules = processRules3D
                 updateParticles = updateParticles3D
@@ -897,29 +900,36 @@ export default defineComponent({
         function drawGrid() {
             ctx!.beginPath()
             if (wallShape === 0) { // Rectangle Shape
-                drawHorizontalLine(endGridX, gridOffsetY * zoomFactor) // Draw top line
-                drawHorizontalLine(endGridX, (gridOffsetY + gridHeight) * zoomFactor) // Draw bottom line
-                drawVerticalLine(gridOffsetX * zoomFactor, endGridY) // Draw left line
-                drawVerticalLine((gridOffsetX + gridWidth) * zoomFactor, endGridY) // Draw right line
+                drawHorizontalLine(endGridX, startGridY) // Draw top line
+                drawHorizontalLine(endGridX, endGridY) // Draw bottom line
+                drawVerticalLine(startGridX, endGridY) // Draw left line
+                drawVerticalLine(endGridX, endGridY) // Draw right line
             } else { // Circle Shape
-                ctx!.arc((gridOffsetX + circleCenterX) * zoomFactor, (gridOffsetY + circleCenterY) * zoomFactor, circleRadius * zoomFactor, 0, Math.PI * 2)
+                ctx!.arc((gridOffsetX + circleCenterX) * zoomFactor, (gridOffsetY + circleCenterY) * zoomFactor, circleRadius * zoomFactor + halfParticleSize, 0, Math.PI * 2)
             }
-            ctx!.strokeStyle = 'rgba(128, 128, 128, 0.8)'
+            ctx!.strokeStyle = 'rgba(128, 128, 128, 0.6)'
             ctx!.lineWidth = 1
             ctx!.stroke()
         }
         function drawHorizontalLine(x: number, y: number) {
-            ctx!.moveTo(gridOffsetX * zoomFactor, y)
+            ctx!.moveTo(startGridX, y)
             ctx!.lineTo(x, y)
         }
         function drawVerticalLine(x: number, y: number) {
-            ctx!.moveTo(x, gridOffsetY * zoomFactor)
+            ctx!.moveTo(x, startGridY)
             ctx!.lineTo(x, y)
         }
         function setShapesProperties() {
-            endGridX = gridOffsetX * zoomFactor + gridWidth * zoomFactor
-            endGridY = gridOffsetY * zoomFactor + gridHeight * zoomFactor
+            // Set the half particle size
+            halfParticleSize = particleSize * zoomFactor / 2
 
+            // Set the rectangle grid properties
+            startGridX = gridOffsetX * zoomFactor - halfParticleSize // Start X position of the grid minus half particle size
+            startGridY = gridOffsetY * zoomFactor - halfParticleSize // Start Y position of the grid minus half particle size
+            endGridX = gridOffsetX * zoomFactor + gridWidth * zoomFactor + halfParticleSize // End X position of the grid plus half particle size
+            endGridY = gridOffsetY * zoomFactor + gridHeight * zoomFactor + halfParticleSize // End Y position of the grid plus half particle size
+
+            // Set the circle grid properties
             circleRadius = gridHeight / 2
             circleCenterX = gridWidth / 2
             circleCenterY = circleRadius
@@ -1201,7 +1211,7 @@ export default defineComponent({
         watch(() => particleLife.brushes, (value) => brushes= value)
         watch(() => particleLife.brushRadius, (value) => brushRadius = value)
         watch(() => particleLife.brushIntensity, (value) => brushIntensity = value)
-        watchAndDraw(() => particleLife.is3D, (value: boolean) => setDimensionAlgorithm())
+        watchAndDraw(() => particleLife.is3D, () => setDimensionalAlgorithm())
         watchAndDraw(() => particleLife.isRunning, (value: boolean) => isRunning = value)
         watchAndDraw(() => particleLife.isBrushActive, (value: boolean) => isBrushActive = value)
         watchAndDraw(() => particleLife.particleSize, (value: number) => particleSize = value)
