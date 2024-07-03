@@ -1,6 +1,6 @@
 <template>
-    <div>
-        <div my-3 mx-1 fixed left-0 z-10 :style="toggleBtnStyle">
+    <div class="faded-hover-effect">
+        <div my-3 mx-1 fixed left-0 z-10 :style="toggleBtnStyle" >
             <button rounded-full btn flex items-center p-4 id="sidebarLeftBtn" bg="gray-800 hover:gray-900" @click="toggle">
                 <span i-tabler-settings text-2xl></span>
             </button>
@@ -54,7 +54,5 @@ export default defineComponent({
 </script>
 
 <style scoped>
-#sidebarLeftBtn {
-
-}
+#sidebarLeftBtn {}
 </style>
