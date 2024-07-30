@@ -28,8 +28,8 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
     const hasGrid = ref<boolean>(true) // Enable grid
     const hasCells = ref<boolean>(false) // Enable cells
     const isCellFollow = ref<boolean>(false) // Enable cells to follow the particles
-    const isWallRepel = ref<boolean>(false) // Enable walls X and Y for the particles
-    const isWallWrap = ref<boolean>(true) // Enable wrapped particles
+    const isWallRepel = ref<boolean>(true) // Enable walls X and Y for the particles
+    const isWallWrap = ref<boolean>(false) // Enable wrapped particles
     const hasDepthSize = ref<boolean>(true) // Enable depth size effect
     const hasDepthOpacity = ref<boolean>(false) // Enable depth opacity effect
     const maxOpacity = ref<number>(1) // Maximum opacity when hasDepthOpacity is enabled
@@ -53,6 +53,8 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
     const maxRadiusRangeOffset = ref<number>(30) // Offset for the range of the maxRadius of each color
     const maxRadiusRangeMax = ref<number>(150) // Max range for the maxRadius of each color
 
+    const currentMaxRadius = ref<number>(0) // Current max radius for the particles
+
     function $reset() {
         sidebarLeftOpen.value = false
     }
@@ -64,7 +66,7 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
         gridWidth, gridHeight, linkProportions,
         numParticles, particleSize, numColors, depthLimit,
         is3D, isCircle, hasGrid, hasCells, isCellFollow, isWallRepel, isWallWrap, hasDepthSize, hasDepthOpacity, maxOpacity, minOpacity, cellShape, wallShape, screenMultiplierForGridSize,
-        minRadiusRange, maxRadiusRangeOffset, maxRadiusRangeMax,
+        minRadiusRange, maxRadiusRangeOffset, maxRadiusRangeMax, currentMaxRadius,
         maxRadius, minRadius, repel, forceFactor, frictionFactor,
         cellGroupSize, cellSizeFactor,
         $reset

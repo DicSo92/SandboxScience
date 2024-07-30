@@ -232,9 +232,10 @@ export default defineComponent({
         let frictionFactor: number = particleLife.frictionFactor // Slow down the particles (0 to 1, where 1 is no friction)
         let zoomFactor: number = 1 // Zoom level
         let cellSizeFactor: number = particleLife.cellSizeFactor // Adjust the cell size based on the particle size
+        let cellSize: number = 0 // Cell size based on the current max radius && cellSizeFactor
 
         let currentMinRadius: number = 0 // Max value between all colors min radius
-        let currentMaxRadius: number = 0 // Max value between all colors max radius (for cell size)
+        let currentMaxRadius: number = particleLife.currentMaxRadius // Max value between all colors max radius (for cell size)
 
         // Define grid properties
         let gridOffsetX: number = 0 // Grid offset X
@@ -390,7 +391,6 @@ export default defineComponent({
             setRulesMatrix(makeRandomRulesMatrix())
             setMinRadiusMatrix(makeRandomMinRadiusMatrix())
             setMaxRadiusMatrix(makeRandomMaxRadiusMatrix())
-            if (isWallWrap) setGridSizeWhenWrapped()
 
             console.table(minRadiusMatrix)
             console.table(maxRadiusMatrix)
@@ -404,7 +404,7 @@ export default defineComponent({
             setRulesMatrix(makeRandomRulesMatrix())
             setMinRadiusMatrix(makeRandomMinRadiusMatrix())
             setMaxRadiusMatrix(makeRandomMaxRadiusMatrix())
-            if (isWallWrap) setGridSizeWhenWrapped()
+
             if (!isRunning) simpleDrawParticles()
             animationFrameId = requestAnimationFrame(update) // Start the game loop
         }
@@ -472,7 +472,7 @@ export default defineComponent({
                     }
                 }
             }
-            currentMaxRadius = maxRandom
+            particleLife.currentMaxRadius = maxRandom
             return matrix
         }
         function getRandomPositions() {
@@ -524,7 +524,6 @@ export default defineComponent({
             }
         }
         function drawCells() {
-            const cellSize = currentMaxRadius * cellSizeFactor
             cells.forEach((particles, cell) => {
                 if (particles.length <= cellGroupSize) return // Detect groups of particles
 
@@ -538,14 +537,14 @@ export default defineComponent({
                     centerY /= particles.length
                 } else { // Static cell position
                     const [cellX, cellY] = cell.split(',').map(Number)
-                    centerX = cellX * cellSize + currentMaxRadius / 2
-                    centerY = cellY * cellSize + currentMaxRadius / 2
+                    centerX = cellX * cellSize + cellSize / 2
+                    centerY = cellY * cellSize + cellSize / 2
                 }
 
                 // Adjust the position based on the grid offset and zoom factor
                 const drawX = (centerX + gridOffsetX) * zoomFactor
                 const drawY = (centerY + gridOffsetY) * zoomFactor
-                const radius = currentMaxRadius / 2 / cellSizeFactor * zoomFactor
+                const radius = cellSize / 2 * zoomFactor
 
                 // Skip if the cell is outside the canvas
                 if (drawX < -radius || drawX > canvasWidth + radius || drawY < -radius || drawY > canvasHeight + radius) return
@@ -626,7 +625,6 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         let processRules: () => void
         function processRules2D() {
-            const cellSize = currentMaxRadius * cellSizeFactor
             cells = new Map<string, number[]>()
 
             // Assign each particle to a cell
@@ -710,7 +708,6 @@ export default defineComponent({
             cellCount.value = cells.size
         }
         function processRules2DWrapped() {
-            const cellSize = currentMaxRadius * cellSizeFactor
             cells = new Map<string, number[]>()
 
             // Assign each particle to a cell
@@ -812,7 +809,6 @@ export default defineComponent({
         }
 
         function processRules3D() {
-            const cellSize = currentMaxRadius * cellSizeFactor
             cells = new Map<string, number[]>()
 
             // Assign each particle to a cell
@@ -900,7 +896,6 @@ export default defineComponent({
             cellCount.value = cells.size
         }
         function processRules3DWrapped() {
-            const cellSize = currentMaxRadius * cellSizeFactor
             cells = new Map<string, number[]>()
 
             // Assign each particle to a cell
@@ -1145,10 +1140,8 @@ export default defineComponent({
             ctx!.lineTo(x, y)
         }
         function setGridSizeWhenWrapped() { // Set the grid size when the walls are wrapped
-            const cellSize = currentMaxRadius * cellSizeFactor
             particleLife.gridWidth = gridWidth = cellSize * Math.round(gridWidth / cellSize) - 4
             particleLife.gridHeight = gridHeight = cellSize * Math.round(gridHeight / cellSize) - 4
-            setShapesProperties()
         }
         function setShapesProperties() {
             // Set the half particle size
@@ -1260,7 +1253,7 @@ export default defineComponent({
             if (particleLife.linkProportions) particleLife.gridHeight = gridHeight = Math.round(gridHeight * (newWidth / gridWidth))
             particleLife.gridWidth = gridWidth = newWidth
             if (isWallWrap) setGridSizeWhenWrapped()
-            else setShapesProperties()
+            setShapesProperties()
             initParticles()
             if (!isRunning) simpleDrawParticles()
         }
@@ -1269,7 +1262,7 @@ export default defineComponent({
             if (particleLife.linkProportions) particleLife.gridWidth = gridWidth = Math.round(gridWidth * (newHeight / gridHeight))
             particleLife.gridHeight = gridHeight = newHeight
             if (isWallWrap) setGridSizeWhenWrapped()
-            else setShapesProperties()
+            setShapesProperties()
             initParticles()
             if (!isRunning) simpleDrawParticles()
         }
@@ -1282,6 +1275,7 @@ export default defineComponent({
         function updateScreenMultiplier(multiplier: number) {
             screenMultiplierForGridSize = multiplier
             setGridSizeBasedOnScreen()
+            if (isWallWrap) setGridSizeWhenWrapped()
             setShapesProperties()
             initParticles()
         }
@@ -1342,9 +1336,10 @@ export default defineComponent({
                     colors[i] = Math.floor(Math.random() * newNumColors)
                 }
             }
+            particleLife.currentMaxRadius = maxRadiusMatrix.reduce((max, row) => Math.max(max, ...row), -Infinity)
+
             numColors = newNumColors // Update the number of colors
             initColors() // Reinitialize the colors (currentColors)
-            if (isWallWrap) setGridSizeWhenWrapped()
             if (!isRunning) simpleDrawParticles() // Redraw the particles if the game is not running
         }
         function addToMatrix(newNumColors: number) {
@@ -1379,7 +1374,6 @@ export default defineComponent({
                         const min = minRandom + particleLife.maxRadiusRangeOffset
                         const maxRandom = Math.floor(Math.random() * (particleLife.maxRadiusRangeMax - min + 1) + min)
                         newMaxRadiusMatrix[i][j] = maxRandom
-                        if (maxRandom > currentMaxRadius) currentMaxRadius = maxRandom
                     }
                 }
             }
@@ -1399,7 +1393,6 @@ export default defineComponent({
                 newMinRadiusMatrix.push(minRadiusMatrix[i].slice(0, newNumColors)) // Truncate the row to the new size
                 newMaxRadiusMatrix.push(maxRadiusMatrix[i].slice(0, newNumColors)) // Truncate the row to the new size
             }
-            currentMaxRadius = maxRadiusMatrix.reduce((max, row) => Math.max(max, ...row), -Infinity)
 
             setRulesMatrix(newRulesMatrix)
             setMinRadiusMatrix(newMinRadiusMatrix)
@@ -1431,8 +1424,7 @@ export default defineComponent({
         function updateMaxMatrixValue(x: number, y: number, value: number) {
             particleLife.maxRadiusMatrix[x][y] = value
             maxRadiusMatrix[x][y] = value
-            currentMaxRadius = maxRadiusMatrix.reduce((max, row) => Math.max(max, ...row), -Infinity)
-            if (isWallWrap) setGridSizeWhenWrapped()
+            particleLife.currentMaxRadius = maxRadiusMatrix.reduce((max, row) => Math.max(max, ...row), -Infinity)
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -1460,12 +1452,13 @@ export default defineComponent({
         })
         watchAndDraw(() => particleLife.isWallWrap, (value: boolean) => {
             isWallWrap = value
-            if (isWallWrap) particleLife.isWallRepel = false
-            particleLife.hasGrid = isWallRepel || isWallWrap
             if (isWallWrap) {
+                particleLife.isWallRepel = false
                 particleLife.wallShape = 0
                 setGridSizeWhenWrapped()
+                setShapesProperties()
             }
+            particleLife.hasGrid = isWallRepel || isWallWrap
             setAlgorithms()
         })
         watchAndDraw(() => particleLife.wallShape, (value: number) => {
@@ -1486,7 +1479,18 @@ export default defineComponent({
         watchAndDraw(() => particleLife.repel, (value: number) => repel = value)
         watchAndDraw(() => particleLife.forceFactor, (value: number) => forceFactor = value)
         watchAndDraw(() => particleLife.frictionFactor, (value: number) => frictionFactor = value)
-        watchAndDraw(() => particleLife.cellSizeFactor, (value: number) => cellSizeFactor = value)
+        watchAndDraw(() => particleLife.cellSizeFactor, (value: number) => {
+            cellSizeFactor = value
+            cellSize = currentMaxRadius * cellSizeFactor // Update the cell size
+        })
+        watchAndDraw(() => particleLife.currentMaxRadius, (value: number) => {
+            currentMaxRadius = value
+            cellSize = currentMaxRadius * cellSizeFactor // Update the cell size
+            if (isWallWrap) {
+                setGridSizeWhenWrapped()
+                setShapesProperties()
+            }
+        })
         // -------------------------------------------------------------------------------------------------------------
         onBeforeUnmount(() => {
             if (animationFrameId) cancelAnimationFrame(animationFrameId)
