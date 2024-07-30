@@ -14,8 +14,9 @@
                     </div>
                     <hr>
                     <div grid grid-cols-2 gap-4 mt-3 mb-2 ml-2>
-                        <ToggleSwitch label="Show Grid" v-model="particleLife.hasGrid" :disabled="!particleLife.hasWalls" mr-4/>
-                        <ToggleSwitch label="Repel Walls" v-model="particleLife.hasWalls" />
+                        <ToggleSwitch label="Show Grid" v-model="particleLife.hasGrid" :disabled="!particleLife.isWallRepel && !particleLife.isWallWrap" mr-4/>
+                        <ToggleSwitch label="Repel Walls" v-model="particleLife.isWallRepel" />
+                        <ToggleSwitch label="Wrapped" v-model="particleLife.isWallWrap" />
                     </div>
                     <div overflow-auto flex-1 class="scrollableArea">
                         <Collapse label="Matrix Settings" icon="i-tabler-grid-4x4">
@@ -35,7 +36,7 @@
                                 <p underline text-gray-300>Walls Settings :</p>
                                 <div flex>
                                     <SelectButton :id="0" label="Rectangle" v-model="particleLife.wallShape" mr-2 />
-                                    <SelectButton :id="1" label="Circle" v-model="particleLife.wallShape" />
+                                    <SelectButton :id="1" label="Circle" v-model="particleLife.wallShape" :disabled="particleLife.isWallWrap" />
                                 </div>
                             </div>
                             <div flex mb-1>
@@ -129,12 +130,12 @@
                     <span text-sm :class="particleLife.hasCells ? 'i-tabler-bug-filled' : 'i-tabler-bug'"></span>
                 </button>
                 <button type="button" btn w-8 aspect-square rounded-full p1 flex items-center justify-center bg="#212121 hover:#333333" mt-2
-                        @click="particleLife.hasGrid = !particleLife.hasGrid" :disabled="!particleLife.hasWalls">
+                        @click="particleLife.hasGrid = !particleLife.hasGrid" :disabled="!particleLife.isWallRepel">
                     <span text-sm :class="particleLife.hasGrid ? 'i-tabler-bread' : 'i-tabler-bread-off'"></span>
                 </button>
                 <button type="button" btn w-8 aspect-square rounded-full p1 flex items-center justify-center bg="#212121 hover:#333333" mt-2
-                        @click="particleLife.hasWalls = !particleLife.hasWalls">
-                    <span text-sm :class="particleLife.hasWalls ? 'i-tabler-infinity-off' : 'i-tabler-infinity'"></span>
+                        @click="particleLife.isWallRepel = !particleLife.isWallRepel">
+                    <span text-sm :class="particleLife.isWallRepel ? 'i-tabler-infinity-off' : 'i-tabler-infinity'"></span>
                 </button>
             </div>
 
@@ -214,7 +215,8 @@ export default defineComponent({
         let hasGrid: boolean = particleLife.hasGrid // Enable grid
         let hasCells: boolean = particleLife.hasCells // Enable cells
         let isCellFollow: boolean = particleLife.isCellFollow // Enable cell follow
-        let hasWalls: boolean = particleLife.hasWalls // Enable walls X and Y for the particles
+        let isWallRepel: boolean = particleLife.isWallRepel // Enable walls X and Y for the particles
+        let isWallWrap: boolean = particleLife.isWallWrap // Enable wrapping for the particles
         let hasDepthSize: boolean = particleLife.hasDepthSize // Enable depth size effect
         let hasDepthOpacity: boolean = particleLife.hasDepthOpacity // Enable depth opacity effect
         let maxOpacity: number = particleLife.maxOpacity // Maximum opacity when hasDepthOpacity is enabled
@@ -269,7 +271,7 @@ export default defineComponent({
             lifeCanvas = document.getElementById('lifeCanvas') as HTMLCanvasElement
             ctx = lifeCanvas?.getContext('2d') || undefined
             handleResize()
-            setDimensionalAlgorithm()
+            setAlgorithms()
             initLife()
             if (!isRunning) simpleDrawParticles()
             animationFrameId = requestAnimationFrame(update) // Start the game loop
@@ -366,13 +368,13 @@ export default defineComponent({
             if (!isRunning) simpleDrawParticles()
         }
         // -------------------------------------------------------------------------------------------------------------
-        function setDimensionalAlgorithm() {
+        function setAlgorithms() {
             if (particleLife.is3D) {
-                processRules = processRules3D
+                processRules = particleLife.isWallWrap ? processRules3DWrapped : processRules3D
                 updateParticles = updateParticles3D
                 drawParticle = drawParticle3D
             } else {
-                processRules = processRules2D
+                processRules = particleLife.isWallWrap ? processRules2DWrapped : processRules2D
                 updateParticles = updateParticles2D
                 drawParticle = drawParticle2D
             }
@@ -388,6 +390,8 @@ export default defineComponent({
             setRulesMatrix(makeRandomRulesMatrix())
             setMinRadiusMatrix(makeRandomMinRadiusMatrix())
             setMaxRadiusMatrix(makeRandomMaxRadiusMatrix())
+            if (isWallWrap) setGridSizeWhenWrapped()
+
             console.table(minRadiusMatrix)
             console.table(maxRadiusMatrix)
             console.table(rulesMatrix)
@@ -400,7 +404,7 @@ export default defineComponent({
             setRulesMatrix(makeRandomRulesMatrix())
             setMinRadiusMatrix(makeRandomMinRadiusMatrix())
             setMaxRadiusMatrix(makeRandomMaxRadiusMatrix())
-
+            if (isWallWrap) setGridSizeWhenWrapped()
             if (!isRunning) simpleDrawParticles()
             animationFrameId = requestAnimationFrame(update) // Start the game loop
         }
@@ -705,6 +709,107 @@ export default defineComponent({
             }
             cellCount.value = cells.size
         }
+        function processRules2DWrapped() {
+            const cellSize = currentMaxRadius * cellSizeFactor
+            cells = new Map<string, number[]>()
+
+            // Assign each particle to a cell
+            for (let i = 0; i < numParticles; i++) {
+                const cellX = Math.floor(positionX[i] / cellSize)
+                const cellY = Math.floor(positionY[i] / cellSize)
+                const cellKey = `${cellX},${cellY}`
+                if (!cells.has(cellKey)) {
+                    cells.set(cellKey, [])
+                }
+                cells.get(cellKey)!.push(i)
+            }
+
+            const cellKeys = Array.from(cells.keys())
+            const cellNeighbors = new Map()
+
+            // Precompute neighboring cells for each cell
+            const lastCellsX = Math.floor(gridWidth / cellSize)
+            const lastCellsY = Math.floor(gridHeight / cellSize)
+            for (let i = 0; i < cellKeys.length; i++) {
+                const cellKey = cellKeys[i]
+                const [cellX, cellY] = cellKey.split(',').map(Number)
+                const neighbors = []
+
+                for (let offsetY = -1; offsetY <= 1; offsetY++) {
+                    for (let offsetX = -1; offsetX <= 1; offsetX++) {
+                        let neighborX = cellX + offsetX
+                        let neighborY = cellY + offsetY
+
+                        if (neighborX < 0) neighborX = lastCellsX
+                        else if (neighborX > lastCellsX) neighborX = 0
+                        if (neighborY < 0) neighborY = lastCellsY
+                        else if (neighborY > lastCellsY) neighborY = 0
+
+                        const neighborKey = `${neighborX},${neighborY}`
+                        if (cells.has(neighborKey)) {
+                            neighbors.push(neighborKey)
+                        }
+                    }
+                }
+                cellNeighbors.set(cellKey, neighbors)
+            }
+
+            // Process each cell
+            for (let i = 0; i < cellKeys.length; i++) {
+                const cellKey = cellKeys[i]
+                const particles = cells.get(cellKey)
+                const neighbors = cellNeighbors.get(cellKey)
+
+                // Process each particle in the cell
+                for (let j = 0; j < particles!.length; j++) {
+                    const indexA = particles![j]
+                    const posXA = positionX[indexA]
+                    const posYA = positionY[indexA]
+
+                    let velocityXSum = 0, velocityYSum = 0
+
+                    // Process each neighboring cell
+                    for (let k = 0; k < neighbors.length; k++) {
+                        const neighborKey = neighbors[k]
+                        const neighborParticles = cells.get(neighborKey)
+
+                        // Process each particle in the neighboring cell
+                        for (let l = 0; l < neighborParticles!.length; l++) {
+                            const indexB = neighborParticles![l]
+                            if (indexA === indexB) continue
+
+                            let dx = positionX[indexB] - posXA
+                            let dy = positionY[indexB] - posYA
+
+                            // Apply wrapping for X direction
+                            if (dx > gridWidth / 2) dx -= gridWidth
+                            else if (dx < -gridWidth / 2) dx += gridWidth
+                            // Apply wrapping for Y direction
+                            if (dy > gridHeight / 2) dy -= gridHeight
+                            else if (dy < -gridHeight / 2) dy += gridHeight
+
+                            const distance = Math.sqrt(dx * dx + dy * dy)
+
+                            const colorA = colors[indexA]
+                            const colorB = colors[indexB]
+                            const colorMaxRadius = maxRadiusMatrix[colorA][colorB]
+
+                            // Apply force if the particles are close enough
+                            if (distance < colorMaxRadius) {
+                                const force = getForce(rulesMatrix[colorA][colorB], minRadiusMatrix[colorA][colorB], colorMaxRadius, distance)
+
+                                velocityXSum += dx / distance * force
+                                velocityYSum += dy / distance * force
+                            }
+                        }
+                    }
+                    // Update the velocity of the particle
+                    velocityX[indexA] += velocityXSum / forceFactor
+                    velocityY[indexA] += velocityYSum / forceFactor
+                }
+            }
+            cellCount.value = cells.size
+        }
 
         function processRules3D() {
             const cellSize = currentMaxRadius * cellSizeFactor
@@ -794,6 +899,111 @@ export default defineComponent({
             }
             cellCount.value = cells.size
         }
+        function processRules3DWrapped() {
+            const cellSize = currentMaxRadius * cellSizeFactor
+            cells = new Map<string, number[]>()
+
+            // Assign each particle to a cell
+            for (let i = 0; i < numParticles; i++) {
+                const cellX = Math.floor(positionX[i] / cellSize)
+                const cellY = Math.floor(positionY[i] / cellSize)
+                const cellKey = `${cellX},${cellY}`
+                if (!cells.has(cellKey)) {
+                    cells.set(cellKey, [])
+                }
+                cells.get(cellKey)!.push(i)
+            }
+
+            const cellKeys = Array.from(cells.keys())
+            const cellNeighbors = new Map()
+
+            // Precompute neighboring cells for each cell
+            const lastCellsX = Math.floor(gridWidth / cellSize)
+            const lastCellsY = Math.floor(gridHeight / cellSize)
+            for (let i = 0; i < cellKeys.length; i++) {
+                const cellKey = cellKeys[i]
+                const [cellX, cellY] = cellKey.split(',').map(Number)
+                const neighbors = []
+
+                for (let offsetY = -1; offsetY <= 1; offsetY++) {
+                    for (let offsetX = -1; offsetX <= 1; offsetX++) {
+                        let neighborX = cellX + offsetX
+                        let neighborY = cellY + offsetY
+
+                        if (neighborX < 0) neighborX = lastCellsX
+                        else if (neighborX > lastCellsX) neighborX = 0
+                        if (neighborY < 0) neighborY = lastCellsY
+                        else if (neighborY > lastCellsY) neighborY = 0
+
+                        const neighborKey = `${neighborX},${neighborY}`
+                        if (cells.has(neighborKey)) {
+                            neighbors.push(neighborKey)
+                        }
+                    }
+                }
+                cellNeighbors.set(cellKey, neighbors)
+            }
+
+            // Process each cell
+            for (let i = 0; i < cellKeys.length; i++) {
+                const cellKey = cellKeys[i]
+                const particles = cells.get(cellKey)
+                const neighbors = cellNeighbors.get(cellKey)
+
+                // Process each particle in the cell
+                for (let j = 0; j < particles!.length; j++) {
+                    const indexA = particles![j]
+                    const posXA = positionX[indexA]
+                    const posYA = positionY[indexA]
+                    const posZA = positionZ[indexA]
+
+                    let velocityXSum = 0, velocityYSum = 0, velocityZSum = 0
+
+                    // Process each neighboring cell
+                    for (let k = 0; k < neighbors.length; k++) {
+                        const neighborKey = neighbors[k]
+                        const neighborParticles = cells.get(neighborKey)
+
+                        // Process each particle in the neighboring cell
+                        for (let l = 0; l < neighborParticles!.length; l++) {
+                            const indexB = neighborParticles![l]
+                            if (indexA === indexB) continue
+
+                            let dx = positionX[indexB] - posXA
+                            let dy = positionY[indexB] - posYA
+                            let dz = positionZ[indexB] - posZA
+
+                            // Apply wrapping for X direction
+                            if (dx > gridWidth / 2) dx -= gridWidth
+                            else if (dx < -gridWidth / 2) dx += gridWidth
+                            // Apply wrapping for Y direction
+                            if (dy > gridHeight / 2) dy -= gridHeight
+                            else if (dy < -gridHeight / 2) dy += gridHeight
+
+                            const distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
+
+                            const colorA = colors[indexA]
+                            const colorB = colors[indexB]
+                            const colorMaxRadius = maxRadiusMatrix[colorA][colorB]
+
+                            // Apply force if the particles are close enough
+                            if (distance < colorMaxRadius) {
+                                const force = getForce(rulesMatrix[colorA][colorB], minRadiusMatrix[colorA][colorB], colorMaxRadius, distance)
+
+                                velocityXSum += dx / distance * force
+                                velocityYSum += dy / distance * force
+                                velocityZSum += dz / distance * force
+                            }
+                        }
+                    }
+                    // Update the velocity of the particle
+                    velocityX[indexA] += velocityXSum / forceFactor
+                    velocityY[indexA] += velocityYSum / forceFactor
+                    velocityZ[indexA] += velocityZSum / forceFactor
+                }
+            }
+            cellCount.value = cells.size
+        }
         // -------------------------------------------------------------------------------------------------------------
         let updateParticles: () => void
         function updateParticles2D() {
@@ -805,7 +1015,7 @@ export default defineComponent({
                 positionY[i] += velocityY[i]
 
                 // Bounce off the walls
-                if (hasWalls) {
+                if (isWallRepel) {
                     if (wallShape === 0) { // Rectangle Shape
                         if (positionX[i] > gridWidth || positionX[i] < 0) {
                             positionX[i] -= velocityX[i]
@@ -829,6 +1039,14 @@ export default defineComponent({
                         }
                     }
                 }
+                // Apply wrapping for the walls
+                else if (isWallWrap) {
+                    if (positionX[i] > gridWidth) positionX[i] -= gridWidth;
+                    if (positionX[i] < 0) positionX[i] += gridWidth;
+                    if (positionY[i] > gridHeight) positionY[i] -= gridHeight;
+                    if (positionY[i] < 0) positionY[i] += gridHeight;
+                }
+
                 drawParticle(positionX[i], positionY[i], 0, currentColors[colors[i]], particleSize)
             }
         }
@@ -843,7 +1061,7 @@ export default defineComponent({
                 positionZ[i] += velocityZ[i]
 
                 // Bounce off the walls
-                if (hasWalls) {
+                if (isWallRepel) {
                     if (wallShape === 0) { // Rectangle Shape
                         if (positionX[i] > gridWidth || positionX[i] < 0) {
                             positionX[i] -= velocityX[i]
@@ -866,6 +1084,13 @@ export default defineComponent({
                             velocityY[i] *= -1.2;
                         }
                     }
+                }
+                // Apply wrapping for the walls
+                else if (isWallWrap) {
+                    if (positionX[i] > gridWidth) positionX[i] -= gridWidth;
+                    if (positionX[i] < 0) positionX[i] += gridWidth;
+                    if (positionY[i] > gridHeight) positionY[i] -= gridHeight;
+                    if (positionY[i] < 0) positionY[i] += gridHeight;
                 }
 
                 // Bounce off the depth limit
@@ -919,6 +1144,12 @@ export default defineComponent({
             ctx!.moveTo(x, startGridY)
             ctx!.lineTo(x, y)
         }
+        function setGridSizeWhenWrapped() { // Set the grid size when the walls are wrapped
+            const cellSize = currentMaxRadius * cellSizeFactor
+            particleLife.gridWidth = gridWidth = cellSize * Math.round(gridWidth / cellSize) - 4
+            particleLife.gridHeight = gridHeight = cellSize * Math.round(gridHeight / cellSize) - 4
+            setShapesProperties()
+        }
         function setShapesProperties() {
             // Set the half particle size
             halfParticleSize = particleSize * zoomFactor / 2
@@ -942,7 +1173,7 @@ export default defineComponent({
             ctx!.stroke()
         }
         function drawWithBrush() {
-            if (hasWalls) {
+            if (isWallRepel) {
                 const posX = (pointerX / zoomFactor) - gridOffsetX
                 const posY = (pointerY / zoomFactor) - gridOffsetY
                 if (wallShape === 0) { // Rectangle Shape
@@ -985,7 +1216,7 @@ export default defineComponent({
                     if (x * x + y * y <= brushRadius * brushRadius) {
                         const posX = (pointerX / zoomFactor) - gridOffsetX + x // Adjust the X position based on the grid offset and the random X position
                         const posY = (pointerY / zoomFactor) - gridOffsetY + y // Adjust the Y position based on the grid offset and the random Y position
-                        if (hasWalls) {
+                        if (isWallRepel) {
                             if (wallShape === 0) { // Rectangle Shape
                                 if (posX > gridWidth || posX < 0 || posY > gridHeight || posY < 0) {
                                     continue // Skip if the particle is outside the rectangle
@@ -1028,7 +1259,8 @@ export default defineComponent({
             if (typeof(newWidth) !== 'number') return // Prevent input event like unfocus
             if (particleLife.linkProportions) particleLife.gridHeight = gridHeight = Math.round(gridHeight * (newWidth / gridWidth))
             particleLife.gridWidth = gridWidth = newWidth
-            setShapesProperties()
+            if (isWallWrap) setGridSizeWhenWrapped()
+            else setShapesProperties()
             initParticles()
             if (!isRunning) simpleDrawParticles()
         }
@@ -1036,7 +1268,8 @@ export default defineComponent({
             if (typeof(newHeight) !== 'number') return // Prevent input event like unfocus
             if (particleLife.linkProportions) particleLife.gridWidth = gridWidth = Math.round(gridWidth * (newHeight / gridHeight))
             particleLife.gridHeight = gridHeight = newHeight
-            setShapesProperties()
+            if (isWallWrap) setGridSizeWhenWrapped()
+            else setShapesProperties()
             initParticles()
             if (!isRunning) simpleDrawParticles()
         }
@@ -1111,6 +1344,7 @@ export default defineComponent({
             }
             numColors = newNumColors // Update the number of colors
             initColors() // Reinitialize the colors (currentColors)
+            if (isWallWrap) setGridSizeWhenWrapped()
             if (!isRunning) simpleDrawParticles() // Redraw the particles if the game is not running
         }
         function addToMatrix(newNumColors: number) {
@@ -1165,6 +1399,8 @@ export default defineComponent({
                 newMinRadiusMatrix.push(minRadiusMatrix[i].slice(0, newNumColors)) // Truncate the row to the new size
                 newMaxRadiusMatrix.push(maxRadiusMatrix[i].slice(0, newNumColors)) // Truncate the row to the new size
             }
+            currentMaxRadius = maxRadiusMatrix.reduce((max, row) => Math.max(max, ...row), -Infinity)
+
             setRulesMatrix(newRulesMatrix)
             setMinRadiusMatrix(newMinRadiusMatrix)
             setMaxRadiusMatrix(newMaxRadiusMatrix)
@@ -1196,6 +1432,7 @@ export default defineComponent({
             particleLife.maxRadiusMatrix[x][y] = value
             maxRadiusMatrix[x][y] = value
             currentMaxRadius = maxRadiusMatrix.reduce((max, row) => Math.max(max, ...row), -Infinity)
+            if (isWallWrap) setGridSizeWhenWrapped()
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -1211,14 +1448,25 @@ export default defineComponent({
         watch(() => particleLife.brushes, (value) => brushes= value)
         watch(() => particleLife.brushRadius, (value) => brushRadius = value)
         watch(() => particleLife.brushIntensity, (value) => brushIntensity = value)
-        watchAndDraw(() => particleLife.is3D, () => setDimensionalAlgorithm())
+        watchAndDraw(() => particleLife.is3D, () => setAlgorithms())
         watchAndDraw(() => particleLife.isRunning, (value: boolean) => isRunning = value)
         watchAndDraw(() => particleLife.isBrushActive, (value: boolean) => isBrushActive = value)
         watchAndDraw(() => particleLife.particleSize, (value: number) => particleSize = value)
         watchAndDraw(() => particleLife.depthLimit, (value: number) => depthLimit = value)
-        watchAndDraw(() => particleLife.hasWalls, (value: boolean) => {
-            hasWalls = value
-            particleLife.hasGrid = value
+        watchAndDraw(() => particleLife.isWallRepel, (value: boolean) => {
+            isWallRepel = value
+            if (isWallRepel) particleLife.isWallWrap = false
+            particleLife.hasGrid = isWallRepel || isWallWrap
+        })
+        watchAndDraw(() => particleLife.isWallWrap, (value: boolean) => {
+            isWallWrap = value
+            if (isWallWrap) particleLife.isWallRepel = false
+            particleLife.hasGrid = isWallRepel || isWallWrap
+            if (isWallWrap) {
+                particleLife.wallShape = 0
+                setGridSizeWhenWrapped()
+            }
+            setAlgorithms()
         })
         watchAndDraw(() => particleLife.wallShape, (value: number) => {
             wallShape = value

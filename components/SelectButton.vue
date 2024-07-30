@@ -1,5 +1,6 @@
 <template>
-    <button @click="select" :class="modelValue === id ? 'bg-gray-800' : 'bg-gray-600'" flex items-center rounded px-2 py-1 text-sm>
+    <button @click="select" :class="[modelValue === id ? 'bg-gray-800' : 'bg-gray-600', disabled && 'cursor-not-allowed']"
+            flex items-center rounded px-2 py-1 text-sm :disabled="disabled">
         <span v-if="icon" :class="[icon, label && 'mr-1']"></span>
         {{ label || '' }}
     </button>
@@ -21,6 +22,10 @@ export default defineComponent({
         icon: {
             type: String,
             required: false
+        },
+        disabled: {
+            type: Boolean,
+            default: false
         },
         modelValue: {
             type: [Number, String],
