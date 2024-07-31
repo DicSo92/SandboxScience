@@ -13,12 +13,12 @@
                         <ToggleSwitch inactive-label="2D" label="3D" colorful-label v-model="particleLife.is3D" />
                     </div>
                     <hr>
-                    <div grid grid-cols-2 gap-4 mt-3 mb-2 ml-2>
-                        <ToggleSwitch label="Show Grid" v-model="particleLife.hasGrid" :disabled="!particleLife.isWallRepel && !particleLife.isWallWrap" mr-4/>
-                        <ToggleSwitch label="Repel Walls" v-model="particleLife.isWallRepel" />
-                        <ToggleSwitch label="Wrapped" v-model="particleLife.isWallWrap" />
-                    </div>
-                    <div overflow-auto flex-1 class="scrollableArea">
+<!--                    <div grid grid-cols-2 gap-4 mt-3 mb-2 ml-2>-->
+<!--                        <ToggleSwitch label="Show Grid" v-model="particleLife.hasGrid" :disabled="!particleLife.isWallRepel && !particleLife.isWallWrap" mr-4/>-->
+<!--                        <ToggleSwitch label="Repel Walls" v-model="particleLife.isWallRepel" />-->
+<!--                        <ToggleSwitch label="Wrapped" v-model="particleLife.isWallWrap" />-->
+<!--                    </div>-->
+                    <div overflow-auto flex-1 mt-2 class="scrollableArea">
                         <Collapse label="Matrix Settings" icon="i-tabler-grid-4x4">
                             <MatrixSettings
                                 @updateRulesMatrix="updateRulesMatrixValue"
@@ -38,6 +38,9 @@
                                     <SelectButton :id="0" label="Rectangle" v-model="particleLife.wallShape" mr-2 />
                                     <SelectButton :id="1" label="Circle" v-model="particleLife.wallShape" :disabled="particleLife.isWallWrap" />
                                 </div>
+                            </div>
+                            <div mb-2>
+                                <WallStateSelection />
                             </div>
                             <div flex mb-1>
                                 <SelectButton :id="1" label="Screen" v-model="particleLife.screenMultiplierForGridSize" mr-2 />
@@ -130,12 +133,8 @@
                     <span text-sm :class="particleLife.hasCells ? 'i-tabler-bug-filled' : 'i-tabler-bug'"></span>
                 </button>
                 <button type="button" btn w-8 aspect-square rounded-full p1 flex items-center justify-center bg="#212121 hover:#333333" mt-2
-                        @click="particleLife.hasGrid = !particleLife.hasGrid" :disabled="!particleLife.isWallRepel">
+                        @click="particleLife.hasGrid = !particleLife.hasGrid" :disabled="!particleLife.isWallRepel && !particleLife.isWallWrap" class="disabled:cursor-not-allowed">
                     <span text-sm :class="particleLife.hasGrid ? 'i-tabler-bread' : 'i-tabler-bread-off'"></span>
-                </button>
-                <button type="button" btn w-8 aspect-square rounded-full p1 flex items-center justify-center bg="#212121 hover:#333333" mt-2
-                        @click="particleLife.isWallRepel = !particleLife.isWallRepel">
-                    <span text-sm :class="particleLife.isWallRepel ? 'i-tabler-infinity-off' : 'i-tabler-infinity'"></span>
                 </button>
             </div>
 
@@ -172,8 +171,9 @@ import MatrixSettings from "~/components/particle-life/MatrixSettings.vue";
 import RulesMatrix from "~/components/particle-life/RulesMatrix.vue";
 import Memory from "~/components/particle-life/Memory.vue";
 import BrushSettings from "~/components/particle-life/BrushSettings.vue";
+import WallStateSelection from "~/components/particle-life/WallStateSelection.vue";
 export default defineComponent({
-    components: { MatrixSettings, RulesMatrix, Memory, BrushSettings },
+    components: { MatrixSettings, RulesMatrix, Memory, BrushSettings, WallStateSelection },
     setup() {
         definePageMeta({ layout: 'life' })
         const particleLife = useParticleLifeStore()
@@ -1037,9 +1037,9 @@ export default defineComponent({
                 // Apply wrapping for the walls
                 else if (isWallWrap) {
                     if (positionX[i] > gridWidth) positionX[i] -= gridWidth;
-                    if (positionX[i] < 0) positionX[i] += gridWidth;
+                    else if (positionX[i] < 0) positionX[i] += gridWidth;
                     if (positionY[i] > gridHeight) positionY[i] -= gridHeight;
-                    if (positionY[i] < 0) positionY[i] += gridHeight;
+                    else if (positionY[i] < 0) positionY[i] += gridHeight;
                 }
 
                 drawParticle(positionX[i], positionY[i], 0, currentColors[colors[i]], particleSize)
@@ -1083,9 +1083,9 @@ export default defineComponent({
                 // Apply wrapping for the walls
                 else if (isWallWrap) {
                     if (positionX[i] > gridWidth) positionX[i] -= gridWidth;
-                    if (positionX[i] < 0) positionX[i] += gridWidth;
+                    else if (positionX[i] < 0) positionX[i] += gridWidth;
                     if (positionY[i] > gridHeight) positionY[i] -= gridHeight;
-                    if (positionY[i] < 0) positionY[i] += gridHeight;
+                    else if (positionY[i] < 0) positionY[i] += gridHeight;
                 }
 
                 // Bounce off the depth limit
@@ -1166,7 +1166,7 @@ export default defineComponent({
             ctx!.stroke()
         }
         function drawWithBrush() {
-            if (isWallRepel) {
+            if (isWallRepel || isWallWrap) {
                 const posX = (pointerX / zoomFactor) - gridOffsetX
                 const posY = (pointerY / zoomFactor) - gridOffsetY
                 if (wallShape === 0) { // Rectangle Shape
@@ -1209,7 +1209,7 @@ export default defineComponent({
                     if (x * x + y * y <= brushRadius * brushRadius) {
                         const posX = (pointerX / zoomFactor) - gridOffsetX + x // Adjust the X position based on the grid offset and the random X position
                         const posY = (pointerY / zoomFactor) - gridOffsetY + y // Adjust the Y position based on the grid offset and the random Y position
-                        if (isWallRepel) {
+                        if (isWallRepel || isWallWrap) {
                             if (wallShape === 0) { // Rectangle Shape
                                 if (posX > gridWidth || posX < 0 || posY > gridHeight || posY < 0) {
                                     continue // Skip if the particle is outside the rectangle
