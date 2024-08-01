@@ -1,11 +1,13 @@
 <template>
     <div class="faded-hover-effect">
         <button type="button" btn w-8 aspect-square rounded-full p1 flex items-center justify-center
-                :class="particleLife.isBrushActive ? 'bg-blue-900 hover:bg-gray-700' : 'bg-#212121 hover:bg-#333333'"
-                @click="particleLife.isBrushActive = !particleLife.isBrushActive">
+                :class="particleLife.isBrushActive && particleLife.brushType === 1 ? 'bg-blue-900 hover:bg-gray-700' : 'bg-#212121 hover:bg-#333333'"
+                @click="toggleBrushType(1)">
             <span i-tabler-brush text-sm></span>
         </button>
-        <button type="button" btn w-8 aspect-square rounded-full p1 flex items-center justify-center bg="#212121aa hover:#333333aa">
+        <button type="button" btn w-8 aspect-square rounded-full p1 flex items-center justify-center
+                :class="particleLife.isBrushActive && particleLife.brushType === 0 ? 'bg-blue-900 hover:bg-gray-700' : 'bg-#212121 hover:bg-#333333'"
+                @click="toggleBrushType(0)">
             <span i-tabler-eraser text-sm></span>
         </button>
         <button type="button" btn w-8 aspect-square rounded-full p1 flex items-center justify-center bg="#212121aa hover:#333333aa">
@@ -34,6 +36,14 @@ export default defineComponent({
     setup(props, { emit }) {
         const particleLife = useParticleLifeStore()
 
+        function toggleBrushType(brushType: number) {
+            if (particleLife.isBrushActive && particleLife.brushType === brushType) {
+                particleLife.isBrushActive = false
+            } else {
+                particleLife.brushType = brushType
+                particleLife.isBrushActive = true
+            }
+        }
         function toggleBrushColor(index: number | null) {
             particleLife.isBrushActive = true
             if (index === null) {
@@ -48,7 +58,7 @@ export default defineComponent({
             }
         }
 
-        return { particleLife, toggleBrushColor }
+        return { particleLife, toggleBrushType, toggleBrushColor }
     }
 })
 </script>

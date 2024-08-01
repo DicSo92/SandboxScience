@@ -8,6 +8,7 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
     const brushes = ref<number[]>([]) // Brush particles
     const brushRadius = ref<number>(300) // Brush radius
     const brushIntensity = ref<number>(10) // Brush intensity (number of particles)
+    const brushType = ref<number>(1) // Brush type (0: Add, 1: Remove)
 
     const currentColors = ref<number[]>([]) // Current colors for the particles
     const rulesMatrix = ref<number[][]>([]) // Rules matrix for each color
@@ -28,14 +29,15 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
     const hasGrid = ref<boolean>(true) // Enable grid
     const hasCells = ref<boolean>(false) // Enable cells
     const isCellFollow = ref<boolean>(false) // Enable cells to follow the particles
-    const hasWalls = ref<boolean>(true) // Enable walls X and Y for the particles
+    const isWallRepel = ref<boolean>(true) // Enable walls X and Y for the particles
+    const isWallWrap = ref<boolean>(false) // Enable wrapped particles
     const hasDepthSize = ref<boolean>(true) // Enable depth size effect
     const hasDepthOpacity = ref<boolean>(false) // Enable depth opacity effect
     const maxOpacity = ref<number>(1) // Maximum opacity when hasDepthOpacity is enabled
     const minOpacity = ref<number>(0.5) // Depth effect will be stronger with lower opacity
     const cellShape = ref<number>(0) // 0: Rectangle, 1: Circle
     const wallShape = ref<number>(0) // 0: Rectangle, 1: Circle
-    const screenMultiplierForGridSize = ref<number>(2.5) // Multiplier for the grid size (1 means the grid will be the same size as the screen)
+    const screenMultiplierForGridSize = ref<number>(3) // Multiplier for the grid size (1 means the grid will be the same size as the screen)
 
     const cellGroupSize = ref<number>(0) // Minimum number of particles to be considered a group (0 to visualize all cells)
     const cellSizeFactor = ref<number>(1) // Size of the cells at zoomFactor = 1
@@ -52,18 +54,20 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
     const maxRadiusRangeOffset = ref<number>(30) // Offset for the range of the maxRadius of each color
     const maxRadiusRangeMax = ref<number>(150) // Max range for the maxRadius of each color
 
+    const currentMaxRadius = ref<number>(0) // Current max radius for the particles
+
     function $reset() {
         sidebarLeftOpen.value = false
     }
 
     return {
         sidebarLeftOpen, isLockedPointer,
-        isRunning, isBrushActive, brushes, brushRadius, brushIntensity,
+        isRunning, isBrushActive, brushes, brushRadius, brushIntensity, brushType,
         rulesMatrix, minRadiusMatrix, maxRadiusMatrix, currentColors,
         gridWidth, gridHeight, linkProportions,
         numParticles, particleSize, numColors, depthLimit,
-        is3D, isCircle, hasGrid, hasCells, isCellFollow, hasWalls, hasDepthSize, hasDepthOpacity, maxOpacity, minOpacity, cellShape, wallShape, screenMultiplierForGridSize,
-        minRadiusRange, maxRadiusRangeOffset, maxRadiusRangeMax,
+        is3D, isCircle, hasGrid, hasCells, isCellFollow, isWallRepel, isWallWrap, hasDepthSize, hasDepthOpacity, maxOpacity, minOpacity, cellShape, wallShape, screenMultiplierForGridSize,
+        minRadiusRange, maxRadiusRangeOffset, maxRadiusRangeMax, currentMaxRadius,
         maxRadius, minRadius, repel, forceFactor, frictionFactor,
         cellGroupSize, cellSizeFactor,
         $reset
