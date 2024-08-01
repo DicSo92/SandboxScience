@@ -318,10 +318,12 @@ export default defineComponent({
                 }
             })
             useEventListener(lifeCanvas, ['touchstart'], (e) => {
+                e.preventDefault()
                 lastPointerX = e.touches[0].clientX - lifeCanvas!.getBoundingClientRect().left
                 lastPointerY = e.touches[0].clientY - lifeCanvas!.getBoundingClientRect().top
             })
             useEventListener(lifeCanvas, ['touchmove'], (e) => {
+                e.preventDefault()
                 pointerX = e.touches[0].clientX - lifeCanvas!.getBoundingClientRect().left
                 pointerY = e.touches[0].clientY - lifeCanvas!.getBoundingClientRect().top
 
@@ -330,6 +332,7 @@ export default defineComponent({
                 handleMove()
             })
             useEventListener(lifeCanvas, ['touchend'], (e) => {
+                e.preventDefault()
                 console.log('end touch')
                 isDragging = false
             })
