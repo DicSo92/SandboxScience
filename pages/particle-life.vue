@@ -421,6 +421,7 @@ export default defineComponent({
                 currentColors.push(i * 360 / numColors) // HSL color (precalculated)
             }
             particleLife.currentColors = currentColors
+            particleLife.brushes = []
         }
         function initParticles() {
             for (let i = 0; i < numParticles; ++i) {
@@ -1540,7 +1541,7 @@ export default defineComponent({
         }
         watch(() => particleLife.numParticles, (value) => updateNumParticles(value))
         watch(() => particleLife.numColors, (value) => updateNumColors(value))
-        watch(() => particleLife.brushes, (value) => brushes= value)
+        watch(() => particleLife.brushes, (value: number[]) => brushes = value)
         watch(() => particleLife.brushRadius, (value) => brushRadius = value)
         watch(() => particleLife.brushIntensity, (value) => brushIntensity = value)
         watch(() => particleLife.brushType, (value: number) => brushType = value)
