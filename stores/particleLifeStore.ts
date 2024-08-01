@@ -8,6 +8,7 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
     const brushes = ref<number[]>([]) // Brush particles
     const brushRadius = ref<number>(300) // Brush radius
     const brushIntensity = ref<number>(10) // Brush intensity (number of particles)
+    const brushType = ref<number>(1) // Brush type (0: Add, 1: Remove)
 
     const currentColors = ref<number[]>([]) // Current colors for the particles
     const rulesMatrix = ref<number[][]>([]) // Rules matrix for each color
@@ -61,7 +62,7 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
 
     return {
         sidebarLeftOpen, isLockedPointer,
-        isRunning, isBrushActive, brushes, brushRadius, brushIntensity,
+        isRunning, isBrushActive, brushes, brushRadius, brushIntensity, brushType,
         rulesMatrix, minRadiusMatrix, maxRadiusMatrix, currentColors,
         gridWidth, gridHeight, linkProportions,
         numParticles, particleSize, numColors, depthLimit,

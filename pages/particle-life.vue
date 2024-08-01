@@ -28,7 +28,7 @@
                             </MatrixSettings>
                         </Collapse>
                         <Collapse label="World Settings" icon="i-tabler-world-cog" opened mt-2>
-                            <RangeInput input label="Particle Number" :min="particleLife.numColors" :max="20000" :step="10" v-model="particleLife.numParticles" />
+                            <RangeInput input label="Particle Number" :min="0" :max="20000" :step="10" v-model="particleLife.numParticles" />
                             <RangeInput input label="Color Number" :min="1" :max="20" :step="1" v-model="particleLife.numColors" mt-2 />
                             <RangeInput input label="Depth Limit" :min="0" :max="1000" :step="1" v-model="particleLife.depthLimit" mt-2 />
 
@@ -199,6 +199,7 @@ export default defineComponent({
         let brushes: number[] = particleLife.brushes
         let brushRadius: number = particleLife.brushRadius
         let brushIntensity: number = particleLife.brushIntensity
+        let brushType: number = particleLife.brushType // 0: Erase, 1: Draw
 
         // Define color list and rules matrix for the particles
         let currentColors: number[] = [] // Current colors for the particles
@@ -292,7 +293,8 @@ export default defineComponent({
                 lastPointerY = e.y - lifeCanvas!.getBoundingClientRect().top
                 if (e.buttons > 0) {
                     if (e.buttons === 2 && isBrushActive) { // if secondary button is pressed (right click)
-                        drawWithBrush()
+                        if (brushType === 0) eraseWithBrush()
+                        else if (brushType === 1) drawWithBrush()
                     }
                 }
             })
@@ -307,7 +309,8 @@ export default defineComponent({
                         handleMove()
                     }
                     if (e.buttons === 2 && isBrushActive) { // if secondary button is pressed (right click)
-                        drawWithBrush()
+                        if (brushType === 0) eraseWithBrush()
+                        else if (brushType === 1) drawWithBrush()
                     }
                 }
                 if (e.buttons === 0) {
@@ -1029,17 +1032,17 @@ export default defineComponent({
                         if (distanceSquared > circleRadius * circleRadius) {
                             positionX[i] -= velocityX[i]
                             positionY[i] -= velocityY[i]
-                            velocityX[i] *= -1.2;
-                            velocityY[i] *= -1.2;
+                            velocityX[i] *= -1.2
+                            velocityY[i] *= -1.2
                         }
                     }
                 }
                 // Apply wrapping for the walls
                 else if (isWallWrap) {
-                    if (positionX[i] > gridWidth) positionX[i] -= gridWidth;
-                    else if (positionX[i] < 0) positionX[i] += gridWidth;
-                    if (positionY[i] > gridHeight) positionY[i] -= gridHeight;
-                    else if (positionY[i] < 0) positionY[i] += gridHeight;
+                    if (positionX[i] > gridWidth) positionX[i] -= gridWidth
+                    else if (positionX[i] < 0) positionX[i] += gridWidth
+                    if (positionY[i] > gridHeight) positionY[i] -= gridHeight
+                    else if (positionY[i] < 0) positionY[i] += gridHeight
                 }
 
                 drawParticle(positionX[i], positionY[i], 0, currentColors[colors[i]], particleSize)
@@ -1075,17 +1078,17 @@ export default defineComponent({
                         if (distanceSquared > circleRadius * circleRadius) {
                             positionX[i] -= velocityX[i]
                             positionY[i] -= velocityY[i]
-                            velocityX[i] *= -1.2;
-                            velocityY[i] *= -1.2;
+                            velocityX[i] *= -1.2
+                            velocityY[i] *= -1.2
                         }
                     }
                 }
                 // Apply wrapping for the walls
                 else if (isWallWrap) {
-                    if (positionX[i] > gridWidth) positionX[i] -= gridWidth;
-                    else if (positionX[i] < 0) positionX[i] += gridWidth;
-                    if (positionY[i] > gridHeight) positionY[i] -= gridHeight;
-                    else if (positionY[i] < 0) positionY[i] += gridHeight;
+                    if (positionX[i] > gridWidth) positionX[i] -= gridWidth
+                    else if (positionX[i] < 0) positionX[i] += gridWidth
+                    if (positionY[i] > gridHeight) positionY[i] -= gridHeight
+                    else if (positionY[i] < 0) positionY[i] += gridHeight
                 }
 
                 // Bounce off the depth limit
@@ -1115,6 +1118,7 @@ export default defineComponent({
                 drawParticle(positionX[i], positionY[i], positionZ[i], currentColors[colors[i]], particleSize)
             }
             if (hasGrid) drawGrid()
+            if (hasCells || isBrushActive) assignParticlesToCells()
             if (hasCells) drawCells()
         }
         function drawGrid() {
@@ -1139,25 +1143,6 @@ export default defineComponent({
             ctx!.moveTo(x, startGridY)
             ctx!.lineTo(x, y)
         }
-        function setGridSizeWhenWrapped() { // Set the grid size when the walls are wrapped
-            particleLife.gridWidth = gridWidth = cellSize * Math.round(gridWidth / cellSize) - 4
-            particleLife.gridHeight = gridHeight = cellSize * Math.round(gridHeight / cellSize) - 4
-        }
-        function setShapesProperties() {
-            // Set the half particle size
-            halfParticleSize = particleSize * zoomFactor / 2
-
-            // Set the rectangle grid properties
-            startGridX = gridOffsetX * zoomFactor - halfParticleSize // Start X position of the grid minus half particle size
-            startGridY = gridOffsetY * zoomFactor - halfParticleSize // Start Y position of the grid minus half particle size
-            endGridX = gridOffsetX * zoomFactor + gridWidth * zoomFactor + halfParticleSize // End X position of the grid plus half particle size
-            endGridY = gridOffsetY * zoomFactor + gridHeight * zoomFactor + halfParticleSize // End Y position of the grid plus half particle size
-
-            // Set the circle grid properties
-            circleRadius = gridHeight / 2
-            circleCenterX = gridWidth / 2
-            circleCenterY = circleRadius
-        }
         function drawBrush() {
             ctx!.beginPath()
             ctx!.arc(pointerX, pointerY, brushRadius * zoomFactor, 0, Math.PI * 2)
@@ -1165,23 +1150,49 @@ export default defineComponent({
             ctx!.lineWidth = 1
             ctx!.stroke()
         }
-        function drawWithBrush() {
-            if (isWallRepel || isWallWrap) {
-                const posX = (pointerX / zoomFactor) - gridOffsetX
-                const posY = (pointerY / zoomFactor) - gridOffsetY
-                if (wallShape === 0) { // Rectangle Shape
-                    if (posX > gridWidth || posX < 0 || posY > gridHeight || posY < 0) {
-                        return // Skip if brush is outside the rectangle
-                    }
-                } else { // Circle Shape
-                    const dx = posX - circleCenterX // X distance between the particle and the center of the circle
-                    const dy = posY - circleCenterY // Y distance between the particle and the center of the circle
-                    const distanceSquared = dx * dx + dy * dy // Square of the distance between the particle and the center of the circle
-                    if (distanceSquared > circleRadius * circleRadius) {
-                        return // Skip if brush is outside the circle
+        function eraseWithBrush() {
+            // Skip if brush is outside walls
+            if (isBrushOutsideWalls()) return
+
+            // Detect cells within the brush radius
+            const posX = (pointerX / zoomFactor) - gridOffsetX
+            const posY = (pointerY / zoomFactor) - gridOffsetY
+            const startCellX = Math.floor((posX - brushRadius) / cellSize)
+            const startCellY = Math.floor((posY - brushRadius) / cellSize)
+            const endCellX = Math.floor((posX + brushRadius) / cellSize)
+            const endCellY = Math.floor((posY + brushRadius) / cellSize)
+
+            const cellsInRadius = []
+            for (let cellY = startCellY; cellY <= endCellY; cellY++) {
+                for (let cellX = startCellX; cellX <= endCellX; cellX++) {
+                    const cellKey = `${cellX},${cellY}`
+                    if (cells.has(cellKey)) {
+                        cellsInRadius.push(cellKey)
                     }
                 }
             }
+            // Detect particles within the brush radius
+            const particlesInRadius: number[] = []
+            for (let i = 0; i < cellsInRadius.length; i++) {
+                const cellKey = cellsInRadius[i]
+                const particles = cells.get(cellKey)
+
+                for (let j = 0; j < particles!.length; j++) {
+                    const index = particles![j]
+                    const dx = positionX[index] - posX
+                    const dy = positionY[index] - posY
+                    if (dx * dx + dy * dy <= brushRadius * brushRadius) {
+                        particlesInRadius.push(index)
+                    }
+                }
+            }
+            // Remove particles within the brush radius
+            removeParticleGroup(particlesInRadius)
+        }
+        function drawWithBrush() {
+            // Skip if brush is outside walls
+            if (isBrushOutsideWalls()) return
+
             const minZDepthRandomParticle = depthLimit * 0.2 // The minimum Z-depth for randomly placed particles, in percentage of the depthLimit
             const maxZDepthRandomParticle = depthLimit * 0.45 // The maximum Z-depth for randomly placed particles, in percentage of the depthLimit
 
@@ -1246,8 +1257,46 @@ export default defineComponent({
             numParticles += brushIntensity
             particleLife.numParticles = numParticles
         }
+        function isBrushOutsideWalls() {
+            if (isWallRepel || isWallWrap) {
+                const posX = (pointerX / zoomFactor) - gridOffsetX
+                const posY = (pointerY / zoomFactor) - gridOffsetY
+                if (wallShape === 0) { // Rectangle Shape
+                    if (posX > gridWidth || posX < 0 || posY > gridHeight || posY < 0) {
+                        return true
+                    }
+                } else { // Circle Shape
+                    const dx = posX - circleCenterX // X distance between the particle and the center of the circle
+                    const dy = posY - circleCenterY // Y distance between the particle and the center of the circle
+                    const distanceSquared = dx * dx + dy * dy // Square of the distance between the particle and the center of the circle
+                    if (distanceSquared > circleRadius * circleRadius) {
+                        return true
+                    }
+                }
+            }
+            return false // Within the walls or no walls
+        }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
+        function setGridSizeWhenWrapped() { // Set the grid size when the walls are wrapped
+            particleLife.gridWidth = gridWidth = cellSize * Math.round(gridWidth / cellSize) - 4
+            particleLife.gridHeight = gridHeight = cellSize * Math.round(gridHeight / cellSize) - 4
+        }
+        function setShapesProperties() {
+            // Set the half particle size
+            halfParticleSize = particleSize * zoomFactor / 2
+
+            // Set the rectangle grid properties
+            startGridX = gridOffsetX * zoomFactor - halfParticleSize // Start X position of the grid minus half particle size
+            startGridY = gridOffsetY * zoomFactor - halfParticleSize // Start Y position of the grid minus half particle size
+            endGridX = gridOffsetX * zoomFactor + gridWidth * zoomFactor + halfParticleSize // End X position of the grid plus half particle size
+            endGridY = gridOffsetY * zoomFactor + gridHeight * zoomFactor + halfParticleSize // End Y position of the grid plus half particle size
+
+            // Set the circle grid properties
+            circleRadius = gridHeight / 2
+            circleCenterX = gridWidth / 2
+            circleCenterY = circleRadius
+        }
         function updateGridWidth(newWidth: number | Event) {
             if (typeof(newWidth) !== 'number') return // Prevent input event like unfocus
             if (particleLife.linkProportions) particleLife.gridHeight = gridHeight = Math.round(gridHeight * (newWidth / gridWidth))
@@ -1278,6 +1327,57 @@ export default defineComponent({
             if (isWallWrap) setGridSizeWhenWrapped()
             setShapesProperties()
             initParticles()
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
+        function assignParticlesToCells() {
+            cells = new Map<string, number[]>()
+            for (let i = 0; i < numParticles; i++) {
+                const cellX = Math.floor(positionX[i] / cellSize)
+                const cellY = Math.floor(positionY[i] / cellSize)
+                const cellKey = `${cellX},${cellY}`
+                if (!cells.has(cellKey)) {
+                    cells.set(cellKey, [])
+                }
+                cells.get(cellKey)!.push(i)
+            }
+        }
+        function removeParticleGroup(particles: number[]) {
+            const newSize = numParticles - particles.length
+            const newColors = new Int32Array(newSize)
+            const newPositionX = new Float32Array(newSize)
+            const newPositionY = new Float32Array(newSize)
+            const newPositionZ = new Float32Array(newSize)
+            const newVelocityX = new Float32Array(newSize)
+            const newVelocityY = new Float32Array(newSize)
+            const newVelocityZ = new Float32Array(newSize)
+
+            particles.sort((a: any, b: any) => a - b) // Sort the indexes in ascending order
+            for (let i = 0, j = 0, k = 0; i < numParticles; i++) {
+                if (k < particles.length && i === particles[k]) {
+                    k++ // Skip the particle if it is within the brush radius
+                } else {
+                    newColors[j] = colors[i]
+                    newPositionX[j] = positionX[i]
+                    newPositionY[j] = positionY[i]
+                    newPositionZ[j] = positionZ[i]
+                    newVelocityX[j] = velocityX[i]
+                    newVelocityY[j] = velocityY[i]
+                    newVelocityZ[j] = velocityZ[i]
+                    j++
+                }
+            }
+
+            colors = newColors
+            positionX = newPositionX
+            positionY = newPositionY
+            positionZ = newPositionZ
+            velocityX = newVelocityX
+            velocityY = newVelocityY
+            velocityZ = newVelocityZ
+
+            numParticles = newSize
+            particleLife.numParticles = numParticles
         }
         function updateNumParticles(newNumParticles: number) {
             if (newNumParticles === numParticles) return // Skip if the number of particles is the same
@@ -1440,6 +1540,7 @@ export default defineComponent({
         watch(() => particleLife.brushes, (value) => brushes= value)
         watch(() => particleLife.brushRadius, (value) => brushRadius = value)
         watch(() => particleLife.brushIntensity, (value) => brushIntensity = value)
+        watch(() => particleLife.brushType, (value: number) => brushType = value)
         watchAndDraw(() => particleLife.is3D, () => setAlgorithms())
         watchAndDraw(() => particleLife.isRunning, (value: boolean) => isRunning = value)
         watchAndDraw(() => particleLife.isBrushActive, (value: boolean) => isBrushActive = value)
