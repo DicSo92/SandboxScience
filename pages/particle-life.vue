@@ -1186,6 +1186,7 @@ export default defineComponent({
                     const dx = positionX[index] - posX
                     const dy = positionY[index] - posY
                     if (dx * dx + dy * dy <= brushRadius * brushRadius) {
+                        if (brushes.length > 0 && !brushes.includes(colors[index])) continue
                         particlesInRadius.push(index)
                     }
                 }
