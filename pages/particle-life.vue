@@ -200,6 +200,9 @@ export default defineComponent({
         let brushRadius: number = particleLife.brushRadius
         let brushIntensity: number = particleLife.brushIntensity
         let brushType: number = particleLife.brushType // 0: Erase, 1: Draw
+        let attractForce: number = particleLife.attractForce
+        let repulseForce: number = particleLife.repulseForce
+        let isMagnetActive: boolean = false
 
         // Define color list and rules matrix for the particles
         let currentColors: number[] = [] // Current colors for the particles
@@ -295,6 +298,9 @@ export default defineComponent({
                     if (e.buttons === 2 && isBrushActive) { // if secondary button is pressed (right click)
                         if (brushType === 0) eraseWithBrush()
                         else if (brushType === 1) drawWithBrush()
+                        else if (brushType === 2 || brushType === 3) {
+                            isMagnetActive = true
+                        }
                     }
                 }
             })
@@ -313,8 +319,17 @@ export default defineComponent({
                         else if (brushType === 1) drawWithBrush()
                     }
                 }
-                if (e.buttons === 0) {
+                else if (e.buttons === 0) {
                     isDragging = false
+                    isMagnetActive = false
+                }
+            })
+            useEventListener(lifeCanvas, ['mouseup'], (e) => {
+                isDragging = false
+                if (e.button === 2 && isBrushActive) { // if secondary button is pressed (right click)
+                    if (brushType === 2 || brushType === 3) { // Magnet
+                        isMagnetActive = false
+                    }
                 }
             })
             useEventListener(lifeCanvas, ['touchstart'], (e) => {
@@ -514,6 +529,10 @@ export default defineComponent({
                 updateParticles()
                 if (hasGrid) drawGrid()
                 if (hasCells) drawCells()
+                if (isMagnetActive) {
+                    if (brushType === 2) magnetWithBrush(repulseForce)
+                    else if (brushType === 3) magnetWithBrush(attractForce)
+                }
             } else {
                 if (isDragging || isBrushActive) simpleDrawParticles()
             }
@@ -1154,10 +1173,7 @@ export default defineComponent({
             ctx!.lineWidth = 1
             ctx!.stroke()
         }
-        function eraseWithBrush() {
-            // Skip if brush is outside walls
-            if (isBrushOutsideWalls()) return
-
+        function getParticlesInBrush() : number[] {
             // Detect cells within the brush radius
             const posX = (pointerX / zoomFactor) - gridOffsetX
             const posY = (pointerY / zoomFactor) - gridOffsetY
@@ -1191,8 +1207,35 @@ export default defineComponent({
                     }
                 }
             }
+            return particlesInRadius
+        }
+        function eraseWithBrush() {
+            // Skip if brush is outside walls
+            if (isBrushOutsideWalls()) return
+
             // Remove particles within the brush radius
-            removeParticleGroup(particlesInRadius)
+            removeParticleGroup(getParticlesInBrush())
+        }
+        function magnetWithBrush(magnetForce: number) {
+            // Skip if brush is outside walls
+            if (isBrushOutsideWalls()) return
+
+            const posX = (pointerX / zoomFactor) - gridOffsetX
+            const posY = (pointerY / zoomFactor) - gridOffsetY
+
+            const particlesInRadius = getParticlesInBrush()
+            // Attract particles within the brush radius
+            for (let i = 0; i < particlesInRadius.length; i++) {
+                const index = particlesInRadius[i]
+                const dx = posX - positionX[index]
+                const dy = posY - positionY[index]
+                const distance = Math.sqrt(dx * dx + dy * dy)
+
+                const force = getForce(magnetForce, 0, brushRadius, distance)
+
+                velocityX[index] += dx / distance * force / forceFactor
+                velocityY[index] += dy / distance * force / forceFactor
+            }
         }
         function drawWithBrush() {
             // Skip if brush is outside walls
