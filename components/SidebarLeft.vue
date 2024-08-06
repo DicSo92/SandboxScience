@@ -1,6 +1,6 @@
 <template>
-    <div>
-        <div my-3 mx-1 fixed left-0 z-10 :style="toggleBtnStyle">
+    <div class="faded-hover-effect">
+        <div my-3 mx-1 fixed left-0 z-10 :style="toggleBtnStyle" >
             <button rounded-full btn flex items-center p-4 id="sidebarLeftBtn" bg="gray-800 hover:gray-900" @click="toggle">
                 <span i-tabler-settings text-2xl></span>
             </button>
@@ -14,7 +14,7 @@
                     leave-to-class="-translate-x-full">
             <div v-show="modelValue" :style="`width: ${sidebarWidth}px`"
                  class="z-50 fixed inset-y-0 left-0 max-w-full max-h-full flex border-r border-gray-400"> <!-- inset-y-0 for fullheight sidebar -->
-                <div class="h-full w-full flex flex-col pb-4 pt-12 bg-gray-600 shadow-xl">
+                <div class="h-full w-full flex flex-col pb-2 pt-12 bg-gray-600 shadow-xl">
                     <slot></slot>
                 </div>
             </div>
@@ -54,7 +54,5 @@ export default defineComponent({
 </script>
 
 <style scoped>
-#sidebarLeftBtn {
-
-}
+#sidebarLeftBtn {}
 </style>

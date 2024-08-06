@@ -1,6 +1,6 @@
 <template>
-    <div mt-4 flex>
-        <p v-if="label" class="w-2/3">{{ label }}</p>
+    <div mt-2 flex>
+        <p v-if="label" class="w-2/3 -mt-2">{{ label }}</p>
         <div flex flex-col w-full>
             <div relative flex-1 ml-2>
                 <input type="range"
