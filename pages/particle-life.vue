@@ -201,7 +201,7 @@ export default defineComponent({
         let brushIntensity: number = particleLife.brushIntensity
         let brushType: number = particleLife.brushType // 0: Erase, 1: Draw
         let attractForce: number = particleLife.attractForce
-        let repulseForce: number = particleLife.repulseForce
+        let repulseForce: number = -Math.abs(particleLife.repulseForce)
         let isMagnetActive: boolean = false
 
         // Define color list and rules matrix for the particles
@@ -1589,6 +1589,8 @@ export default defineComponent({
         watch(() => particleLife.brushRadius, (value) => brushRadius = value)
         watch(() => particleLife.brushIntensity, (value) => brushIntensity = value)
         watch(() => particleLife.brushType, (value: number) => brushType = value)
+        watch(() => particleLife.attractForce, (value: number) => attractForce = value)
+        watch(() => particleLife.repulseForce, (value: number) => repulseForce = -Math.abs(value))
         watchAndDraw(() => particleLife.is3D, () => setAlgorithms())
         watchAndDraw(() => particleLife.isRunning, (value: boolean) => isRunning = value)
         watchAndDraw(() => particleLife.isBrushActive, (value: boolean) => isBrushActive = value)
