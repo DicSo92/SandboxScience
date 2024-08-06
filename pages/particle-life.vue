@@ -175,7 +175,32 @@ import WallStateSelection from "~/components/particle-life/WallStateSelection.vu
 export default defineComponent({
     components: { MatrixSettings, RulesMatrix, Memory, BrushSettings, WallStateSelection },
     setup() {
-        definePageMeta({ layout: 'life' })
+        definePageMeta({
+            layout: 'life',
+        })
+        useHead({
+            title: 'Particle Life',
+            meta: [
+                { name: 'description', content: 'Discover Particle Life, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.' },
+                { name: 'keywords', content: 'ParticleLife, particle simulation, particle, life, simulation, science, physics, education, system dynamics, interactive' },
+                { name: 'author', content: 'DicSo92' },
+                { property: 'og:type', content: 'website' },
+                { property: 'og:title', content: 'ParticleLife - Particle Simulation' },
+                { property: 'og:description', content: 'Discover ParticleLife, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.' },
+                { property: 'og:image', content: 'https://www.sandbox-science.com/images/particlelife-thumbnail.jpg' },
+                { property: 'og:url', content: 'https://www.sandbox-science.com/particle-life' },
+                { property: 'og:site_name', content: 'Sandbox Science' },
+                { name: 'twitter:card', content: 'summary_large_image' },
+                { name: 'twitter:title', content: 'ParticleLife - Particle Simulation' },
+                { name: 'twitter:description', content: 'Discover ParticleLife, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.' },
+                { name: 'twitter:image', content: 'https://www.sandbox-science.com/images/particlelife-thumbnail.jpg' },
+                { name: 'twitter:site', content: '@SandboxScience' },
+            ],
+            link: [
+                { rel: 'canonical', href: 'https://www.sandbox-science.com/particle-life' },
+                { rel: 'icon', href: 'https://www.sandbox-science.com/favicon.ico', type: 'image/x-icon' },
+            ]
+        })
         const particleLife = useParticleLifeStore()
 
         const mainContainer = ref<HTMLElement | null>(null)

@@ -25,7 +25,7 @@
                 <span i-tabler-settings text-sm></span>
             </button>
             <div absolute class="settings-panel pr-1 left-0 top-0 -translate-x-full">
-                <div p-3 pl-4 bg-zinc-800 w-64 rounded text-left>
+                <div p-3 pl-4 bg-zinc-800 w-64 rounded-lg text-left>
                     <p underline mb-2>Brush Settings :</p>
                     <div text-gray-300>
                         <div flex items-center mb-2>
