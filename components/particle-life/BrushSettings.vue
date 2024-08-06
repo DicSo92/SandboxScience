@@ -10,9 +10,54 @@
                 @click="toggleBrushType(0)">
             <span i-tabler-eraser text-sm></span>
         </button>
-        <button type="button" btn w-8 aspect-square rounded-full p1 flex items-center justify-center bg="#212121aa hover:#333333aa">
-            <span i-tabler-settings text-sm></span>
+        <button type="button" btn w-8 aspect-square rounded-full p1 flex items-center justify-center
+                :class="particleLife.isBrushActive && particleLife.brushType === 3 ? 'bg-blue-900 hover:bg-gray-700' : 'bg-#212121 hover:bg-#333333'"
+                @click="toggleBrushType(3)">
+            <span i-tabler-magnetic text-sm></span>
         </button>
+        <button type="button" btn w-8 aspect-square rounded-full p1 flex items-center justify-center
+                :class="particleLife.isBrushActive && particleLife.brushType === 2 ? 'bg-blue-900 hover:bg-gray-700' : 'bg-#212121 hover:bg-#333333'"
+                @click="toggleBrushType(2)">
+            <span i-tabler-magnet text-sm></span>
+        </button>
+        <div class="settings-btn">
+            <button type="button" btn w-8 aspect-square rounded-full p1 flex items-center justify-center bg="#212121aa hover:#333333aa">
+                <span i-tabler-settings text-sm></span>
+            </button>
+            <div absolute class="settings-panel pr-1 left-0 top-0 -translate-x-full">
+                <div p-3 pl-4 bg-zinc-800 w-64 rounded-lg text-left>
+                    <p underline mb-2>Brush Settings :</p>
+                    <div text-gray-300>
+                        <div flex items-center mb-2>
+                            <p mr-2 class="w-1/4">Radius</p>
+                            <div flex-1>
+                                <RangeInput input :min="10" :max="1000" :step="1" v-model="particleLife.brushRadius" />
+                            </div>
+                        </div>
+                        <div flex items-center mb-2>
+                            <p mr-2 class="w-1/4">Intensity</p>
+                            <div flex-1>
+                                <RangeInput input :min="1" :max="100" :step="1" v-model="particleLife.brushIntensity" />
+                            </div>
+                        </div>
+                        <div flex items-center mb-2>
+                            <p mr-2 class="w-1/4">Attract</p>
+                            <div flex-1>
+                                <RangeInput input :min="1" :max="100" :step="1" v-model="particleLife.attractForce" />
+                            </div>
+                        </div>
+                        <div flex items-center>
+                            <p mr-2 class="w-1/4">Repulse</p>
+                            <div flex-1>
+                                <RangeInput input :min="1" :max="100" :step="1" v-model="particleLife.repulseForce" />
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
         <div flex flex-col p1 rounded-full bg-gray-8>
             <button w-6 aspect-square rounded-full class="rainbow"
                  :class="!particleLife.brushes.length && 'border-3 border-gray-400 shadow-inner'"
@@ -76,5 +121,17 @@ export default defineComponent({
         hsl(45, 100%, 50%),
         hsl(0, 100%, 50%)
     );
+}
+.settings-btn {
+    position: relative;
+    &:hover {
+        .settings-panel {
+            display: block;
+        }
+    }
+}
+.settings-panel {
+    display: none;
+    z-index: 100;
 }
 </style>

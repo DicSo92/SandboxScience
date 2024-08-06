@@ -71,12 +71,9 @@
                             <RangeInput input label="Friction Factor" :min="0" :max="1" :step="0.01" v-model="particleLife.frictionFactor" mt-2 />
                         </Collapse>
                         <Collapse label="Randomizer Settings" icon="i-game-icons-perspective-dice-six-faces-random" mt-2>
-                            <RangeInput input label="Min. Radius" :min="1" :max="particleLife.maxRadius" :step="1" v-model="particleLife.minRadius" />
-                            <RangeInput input label="Max. Radius" :min="particleLife.minRadius" :max="256" :step="1" v-model="particleLife.maxRadius" mt-2 />
-                            <hr border-gray-500 mt-3>
-                            <RangeInputMinMax input label="Min. Radius Range" :min="0" :max="100" :step="1" v-model="particleLife.minRadiusRange" mt-2 />
+                            <RangeInputMinMax input label="Min. Radius Range" :min="0" :max="100" :step="1" v-model="particleLife.minRadiusRange" />
                             <RangeInput input label="Max. Radius Offset" :min="1" :max="particleLife.maxRadiusRangeMax" :step="1" v-model="particleLife.maxRadiusRangeOffset" mt-2 />
-                            <RangeInput input label="Max. Radius Max" :min="particleLife.minRadiusRange[1] + particleLife.maxRadiusRangeOffset" :max="300" :step="1" v-model="particleLife.maxRadiusRangeMax" mt-2 />
+                            <RangeInput input label="Max. Radius" :min="particleLife.minRadiusRange[1] + particleLife.maxRadiusRangeOffset" :max="300" :step="1" v-model="particleLife.maxRadiusRangeMax" mt-2 />
                         </Collapse>
                         <Collapse label="Graphics Settings" icon="i-tabler-photo-cog" mt-2>
                             <p underline text-gray-300 mb-2 class="-mt-1">General Settings :</p>
@@ -175,7 +172,32 @@ import WallStateSelection from "~/components/particle-life/WallStateSelection.vu
 export default defineComponent({
     components: { MatrixSettings, RulesMatrix, Memory, BrushSettings, WallStateSelection },
     setup() {
-        definePageMeta({ layout: 'life' })
+        definePageMeta({
+            layout: 'life',
+        })
+        useHead({
+            title: 'Particle Life',
+            meta: [
+                { name: 'description', content: 'Discover Particle Life, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.' },
+                { name: 'keywords', content: 'ParticleLife, particle simulation, particle, life, simulation, science, physics, education, system dynamics, interactive' },
+                { name: 'author', content: 'DicSo92' },
+                { property: 'og:type', content: 'website' },
+                { property: 'og:title', content: 'ParticleLife - Particle Simulation' },
+                { property: 'og:description', content: 'Discover ParticleLife, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.' },
+                { property: 'og:image', content: 'https://www.sandbox-science.com/images/particlelife-thumbnail.jpg' },
+                { property: 'og:url', content: 'https://www.sandbox-science.com/particle-life' },
+                { property: 'og:site_name', content: 'Sandbox Science' },
+                { name: 'twitter:card', content: 'summary_large_image' },
+                { name: 'twitter:title', content: 'ParticleLife - Particle Simulation' },
+                { name: 'twitter:description', content: 'Discover ParticleLife, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.' },
+                { name: 'twitter:image', content: 'https://www.sandbox-science.com/images/particlelife-thumbnail.jpg' },
+                { name: 'twitter:site', content: '@SandboxScience' },
+            ],
+            link: [
+                { rel: 'canonical', href: 'https://www.sandbox-science.com/particle-life' },
+                { rel: 'icon', href: 'https://www.sandbox-science.com/favicon.ico', type: 'image/x-icon' },
+            ]
+        })
         const particleLife = useParticleLifeStore()
 
         const mainContainer = ref<HTMLElement | null>(null)
@@ -200,6 +222,9 @@ export default defineComponent({
         let brushRadius: number = particleLife.brushRadius
         let brushIntensity: number = particleLife.brushIntensity
         let brushType: number = particleLife.brushType // 0: Erase, 1: Draw
+        let attractForce: number = particleLife.attractForce
+        let repulseForce: number = -Math.abs(particleLife.repulseForce)
+        let isMagnetActive: boolean = false
 
         // Define color list and rules matrix for the particles
         let currentColors: number[] = [] // Current colors for the particles
@@ -295,6 +320,9 @@ export default defineComponent({
                     if (e.buttons === 2 && isBrushActive) { // if secondary button is pressed (right click)
                         if (brushType === 0) eraseWithBrush()
                         else if (brushType === 1) drawWithBrush()
+                        else if (brushType === 2 || brushType === 3) {
+                            isMagnetActive = true
+                        }
                     }
                 }
             })
@@ -313,8 +341,17 @@ export default defineComponent({
                         else if (brushType === 1) drawWithBrush()
                     }
                 }
-                if (e.buttons === 0) {
+                else if (e.buttons === 0) {
                     isDragging = false
+                    isMagnetActive = false
+                }
+            })
+            useEventListener(lifeCanvas, ['mouseup'], (e) => {
+                isDragging = false
+                if (e.button === 2 && isBrushActive) { // if secondary button is pressed (right click)
+                    if (brushType === 2 || brushType === 3) { // Magnet
+                        isMagnetActive = false
+                    }
                 }
             })
             useEventListener(lifeCanvas, ['touchstart'], (e) => {
@@ -421,6 +458,7 @@ export default defineComponent({
                 currentColors.push(i * 360 / numColors) // HSL color (precalculated)
             }
             particleLife.currentColors = currentColors
+            particleLife.brushes = []
         }
         function initParticles() {
             for (let i = 0; i < numParticles; ++i) {
@@ -513,6 +551,10 @@ export default defineComponent({
                 updateParticles()
                 if (hasGrid) drawGrid()
                 if (hasCells) drawCells()
+                if (isMagnetActive) {
+                    if (brushType === 2) magnetWithBrush(repulseForce)
+                    else if (brushType === 3) magnetWithBrush(attractForce)
+                }
             } else {
                 if (isDragging || isBrushActive) simpleDrawParticles()
             }
@@ -1153,10 +1195,7 @@ export default defineComponent({
             ctx!.lineWidth = 1
             ctx!.stroke()
         }
-        function eraseWithBrush() {
-            // Skip if brush is outside walls
-            if (isBrushOutsideWalls()) return
-
+        function getParticlesInBrush() : number[] {
             // Detect cells within the brush radius
             const posX = (pointerX / zoomFactor) - gridOffsetX
             const posY = (pointerY / zoomFactor) - gridOffsetY
@@ -1185,12 +1224,40 @@ export default defineComponent({
                     const dx = positionX[index] - posX
                     const dy = positionY[index] - posY
                     if (dx * dx + dy * dy <= brushRadius * brushRadius) {
+                        if (brushes.length > 0 && !brushes.includes(colors[index])) continue
                         particlesInRadius.push(index)
                     }
                 }
             }
+            return particlesInRadius
+        }
+        function eraseWithBrush() {
+            // Skip if brush is outside walls
+            if (isBrushOutsideWalls()) return
+
             // Remove particles within the brush radius
-            removeParticleGroup(particlesInRadius)
+            removeParticleGroup(getParticlesInBrush())
+        }
+        function magnetWithBrush(magnetForce: number) {
+            // Skip if brush is outside walls
+            if (isBrushOutsideWalls()) return
+
+            const posX = (pointerX / zoomFactor) - gridOffsetX
+            const posY = (pointerY / zoomFactor) - gridOffsetY
+
+            const particlesInRadius = getParticlesInBrush()
+            // Attract particles within the brush radius
+            for (let i = 0; i < particlesInRadius.length; i++) {
+                const index = particlesInRadius[i]
+                const dx = posX - positionX[index]
+                const dy = posY - positionY[index]
+                const distance = Math.sqrt(dx * dx + dy * dy)
+
+                const force = getForce(magnetForce, 0, brushRadius, distance)
+
+                velocityX[index] += dx / distance * force / forceFactor
+                velocityY[index] += dy / distance * force / forceFactor
+            }
         }
         function drawWithBrush() {
             // Skip if brush is outside walls
@@ -1540,10 +1607,12 @@ export default defineComponent({
         }
         watch(() => particleLife.numParticles, (value) => updateNumParticles(value))
         watch(() => particleLife.numColors, (value) => updateNumColors(value))
-        watch(() => particleLife.brushes, (value) => brushes= value)
+        watch(() => particleLife.brushes, (value: number[]) => brushes = value)
         watch(() => particleLife.brushRadius, (value) => brushRadius = value)
         watch(() => particleLife.brushIntensity, (value) => brushIntensity = value)
         watch(() => particleLife.brushType, (value: number) => brushType = value)
+        watch(() => particleLife.attractForce, (value: number) => attractForce = value)
+        watch(() => particleLife.repulseForce, (value: number) => repulseForce = -Math.abs(value))
         watchAndDraw(() => particleLife.is3D, () => setAlgorithms())
         watchAndDraw(() => particleLife.isRunning, (value: boolean) => isRunning = value)
         watchAndDraw(() => particleLife.isBrushActive, (value: boolean) => isBrushActive = value)
