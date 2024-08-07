@@ -1,27 +1,27 @@
 <template>
     <div class="faded-hover-effect">
         <button type="button" btn w-8 aspect-square rounded-full p1 flex items-center justify-center
-                :class="particleLife.isBrushActive && particleLife.brushType === 1 ? 'bg-blue-900 hover:bg-gray-700' : 'bg-#212121 hover:bg-#333333'"
+                :class="particleLife.isBrushActive && particleLife.brushType === 1 ? 'bg-blue-900 hover:bg-blue-950' : 'bg-zinc-800 hover:bg-zinc-700'"
                 @click="toggleBrushType(1)">
             <span i-tabler-brush text-sm></span>
         </button>
         <button type="button" btn w-8 aspect-square rounded-full p1 flex items-center justify-center
-                :class="particleLife.isBrushActive && particleLife.brushType === 0 ? 'bg-blue-900 hover:bg-gray-700' : 'bg-#212121 hover:bg-#333333'"
+                :class="particleLife.isBrushActive && particleLife.brushType === 0 ? 'bg-blue-900 hover:bg-blue-950' : 'bg-zinc-800 hover:bg-zinc-700'"
                 @click="toggleBrushType(0)">
             <span i-tabler-eraser text-sm></span>
         </button>
         <button type="button" btn w-8 aspect-square rounded-full p1 flex items-center justify-center
-                :class="particleLife.isBrushActive && particleLife.brushType === 3 ? 'bg-blue-900 hover:bg-gray-700' : 'bg-#212121 hover:bg-#333333'"
+                :class="particleLife.isBrushActive && particleLife.brushType === 3 ? 'bg-blue-900 hover:bg-blue-950' : 'bg-zinc-800 hover:bg-zinc-700'"
                 @click="toggleBrushType(3)">
             <span i-tabler-magnetic text-sm></span>
         </button>
         <button type="button" btn w-8 aspect-square rounded-full p1 flex items-center justify-center
-                :class="particleLife.isBrushActive && particleLife.brushType === 2 ? 'bg-blue-900 hover:bg-gray-700' : 'bg-#212121 hover:bg-#333333'"
+                :class="particleLife.isBrushActive && particleLife.brushType === 2 ? 'bg-blue-900 hover:bg-blue-950' : 'bg-zinc-800 hover:bg-zinc-700'"
                 @click="toggleBrushType(2)">
             <span i-tabler-magnet text-sm></span>
         </button>
         <div class="settings-btn">
-            <button type="button" btn w-8 aspect-square rounded-full p1 flex items-center justify-center bg="#212121aa hover:#333333aa">
+            <button type="button" btn w-8 aspect-square rounded-full p1 flex items-center justify-center bg="zinc-800 hover:zinc-700">
                 <span i-tabler-settings text-sm></span>
             </button>
             <div absolute class="settings-panel pr-1 left-0 top-0 -translate-x-full">

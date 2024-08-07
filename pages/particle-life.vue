@@ -13,11 +13,6 @@
                         <ToggleSwitch inactive-label="2D" label="3D" colorful-label v-model="particleLife.is3D" />
                     </div>
                     <hr>
-<!--                    <div grid grid-cols-2 gap-4 mt-3 mb-2 ml-2>-->
-<!--                        <ToggleSwitch label="Show Grid" v-model="particleLife.hasGrid" :disabled="!particleLife.isWallRepel && !particleLife.isWallWrap" mr-4/>-->
-<!--                        <ToggleSwitch label="Repel Walls" v-model="particleLife.isWallRepel" />-->
-<!--                        <ToggleSwitch label="Wrapped" v-model="particleLife.isWallWrap" />-->
-<!--                    </div>-->
                     <div overflow-auto flex-1 mt-2 class="scrollableArea">
                         <Collapse label="Matrix Settings" icon="i-tabler-grid-4x4">
                             <MatrixSettings
@@ -56,7 +51,7 @@
                                 <p class="w-2/3">Rectangle Size</p>
                                 <Input label="x" v-model="particleLife.gridWidth" @change="updateGridWidth" mr-2 />
                                 <Input label="y" v-model="particleLife.gridHeight" @change="updateGridHeight" mr-2 />
-                                <button type="button" btn rounded-full p2 flex items-center bg="#212121aa hover:#333333aa" @click="particleLife.linkProportions = !particleLife.linkProportions">
+                                <button type="button" btn rounded-full p2 flex items-center bg="zinc-900 hover:#212121" @click="particleLife.linkProportions = !particleLife.linkProportions">
                                     <span :class="particleLife.linkProportions ? 'i-tabler-link' : 'i-tabler-unlink'" text-sm></span>
                                 </button>
                             </div>

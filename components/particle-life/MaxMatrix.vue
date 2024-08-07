@@ -30,7 +30,7 @@
         </div>
         <RangeInput input :min="selectedCell ? particleLife.minRadiusMatrix[selectedCell[0]][selectedCell[1]] : 1" :max="400" :step="1" v-model="selectedMaxRadius" mt-2 >
             <template #customLabel>
-                <div class="w-2/3" border-2 border-gray-500 bg-gray-700 rounded-lg px-3 py-2>
+                <div class="w-2/3" border-2 border-gray-500 bg-zinc-800 rounded-lg px-3 py-2>
                     <div v-if="selectedCell" flex items-center justify-between>
                         <div rounded-full w-6 h-6 :style="`background-color: hsl(${particleLife.currentColors[selectedCell[0]]}, 100%, 50%)`"></div>
                         <div i-tabler-arrow-narrow-right text-xl mx-1 text-gray></div>

@@ -1,5 +1,5 @@
 <template>
-    <button @click="select" :class="[modelValue === id ? 'bg-gray-800' : 'bg-gray-600', disabled && 'cursor-not-allowed']"
+    <button @click="select" :class="[modelValue === id ? 'bg-zinc-900' : 'bg-zinc-700', disabled && 'cursor-not-allowed']"
             flex items-center rounded px-2 py-1 text-sm :disabled="disabled">
         <span v-if="icon" :class="[icon, label && 'mr-1']"></span>
         {{ label || '' }}
