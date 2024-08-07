@@ -1,3 +1,10 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+
+body {
+  background: linear-gradient(0deg, rgba(19,36,42,1) 0%, rgba(9,9,9,1) 100%);
+  font-family: Inter, sans-serif;
+}
+
 .faded-hover-effect {
   transition: opacity 120ms ease-in-out;
   opacity: 40%;
