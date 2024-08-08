@@ -111,10 +111,10 @@
         </SidebarLeft>
         <canvas ref="lifeCanvas" id="lifeCanvas" @contextmenu.prevent w-full h-full></canvas>
         <div absolute top-0 right-0 flex flex-col items-end text-right pointer-events-none>
-            <div inline-grid grid-cols-3 gap-x-3 text-start text-xs pl-4 pr-1 bg-gray-800 rounded-bl-xl style="padding-bottom: 1px; opacity: 75%">
-                <div>Fps: {{ fps }}</div>
-                <div>Cells: {{ cellCount }}</div>
-                <div>Process: {{ Math.round(executionTime) }}</div>
+            <div flex items-center text-start text-xs pl-4 pr-1 bg-gray-800 rounded-bl-xl style="padding-bottom: 1px; opacity: 75%">
+                <div flex>Fps: <div ml-1 min-w-8>{{ fps }}</div></div>
+                <div flex ml-3>Cells: <div ml-1 min-w-8>{{ cellCount }}</div></div>
+                <div flex ml-3>Process: <div ml-1 min-w-7>{{ Math.round(executionTime) }}</div></div>
             </div>
 <!--            <Memory mr-1 />-->
             <BrushSettings pointer-events-auto mt-2 mr-1 />
