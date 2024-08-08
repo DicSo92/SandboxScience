@@ -1661,8 +1661,12 @@ export default defineComponent({
             }
         })
         // -------------------------------------------------------------------------------------------------------------
-        onBeforeUnmount(() => {
-            if (animationFrameId) cancelAnimationFrame(animationFrameId)
+        onUnmounted(() => {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId)
+                animationFrameId = null
+            }
+            particleLife.$reset()
         })
 
         return {

@@ -60,6 +60,7 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
 
     function $reset() {
         sidebarLeftOpen.value = false
+        currentMaxRadius.value = 0 // Prevent watcher from not triggering when page is reloaded (!important)
     }
 
     return {
