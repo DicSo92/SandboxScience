@@ -1,6 +1,6 @@
 <template>
     <div flex-1 flex flex-col items-center>
-        <section container my-32>
+        <section container mt-36 mb-32>
             <div flex px-0 class="xl:px-16 2xl:px-24">
                 <div mr-2>
                     <h1 text-8xl font-bold>🧪</h1>
@@ -20,21 +20,21 @@
         </section>
         <section container>
             <div grid grid-cols-3 gap-4>
-                <NuxtLink to="/game-of-life" bg="gray-800 hover:gray-700" p-4 rounded-lg>
+                <NuxtLink to="/game-of-life" bg="gray-900 hover:gray-800" p-4 rounded-lg>
                     <div flex items-center mb-1>
                         <span text-3xl font-bold mr-1>🧬</span>
                         <h3 text-xl>Game Of Life</h3>
                     </div>
                     <p>Explore the intriguing patterns and behaviors of cellular automata in this classic simulation by John Conway.</p>
                 </NuxtLink>
-                <NuxtLink to="/particle-life" bg="gray-800 hover:gray-700" p-4 rounded-lg>
+                <NuxtLink to="/particle-life" bg="gray-900 hover:gray-800" p-4 rounded-lg>
                     <div flex items-center mb-1>
                         <span text-3xl font-bold mr-2>⚛</span>
                         <h3 text-xl>ParticleLife</h3>
                     </div>
                     <p>Observe the fascinating interactions and emergent behaviors of particles in a dynamic and interactive environment.</p>
                 </NuxtLink>
-                <NuxtLink to="/hash-life" bg="gray-800 hover:gray-700" p-4 rounded-lg>
+                <NuxtLink to="/hash-life" bg="gray-900 hover:gray-800" p-4 rounded-lg>
                     <div flex items-center mb-1>
                         <span text-3xl font-bold mr-2>🚀</span>
                         <h3 text-xl>HashLife</h3>
