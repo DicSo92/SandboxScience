@@ -1,21 +1,21 @@
 <template>
     <main class="grid w-full place-items-center">
-        <div class="grid w-full grid-cols-3 gap-2 rounded-xl bg-gray-600 p-1">
+        <div class="grid w-full grid-cols-3 gap-2 rounded-xl bg-zinc-700 text-sm" style="padding: 3px;">
             <div>
                 <input type="radio" name="option" id="1" value="none" class="peer hidden" v-model="currentValue" />
-                <label for="1" class="block cursor-pointer select-none rounded-lg px-2 text-center peer-checked:bg-gray-800 peer-checked:font-bold peer-checked:text-white">
+                <label for="1" class="block cursor-pointer select-none rounded-xl px-2 text-center hover:bg-zinc-800 peer-checked:bg-zinc-900 peer-checked:font-bold peer-checked:text-white">
                     No Walls
                 </label>
             </div>
             <div>
                 <input type="radio" name="option" id="2" value="repel" class="peer hidden" v-model="currentValue" />
-                <label for="2" class="block cursor-pointer select-none rounded-lg px-2 text-center peer-checked:bg-gray-800 peer-checked:font-bold peer-checked:text-white">
+                <label for="2" class="block cursor-pointer select-none rounded-xl px-2 text-center hover:bg-zinc-800 peer-checked:bg-zinc-900 peer-checked:font-bold peer-checked:text-white">
                     Repel
                 </label>
             </div>
             <div>
                 <input type="radio" name="option" id="3" value="wrap" class="peer hidden" v-model="currentValue" />
-                <label for="3" class="block cursor-pointer select-none rounded-lg px-2 text-center peer-checked:bg-gray-800 peer-checked:font-bold peer-checked:text-white">
+                <label for="3" class="block cursor-pointer select-none rounded-xl px-2 text-center hover:bg-zinc-800 peer-checked:bg-zinc-900 peer-checked:font-bold peer-checked:text-white">
                     Wrap
                 </label>
             </div>

@@ -5,7 +5,7 @@
             </template>
             <template #default>
                 <div h-full px-2 flex flex-col>
-                    <div flex justify-between items-end mb-1>
+                    <div flex justify-between items-end mb-2 px-1>
                         <p>World Settings</p>
 <!--                        <div rounded-lg border-2 border-white style="width: 72px;">-->
 <!--                            <div i-tabler-badge-3d style="font-size: 30px" class="-my-1"></div>-->
@@ -13,11 +13,6 @@
                         <ToggleSwitch inactive-label="2D" label="3D" colorful-label v-model="particleLife.is3D" />
                     </div>
                     <hr>
-<!--                    <div grid grid-cols-2 gap-4 mt-3 mb-2 ml-2>-->
-<!--                        <ToggleSwitch label="Show Grid" v-model="particleLife.hasGrid" :disabled="!particleLife.isWallRepel && !particleLife.isWallWrap" mr-4/>-->
-<!--                        <ToggleSwitch label="Repel Walls" v-model="particleLife.isWallRepel" />-->
-<!--                        <ToggleSwitch label="Wrapped" v-model="particleLife.isWallWrap" />-->
-<!--                    </div>-->
                     <div overflow-auto flex-1 mt-2 class="scrollableArea">
                         <Collapse label="Matrix Settings" icon="i-tabler-grid-4x4">
                             <MatrixSettings
@@ -56,7 +51,7 @@
                                 <p class="w-2/3">Rectangle Size</p>
                                 <Input label="x" v-model="particleLife.gridWidth" @change="updateGridWidth" mr-2 />
                                 <Input label="y" v-model="particleLife.gridHeight" @change="updateGridHeight" mr-2 />
-                                <button type="button" btn rounded-full p2 flex items-center bg="#212121aa hover:#333333aa" @click="particleLife.linkProportions = !particleLife.linkProportions">
+                                <button type="button" btn rounded-full p2 flex items-center bg="zinc-900 hover:#212121" @click="particleLife.linkProportions = !particleLife.linkProportions">
                                     <span :class="particleLife.linkProportions ? 'i-tabler-link' : 'i-tabler-unlink'" text-sm></span>
                                 </button>
                             </div>
@@ -106,8 +101,8 @@
                             <RangeInput input label="Cell Size Factor" :min="1" :max="2" :step="0.01" v-model="particleLife.cellSizeFactor" mt-2 />
                         </Collapse>
                     </div>
-                    <div flex justify-end mt-2>
-                        <button rounded btn flex items-center p-2 bg="gray-800 hover:gray-900" @click="particleLife.sidebarLeftOpen = false">
+                    <div absolute bottom-2 right-0 z-100 class="-mr-px">
+                        <button rounded-l-lg border border-gray-400 flex items-center p-1 bg="gray-800 hover:gray-900" @click="particleLife.sidebarLeftOpen = false">
                             <span i-tabler-chevron-left text-2xl></span>
                         </button>
                     </div>
@@ -136,7 +131,7 @@
             </div>
 
         </div>
-        <div absolute bottom-2 w-full flex justify-center items-end class="faded-hover-effect">
+        <div absolute z-10 bottom-2 flex justify-center items-end class="faded-hover-effect left-1/2 transform -translate-x-1/2">
             <button type="button" btn p2 rounded-full mx-1 flex items-center bg="#094F5D hover:#0B5F6F" @click="regenerateLife">
                 <span i-game-icons-perspective-dice-six-faces-random></span>
             </button>
@@ -174,6 +169,7 @@ export default defineComponent({
     setup() {
         definePageMeta({
             layout: 'life',
+            hideNavBar: true
         })
         useHead({
             title: 'Particle Life',
