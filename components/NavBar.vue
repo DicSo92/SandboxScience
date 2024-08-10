@@ -31,13 +31,13 @@
                 </div>
             </div>
             <div flex>
-                <button type="button" text="zinc-3 hover:zinc-1" flex items-center py-0 px-2>
+                <button type="button" name="github" text="zinc-3 hover:zinc-1" flex items-center py-0 px-2>
                     <span i-carbon-logo-github text-lg></span>
                 </button>
-                <button type="button" text="zinc-3 hover:zinc-1" flex items-center py-0 px-2>
+                <button type="button" name="discord" text="zinc-3 hover:zinc-1" flex items-center py-0 px-2>
                     <span i-carbon-logo-discord text-lg></span>
                 </button>
-                <button type="button" text="zinc-3 hover:zinc-1" flex items-center py-0 px-2>
+                <button type="button" name="X" text="zinc-3 hover:zinc-1" flex items-center py-0 px-2>
                     <span i-carbon-logo-x text-lg></span>
                 </button>
             </div>

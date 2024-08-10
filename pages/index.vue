@@ -3,13 +3,13 @@
         <section container mt-36 mb-32>
             <div flex px-0 class="xl:px-16 2xl:px-24">
                 <div mr-2>
-                    <h1 text-8xl font-bold>🧪</h1>
+                    <div text-8xl font-bold>🧪</div>
                 </div>
                 <div>
                     <h1 text-5xl font-bold text="#2A9D8F">
                         Sandbox Science
                     </h1>
-                    <h3 text-2xl font-bold mt-3>Unlock the mysteries of science through immersive and interactive simulations.</h3>
+                    <h2 text-2xl font-bold mt-3>Unlock the mysteries of science through immersive and interactive simulations.</h2>
                     <p mt-4>
                         Explore Game of Life, ParticleLife, and other captivating scientific simulations. Dive into hands-on
                         learning and discover complex concepts with interactive visual experiences.
@@ -45,10 +45,10 @@
         </section>
         <section mt-24>
             <div w-full flex>
-                <button type="button" btn rounded-full p2 flex items-center>
+                <button type="button" name="discord" btn rounded-full p2 flex items-center>
                     <span i-carbon-logo-discord text-5xl></span>
                 </button>
-                <button type="button" btn rounded-full p2 flex items-center>
+                <button type="button" name="github" btn rounded-full p2 flex items-center>
                     <span i-carbon-logo-github text-5xl></span>
                 </button>
             </div>
