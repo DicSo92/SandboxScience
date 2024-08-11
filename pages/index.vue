@@ -1,11 +1,15 @@
 <template>
     <div flex-1 flex flex-col items-center>
         <section container mt-36 mb-32>
-            <div flex px-0 class="xl:px-16 2xl:px-24">
-                <div mr-2>
-                    <div text-8xl font-bold>🧪</div>
+            <div flex px-0 class="xl:px-16 2xl:px-24 flex-col sm:flex-row">
+<!--                <div mr-2>-->
+<!--                    <div text-8xl font-bold>🧪</div>-->
+<!--                </div>-->
+                <div class="mr-0 sm:mr-8 mb-4 sm-mb-0 flex justify-center">
+                    <img src="/icon.svg" alt="SandboxScience Icon" class="w-24 sm:w-64">
                 </div>
-                <div>
+
+                <div class="text-center sm-text-start">
                     <h1 text-5xl font-bold text="#2A9D8F">
                         Sandbox Science
                     </h1>
@@ -19,7 +23,7 @@
 
         </section>
         <section container>
-            <div grid grid-cols-3 gap-4>
+            <div grid gap-4 grid-cols-1 class="sm:grid-cols-3">
                 <NuxtLink to="/game-of-life" bg="gray-900 hover:gray-800" p-4 rounded-lg>
                     <div flex items-center mb-1>
                         <span text-3xl font-bold mr-1>🧬</span>
@@ -43,7 +47,7 @@
                 </NuxtLink>
             </div>
         </section>
-        <section mt-24>
+        <section my-12 flex-1 flex flex-col justify-end>
             <div w-full flex>
                 <button type="button" name="discord" btn rounded-full p2 flex items-center>
                     <span i-carbon-logo-discord text-5xl></span>
