@@ -3,7 +3,7 @@
         <div flex justify-between container>
             <div flex items-center>
                 <NuxtLink to="/" flex items-center>
-                    <span text-lg font-bold mr-1>🧪</span>
+                    <span class="i-custom:icon text-lg mr-1"></span>
                     <div font-semibold>SandboxScience</div>
                 </NuxtLink>
                 <div flex ml-8>
