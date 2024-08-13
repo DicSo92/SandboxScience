@@ -44,12 +44,16 @@
         </section>
         <section my-12 flex-1 flex flex-col justify-end>
             <div w-full flex>
-                <button type="button" name="discord" btn rounded-full p2 flex items-center>
-                    <span i-carbon-logo-discord text-5xl></span>
-                </button>
-                <button type="button" name="github" btn rounded-full p2 flex items-center>
-                    <span i-carbon-logo-github text-5xl></span>
-                </button>
+                <NuxtLink to="https://discord.com/invite/z5yuzkFpCA" target="_blank" flex items-center py-0 mx-2>
+                    <button type="button" name="Discord" text="zinc-3 hover:zinc-1" flex>
+                        <span i-carbon-logo-discord text-5xl></span>
+                    </button>
+                </NuxtLink>
+                <NuxtLink to="https://github.com/DicSo92/SandboxScience" target="_blank" flex items-center py-0 mx-2>
+                    <button type="button" name="Github" text="zinc-3 hover:zinc-1" flex>
+                        <span i-carbon-logo-github text-5xl></span>
+                    </button>
+                </NuxtLink>
             </div>
         </section>
     </div>
