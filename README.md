@@ -24,7 +24,7 @@ To run Sandbox Science locally, follow these steps:
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/yourusername/sandbox-science.git
+   git clone https://github.com/DicSo92/sandbox-science.git
    cd sandbox-science
    ```
 
@@ -39,7 +39,7 @@ To run Sandbox Science locally, follow these steps:
    ```
 
 4. **Open your browser:**
-   Visit \`http://localhost:3000\` to explore the site locally.
+   Visit http://localhost:3000 to explore the site locally.
 
 ## 📦 Build
 
