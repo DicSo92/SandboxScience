@@ -171,29 +171,18 @@ export default defineComponent({
             layout: 'life',
             hideNavBar: true
         })
-        useHead({
+
+        useSeoMeta({
             title: 'Particle Life',
-            meta: [
-                { name: 'description', content: 'Discover Particle Life, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.' },
-                { name: 'keywords', content: 'ParticleLife, particle simulation, particle, life, simulation, science, physics, education, system dynamics, interactive' },
-                { name: 'author', content: 'DicSo92' },
-                { property: 'og:type', content: 'website' },
-                { property: 'og:title', content: 'Particle Life - Particle Simulation' },
-                { property: 'og:description', content: 'Discover ParticleLife, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.' },
-                { property: 'og:image', content: 'https://www.sandbox-science.com/images/particlelife-thumbnail.jpg' },
-                { property: 'og:url', content: 'https://www.sandbox-science.com/particle-life' },
-                { property: 'og:site_name', content: 'Sandbox Science' },
-                { name: 'twitter:card', content: 'summary_large_image' },
-                { name: 'twitter:title', content: 'Particle Life - Particle Simulation' },
-                { name: 'twitter:description', content: 'Discover ParticleLife, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.' },
-                { name: 'twitter:image', content: 'https://www.sandbox-science.com/images/particlelife-thumbnail.jpg' },
-                { name: 'twitter:site', content: '@SandboxScience' },
-            ],
-            link: [
-                { rel: 'canonical', href: 'https://www.sandbox-science.com/particle-life' },
-                { rel: 'icon', href: 'https://www.sandbox-science.com/favicon.ico', type: 'image/x-icon' },
-            ]
+            description: 'Discover Particle Life, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.',
+            ogTitle: 'Particle Life • Particle Simulation',
+            ogDescription: 'Discover ParticleLife, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.',
+            // ogImage: 'https://www.sandbox-science.com/images/particlelife-thumbnail.jpg',
+            twitterTitle: 'Particle Life • Particle Simulation',
+            twitterDescription: 'Discover ParticleLife, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.',
+            // twitterImage: 'https://www.sandbox-science.com/images/particlelife-thumbnail.jpg',
         })
+
         const particleLife = useParticleLifeStore()
 
         const mainContainer = ref<HTMLElement | null>(null)

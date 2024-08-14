@@ -2,10 +2,10 @@
     <nav flex justify-center py-2 px-3 z-100 fixed top-0 left-0 right-0 class="bg-#090909AA">
         <div flex justify-between container>
             <div flex items-center>
-                <NuxtLink to="/" flex items-center>
+                <SiteLink to="/" flex items-center>
                     <span class="i-custom:icon text-lg mr-1"></span>
                     <div font-semibold>SandboxScience</div>
-                </NuxtLink>
+                </SiteLink>
                 <div flex ml-8>
                     <Dropdown placement="left">
                         <template v-slot:button>
@@ -15,37 +15,37 @@
                             </div>
                         </template>
                         <template v-slot:content>
-                            <NuxtLink to="/game-of-life" flex w-full justify-between items-center rounded px-2 py-1 my-1 hover:bg-zinc-700>
+                            <SiteLink to="/game-of-life" flex w-full justify-between items-center rounded px-2 py-1 my-1 hover:bg-zinc-700>
                                 Game Of Life
-                            </NuxtLink>
-                            <NuxtLink to="/particle-life" flex w-full justify-between items-center rounded px-2 py-1 my-1 hover:bg-zinc-700>
+                            </SiteLink>
+                            <SiteLink to="/particle-life" flex w-full justify-between items-center rounded px-2 py-1 my-1 hover:bg-zinc-700>
                                 Particle Life
-                            </NuxtLink>
-                            <NuxtLink to="/hash-life" flex w-full justify-between items-center rounded px-2 py-1 my-1 hover:bg-zinc-700>
+                            </SiteLink>
+                            <SiteLink to="/hash-life" flex w-full justify-between items-center rounded px-2 py-1 my-1 hover:bg-zinc-700>
                                 Hash Life
-                            </NuxtLink>
+                            </SiteLink>
                         </template>
                     </Dropdown>
-                    <NuxtLink to="/doc" mx-2>Documentation</NuxtLink>
-                    <NuxtLink to="/about" mx-2>About</NuxtLink>
+                    <SiteLink to="/doc" mx-2>Documentation</SiteLink>
+                    <SiteLink to="/about" mx-2>About</SiteLink>
                 </div>
             </div>
             <div flex>
-                <NuxtLink to="https://github.com/DicSo92/SandboxScience" target="_blank" flex items-center py-0 mx-2>
+                <SiteLink to="https://github.com/DicSo92/SandboxScience" target="_blank" flex items-center py-0 mx-2>
                     <button type="button" name="Github" text="zinc-3 hover:zinc-1" flex>
                         <span i-carbon-logo-github text-lg></span>
                     </button>
-                </NuxtLink>
-                <NuxtLink to="https://discord.com/invite/z5yuzkFpCA" target="_blank" flex items-center py-0 mx-2>
+                </SiteLink>
+                <SiteLink to="https://discord.com/invite/z5yuzkFpCA" target="_blank" flex items-center py-0 mx-2>
                     <button type="button" name="Discord" text="zinc-3 hover:zinc-1" flex>
                         <span i-carbon-logo-discord text-lg></span>
                     </button>
-                </NuxtLink>
-                <NuxtLink to="https://x.com" target="_blank" flex items-center py-0 mx-2>
+                </SiteLink>
+                <SiteLink to="https://x.com" target="_blank" flex items-center py-0 mx-2>
                     <button type="button" name="X" text="zinc-3 hover:zinc-1" flex>
                         <span i-carbon-logo-x text-lg></span>
                     </button>
-                </NuxtLink>
+                </SiteLink>
             </div>
         </div>
 

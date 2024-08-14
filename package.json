@@ -19,6 +19,7 @@
         "@iconify-json/game-icons": "^1.1.7",
         "@iconify-json/tabler": "^1.1.105",
         "@nuxtjs/color-mode": "^3.3.2",
+        "@nuxtjs/seo": "^2.0.0-rc.18",
         "@pinia/nuxt": "^0.5.1",
         "@unocss/eslint-config": "^0.58.3",
         "@unocss/nuxt": "^0.58.3",

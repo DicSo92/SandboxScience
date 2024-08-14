@@ -35,16 +35,16 @@
         </section>
         <section mb-12 flex-1 flex flex-col justify-end>
             <div w-full flex>
-                <NuxtLink to="https://discord.com/invite/z5yuzkFpCA" target="_blank" flex items-center py-0 mx-2>
+                <SiteLink to="https://discord.com/invite/z5yuzkFpCA" target="_blank" flex items-center py-0 mx-2>
                     <button type="button" name="Discord" text="zinc-3 hover:zinc-1" flex>
                         <span i-carbon-logo-discord text-5xl></span>
                     </button>
-                </NuxtLink>
-                <NuxtLink to="https://github.com/DicSo92/SandboxScience" target="_blank" flex items-center py-0 mx-2>
+                </SiteLink>
+                <SiteLink to="https://github.com/DicSo92/SandboxScience" target="_blank" flex items-center py-0 mx-2>
                     <button type="button" name="Github" text="zinc-3 hover:zinc-1" flex>
                         <span i-carbon-logo-github text-5xl></span>
                     </button>
-                </NuxtLink>
+                </SiteLink>
             </div>
         </section>
     </div>

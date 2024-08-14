@@ -5,13 +5,7 @@
 </template>
 
 <script setup lang="ts">
-import { appName } from '~/constants'
 
-useHead({
-    titleTemplate: (titleChunk) => {
-        return titleChunk ? `${titleChunk} - ${appName}` : appName;
-    }
-})
 </script>
 
 <style>

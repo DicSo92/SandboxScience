@@ -1,11 +1,11 @@
 <template>
     <div class="faded-hover-effect">
         <div fixed left-0 z-10 :style="toggleBtnStyle">
-            <NuxtLink to="/">
+            <SiteLink to="/">
                 <button rounded-br-3xl btn flex items-center p-2 class="-mt-0.5 -ml-1 mr-px" bg="gray-800 hover:gray-900">
                     <span class="i-custom:icon text-2xl"></span>
                 </button>
-            </NuxtLink>
+            </SiteLink>
         </div>
         <div absolute left-0 class="top-13 z-10" :style="toggleBtnStyle">
             <button rounded-r-3xl btn flex items-center pr-2 class="pl-0.5 py-[14px]" bg="gray-800 hover:gray-900" @click="toggle">
