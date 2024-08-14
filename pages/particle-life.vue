@@ -171,20 +171,16 @@ export default defineComponent({
             layout: 'life',
             hideNavBar: true
         })
-
         useSeoMeta({
             title: 'Particle Life',
             description: 'Discover Particle Life, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.',
             ogTitle: 'Particle Life • Particle Simulation',
             ogDescription: 'Discover ParticleLife, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.',
-            // ogImage: 'https://www.sandbox-science.com/images/particlelife-thumbnail.jpg',
             twitterTitle: 'Particle Life • Particle Simulation',
             twitterDescription: 'Discover ParticleLife, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.',
-            // twitterImage: 'https://www.sandbox-science.com/images/particlelife-thumbnail.jpg',
         })
 
         const particleLife = useParticleLifeStore()
-
         const mainContainer = ref<HTMLElement | null>(null)
         const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(mainContainer)
 

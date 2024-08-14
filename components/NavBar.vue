@@ -10,7 +10,7 @@
                     <Dropdown placement="left">
                         <template v-slot:button>
                             <div flex items-center mx-2>
-                                <span class="mr-1">Simulations</span>
+                                <span class="mr-1" text="zinc-2 hover:zinc-1">Simulations</span>
                                 <span i-tabler-chevron-down mt-px></span>
                             </div>
                         </template>
@@ -26,8 +26,9 @@
                             </SiteLink>
                         </template>
                     </Dropdown>
-                    <SiteLink to="/doc" mx-2>Documentation</SiteLink>
-                    <SiteLink to="/about" mx-2>About</SiteLink>
+<!--                    <SiteLink to="/doc" mx-2>Documentation</SiteLink>-->
+                    <button mx-2 cursor-not-allowed text-gray-400>Documentation</button>
+                    <SiteLink to="/about" mx-2 class="text-zinc-2 hover:text-zinc-1">About</SiteLink>
                 </div>
             </div>
             <div flex>

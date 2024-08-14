@@ -2,7 +2,7 @@ import { appURL, appName, appDescription } from './constants/index'
 
 export default defineNuxtConfig({
     devtools: {
-        enabled: true,
+        enabled: false,
         timeline: {
             enabled: false,
         },
@@ -48,10 +48,8 @@ export default defineNuxtConfig({
         seoMeta: {
             author: 'DicSo92',
             ogSiteName: appName,
-            // ogImage: 'https://www.sandbox-science.com/images/particlelife-thumbnail.jpg',
             twitterTitle: appName,
             twitterDescription: appDescription,
-            // twitterImage: 'https://www.sandbox-science.com/images/particlelife-thumbnail.jpg',
             twitterCard: 'summary_large_image',
             twitterSite: '@SandboxScience',
             twitterImageAlt: '@SandboxScience',
@@ -62,6 +60,19 @@ export default defineNuxtConfig({
     },
     seo: {
         redirectToCanonicalSiteUrl: true
+    },
+    schemaOrg: {
+        identity: {
+            type: 'Organization',
+            name: 'DicSo92 - Sandbox Science',
+            url: 'https://github.com/DicSo92',
+            logo: 'https://avatars.githubusercontent.com/u/33453944?v=4',
+            sameAs: [
+                'https://github.com/DicSo92/SandboxScience',
+                'https://github.com/DicSo92',
+                'https://sandbox-science.com',
+            ],
+        }
     },
     ogImage: {
         enable: false,
@@ -97,8 +108,7 @@ export default defineNuxtConfig({
     },
 
     features: {
-        // For UnoCSS
-        inlineStyles: false,
+        inlineStyles: false, // For UnoCSS
     },
 
     eslintConfig: {
