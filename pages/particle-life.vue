@@ -120,11 +120,11 @@
             <BrushSettings pointer-events-auto mt-2 mr-1 />
 
             <div class="faded-hover-effect" pointer-events-auto mr-1>
-                <button type="button" btn w-8 aspect-square rounded-full p1 flex items-center justify-center bg="#D62839 hover:#DC4151" mt-2
+                <button type="button" title="Debugger" aria-label="Debugger" btn w-8 aspect-square rounded-full p1 flex items-center justify-center bg="#D62839 hover:#DC4151" mt-2
                         @click="particleLife.hasCells = !particleLife.hasCells">
                     <span text-sm :class="particleLife.hasCells ? 'i-tabler-bug-filled' : 'i-tabler-bug'"></span>
                 </button>
-                <button type="button" btn w-8 aspect-square rounded-full p1 flex items-center justify-center bg="#212121 hover:#333333" mt-2
+                <button type="button" title="Grid" aria-label="Grid" btn w-8 aspect-square rounded-full p1 flex items-center justify-center bg="#212121 hover:#333333" mt-2
                         @click="particleLife.hasGrid = !particleLife.hasGrid" :disabled="!particleLife.isWallRepel && !particleLife.isWallWrap" class="disabled:cursor-not-allowed">
                     <span text-sm :class="particleLife.hasGrid ? 'i-tabler-bread' : 'i-tabler-bread-off'"></span>
                 </button>

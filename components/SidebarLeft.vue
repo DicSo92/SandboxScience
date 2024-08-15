@@ -1,14 +1,14 @@
 <template>
     <div class="faded-hover-effect z-50">
         <div fixed left-0 z-10 :style="toggleBtnStyle">
-            <SiteLink to="/" title="Home Page" aria-label="Home Page">
+            <SiteLink to="/" title="Home" aria-label="Home">
                 <button rounded-br-3xl btn flex items-center p-2 class="-mt-0.5 -ml-1 mr-px" bg="gray-800 hover:gray-900">
                     <span class="i-custom:icon text-2xl"></span>
                 </button>
             </SiteLink>
         </div>
         <div absolute left-0 class="top-13 z-10" :style="toggleBtnStyle">
-            <button rounded-r-3xl btn flex items-center pr-2 class="pl-0.5 py-[14px]" bg="gray-800 hover:gray-900" @click="toggle">
+            <button title="Settings" aria-label="Settings" rounded-r-3xl btn flex items-center pr-2 class="pl-0.5 py-[14px]" bg="gray-800 hover:gray-900" @click="toggle">
                 <span i-tabler-settings text-lg></span>
             </button>
         </div>
@@ -22,7 +22,7 @@
         <Transition enter-active-class="transform transition-transform ease-out duration-300"
                     enter-from-class="-translate-x-full"
                     enter-to-class="translate-x-0"
-                    leave-active-class="transform transition-transform ease-in duration-200"
+                    leave-active-class="transform transition-transform ease-in duration-200 delay-75"
                     leave-from-class="translate-x-0"
                     leave-to-class="-translate-x-full">
             <div v-show="modelValue" :style="`width: ${sidebarWidth}px`"
@@ -54,8 +54,7 @@ export default defineComponent({
 
         const toggleBtnStyle = computed(() => {
             return {
-                transition: `left 0.3s ${props.modelValue ? 'ease-out' : 'ease-in'}`,
-                // transition: `right 0.3s ease-out`,
+                transition: `${props.modelValue ? 'left 0.3s ease-out' : 'left 0.2s ease-out'}`,
                 left: `${props.modelValue ? sidebarWidth.value : 0}px`
             }
         })
