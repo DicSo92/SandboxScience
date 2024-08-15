@@ -75,7 +75,7 @@ export default defineNuxtConfig({
         }
     },
     ogImage: {
-        enable: false,
+        enable: false, // Because 'Nuxt version >=3.10.3 is required but currently using 3.9.3' (need nuxt upgrade)
         defaults: {
             cacheMaxAgeSeconds: 60 * 60 * 24 * 7 * 1000 // 7 days
         }
