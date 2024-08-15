@@ -84,7 +84,7 @@ export default defineNuxtConfig({
 
     linkChecker: {
         enabled: true,
-        debug: false
+        debug: true
     },
 
     nitro: {
@@ -95,7 +95,7 @@ export default defineNuxtConfig({
         },
         prerender: {
             crawlLinks: false,
-            routes: ['/'], // Pre-render only the index page
+            routes: ['/', '/about', '/particle-life', '/game-of-life', '/hash-life'], // Pre-render routes
             ignore: [],
         },
     },
