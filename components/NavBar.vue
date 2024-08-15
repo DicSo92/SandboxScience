@@ -32,21 +32,21 @@
                 </div>
             </div>
             <div flex>
-                <SiteLink to="https://github.com/DicSo92/SandboxScience" target="_blank" flex items-center py-0 mx-2>
+                <NuxtLink to="https://github.com/DicSo92/SandboxScience" target="_blank" flex items-center py-0 mx-2>
                     <button type="button" name="Github" text="zinc-3 hover:zinc-1" flex>
                         <span i-carbon-logo-github text-lg></span>
                     </button>
-                </SiteLink>
-                <SiteLink to="https://discord.com/invite/z5yuzkFpCA" target="_blank" flex items-center py-0 mx-2>
+                </NuxtLink>
+                <NuxtLink to="https://discord.com/invite/z5yuzkFpCA" target="_blank" flex items-center py-0 mx-2>
                     <button type="button" name="Discord" text="zinc-3 hover:zinc-1" flex>
                         <span i-carbon-logo-discord text-lg></span>
                     </button>
-                </SiteLink>
-                <SiteLink to="https://x.com" target="_blank" flex items-center py-0 mx-2>
+                </NuxtLink>
+                <NuxtLink to="https://x.com" target="_blank" flex items-center py-0 mx-2>
                     <button type="button" name="X" text="zinc-3 hover:zinc-1" flex>
                         <span i-carbon-logo-x text-lg></span>
                     </button>
-                </SiteLink>
+                </NuxtLink>
             </div>
         </div>
 
