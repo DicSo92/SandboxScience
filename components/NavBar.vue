@@ -34,19 +34,19 @@
                 </div>
             </div>
             <div flex>
-                <NuxtLink to="https://github.com/DicSo92/SandboxScience" title="Github" aria-label="Github" target="_blank" external class="flex items-center py-0 mx-2">
-                    <button type="button" name="Github" text="zinc-3 hover:zinc-1" flex>
-                        <span i-carbon-logo-github text-lg></span>
+                <NuxtLink to="https://github.com/DicSo92/SandboxScience" title="Github" aria-label="Github" target="_blank" external class="flex items-center py-0 mx-1">
+                    <button type="button" name="Github" aria-label="Github" text="zinc-3 hover:zinc-1" flex>
+                        <span i-carbon-logo-github text-lg m-0.5></span>
                     </button>
                 </NuxtLink>
-                <NuxtLink to="https://discord.com/invite/z5yuzkFpCA" title="Discord" aria-label="Discord" target="_blank" external class="flex items-center py-0 mx-2">
-                    <button type="button" name="Discord" text="zinc-3 hover:zinc-1" flex>
-                        <span i-carbon-logo-discord text-lg></span>
+                <NuxtLink to="https://discord.com/invite/z5yuzkFpCA" title="Discord" aria-label="Discord" target="_blank" external class="flex items-center py-0 ml-1.5 mr-1">
+                    <button type="button" name="Discord" aria-label="Discord" text="zinc-3 hover:zinc-1" flex>
+                        <span i-carbon-logo-discord text-lg m-0.5></span>
                     </button>
                 </NuxtLink>
-                <NuxtLink to="https://x.com" title="Twitter" aria-label="Twitter" target="_blank" external class="flex items-center py-0 mx-2">
-                    <button type="button" name="X" text="zinc-3 hover:zinc-1" flex>
-                        <span i-carbon-logo-x text-lg></span>
+                <NuxtLink to="https://x.com" title="Twitter" aria-label="Twitter" target="_blank" external class="flex items-center py-0 mx-1">
+                    <button type="button" name="Twitter" aria-label="Twitter" text="zinc-3 hover:zinc-1" flex>
+                        <span i-carbon-logo-x text-lg m-0.5></span>
                     </button>
                 </NuxtLink>
             </div>
