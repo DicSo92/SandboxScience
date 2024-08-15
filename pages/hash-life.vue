@@ -1,5 +1,5 @@
 <template>
-    <section flex flex-col justify-center h-full overflow-hidden relative>
+    <section h-screen flex flex-col justify-center overflow-hidden relative>
         <div flex-1 relative>
             <canvas ref="canvas" id="canvas" @contextmenu.prevent h-full w-full></canvas>
         </div>

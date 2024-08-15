@@ -1,7 +1,7 @@
 <template>
-    <div flex-1 relative>
-        <canvas ref="canvas" id="canvas" @contextmenu.prevent></canvas>
-        <canvas ref="overlayCanvas" absolute top-0 id="overlayCanvas" @contextmenu.prevent></canvas>
+    <div h-full>
+        <canvas ref="canvas" id="canvas" z-1 @contextmenu.prevent></canvas>
+        <canvas ref="overlayCanvas" absolute top-0 z-2 id="overlayCanvas" @contextmenu.prevent></canvas>
     </div>
 </template>
 

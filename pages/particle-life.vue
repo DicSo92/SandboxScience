@@ -1,5 +1,5 @@
 <template>
-    <section h-screen flex flex-col justify-center h-full overflow-hidden relative ref="mainContainer">
+    <section h-screen flex flex-col justify-center overflow-hidden relative ref="mainContainer">
         <SidebarLeft v-model="particleLife.sidebarLeftOpen">
             <template #controls>
             </template>
