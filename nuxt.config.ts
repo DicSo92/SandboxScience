@@ -69,7 +69,7 @@ export default defineNuxtConfig({
         }
     },
     ogImage: {
-        enable: false, // Because 'Nuxt version >=3.10.3 is required but currently using 3.9.3' (need nuxt upgrade)
+        enabled: false,
         defaults: {
             cacheMaxAgeSeconds: 60 * 60 * 24 * 7 * 1000 // 7 days
         }
@@ -87,6 +87,11 @@ export default defineNuxtConfig({
             options: {
                 target: 'esnext',
             },
+        },
+        prerender: {
+            crawlLinks: false,
+            routes: ['/'], // Pre-render only the index page
+            ignore: [],
         },
     },
 
