@@ -54,6 +54,14 @@
 definePageMeta({
     layout: 'life'
 })
+useSeoMeta({
+    title: 'About • Sandbox Science',
+    description: 'Explore Sandbox Science, an interactive platform that makes learning scientific concepts engaging and fun through simulations. Join our Discord community to connect with science enthusiasts, share feedback, and contribute to the project.',
+    ogTitle: 'About • Sandbox Science',
+    ogDescription: 'Explore Sandbox Science, an interactive platform that makes learning scientific concepts engaging and fun through simulations. Join our Discord community to connect with science enthusiasts, share feedback, and contribute to the project.',
+    twitterTitle: 'About • Sandbox Science',
+    twitterDescription: 'Explore Sandbox Science, an interactive platform that makes learning scientific concepts engaging and fun through simulations. Join our Discord community to connect with science enthusiasts, share feedback, and contribute to the project.',
+})
 </script>
 
 <style scoped lang="scss">

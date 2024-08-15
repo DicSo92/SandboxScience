@@ -83,6 +83,15 @@ export default defineComponent({
             layout: 'life',
             hideNavBar: true
         })
+        useSeoMeta({
+            title: 'Game of Life',
+            description: 'Explore the classic Game of Life, a fascinating cellular automata simulation to understand patterns, evolution, and emergent behavior in complex systems.',
+            ogTitle: 'Game of Life • Cellular Automata',
+            ogDescription: 'Explore the classic Game of Life, a fascinating cellular automata simulation to understand patterns, evolution, and emergent behavior in complex systems.',
+            twitterTitle: 'Game of Life • Cellular Automata',
+            twitterDescription: 'Explore the classic Game of Life, a fascinating cellular automata simulation to understand patterns, evolution, and emergent behavior in complex systems.',
+        })
+
         const game = useGameStore()
         const naiveCanvas = ref( )
 
