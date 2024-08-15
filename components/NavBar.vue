@@ -28,21 +28,23 @@
                     </Dropdown>
 <!--                    <SiteLink to="/doc" mx-2>Documentation</SiteLink>-->
                     <button mx-2 cursor-not-allowed text-gray-400>Documentation</button>
-                    <SiteLink to="/about" mx-2 class="text-zinc-2 hover:text-zinc-1">About</SiteLink>
+                    <SiteLink to="/about" mx-2 class="text-zinc-2 hover:text-zinc-1">
+                        About
+                    </SiteLink>
                 </div>
             </div>
             <div flex>
-                <NuxtLink to="https://github.com/DicSo92/SandboxScience" target="_blank" flex items-center py-0 mx-2>
+                <NuxtLink to="https://github.com/DicSo92/SandboxScience" title="Github" aria-label="Github" target="_blank" flex items-center py-0 mx-2>
                     <button type="button" name="Github" text="zinc-3 hover:zinc-1" flex>
                         <span i-carbon-logo-github text-lg></span>
                     </button>
                 </NuxtLink>
-                <NuxtLink to="https://discord.com/invite/z5yuzkFpCA" target="_blank" flex items-center py-0 mx-2>
+                <NuxtLink to="https://discord.com/invite/z5yuzkFpCA" title="Discord" aria-label="Discord" target="_blank" flex items-center py-0 mx-2>
                     <button type="button" name="Discord" text="zinc-3 hover:zinc-1" flex>
                         <span i-carbon-logo-discord text-lg></span>
                     </button>
                 </NuxtLink>
-                <NuxtLink to="https://x.com" target="_blank" flex items-center py-0 mx-2>
+                <NuxtLink to="https://x.com" title="Twitter" aria-label="Twitter" target="_blank" flex items-center py-0 mx-2>
                     <button type="button" name="X" text="zinc-3 hover:zinc-1" flex>
                         <span i-carbon-logo-x text-lg></span>
                     </button>

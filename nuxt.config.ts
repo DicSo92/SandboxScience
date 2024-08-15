@@ -82,6 +82,11 @@ export default defineNuxtConfig({
         typedPages: true,
     },
 
+    linkChecker: {
+        enabled: true,
+        debug: false
+    },
+
     nitro: {
         esbuild: {
             options: {
