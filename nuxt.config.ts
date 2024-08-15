@@ -2,7 +2,7 @@ import { appURL, appName, appDescription } from './constants/index'
 
 export default defineNuxtConfig({
     devtools: {
-        enabled: false,
+        enabled: true,
         timeline: {
             enabled: false,
         },
@@ -10,17 +10,11 @@ export default defineNuxtConfig({
     modules: [
         '@vueuse/nuxt',
         '@unocss/nuxt',
-        // ['@pinia/nuxt', { autoImports: ['defineStore'] }],
         '@pinia/nuxt',
-        'nuxt-module-eslint-config',
         '@nuxtjs/color-mode',
-        "@nuxtjs/seo"
+        "@nuxtjs/seo",
+        "@nuxt/eslint"
     ],
-
-    alias: {
-        // pinia: process.env.NODE_ENV === 'production' ? '/node_modules/pinia/dist/pinia.mjs' : '/node_modules/@pinia/nuxt/node_modules/pinia/dist/pinia.mjs',
-        // pinia: '/node_modules/@pinia/nuxt/node_modules/pinia/dist/pinia.mjs',
-    },
 
     site: {
         url: appURL,
@@ -111,7 +105,9 @@ export default defineNuxtConfig({
         inlineStyles: false, // For UnoCSS
     },
 
-    eslintConfig: {
-        setup: false,
+    eslint: {
+        config: {
+            standalone: false,
+        },
     },
 })

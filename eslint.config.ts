@@ -1,8 +1,8 @@
 import antfu from '@antfu/eslint-config'
 import nuxt from './.nuxt/eslint.config.mjs'
 
-export default antfu(
-    {
+export default nuxt(
+    antfu({
         unocss: true,
         formatters: true,
         stylistic: {
@@ -15,6 +15,5 @@ export default antfu(
             }],
             "style/quotes": ["off"], // default 'single'
         },
-    },
-    nuxt,
+    })
 )
