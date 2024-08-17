@@ -59,15 +59,17 @@
         </div>
 
         <div flex flex-col p1 rounded-full bg-gray-8>
-            <button w-6 aspect-square rounded-full class="rainbow"
-                 :class="!particleLife.brushes.length && 'border-3 border-gray-400 shadow-inner'"
-                 @click="toggleBrushColor(null)">
+            <button type="button" name="All Colors" aria-label="All Colors"
+                    w-6 aspect-square rounded-full class="rainbow"
+                    :class="!particleLife.brushes.length && 'border-3 border-gray-400 shadow-inner'"
+                    @click="toggleBrushColor(null)">
             </button>
             <hr mt-1 border-gray-600>
             <button v-for="(color, index) in particleLife.currentColors" :key="index"
-                 w-6 aspect-square rounded-full mt-1 :class="particleLife.brushes.includes(index) && 'border-3 border-gray-950 shadow-inner'"
-                 :style="{ backgroundColor: `hsl(${color}, 100%, 50%, 1)`}"
-                 @click="toggleBrushColor(index)">
+                    type="button" :name="`Color ${index + 1}`" :aria-label="`Color ${index + 1}`"
+                    w-6 aspect-square rounded-full mt-1 :class="particleLife.brushes.includes(index) && 'border-3 border-gray-950 shadow-inner'"
+                    :style="{ backgroundColor: `hsl(${color}, 100%, 50%, 1)`}"
+                    @click="toggleBrushColor(index)">
             </button>
         </div>
     </div>
