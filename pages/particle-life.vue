@@ -206,6 +206,7 @@ export default defineComponent({
         let attractForce: number = particleLife.attractForce
         let repulseForce: number = -Math.abs(particleLife.repulseForce)
         let isMagnetActive: boolean = false
+        let wallRepelForce: number = particleLife.wallRepelForce // Repulse force for the walls (velocity will be multiplied by this value negative)
 
         // Define color list and rules matrix for the particles
         let currentColors: number[] = [] // Current colors for the particles
@@ -1043,11 +1044,11 @@ export default defineComponent({
                     if (wallShape === 0) { // Rectangle Shape
                         if (positionX[i] > gridWidth || positionX[i] < 0) {
                             positionX[i] -= velocityX[i]
-                            velocityX[i] *= -1.2
+                            velocityX[i] *= -wallRepelForce
                         }
                         if (positionY[i] > gridHeight || positionY[i] < 0) {
                             positionY[i] -= velocityY[i]
-                            velocityY[i] *= -1.2
+                            velocityY[i] *= -wallRepelForce
                         }
                     }
                     else { // Circle Shape
@@ -1058,8 +1059,8 @@ export default defineComponent({
                         if (distanceSquared > circleRadius * circleRadius) {
                             positionX[i] -= velocityX[i]
                             positionY[i] -= velocityY[i]
-                            velocityX[i] *= -1.2
-                            velocityY[i] *= -1.2
+                            velocityX[i] *= -wallRepelForce
+                            velocityY[i] *= -wallRepelForce
                         }
                     }
                 }
@@ -1089,11 +1090,11 @@ export default defineComponent({
                     if (wallShape === 0) { // Rectangle Shape
                         if (positionX[i] > gridWidth || positionX[i] < 0) {
                             positionX[i] -= velocityX[i]
-                            velocityX[i] *= -1.2
+                            velocityX[i] *= -wallRepelForce
                         }
                         if (positionY[i] > gridHeight || positionY[i] < 0) {
                             positionY[i] -= velocityY[i]
-                            velocityY[i] *= -1.2
+                            velocityY[i] *= -wallRepelForce
                         }
                     }
                     else { // Circle Shape
@@ -1104,8 +1105,8 @@ export default defineComponent({
                         if (distanceSquared > circleRadius * circleRadius) {
                             positionX[i] -= velocityX[i]
                             positionY[i] -= velocityY[i]
-                            velocityX[i] *= -1.2
-                            velocityY[i] *= -1.2
+                            velocityX[i] *= -wallRepelForce
+                            velocityY[i] *= -wallRepelForce
                         }
                     }
                 }
@@ -1118,9 +1119,11 @@ export default defineComponent({
                 }
 
                 // Bounce off the depth limit
-                if (positionZ[i] > depthLimit || positionZ[i] < 0) {
-                    positionZ[i] -= velocityZ[i]
-                    velocityZ[i] *= -1.2
+                if (positionZ[i] > depthLimit) {
+                    positionZ[i] = depthLimit
+                } else if (positionZ[i] < 0) {
+                    positionZ[i] -= velocityZ[i] // or positionZ[i] = 0
+                    velocityZ[i] *= -wallRepelForce
                 }
 
                 drawParticle(positionX[i], positionY[i], positionZ[i], currentColors[colors[i]], particleSize)
@@ -1588,6 +1591,7 @@ export default defineComponent({
         }
         watch(() => particleLife.numParticles, (value) => updateNumParticles(value))
         watch(() => particleLife.numColors, (value) => updateNumColors(value))
+        watch(() => particleLife.depthLimit, (value: number) => depthLimit = value)
         watch(() => particleLife.brushes, (value: number[]) => brushes = value)
         watch(() => particleLife.brushRadius, (value) => brushRadius = value)
         watch(() => particleLife.brushIntensity, (value) => brushIntensity = value)
@@ -1598,7 +1602,6 @@ export default defineComponent({
         watchAndDraw(() => particleLife.isRunning, (value: boolean) => isRunning = value)
         watchAndDraw(() => particleLife.isBrushActive, (value: boolean) => isBrushActive = value)
         watchAndDraw(() => particleLife.particleSize, (value: number) => particleSize = value)
-        watchAndDraw(() => particleLife.depthLimit, (value: number) => depthLimit = value)
         watchAndDraw(() => particleLife.isWallRepel, (value: boolean) => {
             isWallRepel = value
             if (isWallRepel) particleLife.isWallWrap = false
