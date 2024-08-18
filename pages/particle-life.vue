@@ -369,6 +369,7 @@ export default defineComponent({
             canvasWidth = lifeCanvas!.width = lifeCanvas!.clientWidth
             canvasHeight = lifeCanvas!.height = lifeCanvas!.clientHeight
             setShapesProperties()
+            if (!isRunning) simpleDrawParticles()
         }
         function handleMove() {
             if (isDragging) {
