@@ -9,6 +9,8 @@ import {
     transformerVariantGroup,
 } from 'unocss'
 
+import fs from 'node:fs/promises'
+
 export default defineConfig({
     shortcuts: [
         ['btn', 'px-4 py-1 rounded inline-block text-white cursor-pointer disabled:cursor-default disabled:bg-gray-600 disabled:opacity-50'],
@@ -30,7 +32,16 @@ export default defineConfig({
         presetAttributify(),
         presetIcons({
             scale: 1.2,
-            // cdn: 'https://esm.sh/', // use esm.sh for icons
+            collections: {
+                carbon: () => import('@iconify-json/carbon/icons.json').then(i => i.default as any),
+                fad: () => import('@iconify-json/fad/icons.json').then(i => i.default as any),
+                'game-icons': () => import('@iconify-json/game-icons/icons.json').then(i => i.default as any),
+                tabler: () => import('@iconify-json/tabler/icons.json').then(i => i.default as any),
+
+                custom: {
+                    icon: () => fs.readFile('./public/icon.svg', 'utf-8'),
+                }
+            }
         }),
         presetTypography(),
         presetWebFonts({

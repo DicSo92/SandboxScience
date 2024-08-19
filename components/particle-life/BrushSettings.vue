@@ -1,27 +1,27 @@
 <template>
     <div class="faded-hover-effect">
-        <button type="button" btn w-8 aspect-square rounded-full p1 flex items-center justify-center
+        <button type="button" title="Brush" aria-label="Brush" btn w-8 aspect-square rounded-full p1 flex items-center justify-center
                 :class="particleLife.isBrushActive && particleLife.brushType === 1 ? 'bg-blue-900 hover:bg-blue-950' : 'bg-zinc-800 hover:bg-zinc-700'"
                 @click="toggleBrushType(1)">
             <span i-tabler-brush text-sm></span>
         </button>
-        <button type="button" btn w-8 aspect-square rounded-full p1 flex items-center justify-center
+        <button type="button" title="Eraser" aria-label="Eraser" btn w-8 aspect-square rounded-full p1 flex items-center justify-center
                 :class="particleLife.isBrushActive && particleLife.brushType === 0 ? 'bg-blue-900 hover:bg-blue-950' : 'bg-zinc-800 hover:bg-zinc-700'"
                 @click="toggleBrushType(0)">
             <span i-tabler-eraser text-sm></span>
         </button>
-        <button type="button" btn w-8 aspect-square rounded-full p1 flex items-center justify-center
+        <button type="button" title="Attractor" aria-label="Attractor" btn w-8 aspect-square rounded-full p1 flex items-center justify-center
                 :class="particleLife.isBrushActive && particleLife.brushType === 3 ? 'bg-blue-900 hover:bg-blue-950' : 'bg-zinc-800 hover:bg-zinc-700'"
                 @click="toggleBrushType(3)">
             <span i-tabler-magnetic text-sm></span>
         </button>
-        <button type="button" btn w-8 aspect-square rounded-full p1 flex items-center justify-center
+        <button type="button" title="Repeller" aria-label="Repeller" btn w-8 aspect-square rounded-full p1 flex items-center justify-center
                 :class="particleLife.isBrushActive && particleLife.brushType === 2 ? 'bg-blue-900 hover:bg-blue-950' : 'bg-zinc-800 hover:bg-zinc-700'"
                 @click="toggleBrushType(2)">
             <span i-tabler-magnet text-sm></span>
         </button>
         <div class="settings-btn">
-            <button type="button" btn w-8 aspect-square rounded-full p1 flex items-center justify-center bg="zinc-800 hover:zinc-700">
+            <button type="button" title="Brush Settings" aria-label="Brush Settings" btn w-8 aspect-square rounded-full p1 flex items-center justify-center bg="zinc-800 hover:zinc-700">
                 <span i-tabler-settings text-sm></span>
             </button>
             <div absolute class="settings-panel pr-1 left-0 top-0 -translate-x-full">
@@ -59,15 +59,17 @@
         </div>
 
         <div flex flex-col p1 rounded-full bg-gray-8>
-            <button w-6 aspect-square rounded-full class="rainbow"
-                 :class="!particleLife.brushes.length && 'border-3 border-gray-400 shadow-inner'"
-                 @click="toggleBrushColor(null)">
+            <button type="button" name="All Colors" aria-label="All Colors"
+                    w-6 aspect-square rounded-full class="rainbow"
+                    :class="!particleLife.brushes.length && 'border-3 border-gray-400 shadow-inner'"
+                    @click="toggleBrushColor(null)">
             </button>
             <hr mt-1 border-gray-600>
             <button v-for="(color, index) in particleLife.currentColors" :key="index"
-                 w-6 aspect-square rounded-full mt-1 :class="particleLife.brushes.includes(index) && 'border-3 border-gray-950 shadow-inner'"
-                 :style="{ backgroundColor: `hsl(${color}, 100%, 50%, 1)`}"
-                 @click="toggleBrushColor(index)">
+                    type="button" :name="`Color ${index + 1}`" :aria-label="`Color ${index + 1}`"
+                    w-6 aspect-square rounded-full mt-1 :class="particleLife.brushes.includes(index) && 'border-3 border-gray-950 shadow-inner'"
+                    :style="{ backgroundColor: `hsl(${color}, 100%, 50%, 1)`}"
+                    @click="toggleBrushColor(index)">
             </button>
         </div>
     </div>
