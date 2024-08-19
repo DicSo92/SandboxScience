@@ -28,7 +28,7 @@
                 </div>
             </div>
         </div>
-        <RangeInput input :min="0" :max="selectedCell ? particleLife.maxRadiusMatrix[selectedCell[0]][selectedCell[1]] : 300" :step="1" v-model="selectedMinRadius" mt-2 >
+        <RangeInput input :min="1" :max="selectedCell ? particleLife.maxRadiusMatrix[selectedCell[0]][selectedCell[1]] : 300" :step="1" v-model="selectedMinRadius" mt-2 >
             <template #customLabel>
                 <div class="w-2/3" border-2 border-gray-500 bg-zinc-800 rounded-lg px-3 py-2>
                     <div v-if="selectedCell" flex items-center justify-between>
@@ -85,7 +85,7 @@ export default defineComponent({
                     particleLife.minRadius = newValue
                     for (let i = 0; i < particleLife.numColors; i++) {
                         for (let j = 0; j < particleLife.numColors; j++) {
-                            setValue(i, j, newValue)
+                            emit('update', i, j, newValue)
                         }
                     }
                 }

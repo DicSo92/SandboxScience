@@ -85,7 +85,7 @@ export default defineComponent({
                     particleLife.maxRadius = newValue
                     for (let i = 0; i < particleLife.numColors; i++) {
                         for (let j = 0; j < particleLife.numColors; j++) {
-                            setValue(i, j, newValue)
+                            emit('update', i, j, newValue)
                         }
                     }
                 }
