@@ -23,9 +23,21 @@
                             </MatrixSettings>
                         </Collapse>
                         <Collapse label="World Settings" icon="i-tabler-world-cog" opened mt-2>
-                            <RangeInput input label="Particle Number" :min="0" :max="20000" :step="10" v-model="particleLife.numParticles" />
-                            <RangeInput input label="Color Number" :min="1" :max="20" :step="1" v-model="particleLife.numColors" mt-2 />
-                            <RangeInput input label="Depth Limit" :min="0" :max="1000" :step="1" v-model="particleLife.depthLimit" mt-2 />
+                            <RangeInput input label="Particle Number" :min="0" :max="20000" :step="10" v-model="particleLife.numParticles">
+                                <template #tooltip>
+                                    Adjust the total number of particles. More particles may reveal complex interactions but can increase computational demand.
+                                </template>
+                            </RangeInput>
+                            <RangeInput input label="Color Number" :min="1" :max="20" :step="1" v-model="particleLife.numColors" mt-2>
+                                <template #tooltip>
+                                    Specify the number of particle colors. Each color interacts with all others, with distinct forces and interaction ranges.
+                                </template>
+                            </RangeInput>
+                            <RangeInput input label="Depth Limit" :min="0" :max="1000" :step="1" v-model="particleLife.depthLimit" mt-2>
+                                <template #tooltip>
+                                    Set the maximum depth for particles. In 3D, particles will bounce back or wrap around if they exceed this limit.
+                                </template>
+                            </RangeInput>
 
                             <div flex items-start justify-between mt-3 mb-2>
                                 <p underline text-gray-300>Walls Settings :</p>
@@ -61,9 +73,21 @@
                             </div>
                         </Collapse>
                         <Collapse label="Force Settings" icon="i-tabler-atom" opened mt-2>
-                            <RangeInput input label="Repel Force" :min="0.01" :max="4" :step="0.01" v-model="particleLife.repel" />
-                            <RangeInput input label="Force Factor" :min="0.01" :max="2" :step="0.01" v-model="particleLife.forceFactor" mt-2 />
-                            <RangeInput input label="Friction Factor" :min="0" :max="1" :step="0.01" v-model="particleLife.frictionFactor" mt-2 />
+                            <RangeInput input label="Repel Force" :min="0.01" :max="4" :step="0.01" v-model="particleLife.repel">
+                                <template #tooltip>
+                                    Adjust the force that repels particles from each other. Higher values increase the separation distance.
+                                </template>
+                            </RangeInput>
+                            <RangeInput input label="Force Factor" :min="0.01" :max="2" :step="0.01" v-model="particleLife.forceFactor" mt-2>
+                                <template #tooltip>
+                                    Adjust the force scaling factor. Increase it to reduce particle speed, prevent explosive behavior, and manage overly rapid interactions.
+                                </template>
+                            </RangeInput>
+                            <RangeInput input label="Friction Factor" :min="0" :max="1" :step="0.01" v-model="particleLife.frictionFactor" mt-2>
+                                <template #tooltip>
+                                    Set the friction level. Lowering it slows down particles, reducing chaotic movement and stabilizing the system.
+                                </template>
+                            </RangeInput>
                         </Collapse>
                         <Collapse label="Randomizer Settings" icon="i-game-icons-perspective-dice-six-faces-random" mt-2>
                             <RangeInputMinMax input label="Min. Radius Range" :min="0" :max="100" :step="1" v-model="particleLife.minRadiusRange" />

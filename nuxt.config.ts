@@ -13,7 +13,8 @@ export default defineNuxtConfig({
         '@pinia/nuxt',
         '@nuxtjs/color-mode',
         "@nuxtjs/seo",
-        "@nuxt/eslint"
+        "@nuxt/eslint",
+        'floating-vue/nuxt'
     ],
 
     site: {

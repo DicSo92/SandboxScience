@@ -28,6 +28,7 @@
         "@vueuse/nuxt": "^10.11.1",
         "eslint": "^8.57.0",
         "eslint-plugin-format": "^0.1.2",
+        "floating-vue": "^5.2.2",
         "nuxt": "^3.12.4",
         "pinia": "^2.2.1",
         "sass": "^1.77.8",
