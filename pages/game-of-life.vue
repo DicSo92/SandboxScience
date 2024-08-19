@@ -1,16 +1,16 @@
 <template>
-    <section flex flex-col justify-center h-full overflow-hidden relative>
-        <SidebarRight v-model="sidebarRightOpen">
-            <template #controls><!-- Some other controls --></template>
-            <template #default>
-                <PatternList />
-            </template>
-        </SidebarRight>
+    <section h-screen flex flex-col justify-center overflow-hidden relative>
+<!--        <SidebarRight v-model="sidebarRightOpen">-->
+<!--            <template #controls>&lt;!&ndash; Some other controls &ndash;&gt;</template>-->
+<!--            <template #default>-->
+<!--                <PatternList />-->
+<!--            </template>-->
+<!--        </SidebarRight>-->
         <SidebarLeft v-model="sidebarLeftOpen">
             <template #controls>
             </template>
             <template #default>
-                <div px-4>
+                <div h-full px-2 flex flex-col>
                     <p>Settings</p>
                     <hr>
                     <div flex items-center justify-between>
@@ -22,7 +22,7 @@
                                     :selected="game.EDGEMODE"
                                     @selected="(id) => game.EDGEMODE = id"
                         />
-                        <ToggleSwitch />
+<!--                        <ToggleSwitch />-->
                     </div>
                     <SelectMenu label="Theme :"
                                 :options="themes.map((theme, index) => ({ name: theme.name, icon: 'i-carbon-compare', id: index }))"
@@ -36,20 +36,20 @@
 
         <NaiveCanvas ref="naiveCanvas" />
 
-        <div flex flex-col absolute top-2 left-2>
+        <div flex flex-col absolute bottom-2 right-2 text-right z-3>
+            <div>Population: {{ game.population }}</div>
+            <div>Generation: {{ game.generation }}</div>
+            <div>Execution Time: {{ Math.round(executionTime) }} ms ({{ averageExecutionTime }}ms)</div>
             <div class="flex">
                 <div mr-2>Rows: {{game.rows}}</div>
                 <div mx-2>Cols: {{game.cols}}</div>
                 <div mx-2>Cell Size: {{game.size}}</div>
             </div>
-            <div>Execution Time: {{ Math.round(executionTime) }} ms ({{ averageExecutionTime }}ms)</div>
-            <div>Generation: {{ game.generation }}</div>
-            <div>Population: {{ game.population }}</div>
         </div>
 
         <div absolute w-full text-center transform top-2 class="-translate-x-1/2 left-1/2">x: {{ pointerX }} - y: {{ pointerY }}</div>
 
-        <Controls class="absolute bottom-0 mb-2"
+        <Controls class="absolute bottom-0 mb-2 z-4"
                   :naiveCanvas="naiveCanvas"
                   @getExecutionAverage="getExecutionAverage"
                   @randomCells="randomCells"
@@ -79,7 +79,19 @@ import { themes } from "~/helpers/utils/themes";
 export default defineComponent({
     components: { Controls, PatternList },
     setup() {
-        definePageMeta({ layout: 'life' })
+        definePageMeta({
+            layout: 'life',
+            hideNavBar: true
+        })
+        useSeoMeta({
+            title: 'Game of Life',
+            description: 'Explore the classic Game of Life, a fascinating cellular automata simulation to understand patterns, evolution, and emergent behavior in complex systems.',
+            ogTitle: 'Game of Life • Cellular Automata',
+            ogDescription: 'Explore the classic Game of Life, a fascinating cellular automata simulation to understand patterns, evolution, and emergent behavior in complex systems.',
+            twitterTitle: 'Game of Life • Cellular Automata',
+            twitterDescription: 'Explore the classic Game of Life, a fascinating cellular automata simulation to understand patterns, evolution, and emergent behavior in complex systems.',
+        })
+
         const game = useGameStore()
         const naiveCanvas = ref( )
 

@@ -8,7 +8,7 @@
         <button class="fixed inset-0 h-full w-full cursor-default focus:outline-none" v-if="open" @click="open = false" tabindex="-1"></button>
 
         <transition enter-active-class="transition-all duration-200 ease-out" leave-active-class="transition-all duration-200 ease-in" enter-class="opacity-0 scale-75" enter-to-class="opacity-100 scale-100" leave-class="opacity-100 scale-100" leave-to-class="opacity-0 scale-75">
-            <div class="absolute shadow-lg border border-zinc-800 w-48 rounded py-1 px-2 text-sm mt-3 z-10 backdrop-blur-[2px]" :class="placement === 'right' ? 'right-0' : 'left-0'" v-if="open">
+            <div v-show="open" class="absolute shadow-lg border border-zinc-800 w-48 rounded py-1 px-2 text-sm mt-3 z-10 backdrop-blur-[2px]" :class="placement === 'right' ? 'right-0' : 'left-0'">
                 <slot name="content"></slot>
             </div>
         </transition>

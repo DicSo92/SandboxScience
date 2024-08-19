@@ -1,5 +1,5 @@
 <template>
-    <section flex flex-col justify-center h-full overflow-hidden relative>
+    <section h-screen flex flex-col justify-center overflow-hidden relative>
         <div flex-1 relative>
             <canvas ref="canvas" id="canvas" @contextmenu.prevent h-full w-full></canvas>
         </div>
@@ -9,7 +9,17 @@
 <script lang="ts">
 export default defineComponent({
     setup() {
-        definePageMeta({ layout: 'life' })
+        definePageMeta({
+            layout: 'life'
+        })
+        useSeoMeta({
+            title: 'Hash Life',
+            description: 'Experience Hash Life, an optimized version of the Game of Life, enabling faster simulations of complex cellular automata patterns and behaviors.',
+            ogTitle: 'Hash Life • Optimized Game of Life',
+            ogDescription: 'Experience Hash Life, an optimized version of the Game of Life, enabling faster simulations of complex cellular automata patterns and behaviors.',
+            twitterTitle: 'Hash Life • Optimized Game of Life',
+            twitterDescription: 'Experience Hash Life, an optimized version of the Game of Life, enabling faster simulations of complex cellular automata patterns and behaviors.',
+        })
 
         // Define canvas and context for drawing
         let canvas: HTMLCanvasElement | undefined

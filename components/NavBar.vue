@@ -2,44 +2,53 @@
     <nav flex justify-center py-2 px-3 z-100 fixed top-0 left-0 right-0 class="bg-#090909AA">
         <div flex justify-between container>
             <div flex items-center>
-                <NuxtLink to="/" flex items-center>
-                    <span text-lg font-bold mr-1>🧪</span>
+                <SiteLink to="/" title="Home" aria-label="Home" flex items-center>
+                    <span class="i-custom:icon text-lg mr-1"></span>
                     <div font-semibold>SandboxScience</div>
-                </NuxtLink>
+                </SiteLink>
                 <div flex ml-8>
                     <Dropdown placement="left">
                         <template v-slot:button>
                             <div flex items-center mx-2>
-                                <span class="mr-1">Simulations</span>
+                                <span class="mr-1" text="zinc-2 hover:zinc-1">Simulations</span>
                                 <span i-tabler-chevron-down mt-px></span>
                             </div>
                         </template>
                         <template v-slot:content>
-                            <NuxtLink to="/game-of-life" flex w-full justify-between items-center rounded px-2 py-1 my-1 hover:bg-zinc-700>
+                            <SiteLink to="/game-of-life" flex w-full justify-between items-center rounded px-2 py-1 my-1 hover:bg-zinc-700>
                                 Game Of Life
-                            </NuxtLink>
-                            <NuxtLink to="/particle-life" flex w-full justify-between items-center rounded px-2 py-1 my-1 hover:bg-zinc-700>
+                            </SiteLink>
+                            <SiteLink to="/particle-life" flex w-full justify-between items-center rounded px-2 py-1 my-1 hover:bg-zinc-700>
                                 Particle Life
-                            </NuxtLink>
-                            <NuxtLink to="/hash-life" flex w-full justify-between items-center rounded px-2 py-1 my-1 hover:bg-zinc-700>
+                            </SiteLink>
+                            <SiteLink to="/hash-life" flex w-full justify-between items-center rounded px-2 py-1 my-1 hover:bg-zinc-700>
                                 Hash Life
-                            </NuxtLink>
+                            </SiteLink>
                         </template>
                     </Dropdown>
-                    <NuxtLink to="/doc" mx-2>Documentation</NuxtLink>
-                    <NuxtLink to="/about" mx-2>About</NuxtLink>
+<!--                    <SiteLink to="/doc" mx-2>Documentation</SiteLink>-->
+                    <button mx-2 cursor-not-allowed text-gray-400>Documentation</button>
+                    <SiteLink to="/about" mx-2 class="text-zinc-2 hover:text-zinc-1">
+                        About
+                    </SiteLink>
                 </div>
             </div>
             <div flex>
-                <button type="button" text="zinc-3 hover:zinc-1" flex items-center py-0 px-2>
-                    <span i-carbon-logo-github text-lg></span>
-                </button>
-                <button type="button" text="zinc-3 hover:zinc-1" flex items-center py-0 px-2>
-                    <span i-carbon-logo-discord text-lg></span>
-                </button>
-                <button type="button" text="zinc-3 hover:zinc-1" flex items-center py-0 px-2>
-                    <span i-carbon-logo-x text-lg></span>
-                </button>
+                <NuxtLink to="https://github.com/DicSo92/SandboxScience" title="Github" aria-label="Github" target="_blank" external class="flex items-center py-0 mx-1">
+                    <button type="button" name="Github" aria-label="Github" text="zinc-3 hover:zinc-1" flex>
+                        <span i-carbon-logo-github text-lg m-0.5></span>
+                    </button>
+                </NuxtLink>
+                <NuxtLink to="https://discord.com/invite/z5yuzkFpCA" title="Discord" aria-label="Discord" target="_blank" external class="flex items-center py-0 ml-1.5 mr-1">
+                    <button type="button" name="Discord" aria-label="Discord" text="zinc-3 hover:zinc-1" flex>
+                        <span i-carbon-logo-discord text-lg m-0.5></span>
+                    </button>
+                </NuxtLink>
+                <NuxtLink to="https://x.com" title="Twitter" aria-label="Twitter" target="_blank" external class="flex items-center py-0 mx-1">
+                    <button type="button" name="Twitter" aria-label="Twitter" text="zinc-3 hover:zinc-1" flex>
+                        <span i-carbon-logo-x text-lg m-0.5></span>
+                    </button>
+                </NuxtLink>
             </div>
         </div>
 

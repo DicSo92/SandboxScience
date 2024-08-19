@@ -1,5 +1,5 @@
 <template>
-    <section flex flex-col justify-center h-full overflow-hidden relative ref="mainContainer">
+    <section h-screen flex flex-col justify-center overflow-hidden relative ref="mainContainer">
         <SidebarLeft v-model="particleLife.sidebarLeftOpen">
             <template #controls>
             </template>
@@ -120,11 +120,11 @@
             <BrushSettings pointer-events-auto mt-2 mr-1 />
 
             <div class="faded-hover-effect" pointer-events-auto mr-1>
-                <button type="button" btn w-8 aspect-square rounded-full p1 flex items-center justify-center bg="#D62839 hover:#DC4151" mt-2
+                <button type="button" title="Debugger" aria-label="Debugger" btn w-8 aspect-square rounded-full p1 flex items-center justify-center bg="#D62839 hover:#DC4151" mt-2
                         @click="particleLife.hasCells = !particleLife.hasCells">
                     <span text-sm :class="particleLife.hasCells ? 'i-tabler-bug-filled' : 'i-tabler-bug'"></span>
                 </button>
-                <button type="button" btn w-8 aspect-square rounded-full p1 flex items-center justify-center bg="#212121 hover:#333333" mt-2
+                <button type="button" title="Grid" aria-label="Grid" btn w-8 aspect-square rounded-full p1 flex items-center justify-center bg="#212121 hover:#333333" mt-2
                         @click="particleLife.hasGrid = !particleLife.hasGrid" :disabled="!particleLife.isWallRepel && !particleLife.isWallWrap" class="disabled:cursor-not-allowed">
                     <span text-sm :class="particleLife.hasGrid ? 'i-tabler-bread' : 'i-tabler-bread-off'"></span>
                 </button>
@@ -132,25 +132,25 @@
 
         </div>
         <div fixed z-10 bottom-2 flex justify-center items-end class="faded-hover-effect left-1/2 transform -translate-x-1/2">
-            <button type="button" btn p2 rounded-full mx-1 flex items-center bg="#094F5D hover:#0B5F6F" @click="regenerateLife">
+            <button type="button" name="Randomize" aria-label="Randomize" btn p2 rounded-full mx-1 flex items-center bg="#094F5D hover:#0B5F6F" @click="regenerateLife">
                 <span i-game-icons-perspective-dice-six-faces-random></span>
             </button>
-            <button type="button" btn p2 rounded-full mx-1 flex items-center bg="#E07F00 hover:#FF8F00" @click="particleLife.is3D = !particleLife.is3D">
+            <button type="button" name="Toggle 3D" aria-label="Toggle 3D" btn p2 rounded-full mx-1 flex items-center bg="#E45C3A hover:#E76F51" @click="particleLife.is3D = !particleLife.is3D">
                 <span text-sm font-700 style="line-height: normal">{{ particleLife.is3D ? '2D' : '3D' }}</span>
             </button>
-            <button type="button" btn p2 rounded-full mx-1 flex items-center bg="#212121 hover:#333333" @click="handleZoom(-1, lifeCanvas!.clientWidth / 2, lifeCanvas!.clientHeight / 2)">
+            <button type="button" name="Zoom Out" aria-label="Zoom Out" btn p2 rounded-full mx-1 flex items-center bg="#212121 hover:#333333" @click="handleZoom(-1, lifeCanvas!.clientWidth / 2, lifeCanvas!.clientHeight / 2)">
                 <span i-tabler-zoom-out></span>
             </button>
-            <button type="button" btn p3 rounded-full mx-1 flex items-center bg="#212121 hover:#333333" @click="particleLife.isRunning = !particleLife.isRunning">
+            <button type="button" name="Play/Pause" aria-label="Play/Pause" btn p3 rounded-full mx-1 flex items-center bg="#212121 hover:#333333" @click="particleLife.isRunning = !particleLife.isRunning">
                 <span text-xl :class="particleLife.isRunning ? 'i-tabler-player-pause-filled' : 'i-tabler-player-play-filled'"></span>
             </button>
-            <button type="button" btn p2 rounded-full mx-1 flex items-center bg="#212121 hover:#333333" :disabled="particleLife.isRunning" @click="step">
+            <button type="button" name="Step" aria-label="Step" btn p2 rounded-full mx-1 flex items-center bg="#212121 hover:#333333" :disabled="particleLife.isRunning" @click="step">
                 <span i-tabler-player-skip-forward-filled></span>
             </button>
-            <button type="button" btn p2 rounded-full mx-1 flex items-center bg="#212121 hover:#333333" @click="handleZoom(1, lifeCanvas!.clientWidth / 2, lifeCanvas!.clientHeight / 2)">
+            <button type="button" name="Zoom In" aria-label="Zoom In" btn p2 rounded-full mx-1 flex items-center bg="#212121 hover:#333333" @click="handleZoom(1, lifeCanvas!.clientWidth / 2, lifeCanvas!.clientHeight / 2)">
                 <span i-tabler-zoom-in></span>
             </button>
-            <button type="button" btn p2 rounded-full mx-1 flex items-center bg="#212121 hover:#333333" @click="toggleFullscreen">
+            <button type="button" name="Toggle Fullscreen" aria-label="Toggle Fullscreen" btn p2 rounded-full mx-1 flex items-center bg="#212121 hover:#333333" @click="toggleFullscreen">
                 <span :class="isFullscreen ? 'i-tabler-maximize-off' : 'i-tabler-maximize'"></span>
             </button>
         </div>
@@ -171,31 +171,16 @@ export default defineComponent({
             layout: 'life',
             hideNavBar: true
         })
-        useHead({
+        useSeoMeta({
             title: 'Particle Life',
-            meta: [
-                { name: 'description', content: 'Discover Particle Life, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.' },
-                { name: 'keywords', content: 'ParticleLife, particle simulation, particle, life, simulation, science, physics, education, system dynamics, interactive' },
-                { name: 'author', content: 'DicSo92' },
-                { property: 'og:type', content: 'website' },
-                { property: 'og:title', content: 'ParticleLife - Particle Simulation' },
-                { property: 'og:description', content: 'Discover ParticleLife, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.' },
-                { property: 'og:image', content: 'https://www.sandbox-science.com/images/particlelife-thumbnail.jpg' },
-                { property: 'og:url', content: 'https://www.sandbox-science.com/particle-life' },
-                { property: 'og:site_name', content: 'Sandbox Science' },
-                { name: 'twitter:card', content: 'summary_large_image' },
-                { name: 'twitter:title', content: 'ParticleLife - Particle Simulation' },
-                { name: 'twitter:description', content: 'Discover ParticleLife, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.' },
-                { name: 'twitter:image', content: 'https://www.sandbox-science.com/images/particlelife-thumbnail.jpg' },
-                { name: 'twitter:site', content: '@SandboxScience' },
-            ],
-            link: [
-                { rel: 'canonical', href: 'https://www.sandbox-science.com/particle-life' },
-                { rel: 'icon', href: 'https://www.sandbox-science.com/favicon.ico', type: 'image/x-icon' },
-            ]
+            description: 'Discover Particle Life, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.',
+            ogTitle: 'Particle Life • Particle Simulation',
+            ogDescription: 'Discover ParticleLife, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.',
+            twitterTitle: 'Particle Life • Particle Simulation',
+            twitterDescription: 'Discover ParticleLife, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.',
         })
-        const particleLife = useParticleLifeStore()
 
+        const particleLife = useParticleLifeStore()
         const mainContainer = ref<HTMLElement | null>(null)
         const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(mainContainer)
 
@@ -221,6 +206,7 @@ export default defineComponent({
         let attractForce: number = particleLife.attractForce
         let repulseForce: number = -Math.abs(particleLife.repulseForce)
         let isMagnetActive: boolean = false
+        let wallRepelForce: number = particleLife.wallRepelForce // Repulse force for the walls (velocity will be multiplied by this value negative)
 
         // Define color list and rules matrix for the particles
         let currentColors: number[] = [] // Current colors for the particles
@@ -383,6 +369,7 @@ export default defineComponent({
             canvasWidth = lifeCanvas!.width = lifeCanvas!.clientWidth
             canvasHeight = lifeCanvas!.height = lifeCanvas!.clientHeight
             setShapesProperties()
+            if (!isRunning) simpleDrawParticles()
         }
         function handleMove() {
             if (isDragging) {
@@ -1058,11 +1045,11 @@ export default defineComponent({
                     if (wallShape === 0) { // Rectangle Shape
                         if (positionX[i] > gridWidth || positionX[i] < 0) {
                             positionX[i] -= velocityX[i]
-                            velocityX[i] *= -1.2
+                            velocityX[i] *= -wallRepelForce
                         }
                         if (positionY[i] > gridHeight || positionY[i] < 0) {
                             positionY[i] -= velocityY[i]
-                            velocityY[i] *= -1.2
+                            velocityY[i] *= -wallRepelForce
                         }
                     }
                     else { // Circle Shape
@@ -1073,8 +1060,8 @@ export default defineComponent({
                         if (distanceSquared > circleRadius * circleRadius) {
                             positionX[i] -= velocityX[i]
                             positionY[i] -= velocityY[i]
-                            velocityX[i] *= -1.2
-                            velocityY[i] *= -1.2
+                            velocityX[i] *= -wallRepelForce
+                            velocityY[i] *= -wallRepelForce
                         }
                     }
                 }
@@ -1104,11 +1091,11 @@ export default defineComponent({
                     if (wallShape === 0) { // Rectangle Shape
                         if (positionX[i] > gridWidth || positionX[i] < 0) {
                             positionX[i] -= velocityX[i]
-                            velocityX[i] *= -1.2
+                            velocityX[i] *= -wallRepelForce
                         }
                         if (positionY[i] > gridHeight || positionY[i] < 0) {
                             positionY[i] -= velocityY[i]
-                            velocityY[i] *= -1.2
+                            velocityY[i] *= -wallRepelForce
                         }
                     }
                     else { // Circle Shape
@@ -1119,8 +1106,8 @@ export default defineComponent({
                         if (distanceSquared > circleRadius * circleRadius) {
                             positionX[i] -= velocityX[i]
                             positionY[i] -= velocityY[i]
-                            velocityX[i] *= -1.2
-                            velocityY[i] *= -1.2
+                            velocityX[i] *= -wallRepelForce
+                            velocityY[i] *= -wallRepelForce
                         }
                     }
                 }
@@ -1133,9 +1120,11 @@ export default defineComponent({
                 }
 
                 // Bounce off the depth limit
-                if (positionZ[i] > depthLimit || positionZ[i] < 0) {
-                    positionZ[i] -= velocityZ[i]
-                    velocityZ[i] *= -1.2
+                if (positionZ[i] > depthLimit) {
+                    positionZ[i] = depthLimit
+                } else if (positionZ[i] < 0) {
+                    positionZ[i] -= velocityZ[i] // or positionZ[i] = 0
+                    velocityZ[i] *= -wallRepelForce
                 }
 
                 drawParticle(positionX[i], positionY[i], positionZ[i], currentColors[colors[i]], particleSize)
@@ -1603,6 +1592,7 @@ export default defineComponent({
         }
         watch(() => particleLife.numParticles, (value) => updateNumParticles(value))
         watch(() => particleLife.numColors, (value) => updateNumColors(value))
+        watch(() => particleLife.depthLimit, (value: number) => depthLimit = value)
         watch(() => particleLife.brushes, (value: number[]) => brushes = value)
         watch(() => particleLife.brushRadius, (value) => brushRadius = value)
         watch(() => particleLife.brushIntensity, (value) => brushIntensity = value)
@@ -1613,7 +1603,6 @@ export default defineComponent({
         watchAndDraw(() => particleLife.isRunning, (value: boolean) => isRunning = value)
         watchAndDraw(() => particleLife.isBrushActive, (value: boolean) => isBrushActive = value)
         watchAndDraw(() => particleLife.particleSize, (value: number) => particleSize = value)
-        watchAndDraw(() => particleLife.depthLimit, (value: number) => depthLimit = value)
         watchAndDraw(() => particleLife.isWallRepel, (value: boolean) => {
             isWallRepel = value
             if (isWallRepel) particleLife.isWallWrap = false
