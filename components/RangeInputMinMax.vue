@@ -1,6 +1,20 @@
 <template>
     <div mt-2 flex>
-        <p v-if="label" class="w-2/3 -mt-2">{{ label }}</p>
+        <div v-if="label" class="flex w-2/3 -mt-1.5">
+            <p text-sm>
+                {{ label }}
+                <VTooltip v-if="slots.tooltip" popperClass="bg-gray-800 shadow-lg" class="inline-block"
+                          :delay="0" :distance="7" placement="auto-start"
+                          :overflow-padding="10" :arrow-padding="10">
+                    <button name="Info" aria-label="Info" i-tabler-info-circle text-zinc text-base cursor-help align-top></button>
+                    <template #popper>
+                        <div flex flex-col w-64 text-sm>
+                            <slot name="tooltip"></slot>
+                        </div>
+                    </template>
+                </VTooltip>
+            </p>
+        </div>
         <div flex flex-col w-full>
             <div relative flex-1 ml-2>
                 <input type="range"
@@ -59,7 +73,7 @@ export default defineComponent({
             required: false
         }
     },
-    setup(props, { emit }) {
+    setup(props, { emit, slots }) {
         const rangeOffset = 6
         const minOffset = computed(() => {
             return Math.max(0, Math.min(100, ((props.modelValue[0] - props.min) / (props.max - props.min)) * 100)) // get the percentage from the left
@@ -83,7 +97,7 @@ export default defineComponent({
             emit("update:modelValue", newRange)
         }
 
-        return { minOffset, maxOffset, inputTextUpdateMin, inputTextUpdateMax, updateMinValue, updateMaxValue }
+        return { minOffset, maxOffset, inputTextUpdateMin, inputTextUpdateMax, updateMinValue, updateMaxValue, slots }
     }
 })
 </script>

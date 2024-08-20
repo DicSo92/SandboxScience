@@ -85,14 +85,21 @@
                             </RangeInput>
                             <RangeInput input label="Friction Factor" :min="0" :max="1" :step="0.01" v-model="particleLife.frictionFactor" mt-2>
                                 <template #tooltip>
-                                    Set the friction level. Lowering it slows down particles, reducing chaotic movement and stabilizing the system.
+                                    Adjust the friction level. Lowering it slows down particles, reducing chaotic movement and stabilizing the system.
                                 </template>
                             </RangeInput>
                         </Collapse>
                         <Collapse label="Randomizer Settings" icon="i-game-icons-perspective-dice-six-faces-random" mt-2>
-                            <RangeInputMinMax input label="Min. Radius Range" :min="0" :max="100" :step="1" v-model="particleLife.minRadiusRange" />
-                            <RangeInput input label="Max. Radius Offset" :min="1" :max="particleLife.maxRadiusRangeMax" :step="1" v-model="particleLife.maxRadiusRangeOffset" mt-2 />
-                            <RangeInput input label="Max. Radius" :min="particleLife.minRadiusRange[1] + particleLife.maxRadiusRangeOffset" :max="300" :step="1" v-model="particleLife.maxRadiusRangeMax" mt-2 />
+                            <RangeInputMinMax input label="Min Radius Range" :min="0" :max="100" :step="1" v-model="particleLife.minRadiusRange">
+                                <template #tooltip>
+                                    Set the range for generating minimum interaction radii. This determines the range of possible values for the minimum distance at which particles begin to interact.
+                                </template>
+                            </RangeInputMinMax>
+                            <RangeInputMinMax input label="Max Radius Range" :min="particleLife.minRadiusRange[1]" :max="300" :step="1" v-model="particleLife.maxRadiusRange">
+                                <template #tooltip>
+                                    Set the range for generating maximum interaction radii. This determines the range of possible values for the maximum interaction distance between particles.
+                                </template>
+                            </RangeInputMinMax>
                         </Collapse>
                         <Collapse label="Graphics Settings" icon="i-tabler-photo-cog" mt-2>
                             <p underline text-gray-300 mb-2 class="-mt-1">General Settings :</p>
@@ -106,8 +113,16 @@
                                 <ToggleSwitch label="Depth Size" v-model="particleLife.hasDepthSize" />
                                 <ToggleSwitch label="Depth Opacity" v-model="particleLife.hasDepthOpacity" />
                             </div>
-                            <RangeInput input label="Min. Opacity" :min="0" :max="Math.min(1, particleLife.maxOpacity)" :step="0.01" v-model="particleLife.minOpacity" mt-2 />
-                            <RangeInput input label="Max. Opacity" :min="particleLife.minOpacity" :max="2" :step="0.01" v-model="particleLife.maxOpacity" mt-2 />
+                            <RangeInput input label="Min. Opacity" :min="0" :max="Math.min(1, particleLife.maxOpacity)" :step="0.01" v-model="particleLife.minOpacity" mt-2>
+                                <template #tooltip>
+                                    Set the minimum opacity for depth effect. Lower values enhance perspective, creating a stronger depth effect when depth opacity is enabled.
+                                </template>
+                            </RangeInput>
+                            <RangeInput input label="Max. Opacity" :min="particleLife.minOpacity" :max="2" :step="0.01" v-model="particleLife.maxOpacity" mt-2>
+                                <template #tooltip>
+                                    Set the maximum opacity for depth effects. Higher values reduce perspective, creating a subtler depth effect when depth opacity is enabled.
+                                </template>
+                            </RangeInput>
                         </Collapse>
                         <Collapse label="Debug Tools" icon="i-tabler-bug" mt-2>
                             <div flex items-center justify-between>
@@ -510,8 +525,8 @@ export default defineComponent({
         }
         function makeRandomMaxRadiusMatrix() {
             let matrix: number[][] = []
-            const min: number = currentMinRadius + particleLife.maxRadiusRangeOffset
-            const max: number = particleLife.maxRadiusRangeMax
+            const min: number = particleLife.maxRadiusRange[0]
+            const max: number = particleLife.maxRadiusRange[1]
             let maxRandom: number = min
             for (let i = 0; i < numColors; i++) {
                 matrix.push([])
@@ -1550,8 +1565,9 @@ export default defineComponent({
                         if (minRandom > currentMinRadius) currentMinRadius = minRandom
 
                         // Set a random max radius between the range
-                        const min = minRandom + particleLife.maxRadiusRangeOffset
-                        const maxRandom = Math.floor(Math.random() * (particleLife.maxRadiusRangeMax - min + 1) + min)
+                        const min = particleLife.maxRadiusRange[0]
+                        const max = particleLife.maxRadiusRange[1]
+                        const maxRandom = Math.floor(Math.random() * (max - min + 1) + min)
                         newMaxRadiusMatrix[i][j] = maxRandom
                     }
                 }
