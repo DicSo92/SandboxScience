@@ -30,8 +30,8 @@
                     <div class="absolute z-30 w-5 h-5 left-0 bg-#0A5F71 rounded-full -translate-x-1/2" :style="`left: ${minOffset}%;`"></div>
                 </div>
             </div>
-            <div v-if="input" w-16>
-                <input type="text" maxlength="5" :value="modelValue" @input="inputTextUpdate($event.target.value)" class="w-full border border-gray-200 rounded text-center text-black">
+            <div v-if="input" w-14>
+                <input type="text" maxlength="5" :value="modelValue" @input="inputTextUpdate($event.target.value)" class="w-full border border-gray-200 rounded text-sm text-center text-black font-500">
             </div>
         </div>
     </div>

@@ -37,8 +37,8 @@
             </div>
 
             <div class="flex justify-between items-center pt-2 ml-2">
-                <input type="text" maxlength="5" :value="modelValue[0]" @input="inputTextUpdateMin($event.target.value)" class="w-16 border border-gray-200 rounded text-center text-black">
-                <input type="text" maxlength="5" :value="modelValue[1]" @input="inputTextUpdateMax($event.target.value)" class="w-16 border border-gray-200 rounded text-center text-black">
+                <input type="text" maxlength="5" :value="modelValue[0]" @input="inputTextUpdateMin($event.target.value)" class="w-14 border border-gray-200 rounded text-sm text-center text-black font-500">
+                <input type="text" maxlength="5" :value="modelValue[1]" @input="inputTextUpdateMax($event.target.value)" class="w-14 border border-gray-200 rounded text-sm text-center text-black font-500">
             </div>
         </div>
     </div>

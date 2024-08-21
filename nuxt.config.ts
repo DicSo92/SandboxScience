@@ -2,7 +2,7 @@ import { appURL, appName, appDescription } from './constants/index'
 
 export default defineNuxtConfig({
     devtools: {
-        enabled: true,
+        enabled: false,
         timeline: {
             enabled: false,
         },

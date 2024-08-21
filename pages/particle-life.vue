@@ -47,17 +47,17 @@
                                 <WallStateSelection />
                             </div>
                             <div flex mb-1>
-                                <SelectButton :id="1" label="Screen" v-model="particleLife.screenMultiplierForGridSize" mr-2 />
-                                <SelectButton :id="1.5" label="x1.5" v-model="particleLife.screenMultiplierForGridSize" mr-2 />
-                                <SelectButton :id="2" label="x2" v-model="particleLife.screenMultiplierForGridSize" mr-2 />
-                                <SelectButton :id="2.5" label="x2.5" v-model="particleLife.screenMultiplierForGridSize" mr-2 />
-                                <SelectButton :id="3" label="x3" v-model="particleLife.screenMultiplierForGridSize" mr-2 />
-                                <SelectButton :id="3.5" label="x3.5" v-model="particleLife.screenMultiplierForGridSize" mr-2 />
-                                <SelectButton :id="4" label="x4" v-model="particleLife.screenMultiplierForGridSize" mr-2 />
+                                <SelectButton :id="1" label="Screen" v-model="particleLife.screenMultiplierForGridSize" mr-1.5 />
+                                <SelectButton :id="1.5" label="x1.5" v-model="particleLife.screenMultiplierForGridSize" mr-1.5 />
+                                <SelectButton :id="2" label="x2" v-model="particleLife.screenMultiplierForGridSize" mr-1.5 />
+                                <SelectButton :id="2.5" label="x2.5" v-model="particleLife.screenMultiplierForGridSize" mr-1.5 />
+                                <SelectButton :id="3" label="x3" v-model="particleLife.screenMultiplierForGridSize" mr-1.5 />
+                                <SelectButton :id="3.5" label="x3.5" v-model="particleLife.screenMultiplierForGridSize" mr-1.5 />
+                                <SelectButton :id="4" label="x4" v-model="particleLife.screenMultiplierForGridSize" mr-1.5 />
                                 <SelectButton :id="5" label="x5" v-model="particleLife.screenMultiplierForGridSize" />
                             </div>
                             <div flex items-center v-if="particleLife.wallShape === 0">
-                                <p class="w-2/3">Rectangle Size</p>
+                                <p class="w-2/3 text-sm mt-1">Rectangle Size</p>
                                 <Input label="x" v-model="particleLife.gridWidth" @change="updateGridWidth" mr-2 />
                                 <Input label="y" v-model="particleLife.gridHeight" @change="updateGridHeight" mr-2 />
                                 <button type="button" btn rounded-full p2 flex items-center bg="zinc-900 hover:#212121" @click="particleLife.linkProportions = !particleLife.linkProportions">
@@ -144,7 +144,7 @@
                 </div>
             </template>
         </SidebarLeft>
-        <canvas ref="lifeCanvas" id="lifeCanvas" @contextmenu.prevent w-full h-full></canvas>
+        <canvas ref="lifeCanvas" id="lifeCanvas" @contextmenu.prevent w-full h-full cursor-crosshair></canvas>
         <div absolute top-0 right-0 flex flex-col items-end text-right pointer-events-none>
             <div flex items-center text-start text-xs pl-4 pr-1 bg-gray-800 rounded-bl-xl style="padding-bottom: 1px; opacity: 75%">
                 <div flex>Fps: <div ml-1 min-w-8>{{ fps }}</div></div>
@@ -1211,8 +1211,8 @@ export default defineComponent({
         function drawBrush() {
             ctx!.beginPath()
             ctx!.arc(pointerX, pointerY, brushRadius * zoomFactor, 0, Math.PI * 2)
-            ctx!.strokeStyle = 'rgba(0,0,255,0.4)'
-            ctx!.lineWidth = 1
+            ctx!.strokeStyle = 'rgb(23,37,84,0.4)'
+            ctx!.lineWidth = 3
             ctx!.stroke()
         }
         function getParticlesInBrush() : number[] {
