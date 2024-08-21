@@ -3,16 +3,13 @@
         <div v-if="label" class="flex items-center w-2/3">
             <p text-sm>
                 {{ label }}
-                <VTooltip v-if="slots.tooltip" popperClass="bg-gray-800 shadow-lg" class="inline-block"
-                          :delay="0" :distance="7" placement="auto-start"
-                          :overflow-padding="10" :arrow-padding="10">
-                    <button name="Info" aria-label="Info" i-tabler-info-circle text-zinc text-base cursor-help align-top></button>
-                    <template #popper>
-                        <div flex flex-col w-64 text-sm>
-                            <slot name="tooltip"></slot>
-                        </div>
-                    </template>
-                </VTooltip>
+                <button v-if="tooltip" name="Info" aria-label="Info" i-tabler-info-circle text-zinc text-base cursor-help align-top
+                        v-tooltip="{
+                            content: tooltip, html: true, container: '#mainContainer',
+                            popperClass: 'bg-gray-800 text-sm max-w-64 pointer-events-none',
+                            delay: 0, distance: 7, placement: 'auto-start', overflowPadding: 10, arrowPadding: 10
+                        }">
+                </button>
             </p>
         </div>
 
@@ -66,6 +63,10 @@ export default defineComponent({
             default: false
         },
         label: {
+            type: String,
+            required: false
+        },
+        tooltip: {
             type: String,
             required: false
         }

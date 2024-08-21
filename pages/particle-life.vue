@@ -1,5 +1,5 @@
 <template>
-    <section h-screen flex flex-col justify-center overflow-hidden relative ref="mainContainer">
+    <section h-screen flex flex-col justify-center overflow-hidden relative ref="mainContainer" id="mainContainer">
         <SidebarLeft v-model="particleLife.sidebarLeftOpen">
             <template #controls>
             </template>
@@ -23,20 +23,17 @@
                             </MatrixSettings>
                         </Collapse>
                         <Collapse label="World Settings" icon="i-tabler-world-cog" opened mt-2>
-                            <RangeInput input label="Particle Number" :min="0" :max="20000" :step="10" v-model="particleLife.numParticles">
-                                <template #tooltip>
-                                    Adjust the total number of particles. More particles may reveal complex interactions but can increase computational demand.
-                                </template>
+                            <RangeInput input label="Particle Number"
+                                        tooltip="Adjust the total number of particles. More particles may reveal complex interactions but can increase computational demand."
+                                        :min="0" :max="20000" :step="10" v-model="particleLife.numParticles">
                             </RangeInput>
-                            <RangeInput input label="Color Number" :min="1" :max="20" :step="1" v-model="particleLife.numColors" mt-2>
-                                <template #tooltip>
-                                    Specify the number of particle colors. Each color interacts with all others, with distinct forces and interaction ranges.
-                                </template>
+                            <RangeInput input label="Color Number"
+                                        tooltip="Specify the number of particle colors. Each color interacts with all others, with distinct forces and interaction ranges."
+                                        :min="1" :max="20" :step="1" v-model="particleLife.numColors" mt-2>
                             </RangeInput>
-                            <RangeInput input label="Depth Limit" :min="0" :max="1000" :step="1" v-model="particleLife.depthLimit" mt-2>
-                                <template #tooltip>
-                                    Set the maximum depth for particles. In 3D, particles will bounce back or wrap around if they exceed this limit.
-                                </template>
+                            <RangeInput input label="Depth Limit"
+                                        tooltip="Set the maximum depth for particles. In 3D, particles will bounce back or wrap around if they exceed this limit."
+                                        :min="0" :max="1000" :step="1" v-model="particleLife.depthLimit" mt-2>
                             </RangeInput>
 
                             <div flex items-start justify-between mt-3 mb-2>
@@ -73,32 +70,27 @@
                             </div>
                         </Collapse>
                         <Collapse label="Force Settings" icon="i-tabler-atom" opened mt-2>
-                            <RangeInput input label="Repel Force" :min="0.01" :max="4" :step="0.01" v-model="particleLife.repel">
-                                <template #tooltip>
-                                    Adjust the force that repels particles from each other. Higher values increase the separation distance.
-                                </template>
+                            <RangeInput input label="Repel Force"
+                                        tooltip="Adjust the force that repels particles from each other. Higher values increase the separation distance."
+                                        :min="0.01" :max="4" :step="0.01" v-model="particleLife.repel">
                             </RangeInput>
-                            <RangeInput input label="Force Factor" :min="0.01" :max="2" :step="0.01" v-model="particleLife.forceFactor" mt-2>
-                                <template #tooltip>
-                                    Adjust the force scaling factor. Increase it to reduce particle speed, prevent explosive behavior, and manage overly rapid interactions.
-                                </template>
+                            <RangeInput input label="Force Factor"
+                                        tooltip="Adjust the force scaling factor. Increase it to reduce particle speed, prevent explosive behavior, and manage overly rapid interactions."
+                                        :min="0.01" :max="2" :step="0.01" v-model="particleLife.forceFactor" mt-2>
                             </RangeInput>
-                            <RangeInput input label="Friction Factor" :min="0" :max="1" :step="0.01" v-model="particleLife.frictionFactor" mt-2>
-                                <template #tooltip>
-                                    Adjust the friction level. Lowering it slows down particles, reducing chaotic movement and stabilizing the system.
-                                </template>
+                            <RangeInput input label="Friction Factor"
+                                        tooltip="Adjust the friction level. Lowering it slows down particles, reducing chaotic movement and stabilizing the system."
+                                        :min="0" :max="1" :step="0.01" v-model="particleLife.frictionFactor" mt-2>
                             </RangeInput>
                         </Collapse>
                         <Collapse label="Randomizer Settings" icon="i-game-icons-perspective-dice-six-faces-random" mt-2>
-                            <RangeInputMinMax input label="Min Radius Range" :min="0" :max="100" :step="1" v-model="particleLife.minRadiusRange">
-                                <template #tooltip>
-                                    Set the range for generating minimum interaction radii. This determines the range of possible values for the minimum distance at which particles begin to interact.
-                                </template>
+                            <RangeInputMinMax input label="Min Radius Range"
+                                              tooltip="Set the range for generating minimum interaction radii. This determines the range of possible values for the minimum distance at which particles begin to interact."
+                                              :min="0" :max="100" :step="1" v-model="particleLife.minRadiusRange">
                             </RangeInputMinMax>
-                            <RangeInputMinMax input label="Max Radius Range" :min="particleLife.minRadiusRange[1]" :max="300" :step="1" v-model="particleLife.maxRadiusRange">
-                                <template #tooltip>
-                                    Set the range for generating maximum interaction radii. This determines the range of possible values for the maximum interaction distance between particles.
-                                </template>
+                            <RangeInputMinMax input label="Max Radius Range"
+                                              tooltip="Set the range for generating maximum interaction radii. This determines the range of possible values for the maximum interaction distance between particles."
+                                              :min="particleLife.minRadiusRange[1]" :max="300" :step="1" v-model="particleLife.maxRadiusRange">
                             </RangeInputMinMax>
                         </Collapse>
                         <Collapse label="Graphics Settings" icon="i-tabler-photo-cog" mt-2>
@@ -113,15 +105,13 @@
                                 <ToggleSwitch label="Depth Size" v-model="particleLife.hasDepthSize" />
                                 <ToggleSwitch label="Depth Opacity" v-model="particleLife.hasDepthOpacity" />
                             </div>
-                            <RangeInput input label="Min. Opacity" :min="0" :max="Math.min(1, particleLife.maxOpacity)" :step="0.01" v-model="particleLife.minOpacity" mt-2>
-                                <template #tooltip>
-                                    Set the minimum opacity for depth effect. Lower values enhance perspective, creating a stronger depth effect when depth opacity is enabled.
-                                </template>
+                            <RangeInput input label="Min. Opacity"
+                                        tooltip="Set the minimum opacity for depth effect. Lower values enhance perspective, creating a stronger depth effect when depth opacity is enabled."
+                                        :min="0" :max="Math.min(1, particleLife.maxOpacity)" :step="0.01" v-model="particleLife.minOpacity" mt-2>
                             </RangeInput>
-                            <RangeInput input label="Max. Opacity" :min="particleLife.minOpacity" :max="2" :step="0.01" v-model="particleLife.maxOpacity" mt-2>
-                                <template #tooltip>
-                                    Set the maximum opacity for depth effects. Higher values reduce perspective, creating a subtler depth effect when depth opacity is enabled.
-                                </template>
+                            <RangeInput input label="Max. Opacity"
+                                        tooltip="Set the maximum opacity for depth effects. Higher values reduce perspective, creating a subtler depth effect when depth opacity is enabled."
+                                        :min="particleLife.minOpacity" :max="2" :step="0.01" v-model="particleLife.maxOpacity" mt-2>
                             </RangeInput>
                         </Collapse>
                         <Collapse label="Debug Tools" icon="i-tabler-bug" mt-2>
@@ -136,8 +126,14 @@
                                 </div>
                             </div>
 
-                            <RangeInput input label="Cell Group Size" :min="0" :max="100" :step="1" v-model="particleLife.cellGroupSize" mt-2 />
-                            <RangeInput input label="Cell Size Factor" :min="1" :max="2" :step="0.01" v-model="particleLife.cellSizeFactor" mt-2 />
+                            <RangeInput input label="Cell Group Size"
+                                        tooltip="Set the minimum number of particles required for a cell to be displayed. At 0, all cells are shown; higher values filter out smaller groups."
+                                        :min="0" :max="100" :step="1" v-model="particleLife.cellGroupSize" mt-2>
+                            </RangeInput>
+                            <RangeInput input label="Cell Size Factor"
+                                        tooltip="Adjust the size of the cells used in the algorithm. At 1, cells match the current max radius; higher values increase cell size. Values below 1 may prevent interactions between neighboring particles."
+                                        :min="1" :max="2" :step="0.01" v-model="particleLife.cellSizeFactor" mt-2>
+                            </RangeInput>
                         </Collapse>
                     </div>
                     <div absolute bottom-2 right-0 z-100 class="-mr-px">
