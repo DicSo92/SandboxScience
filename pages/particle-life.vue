@@ -32,7 +32,7 @@
                                         :min="1" :max="20" :step="1" v-model="particleLife.numColors" mt-2>
                             </RangeInput>
                             <RangeInput input label="Depth Limit"
-                                        tooltip="Set the maximum depth for particles. In 3D, particles will bounce back or wrap around if they exceed this limit."
+                                        tooltip="Set the maximum depth for particles. In 3D, particles will bounce back if they exceed this limit."
                                         :min="0" :max="1000" :step="1" v-model="particleLife.depthLimit" mt-2>
                             </RangeInput>
 
@@ -57,7 +57,10 @@
                                 <SelectButton :id="5" label="x5" v-model="particleLife.screenMultiplierForGridSize" />
                             </div>
                             <div flex items-center v-if="particleLife.wallShape === 0">
-                                <p class="w-2/3 text-2sm mt-1">Rectangle Size</p>
+                                <p class="w-2/3 text-2sm mt-1">
+                                    Rectangle Size
+                                    <TooltipInfo container="#mainContainer" tooltip="Adjust the size of the rectangular area where particles are contained." />
+                                </p>
                                 <Input label="x" v-model="particleLife.gridWidth" @change="updateGridWidth" mr-2 />
                                 <Input label="y" v-model="particleLife.gridHeight" @change="updateGridHeight" mr-2 />
                                 <button type="button" btn rounded-full p2 flex items-center bg="zinc-900 hover:#212121" @click="particleLife.linkProportions = !particleLife.linkProportions">
@@ -65,7 +68,10 @@
                                 </button>
                             </div>
                             <div flex items-center justify-between mt-2 v-else>
-                                <p class="w-2/3 text-2sm mt-0.5">Circle Size</p>
+                                <p class="w-2/3 text-2sm mt-0.5">
+                                    Circle Size
+                                    <TooltipInfo container="#mainContainer" tooltip="Adjust the size of the circular area where particles are contained." />
+                                </p>
                                 <Input label="Diameter" v-model="particleLife.gridHeight" @change="updateGridHeight" mr-2 />
                             </div>
                         </Collapse>
