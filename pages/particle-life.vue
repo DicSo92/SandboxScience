@@ -57,7 +57,7 @@
                                 <SelectButton :id="5" label="x5" v-model="particleLife.screenMultiplierForGridSize" />
                             </div>
                             <div flex items-center v-if="particleLife.wallShape === 0">
-                                <p class="w-2/3 text-sm mt-1">Rectangle Size</p>
+                                <p class="w-2/3 text-2sm mt-1">Rectangle Size</p>
                                 <Input label="x" v-model="particleLife.gridWidth" @change="updateGridWidth" mr-2 />
                                 <Input label="y" v-model="particleLife.gridHeight" @change="updateGridHeight" mr-2 />
                                 <button type="button" btn rounded-full p2 flex items-center bg="zinc-900 hover:#212121" @click="particleLife.linkProportions = !particleLife.linkProportions">
@@ -65,8 +65,8 @@
                                 </button>
                             </div>
                             <div flex items-center justify-between mt-2 v-else>
-                                <p class="w-2/3">Circle Diameter</p>
-                                <Input label="d" v-model="particleLife.gridHeight" @change="updateGridHeight" mr-2 />
+                                <p class="w-2/3 text-2sm mt-0.5">Circle Size</p>
+                                <Input label="Diameter" v-model="particleLife.gridHeight" @change="updateGridHeight" mr-2 />
                             </div>
                         </Collapse>
                         <Collapse label="Force Settings" icon="i-tabler-atom" opened mt-2>
@@ -84,26 +84,36 @@
                             </RangeInput>
                         </Collapse>
                         <Collapse label="Randomizer Settings" icon="i-game-icons-perspective-dice-six-faces-random" mt-2>
-                            <RangeInputMinMax input label="Min Radius Range"
+                            <RangeInputMinMax input label="Min. Radius"
                                               tooltip="Set the range for generating minimum interaction radii. This determines the range of possible values for the minimum distance at which particles begin to interact."
                                               :min="0" :max="100" :step="1" v-model="particleLife.minRadiusRange">
                             </RangeInputMinMax>
-                            <RangeInputMinMax input label="Max Radius Range"
+                            <RangeInputMinMax input label="Max. Radius"
                                               tooltip="Set the range for generating maximum interaction radii. This determines the range of possible values for the maximum interaction distance between particles."
                                               :min="particleLife.minRadiusRange[1]" :max="300" :step="1" v-model="particleLife.maxRadiusRange">
                             </RangeInputMinMax>
                         </Collapse>
                         <Collapse label="Graphics Settings" icon="i-tabler-photo-cog" mt-2>
-                            <p underline text-gray-300 mb-2 class="-mt-1">General Settings :</p>
-                            <div grid grid-cols-2 gap-4>
-                                <ToggleSwitch label="Circle Shape" v-model="particleLife.isCircle" />
+                            <div flex items-center justify-between mb-2>
+                                <p underline text-gray-300 class="-mt-0.5">General Settings :</p>
+                                <ToggleSwitch inactive-label="Circle Shape" v-model="particleLife.isCircle"
+                                              tooltip="Toggle between circular and square particle shapes. Circular particles may slightly impact performance compared to square ones.">
+                                </ToggleSwitch>
                             </div>
-                            <RangeInput input label="Particle Size" :min="1" :max="20" :step="1" v-model="particleLife.particleSize" mt-2 />
+
+                            <RangeInput input label="Particle Size"
+                                        tooltip="Controls the overall size of the particles in the simulation, allowing you to make them larger or smaller depending on your preference. This setting does not impact performance."
+                                        :min="1" :max="20" :step="1" v-model="particleLife.particleSize" mt-2>
+                            </RangeInput>
                             <hr border-gray-500 my-2>
                             <p underline text-gray-300 mb-2 >3D Settings :</p>
                             <div grid grid-cols-2 gap-4>
-                                <ToggleSwitch label="Depth Size" v-model="particleLife.hasDepthSize" />
-                                <ToggleSwitch label="Depth Opacity" v-model="particleLife.hasDepthOpacity" />
+                                <ToggleSwitch label="Depth Size" v-model="particleLife.hasDepthSize"
+                                              tooltip="Toggles the effect where particle size changes based on their position along the Z-axis, enhancing 3D depth perception.">
+                                </ToggleSwitch>
+                                <ToggleSwitch label="Depth Opacity" v-model="particleLife.hasDepthOpacity"
+                                              tooltip="Toggles the effect where particle opacity changes based on their position along the Z-axis, enhancing 3D depth perception.">
+                                </ToggleSwitch>
                             </div>
                             <RangeInput input label="Min. Opacity"
                                         tooltip="Set the minimum opacity for depth effect. Lower values enhance perspective, creating a stronger depth effect when depth opacity is enabled."
@@ -117,8 +127,12 @@
                         <Collapse label="Debug Tools" icon="i-tabler-bug" mt-2>
                             <div flex items-center justify-between>
                                 <div flex>
-                                    <ToggleSwitch label="Show Cells" v-model="particleLife.hasCells" mr-4 />
-                                    <ToggleSwitch label="Follow" v-model="particleLife.isCellFollow" :disabled="!particleLife.hasCells" />
+                                    <ToggleSwitch label="Show Cells" v-model="particleLife.hasCells" mr-4
+                                                  tooltip="Toggle the visibility of cells in the spatial partitioning system. When enabled, cells will be displayed to help visualize particle grouping.">
+                                    </ToggleSwitch>
+                                    <ToggleSwitch label="Follow" v-model="particleLife.isCellFollow" :disabled="!particleLife.hasCells"
+                                                  tooltip="Toggle to display cells based on their center relative to all particles within the cell. This helps track groups of particles as you adjust the cell group size.">
+                                    </ToggleSwitch>
                                 </div>
                                 <div flex>
                                     <SelectButton :id="0" icon="i-tabler-square" v-model="particleLife.cellShape" mr-2 />
@@ -1196,7 +1210,7 @@ export default defineComponent({
             } else { // Circle Shape
                 ctx!.arc((gridOffsetX + circleCenterX) * zoomFactor, (gridOffsetY + circleCenterY) * zoomFactor, circleRadius * zoomFactor + halfParticleSize, 0, Math.PI * 2)
             }
-            ctx!.strokeStyle = 'rgba(128, 128, 128, 0.6)'
+            ctx!.strokeStyle = 'rgba(80,80,90,0.5)'
             ctx!.lineWidth = 1
             ctx!.stroke()
         }

@@ -1,6 +1,6 @@
 <template>
     <div flex items-center>
-        <p v-if="label" mr-2>{{ label }}</p>
+        <p v-if="label" class="text-2sm pt-0.5 mr-2">{{ label }}</p>
         <slot name="customLabel"></slot>
         <div flex items-center w-full>
             <div w-14>

@@ -1,7 +1,7 @@
 <template>
     <div flex items-center>
         <div v-if="label" class="flex items-center w-2/3">
-            <p text-sm>
+            <p class="text-2sm">
                 {{ label }}
                 <button v-if="tooltip" name="Info" aria-label="Info" i-tabler-info-circle text-zinc text-base cursor-help align-top
                         v-tooltip="{
@@ -27,7 +27,7 @@
                 <div class="relative z-10 h-2 flex items-center">
                     <div class="absolute z-10 left-0 right-0 bottom-0 top-0 rounded-md bg-gray-200"></div>
                     <div class="absolute z-20 top-0 left-0 bottom-0 rounded-md bg-#0C7489" :style="`right: ${maxOffset}%;`"></div>
-                    <div class="absolute z-30 w-5 h-5 left-0 bg-#0A5F71 rounded-full -translate-x-1/2" :style="`left: ${minOffset}%;`"></div>
+                    <div class="absolute z-30 w-4.5 h-4.5 left-0 bg-#0A5F71 rounded-full -translate-x-1/2" :style="`left: ${minOffset}%;`"></div>
                 </div>
             </div>
             <div v-if="input" w-14>

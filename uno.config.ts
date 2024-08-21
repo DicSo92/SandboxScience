@@ -27,6 +27,15 @@ export default defineConfig({
             },
         },
     },
+    extendTheme: (theme) => {
+        return {
+            ...theme,
+            fontSize: {
+                ...theme.fontSize,
+                '2sm': ['0.938rem', '1.375rem'], // ['15px', '22px']
+            },
+        }
+    },
     presets: [
         presetUno(),
         presetAttributify(),
