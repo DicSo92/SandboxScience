@@ -1,5 +1,5 @@
 <template>
-    <div class="faded-hover-effect z-50">
+    <div id="sidebarLeft" class="faded-hover-effect z-50">
         <div fixed left-0 z-10 :style="toggleBtnStyle">
             <SiteLink to="/" title="Home" aria-label="Home">
                 <button type="button" name="Home" aria-label="Home" rounded-br-3xl btn flex items-center p-2 class="-mt-0.5 -ml-1 mr-px" bg="gray-800 hover:gray-900">

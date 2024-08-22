@@ -1,13 +1,13 @@
 <template>
     <div class="mx-auto">
         <div class="flex space-x-1 p-1 bg-zinc-700 rounded-lg shadow-md">
-            <button @click="openTab = 1" :class="openTab === 1 ? 'bg-zinc-900' : 'hover:bg-zinc-800'" class="flex-1 py-1 rounded-lg focus:outline-none focus:shadow-outline-blue transition-all duration-100">
+            <button @click="openTab = 1" :class="openTab === 1 ? 'bg-zinc-900' : 'hover:bg-zinc-800'" class="text-sm flex-1 py-1 rounded-lg focus:outline-none focus:shadow-outline-blue transition-all duration-100">
                 Forces
             </button>
-            <button @click="openTab = 2" :class="openTab === 2 ? 'bg-zinc-900' : 'hover:bg-zinc-800'" class="flex-1 py-1 rounded-lg focus:outline-none focus:shadow-outline-blue transition-all duration-100">
+            <button @click="openTab = 2" :class="openTab === 2 ? 'bg-zinc-900' : 'hover:bg-zinc-800'" class="text-sm flex-1 py-1 rounded-lg focus:outline-none focus:shadow-outline-blue transition-all duration-100">
                 Min. Radius
             </button>
-            <button @click="openTab = 3" :class="openTab === 3 ? 'bg-zinc-900' : 'hover:bg-zinc-800'" class="flex-1 py-1 rounded-lg focus:outline-none focus:shadow-outline-blue transition-all duration-100">
+            <button @click="openTab = 3" :class="openTab === 3 ? 'bg-zinc-900' : 'hover:bg-zinc-800'" class="text-sm flex-1 py-1 rounded-lg focus:outline-none focus:shadow-outline-blue transition-all duration-100">
                 Max. Radius
             </button>
         </div>
@@ -15,9 +15,9 @@
         <div mt-2>
             <div v-if="openTab === 1" class="p-2 rounded-lg shadow-md bg-zinc-700">
                 <RulesMatrix @update="(...args) => $emit('updateRulesMatrix', ...args)" />
-                <button type="button" btn p2 mx-1 mt-2 flex items-center rounded-xl bg="zinc-800 hover:zinc-900" @click="$emit('randomRulesMatrix')">
-                    <span i-game-icons-perspective-dice-six-faces-random text-xl></span>
-                    <span class="ml-2 mr-1">Randomize</span>
+                <button type="button" btn p2 mt-2 flex items-center rounded-xl bg="zinc-800 hover:zinc-900" @click="$emit('randomRulesMatrix')">
+                    <span i-game-icons-perspective-dice-six-faces-random text-lg></span>
+                    <span class="ml-2 mr-1 text-sm">Randomize</span>
                 </button>
             </div>
 

@@ -46,8 +46,6 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
     const cellSizeFactor = ref<number>(1) // Size of the cells at zoomFactor = 1
 
     // Define force properties
-    const maxRadius = ref<number>(80) // maximum distance for particles to start attracting
-    const minRadius = ref<number>(30) // minimum distance for particles to start repelling
     const repel = ref<number>(1) // repel force for particles that are too close to each other
     const forceFactor = ref<number>(0.4) // Decrease will increase the impact of the force on the velocity (the higher the value, the slower the particles will move)
     const frictionFactor = ref<number>(0.6) // Slow down the particles (0 to 1, where 1 is no friction)
@@ -71,7 +69,7 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
         numParticles, particleSize, numColors, depthLimit,
         is3D, isCircle, hasGrid, hasCells, isCellFollow, isWallRepel, isWallWrap, hasDepthSize, hasDepthOpacity, maxOpacity, minOpacity, cellShape, wallShape, screenMultiplierForGridSize,
         minRadiusRange, maxRadiusRange, currentMaxRadius,
-        maxRadius, minRadius, repel, forceFactor, frictionFactor,
+        repel, forceFactor, frictionFactor,
         cellGroupSize, cellSizeFactor,
         $reset
     }

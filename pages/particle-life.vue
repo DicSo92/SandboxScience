@@ -219,6 +219,7 @@ import RulesMatrix from "~/components/particle-life/RulesMatrix.vue";
 import Memory from "~/components/particle-life/Memory.vue";
 import BrushSettings from "~/components/particle-life/BrushSettings.vue";
 import WallStateSelection from "~/components/particle-life/WallStateSelection.vue";
+import SidebarLeft from "~/components/SidebarLeft.vue";
 export default defineComponent({
     components: { MatrixSettings, RulesMatrix, Memory, BrushSettings, WallStateSelection },
     setup() {
@@ -1630,11 +1631,21 @@ export default defineComponent({
         function updateMinMatrixValue(x: number, y: number, value: number) {
             particleLife.minRadiusMatrix[x][y] = value
             minRadiusMatrix[x][y] = value
+            if (value > particleLife.maxRadiusMatrix[x][y]) {
+                particleLife.maxRadiusMatrix[x][y] = value
+                maxRadiusMatrix[x][y] = value
+                particleLife.currentMaxRadius = maxRadiusMatrix.reduce((max, row) => Math.max(max, ...row), -Infinity)
+            }
             currentMinRadius = minRadiusMatrix.reduce((min, row) => Math.min(min, ...row), Infinity)
         }
         function updateMaxMatrixValue(x: number, y: number, value: number) {
             particleLife.maxRadiusMatrix[x][y] = value
             maxRadiusMatrix[x][y] = value
+            if (value < particleLife.minRadiusMatrix[x][y]) {
+                particleLife.minRadiusMatrix[x][y] = value
+                minRadiusMatrix[x][y] = value
+                currentMinRadius = minRadiusMatrix.reduce((min, row) => Math.min(min, ...row), Infinity)
+            }
             particleLife.currentMaxRadius = maxRadiusMatrix.reduce((max, row) => Math.max(max, ...row), -Infinity)
         }
         // -------------------------------------------------------------------------------------------------------------
@@ -1703,6 +1714,16 @@ export default defineComponent({
             if (isWallWrap) {
                 setGridSizeWhenWrapped()
                 setShapesProperties()
+            }
+        })
+        watch(() => particleLife.isLockedPointer, (value) => {
+            const sidebarLeftElement = document.getElementById('sidebarLeft');
+            if (sidebarLeftElement) {
+                if (value) {
+                    sidebarLeftElement.classList.add('force-hover-effect');
+                } else {
+                    sidebarLeftElement.classList.remove('force-hover-effect');
+                }
             }
         })
         // -------------------------------------------------------------------------------------------------------------
