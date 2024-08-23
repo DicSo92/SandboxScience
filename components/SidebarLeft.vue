@@ -1,5 +1,5 @@
 <template>
-    <div class="faded-hover-effect z-50">
+    <div id="sidebarLeft" class="faded-hover-effect z-50">
         <div fixed left-0 z-10 :style="toggleBtnStyle">
             <SiteLink to="/" title="Home" aria-label="Home">
                 <button type="button" name="Home" aria-label="Home" rounded-br-3xl btn flex items-center p-2 class="-mt-0.5 -ml-1 mr-px" bg="gray-800 hover:gray-900">
@@ -27,7 +27,7 @@
                     leave-to-class="-translate-x-full">
             <div v-show="modelValue" :style="`width: ${sidebarWidth}px`"
                  class="z-50 fixed inset-y-0 left-0 max-w-full max-h-full flex border-r border-gray-400"> <!-- inset-y-0 for fullheight sidebar -->
-                <div class="h-full w-full flex flex-col pb-2 pt-3 bg-zinc-700 shadow-xl">
+                <div class="h-full w-full flex flex-col py-2 bg-zinc-700 shadow-xl">
                     <slot></slot>
                 </div>
             </div>

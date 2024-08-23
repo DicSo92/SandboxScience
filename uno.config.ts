@@ -27,6 +27,15 @@ export default defineConfig({
             },
         },
     },
+    extendTheme: (theme) => {
+        return {
+            ...theme,
+            fontSize: {
+                ...theme.fontSize,
+                '2sm': ['0.938rem', '1.375rem'], // ['15px', '22px']
+            },
+        }
+    },
     presets: [
         presetUno(),
         presetAttributify(),
@@ -37,7 +46,7 @@ export default defineConfig({
                 fad: () => import('@iconify-json/fad/icons.json').then(i => i.default as any),
                 'game-icons': () => import('@iconify-json/game-icons/icons.json').then(i => i.default as any),
                 tabler: () => import('@iconify-json/tabler/icons.json').then(i => i.default as any),
-
+                'lets-icons': () => import('@iconify-json/lets-icons/icons.json').then(i => i.default as any),
                 custom: {
                     icon: () => fs.readFile('./public/icon.svg', 'utf-8'),
                 }

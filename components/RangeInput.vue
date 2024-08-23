@@ -1,7 +1,20 @@
 <template>
     <div flex items-center>
-        <p v-if="label" class="w-2/3">{{ label }}</p>
+        <div v-if="label" class="flex items-center w-2/3">
+            <p class="text-2sm">
+                {{ label }}
+                <button v-if="tooltip" name="Info" aria-label="Info" i-tabler-info-circle text-zinc text-base cursor-help align-top
+                        v-tooltip="{
+                            content: tooltip, html: true, container: '#mainContainer',
+                            popperClass: 'bg-gray-800 text-sm max-w-64 pointer-events-none',
+                            delay: 0, distance: 7, placement: 'auto-start', overflowPadding: 10, arrowPadding: 10
+                        }">
+                </button>
+            </p>
+        </div>
+
         <slot name="customLabel"></slot>
+
         <div flex items-center w-full>
             <div relative mx-2 flex-1>
                 <input type="range"
@@ -14,11 +27,11 @@
                 <div class="relative z-10 h-2 flex items-center">
                     <div class="absolute z-10 left-0 right-0 bottom-0 top-0 rounded-md bg-gray-200"></div>
                     <div class="absolute z-20 top-0 left-0 bottom-0 rounded-md bg-#0C7489" :style="`right: ${maxOffset}%;`"></div>
-                    <div class="absolute z-30 w-5 h-5 left-0 bg-#0A5F71 rounded-full -translate-x-1/2" :style="`left: ${minOffset}%;`"></div>
+                    <div class="absolute z-30 w-4.5 h-4.5 left-0 bg-#0A5F71 rounded-full -translate-x-1/2" :style="`left: ${minOffset}%;`"></div>
                 </div>
             </div>
-            <div v-if="input" w-16>
-                <input type="text" maxlength="5" :value="modelValue" @input="inputTextUpdate($event.target.value)" class="w-full border border-gray-200 rounded text-center text-black">
+            <div v-if="input" w-14>
+                <input type="text" maxlength="5" :value="modelValue" @input="inputTextUpdate($event.target.value)" class="w-full border border-gray-200 rounded text-sm text-center text-black font-500">
             </div>
         </div>
     </div>
@@ -52,9 +65,13 @@ export default defineComponent({
         label: {
             type: String,
             required: false
+        },
+        tooltip: {
+            type: String,
+            required: false
         }
     },
-    setup(props, { emit }) {
+    setup(props, { emit, slots }) {
         const minOffset = computed(() => {
             return Math.max(0, Math.min(100, ((props.modelValue - props.min) / (props.max - props.min)) * 100)) // get the percentage from the left
         })
@@ -68,7 +85,7 @@ export default defineComponent({
             emit("update:modelValue", Number(value))
         }
 
-        return { minOffset, maxOffset, updateValue, inputTextUpdate }
+        return { minOffset, maxOffset, updateValue, inputTextUpdate, slots }
     }
 })
 </script>

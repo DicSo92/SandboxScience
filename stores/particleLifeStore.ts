@@ -46,16 +46,13 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
     const cellSizeFactor = ref<number>(1) // Size of the cells at zoomFactor = 1
 
     // Define force properties
-    const maxRadius = ref<number>(80) // maximum distance for particles to start attracting
-    const minRadius = ref<number>(30) // minimum distance for particles to start repelling
     const repel = ref<number>(1) // repel force for particles that are too close to each other
     const forceFactor = ref<number>(0.4) // Decrease will increase the impact of the force on the velocity (the higher the value, the slower the particles will move)
     const frictionFactor = ref<number>(0.6) // Slow down the particles (0 to 1, where 1 is no friction)
 
     // Define properties for randomizing radius matrix
-    const minRadiusRange = ref<number[]>([30, 60]) // Range for the minRadius of each color
-    const maxRadiusRangeOffset = ref<number>(30) // Offset for the range of the maxRadius of each color
-    const maxRadiusRangeMax = ref<number>(150) // Max range for the maxRadius of each color
+    const minRadiusRange = ref<number[]>([30, 60]) // Range for the random minRadius of each color
+    const maxRadiusRange = ref<number[]>([90, 150]) // Range for the random maxRadius of each color
 
     const currentMaxRadius = ref<number>(0) // Current max radius for the particles
 
@@ -71,8 +68,8 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
         gridWidth, gridHeight, linkProportions,
         numParticles, particleSize, numColors, depthLimit,
         is3D, isCircle, hasGrid, hasCells, isCellFollow, isWallRepel, isWallWrap, hasDepthSize, hasDepthOpacity, maxOpacity, minOpacity, cellShape, wallShape, screenMultiplierForGridSize,
-        minRadiusRange, maxRadiusRangeOffset, maxRadiusRangeMax, currentMaxRadius,
-        maxRadius, minRadius, repel, forceFactor, frictionFactor,
+        minRadiusRange, maxRadiusRange, currentMaxRadius,
+        repel, forceFactor, frictionFactor,
         cellGroupSize, cellSizeFactor,
         $reset
     }

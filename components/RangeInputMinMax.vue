@@ -1,6 +1,17 @@
 <template>
     <div mt-2 flex>
-        <p v-if="label" class="w-2/3 -mt-2">{{ label }}</p>
+        <div v-if="label" class="flex w-2/3 -mt-1.5">
+            <p class="text-2sm">
+                {{ label }}
+                <button v-if="tooltip" name="Info" aria-label="Info" i-tabler-info-circle text-zinc text-base cursor-help align-top
+                        v-tooltip="{
+                            content: tooltip, html: true, container: '#mainContainer',
+                            popperClass: 'bg-gray-800 text-sm max-w-64 pointer-events-none',
+                            delay: 0, distance: 7, placement: 'auto-start', overflowPadding: 10, arrowPadding: 10
+                        }">
+                </button>
+            </p>
+        </div>
         <div flex flex-col w-full>
             <div relative flex-1 ml-2>
                 <input type="range"
@@ -20,14 +31,14 @@
                 <div class="relative z-10 h-2 flex items-center">
                     <div class="absolute z-10 left-0 right-0 bottom-0 top-0 rounded-md bg-gray-200"></div>
                     <div class="absolute z-20 top-0 bottom-0 rounded-md bg-#0C7489" :style="'right:'+maxOffset+'%; left:'+minOffset+'%'"></div>
-                    <div class="absolute z-30 w-5 h-5 left-0 bg-#0A5F71 rounded-full -translate-x-1/2" :style="'left: '+minOffset+'%'"></div>
-                    <div class="absolute z-30 w-5 h-5 right-0 bg-#0A5F71 rounded-full translate-x-1/2" :style="'right: '+maxOffset+'%'"></div>
+                    <div class="absolute z-30 w-4.5 h-4.5 left-0 bg-#0A5F71 rounded-full -translate-x-1/2" :style="'left: '+minOffset+'%'"></div>
+                    <div class="absolute z-30 w-4.5 h-4.5 right-0 bg-#0A5F71 rounded-full translate-x-1/2" :style="'right: '+maxOffset+'%'"></div>
                 </div>
             </div>
 
             <div class="flex justify-between items-center pt-2 ml-2">
-                <input type="text" maxlength="5" :value="modelValue[0]" @input="inputTextUpdateMin($event.target.value)" class="w-16 border border-gray-200 rounded text-center text-black">
-                <input type="text" maxlength="5" :value="modelValue[1]" @input="inputTextUpdateMax($event.target.value)" class="w-16 border border-gray-200 rounded text-center text-black">
+                <input type="text" maxlength="5" :value="modelValue[0]" @input="inputTextUpdateMin($event.target.value)" class="w-14 border border-gray-200 rounded text-sm text-center text-black font-500">
+                <input type="text" maxlength="5" :value="modelValue[1]" @input="inputTextUpdateMax($event.target.value)" class="w-14 border border-gray-200 rounded text-sm text-center text-black font-500">
             </div>
         </div>
     </div>
@@ -57,9 +68,13 @@ export default defineComponent({
         label: {
             type: String,
             required: false
+        },
+        tooltip: {
+            type: String,
+            required: false
         }
     },
-    setup(props, { emit }) {
+    setup(props, { emit, slots }) {
         const rangeOffset = 6
         const minOffset = computed(() => {
             return Math.max(0, Math.min(100, ((props.modelValue[0] - props.min) / (props.max - props.min)) * 100)) // get the percentage from the left
@@ -83,7 +98,7 @@ export default defineComponent({
             emit("update:modelValue", newRange)
         }
 
-        return { minOffset, maxOffset, inputTextUpdateMin, inputTextUpdateMax, updateMinValue, updateMaxValue }
+        return { minOffset, maxOffset, inputTextUpdateMin, inputTextUpdateMax, updateMinValue, updateMaxValue, slots }
     }
 })
 </script>

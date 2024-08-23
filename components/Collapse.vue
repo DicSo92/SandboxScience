@@ -4,7 +4,10 @@
              @click="toggle" :class="isOpen && 'shadow-lg'">
             <div flex items-center>
                 <div v-if="icon" :class="icon" text-lg mr-2></div>
-                <p>{{ label }}</p>
+                <p flex items-center>
+                    {{ label }}
+                    <TooltipInfo v-if="tooltip" container="#mainContainer" :tooltip="tooltip" ml-1 />
+                </p>
             </div>
             <div :class="isOpen && 'rotate-180'" class="icon i-tabler-caret-up-filled" text-2xl></div>
         </div>
@@ -27,6 +30,10 @@ export default defineComponent({
         label: {
             type: String,
             required: true
+        },
+        tooltip: {
+            type: String,
+            required: false
         },
         opened: {
             type: Boolean,
