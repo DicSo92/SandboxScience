@@ -240,9 +240,9 @@ export default defineComponent({
             title: 'Particle Life',
             description: 'Discover Particle Life, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.',
             ogTitle: 'Particle Life • Particle Simulation',
-            ogDescription: 'Discover ParticleLife, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.',
+            ogDescription: 'Discover Particle Life, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.',
             twitterTitle: 'Particle Life • Particle Simulation',
-            twitterDescription: 'Discover ParticleLife, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.',
+            twitterDescription: 'Discover Particle Life, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.',
         })
 
         const particleLife = useParticleLifeStore()
