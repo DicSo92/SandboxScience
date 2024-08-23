@@ -32,7 +32,7 @@
         <RangeInput input :min="-1" :max="1" :step="0.01" v-model="selectedValue" mt-2 >
             <template #customLabel>
                 <div class="w-2/3 px-2 py-0.5" border-2 border-gray-500 bg-zinc-800 rounded-lg>
-                    <div v-if="!selectedCells" font-bold text-center text-gray-300>All Colors</div>
+                    <div v-if="!selectedCells" font-bold text-center text-gray-300>All Types</div>
                     <div v-else-if="selectedCells?.length === 1" flex items-center justify-between>
                         <div flex-1 flex justify-center>
                             <div class="rounded-full w-5 h-5" :style="`background-color: hsl(${particleLife.currentColors[selectedCells[0][0]]}, 100%, 50%)`"></div>
@@ -42,7 +42,7 @@
                             <div class="rounded-full w-5 h-5" :style="`background-color: hsl(${particleLife.currentColors[selectedCells[0][1]]}, 100%, 50%)`"></div>
                         </div>
                     </div>
-                    <div v-else font-bold text-center text-gray-300>Group Colors</div>
+                    <div v-else font-bold text-center text-gray-300>Selection</div>
                 </div>
             </template>
         </RangeInput>
