@@ -2,7 +2,7 @@ import { appURL, appName, appDescription } from './constants/index'
 
 export default defineNuxtConfig({
     devtools: {
-        enabled: true,
+        enabled: false,
         timeline: {
             enabled: false,
         },
@@ -13,7 +13,8 @@ export default defineNuxtConfig({
         '@pinia/nuxt',
         '@nuxtjs/color-mode',
         "@nuxtjs/seo",
-        "@nuxt/eslint"
+        "@nuxt/eslint",
+        'floating-vue/nuxt'
     ],
 
     site: {

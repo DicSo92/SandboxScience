@@ -3,7 +3,7 @@
 <!--        <SidebarRight v-model="sidebarRightOpen">-->
 <!--            <template #controls>&lt;!&ndash; Some other controls &ndash;&gt;</template>-->
 <!--            <template #default>-->
-<!--                <PatternList />-->
+<!--                <GameOfLifePatternList />-->
 <!--            </template>-->
 <!--        </SidebarRight>-->
         <SidebarLeft v-model="sidebarLeftOpen">
@@ -34,22 +34,22 @@
             </template>
         </SidebarLeft>
 
-        <NaiveCanvas ref="naiveCanvas" />
+        <GameOfLifeNaiveCanvas ref="naiveCanvas" />
 
         <div flex flex-col absolute bottom-2 right-2 text-right z-3>
             <div>Population: {{ game.population }}</div>
             <div>Generation: {{ game.generation }}</div>
             <div>Execution Time: {{ Math.round(executionTime) }} ms ({{ averageExecutionTime }}ms)</div>
             <div class="flex">
-                <div mr-2>Rows: {{game.rows}}</div>
-                <div mx-2>Cols: {{game.cols}}</div>
-                <div mx-2>Cell Size: {{game.size}}</div>
+                <div mr-2>Rows: {{ game.rows }}</div>
+                <div mx-2>Cols: {{ game.cols }}</div>
+                <div mx-2>Cell Size: {{ game.size }}</div>
             </div>
         </div>
 
         <div absolute w-full text-center transform top-2 class="-translate-x-1/2 left-1/2">x: {{ pointerX }} - y: {{ pointerY }}</div>
 
-        <Controls class="absolute bottom-0 mb-2 z-4"
+        <GameOfLifeControls class="absolute bottom-0 mb-2 z-4"
                   :naiveCanvas="naiveCanvas"
                   @getExecutionAverage="getExecutionAverage"
                   @randomCells="randomCells"
@@ -59,12 +59,12 @@
 
         <div class="absolute bottom-0 left-0">
             <div class="ml-2 mb-1">
-                <div>Speed: {{game.SPEED}}ms/gen</div>
+                <div>Speed: {{ game.SPEED }}ms/gen</div>
             </div>
 
             <div class="p-2 flex items-center bg-gray-600 border-t-1 border-r-1 border-gray rounded-tr-2xl min-w-48">
                 <div class="block text-sm font-medium leading-6 mr-1">Speed</div>
-                <RangeInput v-if="SPEED" :min="1" :max="1000" :step="1" v-model="SPEED" flex-1/>
+                <RangeInput v-if="SPEED" :min="1" :max="1000" :step="1" v-model="SPEED" flex-1 />
             </div>
         </div>
     </section>
@@ -72,12 +72,9 @@
 
 <script lang="ts">
 import { defineComponent } from 'vue'
-import PatternList from "~/components/game-of-life/PatternList.vue";
-import Controls from "~/components/game-of-life/Controls.vue";
 import { themes } from "~/helpers/utils/themes";
 
 export default defineComponent({
-    components: { Controls, PatternList },
     setup() {
         definePageMeta({
             layout: 'life',

@@ -1,10 +1,10 @@
 <template>
     <div flex items-center>
-        <p v-if="label" mr-2>{{ label }}</p>
+        <p v-if="label" class="text-2sm pt-0.5 mr-2">{{ label }}</p>
         <slot name="customLabel"></slot>
         <div flex items-center w-full>
-            <div w-16>
-                <input type="text" maxlength="5" :value="modelValue" @input="inputTextUpdate($event.target.value)" class="w-full border border-gray-200 rounded text-center text-black">
+            <div w-14>
+                <input type="text" maxlength="5" :value="modelValue" @input="inputTextUpdate($event.target.value)" class="w-full border border-gray-200 rounded text-sm text-center text-black font-500">
             </div>
         </div>
     </div>

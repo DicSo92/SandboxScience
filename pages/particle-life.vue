@@ -1,12 +1,15 @@
 <template>
-    <section h-screen flex flex-col justify-center overflow-hidden relative ref="mainContainer">
+    <section h-screen flex flex-col justify-center overflow-hidden relative ref="mainContainer" id="mainContainer">
         <SidebarLeft v-model="particleLife.sidebarLeftOpen">
             <template #controls>
             </template>
             <template #default>
                 <div h-full px-2 flex flex-col>
                     <div flex justify-between items-end mb-2 px-1>
-                        <p>World Settings</p>
+                        <div flex items-center class="-mb-0.5">
+                            <div i-lets-icons-bubble text-2xl mr-2 class="text-[#2a9d8f] -mt-0.5"></div>
+                            <h1 font-800 text-lg tracking-widest class="text-[#dff6f3] drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Particle Life</h1>
+                        </div>
 <!--                        <div rounded-lg border-2 border-white style="width: 72px;">-->
 <!--                            <div i-tabler-badge-3d style="font-size: 30px" class="-my-1"></div>-->
 <!--                        </div>-->
@@ -14,7 +17,11 @@
                     </div>
                     <hr>
                     <div overflow-auto flex-1 mt-2 class="scrollableArea">
-                        <Collapse label="Matrix Settings" icon="i-tabler-grid-4x4">
+                        <Collapse label="Matrix Settings" icon="i-tabler-grid-4x4"
+                                  tooltip="Modify matrix values by clicking on cells in the grid. <br>
+                                  Adjust individual cell values with the slider, or click and drag to change them directly. <br>
+                                  Use Ctrl + Click to select multiple cells for group adjustments. <br>
+                                  If no cells are selected, the slider will adjust all values.">
                             <MatrixSettings
                                 @updateRulesMatrix="updateRulesMatrixValue"
                                 @randomRulesMatrix="newRandomRulesMatrix"
@@ -23,9 +30,18 @@
                             </MatrixSettings>
                         </Collapse>
                         <Collapse label="World Settings" icon="i-tabler-world-cog" opened mt-2>
-                            <RangeInput input label="Particle Number" :min="0" :max="20000" :step="10" v-model="particleLife.numParticles" />
-                            <RangeInput input label="Color Number" :min="1" :max="20" :step="1" v-model="particleLife.numColors" mt-2 />
-                            <RangeInput input label="Depth Limit" :min="0" :max="1000" :step="1" v-model="particleLife.depthLimit" mt-2 />
+                            <RangeInput input label="Particle Number"
+                                        tooltip="Adjust the total number of particles. <br> More particles may reveal complex interactions but can increase computational demand."
+                                        :min="0" :max="20000" :step="10" v-model="particleLife.numParticles">
+                            </RangeInput>
+                            <RangeInput input label="Color Number"
+                                        tooltip="Specify the number of particle colors. <br> Each color interacts with all others, with distinct forces and interaction ranges."
+                                        :min="1" :max="20" :step="1" v-model="particleLife.numColors" mt-2>
+                            </RangeInput>
+                            <RangeInput input label="Depth Limit"
+                                        tooltip="Set the maximum depth for particles. <br> In 3D, particles will bounce back if they exceed this limit."
+                                        :min="0" :max="1000" :step="1" v-model="particleLife.depthLimit" mt-2>
+                            </RangeInput>
 
                             <div flex items-start justify-between mt-3 mb-2>
                                 <p underline text-gray-300>Walls Settings :</p>
@@ -38,17 +54,20 @@
                                 <WallStateSelection />
                             </div>
                             <div flex mb-1>
-                                <SelectButton :id="1" label="Screen" v-model="particleLife.screenMultiplierForGridSize" mr-2 />
-                                <SelectButton :id="1.5" label="x1.5" v-model="particleLife.screenMultiplierForGridSize" mr-2 />
-                                <SelectButton :id="2" label="x2" v-model="particleLife.screenMultiplierForGridSize" mr-2 />
-                                <SelectButton :id="2.5" label="x2.5" v-model="particleLife.screenMultiplierForGridSize" mr-2 />
-                                <SelectButton :id="3" label="x3" v-model="particleLife.screenMultiplierForGridSize" mr-2 />
-                                <SelectButton :id="3.5" label="x3.5" v-model="particleLife.screenMultiplierForGridSize" mr-2 />
-                                <SelectButton :id="4" label="x4" v-model="particleLife.screenMultiplierForGridSize" mr-2 />
+                                <SelectButton :id="1" label="Screen" v-model="particleLife.screenMultiplierForGridSize" mr-1.5 />
+                                <SelectButton :id="1.5" label="x1.5" v-model="particleLife.screenMultiplierForGridSize" mr-1.5 />
+                                <SelectButton :id="2" label="x2" v-model="particleLife.screenMultiplierForGridSize" mr-1.5 />
+                                <SelectButton :id="2.5" label="x2.5" v-model="particleLife.screenMultiplierForGridSize" mr-1.5 />
+                                <SelectButton :id="3" label="x3" v-model="particleLife.screenMultiplierForGridSize" mr-1.5 />
+                                <SelectButton :id="3.5" label="x3.5" v-model="particleLife.screenMultiplierForGridSize" mr-1.5 />
+                                <SelectButton :id="4" label="x4" v-model="particleLife.screenMultiplierForGridSize" mr-1.5 />
                                 <SelectButton :id="5" label="x5" v-model="particleLife.screenMultiplierForGridSize" />
                             </div>
                             <div flex items-center v-if="particleLife.wallShape === 0">
-                                <p class="w-2/3">Rectangle Size</p>
+                                <p class="w-2/3 text-2sm mt-1">
+                                    Rectangle Size
+                                    <TooltipInfo container="#mainContainer" tooltip="Adjust the size of the rectangular area where particles are contained." />
+                                </p>
                                 <Input label="x" v-model="particleLife.gridWidth" @change="updateGridWidth" mr-2 />
                                 <Input label="y" v-model="particleLife.gridHeight" @change="updateGridHeight" mr-2 />
                                 <button type="button" btn rounded-full p2 flex items-center bg="zinc-900 hover:#212121" @click="particleLife.linkProportions = !particleLife.linkProportions">
@@ -56,40 +75,79 @@
                                 </button>
                             </div>
                             <div flex items-center justify-between mt-2 v-else>
-                                <p class="w-2/3">Circle Diameter</p>
-                                <Input label="d" v-model="particleLife.gridHeight" @change="updateGridHeight" mr-2 />
+                                <p class="w-2/3 text-2sm mt-0.5">
+                                    Circle Size
+                                    <TooltipInfo container="#mainContainer" tooltip="Adjust the size of the circular area where particles are contained." />
+                                </p>
+                                <Input label="Diameter" v-model="particleLife.gridHeight" @change="updateGridHeight" mr-2 />
                             </div>
                         </Collapse>
                         <Collapse label="Force Settings" icon="i-tabler-atom" opened mt-2>
-                            <RangeInput input label="Repel Force" :min="0.01" :max="4" :step="0.01" v-model="particleLife.repel" />
-                            <RangeInput input label="Force Factor" :min="0.01" :max="2" :step="0.01" v-model="particleLife.forceFactor" mt-2 />
-                            <RangeInput input label="Friction Factor" :min="0" :max="1" :step="0.01" v-model="particleLife.frictionFactor" mt-2 />
+                            <RangeInput input label="Repel Force"
+                                        tooltip="Adjust the force that repels particles from each other. <br> Higher values increase the separation distance."
+                                        :min="0.01" :max="4" :step="0.01" v-model="particleLife.repel">
+                            </RangeInput>
+                            <RangeInput input label="Force Factor"
+                                        tooltip="Adjust the force scaling factor. <br> Increase it to reduce particle speed, prevent explosive behavior, and manage overly rapid interactions."
+                                        :min="0.01" :max="2" :step="0.01" v-model="particleLife.forceFactor" mt-2>
+                            </RangeInput>
+                            <RangeInput input label="Friction Factor"
+                                        tooltip="Adjust the friction level. <br> Lowering it slows down particles, reducing chaotic movement and stabilizing the system."
+                                        :min="0" :max="1" :step="0.01" v-model="particleLife.frictionFactor" mt-2>
+                            </RangeInput>
                         </Collapse>
-                        <Collapse label="Randomizer Settings" icon="i-game-icons-perspective-dice-six-faces-random" mt-2>
-                            <RangeInputMinMax input label="Min. Radius Range" :min="0" :max="100" :step="1" v-model="particleLife.minRadiusRange" />
-                            <RangeInput input label="Max. Radius Offset" :min="1" :max="particleLife.maxRadiusRangeMax" :step="1" v-model="particleLife.maxRadiusRangeOffset" mt-2 />
-                            <RangeInput input label="Max. Radius" :min="particleLife.minRadiusRange[1] + particleLife.maxRadiusRangeOffset" :max="300" :step="1" v-model="particleLife.maxRadiusRangeMax" mt-2 />
+                        <Collapse label="Randomizer Settings" icon="i-game-icons-perspective-dice-six-faces-random" mt-2
+                                  tooltip="Adjust the parameters for randomizing particle attributes. <br> Configure the ranges for minimum and maximum interaction radii, and set the range for generating Z positions for particle spawning.">
+                            <RangeInputMinMax input label="Min. Radius"
+                                              tooltip="Set the range for generating minimum interaction radii. <br> This determines the range of possible values for the minimum distance at which particles begin to interact."
+                                              :min="0" :max="100" :step="1" v-model="particleLife.minRadiusRange">
+                            </RangeInputMinMax>
+                            <RangeInputMinMax input label="Max. Radius"
+                                              tooltip="Set the range for generating maximum interaction radii. <br> This determines the range of possible values for the maximum interaction distance between particles."
+                                              :min="particleLife.minRadiusRange[1]" :max="300" :step="1" v-model="particleLife.maxRadiusRange">
+                            </RangeInputMinMax>
                         </Collapse>
                         <Collapse label="Graphics Settings" icon="i-tabler-photo-cog" mt-2>
-                            <p underline text-gray-300 mb-2 class="-mt-1">General Settings :</p>
-                            <div grid grid-cols-2 gap-4>
-                                <ToggleSwitch label="Circle Shape" v-model="particleLife.isCircle" />
+                            <div flex items-center justify-between mb-2>
+                                <p underline text-gray-300 class="-mt-0.5">General Settings :</p>
+                                <ToggleSwitch inactive-label="Circle Shape" v-model="particleLife.isCircle"
+                                              tooltip="Toggle between circular and square particle shapes. <br> Circular particles may slightly impact performance compared to square ones.">
+                                </ToggleSwitch>
                             </div>
-                            <RangeInput input label="Particle Size" :min="1" :max="20" :step="1" v-model="particleLife.particleSize" mt-2 />
+
+                            <RangeInput input label="Particle Size"
+                                        tooltip="Controls the overall size of the particles in the simulation, allowing you to make them larger or smaller depending on your preference. This setting does not impact performance."
+                                        :min="1" :max="20" :step="1" v-model="particleLife.particleSize" mt-2>
+                            </RangeInput>
                             <hr border-gray-500 my-2>
                             <p underline text-gray-300 mb-2 >3D Settings :</p>
                             <div grid grid-cols-2 gap-4>
-                                <ToggleSwitch label="Depth Size" v-model="particleLife.hasDepthSize" />
-                                <ToggleSwitch label="Depth Opacity" v-model="particleLife.hasDepthOpacity" />
+                                <ToggleSwitch label="Depth Size" v-model="particleLife.hasDepthSize"
+                                              tooltip="Toggles the effect where particle size changes based on their position along the Z-axis, enhancing 3D depth perception.">
+                                </ToggleSwitch>
+                                <ToggleSwitch label="Depth Opacity" v-model="particleLife.hasDepthOpacity"
+                                              tooltip="Toggles the effect where particle opacity changes based on their position along the Z-axis, enhancing 3D depth perception.">
+                                </ToggleSwitch>
                             </div>
-                            <RangeInput input label="Min. Opacity" :min="0" :max="Math.min(1, particleLife.maxOpacity)" :step="0.01" v-model="particleLife.minOpacity" mt-2 />
-                            <RangeInput input label="Max. Opacity" :min="particleLife.minOpacity" :max="2" :step="0.01" v-model="particleLife.maxOpacity" mt-2 />
+                            <RangeInput input label="Min. Opacity"
+                                        tooltip="Set the minimum opacity for depth effect. <br> Lower values enhance perspective, creating a stronger depth effect when depth opacity is enabled."
+                                        :min="0" :max="Math.min(1, particleLife.maxOpacity)" :step="0.01" v-model="particleLife.minOpacity" mt-2>
+                            </RangeInput>
+                            <RangeInput input label="Max. Opacity"
+                                        tooltip="Set the maximum opacity for depth effects. <br> Higher values reduce perspective, creating a subtler depth effect when depth opacity is enabled."
+                                        :min="particleLife.minOpacity" :max="2" :step="0.01" v-model="particleLife.maxOpacity" mt-2>
+                            </RangeInput>
                         </Collapse>
-                        <Collapse label="Debug Tools" icon="i-tabler-bug" mt-2>
+                        <Collapse label="Debug Tools" icon="i-tabler-bug" mt-2
+                                  tooltip="Access debugging tools to visualize and refine the simulation. <br> Manage cell boundaries, adjust cell sizes, and control particle groupings to troubleshoot and optimize performance.">
                             <div flex items-center justify-between>
                                 <div flex>
-                                    <ToggleSwitch label="Show Cells" v-model="particleLife.hasCells" mr-4 />
-                                    <ToggleSwitch label="Follow" v-model="particleLife.isCellFollow" :disabled="!particleLife.hasCells" />
+                                    <ToggleSwitch label="Show Cells" v-model="particleLife.hasCells" mr-4
+                                                  tooltip="Toggle the visibility of cells in the spatial partitioning system. <br> When enabled, cells will be displayed to help visualize particle grouping.">
+                                    </ToggleSwitch>
+                                    <ToggleSwitch label="Follow" v-model="particleLife.isCellFollow" :disabled="!particleLife.hasCells"
+                                                  tooltip="Toggle to display cells based on their center relative to all particles within the cell. <br> This helps track groups of particles as you adjust the cell group size.">
+                                    </ToggleSwitch>
                                 </div>
                                 <div flex>
                                     <SelectButton :id="0" icon="i-tabler-square" v-model="particleLife.cellShape" mr-2 />
@@ -97,8 +155,14 @@
                                 </div>
                             </div>
 
-                            <RangeInput input label="Cell Group Size" :min="0" :max="100" :step="1" v-model="particleLife.cellGroupSize" mt-2 />
-                            <RangeInput input label="Cell Size Factor" :min="1" :max="2" :step="0.01" v-model="particleLife.cellSizeFactor" mt-2 />
+                            <RangeInput input label="Cell Group Size"
+                                        tooltip="Set the minimum number of particles required for a cell to be displayed. <br> At 0, all cells are shown; higher values filter out smaller groups."
+                                        :min="0" :max="100" :step="1" v-model="particleLife.cellGroupSize" mt-2>
+                            </RangeInput>
+                            <RangeInput input label="Cell Size Factor"
+                                        tooltip="Adjust the size of the cells used in the algorithm. <br> At 1, cells match the current max radius; higher values increase cell size. Values below 1 may prevent interactions between neighboring particles."
+                                        :min="1" :max="2" :step="0.01" v-model="particleLife.cellSizeFactor" mt-2>
+                            </RangeInput>
                         </Collapse>
                     </div>
                     <div absolute bottom-2 right-0 z-100 class="-mr-px">
@@ -109,7 +173,7 @@
                 </div>
             </template>
         </SidebarLeft>
-        <canvas ref="lifeCanvas" id="lifeCanvas" @contextmenu.prevent w-full h-full></canvas>
+        <canvas ref="lifeCanvas" id="lifeCanvas" @contextmenu.prevent w-full h-full cursor-crosshair></canvas>
         <div absolute top-0 right-0 flex flex-col items-end text-right pointer-events-none>
             <div flex items-center text-start text-xs pl-4 pr-1 bg-gray-800 rounded-bl-xl style="padding-bottom: 1px; opacity: 75%">
                 <div flex>Fps: <div ml-1 min-w-8>{{ fps }}</div></div>
@@ -164,6 +228,7 @@ import RulesMatrix from "~/components/particle-life/RulesMatrix.vue";
 import Memory from "~/components/particle-life/Memory.vue";
 import BrushSettings from "~/components/particle-life/BrushSettings.vue";
 import WallStateSelection from "~/components/particle-life/WallStateSelection.vue";
+import SidebarLeft from "~/components/SidebarLeft.vue";
 export default defineComponent({
     components: { MatrixSettings, RulesMatrix, Memory, BrushSettings, WallStateSelection },
     setup() {
@@ -486,8 +551,8 @@ export default defineComponent({
         }
         function makeRandomMaxRadiusMatrix() {
             let matrix: number[][] = []
-            const min: number = currentMinRadius + particleLife.maxRadiusRangeOffset
-            const max: number = particleLife.maxRadiusRangeMax
+            const min: number = particleLife.maxRadiusRange[0]
+            const max: number = particleLife.maxRadiusRange[1]
             let maxRandom: number = min
             for (let i = 0; i < numColors; i++) {
                 matrix.push([])
@@ -1161,7 +1226,7 @@ export default defineComponent({
             } else { // Circle Shape
                 ctx!.arc((gridOffsetX + circleCenterX) * zoomFactor, (gridOffsetY + circleCenterY) * zoomFactor, circleRadius * zoomFactor + halfParticleSize, 0, Math.PI * 2)
             }
-            ctx!.strokeStyle = 'rgba(128, 128, 128, 0.6)'
+            ctx!.strokeStyle = 'rgba(80,80,90,0.5)'
             ctx!.lineWidth = 1
             ctx!.stroke()
         }
@@ -1176,8 +1241,8 @@ export default defineComponent({
         function drawBrush() {
             ctx!.beginPath()
             ctx!.arc(pointerX, pointerY, brushRadius * zoomFactor, 0, Math.PI * 2)
-            ctx!.strokeStyle = 'rgba(0,0,255,0.4)'
-            ctx!.lineWidth = 1
+            ctx!.strokeStyle = 'rgb(23,37,84,0.4)'
+            ctx!.lineWidth = 3
             ctx!.stroke()
         }
         function getParticlesInBrush() : number[] {
@@ -1526,8 +1591,9 @@ export default defineComponent({
                         if (minRandom > currentMinRadius) currentMinRadius = minRandom
 
                         // Set a random max radius between the range
-                        const min = minRandom + particleLife.maxRadiusRangeOffset
-                        const maxRandom = Math.floor(Math.random() * (particleLife.maxRadiusRangeMax - min + 1) + min)
+                        const min = particleLife.maxRadiusRange[0]
+                        const max = particleLife.maxRadiusRange[1]
+                        const maxRandom = Math.floor(Math.random() * (max - min + 1) + min)
                         newMaxRadiusMatrix[i][j] = maxRandom
                     }
                 }
@@ -1574,11 +1640,21 @@ export default defineComponent({
         function updateMinMatrixValue(x: number, y: number, value: number) {
             particleLife.minRadiusMatrix[x][y] = value
             minRadiusMatrix[x][y] = value
+            if (value > particleLife.maxRadiusMatrix[x][y]) {
+                particleLife.maxRadiusMatrix[x][y] = value
+                maxRadiusMatrix[x][y] = value
+                particleLife.currentMaxRadius = maxRadiusMatrix.reduce((max, row) => Math.max(max, ...row), -Infinity)
+            }
             currentMinRadius = minRadiusMatrix.reduce((min, row) => Math.min(min, ...row), Infinity)
         }
         function updateMaxMatrixValue(x: number, y: number, value: number) {
             particleLife.maxRadiusMatrix[x][y] = value
             maxRadiusMatrix[x][y] = value
+            if (value < particleLife.minRadiusMatrix[x][y]) {
+                particleLife.minRadiusMatrix[x][y] = value
+                minRadiusMatrix[x][y] = value
+                currentMinRadius = minRadiusMatrix.reduce((min, row) => Math.min(min, ...row), Infinity)
+            }
             particleLife.currentMaxRadius = maxRadiusMatrix.reduce((max, row) => Math.max(max, ...row), -Infinity)
         }
         // -------------------------------------------------------------------------------------------------------------
@@ -1647,6 +1723,16 @@ export default defineComponent({
             if (isWallWrap) {
                 setGridSizeWhenWrapped()
                 setShapesProperties()
+            }
+        })
+        watch(() => particleLife.isLockedPointer, (value) => {
+            const sidebarLeftElement = document.getElementById('sidebarLeft');
+            if (sidebarLeftElement) {
+                if (value) {
+                    sidebarLeftElement.classList.add('force-hover-effect');
+                } else {
+                    sidebarLeftElement.classList.remove('force-hover-effect');
+                }
             }
         })
         // -------------------------------------------------------------------------------------------------------------
