@@ -19,26 +19,44 @@
         </section>
         <section container>
             <div grid gap-4 grid-cols-1 class="sm:grid-cols-3">
-                <SiteLink to="/game-of-life" bg="gray-900 hover:gray-800" p-4 rounded-lg>
-                    <div flex items-center mb-1>
-                        <span class="text-2xl sm:text-3xl" font-bold mr-1>🧬</span>
-                        <h3 class="text-lg sm:text-xl">Game Of Life</h3>
+                <SiteLink to="/particle-life" bg="gray-900 hover:gray-800"
+                          class="relative overflow-hidden rounded-lg border border-gray-800 shadow-lg p-6 sm:p-5 md:p-6 pt-3 sm:pt-4 md:pt-4">
+                    <div flex items-center mb-2>
+                        <span class="text-2xl md:text-3xl" font-bold mr-2>⚛</span>
+                        <h3 class="text-lg md:text-xl font-semibold">Particle Life</h3>
                     </div>
-                    <p class="text-sm sm:text-base">Explore the intriguing patterns and behaviors of cellular automata in this classic simulation by John Conway.</p>
+                    <p class="text-sm md:text-base">Observe the fascinating interactions and emergent behaviors of particles in a dynamic and interactive environment.</p>
+                    <div class="absolute right-0 top-0 h-16 w-16">
+                        <div class="shadow-lg absolute transform rotate-45 bg-[#00b84d] bg-opacity-70 text-center text-sm text-white font-semibold py-1 right-[-38px] top-[13px] w-[128px]">
+                            BETA
+                        </div>
+                    </div>
                 </SiteLink>
-                <SiteLink to="/particle-life" bg="gray-900 hover:gray-800" p-4 rounded-lg>
-                    <div flex items-center mb-1>
-                        <span class="text-2xl sm:text-3xl" font-bold mr-2>⚛</span>
-                        <h3 class="text-lg sm:text-xl">Particle Life</h3>
+                <SiteLink to="/game-of-life" bg="gray-900 hover:gray-800"
+                          class="relative overflow-hidden rounded-lg border border-gray-800 shadow-lg p-6 sm:p-5 md:p-6 pt-3 sm:pt-4 md:pt-4">
+                    <div flex items-center mb-2>
+                        <span class="text-2xl md:text-3xl" font-bold mr-1>🧬</span>
+                        <h3 class="text-lg md:text-xl font-semibold">Game Of Life</h3>
                     </div>
-                    <p class="text-sm sm:text-base">Observe the fascinating interactions and emergent behaviors of particles in a dynamic and interactive environment.</p>
+                    <p class="text-sm md:text-base">Explore the intriguing patterns and behaviors of cellular automata in this classic simulation by John Conway.</p>
+                    <div class="absolute right-0 top-0 h-16 w-16">
+                        <div class="shadow-lg absolute transform rotate-45 bg-[#e76f51] bg-opacity-70 text-center text-sm text-white font-semibold py-1 right-[-38px] top-[13px] w-[128px]">
+                            ALPHA
+                        </div>
+                    </div>
                 </SiteLink>
-                <SiteLink to="/hash-life" bg="gray-900 hover:gray-800" p-4 rounded-lg>
-                    <div flex items-center mb-1>
-                        <span class="text-2xl sm:text-3xl" font-bold mr-2>🚀</span>
-                        <h3 class="text-lg sm:text-xl">Hash Life</h3>
+                <SiteLink to="/hash-life" bg="gray-900 hover:gray-800"
+                          class="relative overflow-hidden rounded-lg border border-gray-800 shadow-lg p-6 sm:p-5 md:p-6 pt-3 sm:pt-4 md:pt-4">
+                    <div flex items-center mb-2>
+                        <span class="text-2xl md:text-3xl" font-bold mr-2>🚀</span>
+                        <h3 class="text-lg md:text-xl font-semibold">Hash Life</h3>
                     </div>
-                    <p class="text-sm sm:text-base">Experience the optimized version of the Game of Life, enabling faster and more efficient simulation of complex patterns.</p>
+                    <p class="text-sm md:text-base">Experience the optimized version of the Game of Life, enabling faster and more efficient simulation of complex patterns.</p>
+                    <div class="absolute right-0 top-0 h-16 w-16">
+                        <div class="shadow-lg absolute transform rotate-45 bg-[#5b2e48] bg-opacity-70 text-center text-sm text-white font-semibold py-1 right-[-38px] top-[13px] w-[128px]">
+                            WIP
+                        </div>
+                    </div>
                 </SiteLink>
             </div>
         </section>
