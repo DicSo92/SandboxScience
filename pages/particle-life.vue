@@ -1226,7 +1226,7 @@ export default defineComponent({
             } else { // Circle Shape
                 ctx!.arc((gridOffsetX + circleCenterX) * zoomFactor, (gridOffsetY + circleCenterY) * zoomFactor, circleRadius * zoomFactor + halfParticleSize, 0, Math.PI * 2)
             }
-            ctx!.strokeStyle = 'rgba(80,80,90,0.5)'
+            ctx!.strokeStyle = 'rgba(32,32,38,1)'
             ctx!.lineWidth = 1
             ctx!.stroke()
         }
