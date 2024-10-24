@@ -23,7 +23,7 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
     const linkProportions = ref<boolean>(false) // Constraint x y grid proportions
 
     const numParticles = ref<number>(6000) // Number of particles
-    const particleSize = ref<number>(4) // Size of the particles at zoomFactor = 1
+    const particleSize = ref<number>(6) // Size of the particles at zoomFactor = 1
     const numColors = ref<number>(7) // Number of colors to be used
     const depthLimit = ref<number>(420) // Maximum Z axis depth (0 means almost 2D because there is friction with the walls && can be negative)
 
