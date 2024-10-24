@@ -31,6 +31,7 @@
         "eslint-plugin-format": "^0.1.2",
         "floating-vue": "^5.2.2",
         "nuxt": "^3.12.4",
+        "nuxt-gtag": "^3.0.1",
         "pinia": "^2.2.1",
         "sass": "^1.77.8",
         "vue": "^3.4.37",

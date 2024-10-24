@@ -7,14 +7,19 @@ export default defineNuxtConfig({
             enabled: false,
         },
     },
+    gtag: {
+        enabled: process.env.NODE_ENV === 'production',
+        id: process.env.NUXT_PUBLIC_GTAG_ID ?? 'G-XXXXXXXXXX'
+    },
     modules: [
-        '@vueuse/nuxt',
-        '@unocss/nuxt',
-        '@pinia/nuxt',
-        '@nuxtjs/color-mode',
-        "@nuxtjs/seo",
-        "@nuxt/eslint",
-        'floating-vue/nuxt'
+      '@vueuse/nuxt',
+      '@unocss/nuxt',
+      '@pinia/nuxt',
+      '@nuxtjs/color-mode',
+      "@nuxtjs/seo",
+      "@nuxt/eslint",
+      'floating-vue/nuxt',
+      'nuxt-gtag'
     ],
 
     site: {

@@ -240,9 +240,9 @@ export default defineComponent({
             title: 'Particle Life',
             description: 'Discover Particle Life, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.',
             ogTitle: 'Particle Life • Particle Simulation',
-            ogDescription: 'Discover ParticleLife, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.',
+            ogDescription: 'Discover Particle Life, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.',
             twitterTitle: 'Particle Life • Particle Simulation',
-            twitterDescription: 'Discover ParticleLife, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.',
+            twitterDescription: 'Discover Particle Life, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.',
         })
 
         const particleLife = useParticleLifeStore()
@@ -1226,7 +1226,7 @@ export default defineComponent({
             } else { // Circle Shape
                 ctx!.arc((gridOffsetX + circleCenterX) * zoomFactor, (gridOffsetY + circleCenterY) * zoomFactor, circleRadius * zoomFactor + halfParticleSize, 0, Math.PI * 2)
             }
-            ctx!.strokeStyle = 'rgba(80,80,90,0.5)'
+            ctx!.strokeStyle = 'rgba(32,32,38,1)'
             ctx!.lineWidth = 1
             ctx!.stroke()
         }
