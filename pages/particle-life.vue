@@ -167,11 +167,11 @@
 
                         <Collapse label="Save and Share" icon="i-carbon-save" mt-2>
                             <div flex>
-                                <button type="button" btn rounded-full p2 flex items-center text-sm bg="zinc-900 hover:#212121" @click="activateCaptureMode('screenshot')">
+                                <button type="button" btn rounded-full p2 flex items-center text-sm bg="zinc-900 hover:#212121" @click="toggleCaptureMode('screenshot')">
                                     <span class="i-tabler-photo" mr-1></span>
                                     Screenshot
                                 </button>
-                                <button type="button" btn rounded-full p2 flex items-center bg="zinc-900 hover:#212121" @click="activateCaptureMode('GIF')">
+                                <button type="button" btn rounded-full p2 flex items-center bg="zinc-900 hover:#212121" @click="toggleCaptureMode('GIF')">
                                     <span class="i-tabler-gif" text-sm></span>
                                 </button>
                             </div>
@@ -185,7 +185,10 @@
                 </div>
             </template>
         </SidebarLeft>
+
         <canvas ref="lifeCanvas" id="lifeCanvas" @contextmenu.prevent w-full h-full cursor-crosshair></canvas>
+        <ParticleLifeControlsCanvas v-if="particleLife.isControlsCanvasOpen" ref="controlsCanvas" :getSelectedAreaImageData="getSelectedAreaImageData" />
+
         <div absolute top-0 right-0 flex flex-col items-end text-right pointer-events-none>
             <div flex items-center text-start text-xs pl-4 pr-1 bg-gray-800 rounded-bl-xl style="padding-bottom: 1px; opacity: 75%">
                 <div flex>Fps: <div ml-1 min-w-8>{{ fps }}</div></div>
@@ -241,7 +244,6 @@ import Memory from "~/components/particle-life/Memory.vue";
 import BrushSettings from "~/components/particle-life/BrushSettings.vue";
 import WallStateSelection from "~/components/particle-life/WallStateSelection.vue";
 import SidebarLeft from "~/components/SidebarLeft.vue";
-import { GIFEncoder, quantize, applyPalette } from "gifenc";
 
 export default defineComponent({
     components: { MatrixSettings, RulesMatrix, Memory, BrushSettings, WallStateSelection, SidebarLeft },
@@ -260,6 +262,7 @@ export default defineComponent({
         })
 
         const particleLife = useParticleLifeStore()
+        const controlsCanvas = ref( )
         const mainContainer = ref<HTMLElement | null>(null)
         const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(mainContainer)
 
@@ -272,6 +275,9 @@ export default defineComponent({
         let canvasHeight: number = 0
         let backgroundColor: string = 'black'
         let animationFrameId: number | null = null
+
+        // Flag to check if the GIF is being captured
+        let isCapturingGIF: boolean = false
 
         // Define the reactive variables for the game state
         const fps = useFps()
@@ -396,8 +402,7 @@ export default defineComponent({
                     if (particleLife.isLockedPointer) return // Prevent canvas dragging if the pointer is locked
                     isDragging = true
                     if (e.buttons === 1) { // if primary button is pressed (left click)
-                        if (canSelectCaptureArea) handleSelectCaptureArea()
-                        else handleMove()
+                        handleMove()
                     }
                     if (e.buttons === 2 && isBrushActive) { // if secondary button is pressed (right click)
                         if (brushType === 0) eraseWithBrush()
@@ -415,8 +420,6 @@ export default defineComponent({
                     if (brushType === 2 || brushType === 3) { // Magnet
                         isMagnetActive = false
                     }
-                } else if (canSelectCaptureArea && isHandlingCaptureArea && e.button === 0) {
-                    makeCapture()
                 }
             })
             useEventListener(lifeCanvas, ['touchstart'], (e) => {
@@ -447,137 +450,6 @@ export default defineComponent({
                 }
             })
         })
-        // -------------------------------------------------------------------------------------------------------------
-        function makeCapture() {
-            canSelectCaptureArea = false
-            if (captureType === 'screenshot') {
-                takeScreenshot()
-            } else if (captureType === 'GIF') {
-                takeGIF()
-            }
-        }
-        function takeScreenshot() {
-            // Define capture zone
-            const x = currentCaptureArea.x + captureAreaBorderSize / 2
-            const y = currentCaptureArea.y + captureAreaBorderSize / 2
-            const width = currentCaptureArea.width - captureAreaBorderSize
-            const height = currentCaptureArea.height - captureAreaBorderSize
-
-            // Get image data from the canvas
-            const imageData = ctx!.getImageData(x, y, width, height)
-
-            // Create a new canvas to draw the captured data
-            const newCanvas = document.createElement('canvas')
-            newCanvas.width = width
-            newCanvas.height = height
-            const newCtx = newCanvas.getContext('2d')
-
-            newCtx!.putImageData(imageData, 0, 0) // Draw image data on the new canvas
-            const imageURL = newCanvas.toDataURL('image/png') // Convert canvas to image URL
-
-            // Download the image
-            const link = document.createElement('a')
-            link.href = imageURL
-            link.download = 'particle-life_screenshot.png'
-            link.click()
-
-            canSelectCaptureArea = false
-            isHandlingCaptureArea = false
-            startingCaptureArea = null
-            endingCaptureArea = null
-            currentCaptureArea = null
-        }
-
-        function activateCaptureMode(type: string) {
-            canSelectCaptureArea = true
-            captureType = type
-        }
-        function handleSelectCaptureArea() {
-            startingCaptureArea = startingCaptureArea || { x: pointerX, y: pointerY }
-            endingCaptureArea = { x: pointerX, y: pointerY }
-            isHandlingCaptureArea = true
-        }
-        function drawCaptureArea() {
-            if (!startingCaptureArea || !endingCaptureArea) return
-            const x = startingCaptureArea.x
-            const y = startingCaptureArea.y
-            const width = endingCaptureArea.x - x
-            const height = endingCaptureArea.y - y
-            currentCaptureArea = { x, y, width, height }
-
-            ctx!.strokeStyle = '#24324a'
-            ctx!.lineWidth = captureAreaBorderSize
-            ctx!.strokeRect(x, y, width, height)
-        }
-
-        let canSelectCaptureArea: boolean = false
-        let isHandlingCaptureArea: boolean = false
-        let startingCaptureArea: { x: number, y: number } | null = null
-        let endingCaptureArea: { x: number, y: number } | null = null
-        let currentCaptureArea: { x: number, y: number, width: number, height: number } | null = null
-
-        let captureAreaBorderSize: number = 4
-        const GIFCaptureProgress = ref<number>(0)
-        let captureType: string = '' // 'screenshot' or 'GIF'
-        let GIFCaptureCount: number = 0
-        let isCapturingGIF: boolean = false
-        let GIFFrames: Uint8ClampedArray[] = []
-        let GIFOptions: { x: number, y: number, width: number, height: number, delay: number, frames: number }
-
-        function takeGIF() {
-            if (!startingCaptureArea || !endingCaptureArea) return
-            const fps = 1
-            const duration = 120 // seconds
-            GIFOptions = {
-                x: currentCaptureArea.x + captureAreaBorderSize / 2,
-                y: currentCaptureArea.y + captureAreaBorderSize / 2,
-                width: currentCaptureArea.width - captureAreaBorderSize,
-                height: currentCaptureArea.height - captureAreaBorderSize,
-                delay: 1 / fps * 1000,
-                frames: Math.ceil(duration * fps)
-            }
-            GIFFrames = []
-            GIFCaptureCount = 0
-            captureFrame()
-            isCapturingGIF = true
-        }
-        function captureFrame() {
-            const imageData = ctx!.getImageData(GIFOptions.x, GIFOptions.y, GIFOptions.width, GIFOptions.height).data
-            GIFFrames.push(imageData)
-            GIFCaptureCount++
-            GIFCaptureProgress.value = Math.round((GIFCaptureCount / GIFOptions.frames) * 100)
-            // console.log(`Capturing GIF... ${GIFCaptureProgress.value}%`)
-            if (GIFCaptureCount === GIFOptions.frames) {
-                isCapturingGIF = false
-                generateGif()
-            }
-        }
-        function generateGif() {
-            console.log('Generating GIF...')
-            const delay = GIFOptions.delay
-            const gif = GIFEncoder()
-            GIFFrames.forEach((frame) => {
-                const palette = quantize(frame, 256)
-                const index = applyPalette(frame, palette)
-                gif.writeFrame(index, GIFOptions.width, GIFOptions.height, { palette, delay })
-            })
-            gif.finish()
-            console.log('GIF generated !!')
-
-            const buffer = gif.bytesView()
-            const blob = new Blob([buffer], { type: 'image/gif' })
-            const url = URL.createObjectURL(blob)
-            const link = document.createElement('a')
-            link.href = url
-            link.download = 'particle-life_animation.gif'
-            link.click()
-
-            canSelectCaptureArea = false
-            isHandlingCaptureArea = false
-            startingCaptureArea = null
-            endingCaptureArea = null
-            currentCaptureArea = null
-        }
         // -------------------------------------------------------------------------------------------------------------
         function handleResize() {
             canvasWidth = lifeCanvas!.width = lifeCanvas!.clientWidth
@@ -749,7 +621,6 @@ export default defineComponent({
                 if (hasGrid) drawGrid()
                 if (hasCells) drawCells()
                 if (isCapturingGIF) captureFrame()
-                if (isHandlingCaptureArea) drawCaptureArea()
                 if (isMagnetActive) {
                     if (brushType === 2) magnetWithBrush(repulseForce)
                     else if (brushType === 3) magnetWithBrush(attractForce)
@@ -1372,7 +1243,6 @@ export default defineComponent({
             if (hasGrid) drawGrid()
             if (hasCells || isBrushActive) assignParticlesToCells()
             if (hasCells) drawCells()
-            if (isHandlingCaptureArea) drawCaptureArea()
         }
         function drawGrid() {
             ctx!.beginPath()
@@ -1816,14 +1686,30 @@ export default defineComponent({
             particleLife.currentMaxRadius = maxRadiusMatrix.reduce((max, row) => Math.max(max, ...row), -Infinity)
         }
         // -------------------------------------------------------------------------------------------------------------
+        function toggleCaptureMode(type: string) {
+            if (type === particleLife.captureType) {
+                particleLife.isControlsCanvasOpen = !particleLife.isControlsCanvasOpen
+            } else {
+                particleLife.isControlsCanvasOpen = true
+                particleLife.captureType = type
+            }
+        }
+        function getSelectedAreaImageData(x: number, y: number, width: number, height: number) {
+            return ctx!.getImageData(x, y, width, height)
+        }
+        function captureFrame() {
+            controlsCanvas.value.captureFrame(ctx)
+        }
+        // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         function watchAndDraw(effect: any, callback: any) {
             watch(effect, (value) => {
-                callback(value);
-                if (!isRunning) simpleDrawParticles();
-            });
+                callback(value)
+                if (!isRunning) simpleDrawParticles()
+            })
         }
+        watch(() => particleLife.isCapturingGIF, (value) => isCapturingGIF = value)
         watch(() => particleLife.numParticles, (value) => updateNumParticles(value))
         watch(() => particleLife.numColors, (value) => updateNumColors(value))
         watch(() => particleLife.depthLimit, (value: number) => depthLimit = value)
@@ -1903,9 +1789,9 @@ export default defineComponent({
         })
 
         return {
-            lifeCanvas, particleLife, toggleFullscreen, isFullscreen, takeScreenshot, takeGIF, activateCaptureMode,
+            lifeCanvas, particleLife, toggleFullscreen, isFullscreen, toggleCaptureMode, getSelectedAreaImageData,
             fps, cellCount, executionTime, step, newRandomRulesMatrix, handleZoom, updateGridWidth, updateGridHeight,
-            updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, regenerateLife
+            updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, regenerateLife, controlsCanvas
         }
     }
 })
