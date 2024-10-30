@@ -1,6 +1,12 @@
 <template>
     <section absolute w-full h-full>
         <canvas id="controlsCanvas" @contextmenu.prevent w-full h-full cursor-crosshair></canvas>
+        <div v-if="particleLife.isCapturingGIF" class="absolute top-16 left-1/2 transform -translate-x-1/2" w-64 h-6 rounded-full border-2 border-gray-500 flex justify-center items-center>
+            <div absolute left-0 h-4 class="px-[2px]" :style="{ width: `${GIFCaptureProgress}%` }">
+                <div rounded-full w-full h-full class="bg-[#E45C3A]"></div>
+            </div>
+            <span text-gray-300 absolute font-semibold class="drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Capturing GIF... {{ GIFCaptureProgress }}%</span>
+        </div>
     </section>
 </template>
 
@@ -23,6 +29,7 @@ export default defineComponent({
         const GIFCaptureProgress = ref<number>(0)
         let captureAreaBorderSize: number = 4
         let captureAreaBorderColor: string = '#1b50a8'
+        let canvasColor: string = 'rgba(80,80,80,0.2)'
 
         let canSelectCaptureArea: boolean = true
         let isHandlingCaptureArea: boolean = false
@@ -42,6 +49,10 @@ export default defineComponent({
             controlsCanvas = document.getElementById('controlsCanvas') as HTMLCanvasElement
             ctx = controlsCanvas?.getContext('2d') || undefined
             handleResize()
+
+            ctx!.clearRect(0, 0, canvasWidth, canvasHeight)
+            ctx!.fillStyle = canvasColor // Fill the entire canvas with a semi-transparent color
+            ctx!.fillRect(0, 0, canvasWidth, canvasHeight)
 
             useEventListener('resize', handleResize)
             useEventListener(controlsCanvas, ['mousemove'], (e) => {
@@ -139,7 +150,6 @@ export default defineComponent({
             GIFFrames.push(imageData)
             GIFCaptureCount++
             GIFCaptureProgress.value = Math.round((GIFCaptureCount / GIFOptions.frames) * 100)
-            // console.log(`Capturing GIF... ${GIFCaptureProgress.value}%`)
             if (GIFCaptureCount === GIFOptions.frames) {
                 particleLife.isCapturingGIF = false
                 generateGif()
@@ -185,18 +195,22 @@ export default defineComponent({
             currentCaptureArea = { x, y, width, height }
 
             ctx!.clearRect(0, 0, canvasWidth, canvasHeight)
+            ctx!.fillStyle = canvasColor // Fill the entire canvas with a semi-transparent color
+            ctx!.fillRect(0, 0, canvasWidth, canvasHeight)
+            ctx!.clearRect(x, y, width, height) // Clear the capture area to make it transparent
+
             ctx!.strokeStyle = captureAreaBorderColor
             ctx!.lineWidth = captureAreaBorderSize
             ctx!.strokeRect(x, y, width, height)
         }
         // -------------------------------------------------------------------------------------------------------------
-        return { captureFrame }
+        return { captureFrame, particleLife, GIFCaptureProgress }
     }
 })
 </script>
 
 <style scoped>
 #controlsCanvas {
-    background:  rgba(156, 163, 175, 0.3);
+    background:  transparent;
 }
 </style>
