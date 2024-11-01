@@ -187,7 +187,7 @@
         </SidebarLeft>
 
         <canvas ref="lifeCanvas" id="lifeCanvas" @contextmenu.prevent w-full h-full cursor-crosshair></canvas>
-        <ParticleLifeShareOptions v-if="particleLife.isControlsCanvasOpen" ref="shareOptions" :getSelectedAreaImageData="getSelectedAreaImageData" />
+        <ParticleLifeShareOptions v-if="particleLife.isShareOptionsOpen" ref="shareOptions" :getSelectedAreaImageData="getSelectedAreaImageData" />
 
         <div absolute top-0 right-0 flex flex-col items-end text-right pointer-events-none>
             <div flex items-center text-start text-xs pl-4 pr-1 bg-gray-800 rounded-bl-xl style="padding-bottom: 1px; opacity: 75%">
@@ -1688,9 +1688,9 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         function toggleCaptureMode(type: string) {
             if (type === particleLife.captureType) {
-                particleLife.isControlsCanvasOpen = !particleLife.isControlsCanvasOpen
+                particleLife.isShareOptionsOpen = !particleLife.isShareOptionsOpen
             } else {
-                particleLife.isControlsCanvasOpen = true
+                particleLife.isShareOptionsOpen = true
                 particleLife.captureType = type
             }
         }
@@ -1698,7 +1698,7 @@ export default defineComponent({
             return ctx!.getImageData(x, y, width, height)
         }
         function captureFrame() {
-            shareOptions.value.captureFrame(ctx)
+            shareOptions.value.captureOverlay.captureFrame(ctx)
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------

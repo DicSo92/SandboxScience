@@ -53,7 +53,7 @@ export default defineComponent({
     @apply fixed top-0 left-0 w-screen h-screen flex items-center justify-center;
     z-index: 100000;
     .modal-container {
-        @apply relative rounded-xl w-4/5 max-w-[640px] bg-white p-14 bg-gray-800;
+        @apply relative rounded-xl w-4/5 max-w-[640px] p-14 bg-zinc-800;
         box-shadow: 0 19px 38px rgba(0, 0, 0, 0.30), 0 15px 12px rgba(0, 0, 0, 0.22);
         //box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     }

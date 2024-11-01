@@ -1,13 +1,9 @@
 <template>
     <section absolute w-full h-full>
-        <canvas id="captureCanvas" @contextmenu.prevent w-full h-full cursor-crosshair></canvas>
-
-        <div v-if="particleLife.isCapturingGIF" class="absolute top-16 left-1/2 transform -translate-x-1/2" w-64 h-6 rounded-full border-2 border-gray-500 flex justify-center items-center>
-            <div absolute left-0 h-4 class="px-[2px]" :style="{ width: `${GIFCaptureProgress}%` }">
-                <div rounded-full w-full h-full class="bg-[#E45C3A]"></div>
-            </div>
-            <span text-gray-300 absolute font-semibold class="drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Capturing GIF... {{ GIFCaptureProgress }}%</span>
-        </div>
+        <ParticleLifeCaptureOverlay ref="captureOverlay" v-if="isCaptureOverlayOpen"
+                                    :getSelectedAreaImageData="getSelectedAreaImageData"
+                                    @captureComplete="onCaptureComplete">>
+        </ParticleLifeCaptureOverlay>
 
         <Modal :modalActive="modalActive" @close="closeModal">
             <div class="modal-content">
@@ -16,27 +12,36 @@
                     <h1 text-xl>Choose Capture Mode</h1>
                 </div>
                 <hr mb-4>
-                <section flex>
-                    <div flex items-center h-48 class="w-3/4">
-                        <button type="button" title="Screenshot" aria-label="Screenshot"
-                                flex-1 h-full rounded-xl px-4 py-1 flex flex-col items-center justify-center border border-dashed border-gray-500 text-gray-300
-                                class="bg-zinc-800 hover:bg-zinc-700" @click="onChooseCaptureMode('screenshot')">
-                            <span i-tabler-camera text-2xl></span>
-                            Screenshot
-                        </button>
-                        <hr class="h-5/6" border-l-1 border-gray-500 border-dashed mx-3 py-8>
-                        <button type="button" title="Screenshot" aria-label="Screenshot"
-                                flex-1 h-full rounded-xl px-4 py-1 flex flex-col items-center justify-center border border-dashed border-gray-500 text-gray-300
-                                class="bg-zinc-800 hover:bg-zinc-700" @click="onChooseCaptureMode('GIF')">
-                            <span i-tabler-movie text-2xl></span>
-                            GIF Capture
+                <section>
+                    <div v-if="imageURL" class="w-3/4" relative bg-zinc-900 flex justify-center items-center rounded-lg p-1.5 border-2 border-gray-500 border-dashed>
+                        <img :src="imageURL" alt="" w-full aspect-video object-scale-down object-center rounded>
+                        <button type="button" title="Delete Capture" aria-label="Delete Capture" @click="imageURL = null"
+                                absolute top-2 right-2 aspect-square rounded-full p-1 flex justify-center items-center
+                                class="bg-red-800 hover:bg-red-700">
+                            <span i-tabler-trash text-lg></span>
                         </button>
                     </div>
-                    <div class="w-1/4">
+                    <div v-else flex>
+                        <div flex items-center h-48 class="w-3/4">
+                            <button type="button" title="Screenshot" aria-label="Screenshot"
+                                    flex-1 h-full rounded-xl px-4 py-1 flex flex-col items-center justify-center border-2 border-dashed border-gray-500 text-gray-300
+                                    class="bg-zinc-800 hover:bg-zinc-700" @click="onChooseCaptureMode('screenshot')">
+                                <span i-tabler-camera text-2xl></span>
+                                Screenshot
+                            </button>
+                            <hr class="h-5/6" border-l-1 border-gray-500 border-dashed mx-3 py-8>
+                            <button type="button" title="GIF Capture" aria-label="GIF Capture"
+                                    flex-1 h-full rounded-xl px-4 py-1 flex flex-col items-center justify-center border-2 border-dashed border-gray-500 text-gray-300
+                                    class="bg-zinc-800 hover:bg-zinc-700" @click="onChooseCaptureMode('GIF')">
+                                <span i-tabler-movie text-2xl></span>
+                                GIF Capture
+                            </button>
+                        </div>
+                        <div class="w-1/4">
 
+                        </div>
                     </div>
                 </section>
-
             </div>
         </Modal>
     </section>
@@ -44,7 +49,6 @@
 
 <script lang="ts">
 import { defineComponent } from 'vue'
-import { GIFEncoder, quantize, applyPalette } from "gifenc";
 
 export default defineComponent({
     props: {
@@ -54,75 +58,17 @@ export default defineComponent({
         }
     },
     setup(props, { emit }) {
-        const modalActive = ref(false);
-
         const particleLife = useParticleLifeStore()
-        let captureCanvas: HTMLCanvasElement | undefined
-        let ctx: CanvasRenderingContext2D | undefined
+        const captureOverlay = ref(null)
 
-        const GIFCaptureProgress = ref<number>(0)
-        let captureAreaBorderSize: number = 4
-        let captureAreaBorderColor: string = '#1b50a8'
-        let canvasColor: string = 'rgba(80,80,80,0.2)'
+        const modalActive = ref(false)
+        const isCaptureOverlayOpen = ref(false)
 
-        let canSelectCaptureArea: boolean = true
-        let isHandlingCaptureArea: boolean = false
-        let startingCaptureArea: { x: number, y: number } | null = null
-        let endingCaptureArea: { x: number, y: number } | null = null
-        let currentCaptureArea: { x: number, y: number, width: number, height: number } | null = null
-        let GIFCaptureCount: number = 0
-        let GIFFrames: Uint8ClampedArray[] = []
-        let GIFOptions: { x: number, y: number, width: number, height: number, delay: number, frames: number }
-
-        let pointerX: number = 0
-        let pointerY: number = 0
-        let canvasWidth: number = 0
-        let canvasHeight: number = 0
+        const imageURL = ref<string | null>(null)
         // -------------------------------------------------------------------------------------------------------------
         onMounted(() => {
             openModal()
-
-            captureCanvas = document.getElementById('captureCanvas') as HTMLCanvasElement
-            ctx = captureCanvas?.getContext('2d') || undefined
-            handleResize()
-
-            useEventListener('resize', handleResize)
-            useEventListener(captureCanvas, ['mousemove'], (e) => {
-                pointerX = e.x - captureCanvas!.getBoundingClientRect().left
-                pointerY = e.y - captureCanvas!.getBoundingClientRect().top
-
-                if (e.buttons > 0) { // if mouse is pressed
-                    if (e.buttons === 1) { // if primary button is pressed (left click)
-                        if (canSelectCaptureArea) handleSelectCaptureArea()
-                    }
-                }
-            })
-            useEventListener(captureCanvas, ['mouseup'], (e) => {
-                if (canSelectCaptureArea && isHandlingCaptureArea && e.button === 0) {
-                    makeCapture()
-                    console.log('mouseup')
-                }
-            })
         })
-        // -------------------------------------------------------------------------------------------------------------
-        function handleResize() {
-            canvasWidth = captureCanvas!.width = captureCanvas!.clientWidth
-            canvasHeight = captureCanvas!.height = captureCanvas!.clientHeight
-        }
-        function handleSelectCaptureArea() {
-            startingCaptureArea = startingCaptureArea || { x: pointerX, y: pointerY }
-            endingCaptureArea = { x: pointerX, y: pointerY }
-            isHandlingCaptureArea = true
-            drawCaptureArea()
-        }
-        function makeCapture() {
-            canSelectCaptureArea = false
-            if (particleLife.captureType === 'screenshot') {
-                takeScreenshot()
-            } else if (particleLife.captureType === 'GIF') {
-                takeGIF()
-            }
-        }
         // -------------------------------------------------------------------------------------------------------------
         const openModal = () => {
             modalActive.value = true
@@ -131,133 +77,26 @@ export default defineComponent({
         function closeModal() {
             modalActive.value = false
             setTimeout(() => {
-                particleLife.isControlsCanvasOpen = false
+                particleLife.isShareOptionsOpen = false
                 particleLife.sidebarLeftOpen = true
             }, 300)
         }
         function onChooseCaptureMode(mode: string) {
             particleLife.captureType = mode
             modalActive.value = false
-            drawBackground()
+            isCaptureOverlayOpen.value = true
+        }
+        function onCaptureComplete(imageUrl: string) {
+            isCaptureOverlayOpen.value = false
+            imageURL.value = imageUrl
+            openModal()
         }
         // -------------------------------------------------------------------------------------------------------------
-        function takeScreenshot() {
-            if (!currentCaptureArea) return
-            // Define capture zone
-            const x = currentCaptureArea.x + captureAreaBorderSize / 2
-            const y = currentCaptureArea.y + captureAreaBorderSize / 2
-            const width = currentCaptureArea.width - captureAreaBorderSize
-            const height = currentCaptureArea.height - captureAreaBorderSize
-
-            // Get image data from the canvas
-            const imageData = props.getSelectedAreaImageData(x, y, width, height)
-
-            // Create a new canvas to draw the captured data
-            const newCanvas = document.createElement('canvas')
-            newCanvas.width = width
-            newCanvas.height = height
-            const newCtx = newCanvas.getContext('2d')
-
-            newCtx!.putImageData(imageData, 0, 0) // Draw image data on the new canvas
-            const imageURL = newCanvas.toDataURL('image/png') // Convert canvas to image URL
-
-            // Download the image
-            const link = document.createElement('a')
-            link.href = imageURL
-            link.download = 'particle-life_screenshot.png'
-            link.click()
-
-            canSelectCaptureArea = false
-            isHandlingCaptureArea = false
-            startingCaptureArea = null
-            endingCaptureArea = null
-            currentCaptureArea = null
-
-            // Clear the canvas
-            ctx!.clearRect(0, 0, canvasWidth, canvasHeight)
-            particleLife.isControlsCanvasOpen = false
+        return {
+            particleLife, captureOverlay, isCaptureOverlayOpen, modalActive,
+            imageURL,
+            closeModal, onChooseCaptureMode, onCaptureComplete
         }
-        // -------------------------------------------------------------------------------------------------------------
-        function takeGIF() {
-            if (!currentCaptureArea) return
-            const fps = 30
-            const duration = 3 // seconds
-            GIFOptions = {
-                x: currentCaptureArea.x + captureAreaBorderSize / 2,
-                y: currentCaptureArea.y + captureAreaBorderSize / 2,
-                width: currentCaptureArea.width - captureAreaBorderSize,
-                height: currentCaptureArea.height - captureAreaBorderSize,
-                delay: 1 / fps * 1000,
-                frames: Math.ceil(duration * fps)
-            }
-            GIFFrames = []
-            GIFCaptureCount = 0
-            // captureFrame()
-            particleLife.isCapturingGIF = true
-        }
-        function captureFrame(context: CanvasRenderingContext2D) {
-            const imageData = context.getImageData(GIFOptions.x, GIFOptions.y, GIFOptions.width, GIFOptions.height).data
-            GIFFrames.push(imageData)
-            GIFCaptureCount++
-            GIFCaptureProgress.value = Math.round((GIFCaptureCount / GIFOptions.frames) * 100)
-            if (GIFCaptureCount === GIFOptions.frames) {
-                particleLife.isCapturingGIF = false
-                generateGif()
-            }
-        }
-        function generateGif() {
-            console.log('Generating GIF...')
-            const delay = GIFOptions.delay
-            const gif = GIFEncoder()
-            GIFFrames.forEach((frame) => {
-                const palette = quantize(frame, 256)
-                const index = applyPalette(frame, palette)
-                gif.writeFrame(index, GIFOptions.width, GIFOptions.height, { palette, delay })
-            })
-            gif.finish()
-            console.log('GIF generated !!')
-
-            const buffer = gif.bytesView()
-            const blob = new Blob([buffer], { type: 'image/gif' })
-            const url = URL.createObjectURL(blob)
-            const link = document.createElement('a')
-            link.href = url
-            link.download = 'particle-life_animation.gif'
-            link.click()
-
-            canSelectCaptureArea = false
-            isHandlingCaptureArea = false
-            startingCaptureArea = null
-            endingCaptureArea = null
-            currentCaptureArea = null
-
-            // Clear the canvas
-            ctx!.clearRect(0, 0, canvasWidth, canvasHeight)
-            particleLife.isControlsCanvasOpen = false
-        }
-        // -------------------------------------------------------------------------------------------------------------
-        function drawCaptureArea() {
-            if (!startingCaptureArea || !endingCaptureArea) return
-            const x = startingCaptureArea.x
-            const y = startingCaptureArea.y
-            const width = endingCaptureArea.x - x
-            const height = endingCaptureArea.y - y
-            currentCaptureArea = { x, y, width, height }
-
-            drawBackground()
-            ctx!.clearRect(x, y, width, height) // Clear the capture area to make it transparent
-
-            ctx!.strokeStyle = captureAreaBorderColor
-            ctx!.lineWidth = captureAreaBorderSize
-            ctx!.strokeRect(x, y, width, height)
-        }
-        function drawBackground() { // Fill the entire canvas with a semi-transparent color
-            ctx!.clearRect(0, 0, canvasWidth, canvasHeight)
-            ctx!.fillStyle = canvasColor
-            ctx!.fillRect(0, 0, canvasWidth, canvasHeight)
-        }
-        // -------------------------------------------------------------------------------------------------------------
-        return { captureFrame, particleLife, GIFCaptureProgress, modalActive, closeModal, onChooseCaptureMode }
     }
 })
 </script>

@@ -58,7 +58,7 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
 
     const captureType = ref<string>('') // Capture type (screenshot or GIF)
     const isCapturingGIF = ref<boolean>(false) // Start capturing GIF frames
-    const isControlsCanvasOpen = ref<boolean>(false) // Is controls canvas open
+    const isShareOptionsOpen = ref<boolean>(false) // Is controls canvas open
 
     function $reset() {
         sidebarLeftOpen.value = false
@@ -75,7 +75,7 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
         minRadiusRange, maxRadiusRange, currentMaxRadius,
         repel, forceFactor, frictionFactor,
         cellGroupSize, cellSizeFactor,
-        captureType, isCapturingGIF, isControlsCanvasOpen,
+        captureType, isCapturingGIF, isShareOptionsOpen,
         $reset
     }
 })
