@@ -1,12 +1,44 @@
 <template>
     <section absolute w-full h-full>
-        <canvas id="controlsCanvas" @contextmenu.prevent w-full h-full cursor-crosshair></canvas>
+        <canvas id="captureCanvas" @contextmenu.prevent w-full h-full cursor-crosshair></canvas>
+
         <div v-if="particleLife.isCapturingGIF" class="absolute top-16 left-1/2 transform -translate-x-1/2" w-64 h-6 rounded-full border-2 border-gray-500 flex justify-center items-center>
             <div absolute left-0 h-4 class="px-[2px]" :style="{ width: `${GIFCaptureProgress}%` }">
                 <div rounded-full w-full h-full class="bg-[#E45C3A]"></div>
             </div>
             <span text-gray-300 absolute font-semibold class="drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Capturing GIF... {{ GIFCaptureProgress }}%</span>
         </div>
+
+        <Modal :modalActive="modalActive" @close="closeModal">
+            <div class="modal-content">
+                <div flex items-center>
+                    <span i-tabler-screenshot text-2xl mr-2></span>
+                    <h1 text-xl>Choose Capture Mode</h1>
+                </div>
+                <hr mb-4>
+                <section flex>
+                    <div flex items-center h-48 class="w-3/4">
+                        <button type="button" title="Screenshot" aria-label="Screenshot"
+                                flex-1 h-full rounded-xl px-4 py-1 flex flex-col items-center justify-center border border-dashed border-gray-500 text-gray-300
+                                class="bg-zinc-800 hover:bg-zinc-700" @click="onChooseCaptureMode('screenshot')">
+                            <span i-tabler-camera text-2xl></span>
+                            Screenshot
+                        </button>
+                        <hr class="h-5/6" border-l-1 border-gray-500 border-dashed mx-3 py-8>
+                        <button type="button" title="Screenshot" aria-label="Screenshot"
+                                flex-1 h-full rounded-xl px-4 py-1 flex flex-col items-center justify-center border border-dashed border-gray-500 text-gray-300
+                                class="bg-zinc-800 hover:bg-zinc-700" @click="onChooseCaptureMode('GIF')">
+                            <span i-tabler-movie text-2xl></span>
+                            GIF Capture
+                        </button>
+                    </div>
+                    <div class="w-1/4">
+
+                    </div>
+                </section>
+
+            </div>
+        </Modal>
     </section>
 </template>
 
@@ -17,13 +49,15 @@ import { GIFEncoder, quantize, applyPalette } from "gifenc";
 export default defineComponent({
     props: {
         getSelectedAreaImageData: {
-            type: Function as PropType<() => ImageData>,
+            type: Function as PropType<(x: number, y: number, width: number, height: number) => ImageData>,
             required: true
         }
     },
-    setup(props, { emit, expose }) {
+    setup(props, { emit }) {
+        const modalActive = ref(false);
+
         const particleLife = useParticleLifeStore()
-        let controlsCanvas: HTMLCanvasElement | undefined
+        let captureCanvas: HTMLCanvasElement | undefined
         let ctx: CanvasRenderingContext2D | undefined
 
         const GIFCaptureProgress = ref<number>(0)
@@ -46,18 +80,16 @@ export default defineComponent({
         let canvasHeight: number = 0
         // -------------------------------------------------------------------------------------------------------------
         onMounted(() => {
-            controlsCanvas = document.getElementById('controlsCanvas') as HTMLCanvasElement
-            ctx = controlsCanvas?.getContext('2d') || undefined
+            openModal()
+
+            captureCanvas = document.getElementById('captureCanvas') as HTMLCanvasElement
+            ctx = captureCanvas?.getContext('2d') || undefined
             handleResize()
 
-            ctx!.clearRect(0, 0, canvasWidth, canvasHeight)
-            ctx!.fillStyle = canvasColor // Fill the entire canvas with a semi-transparent color
-            ctx!.fillRect(0, 0, canvasWidth, canvasHeight)
-
             useEventListener('resize', handleResize)
-            useEventListener(controlsCanvas, ['mousemove'], (e) => {
-                pointerX = e.x - lifeCanvas!.getBoundingClientRect().left
-                pointerY = e.y - lifeCanvas!.getBoundingClientRect().top
+            useEventListener(captureCanvas, ['mousemove'], (e) => {
+                pointerX = e.x - captureCanvas!.getBoundingClientRect().left
+                pointerY = e.y - captureCanvas!.getBoundingClientRect().top
 
                 if (e.buttons > 0) { // if mouse is pressed
                     if (e.buttons === 1) { // if primary button is pressed (left click)
@@ -65,7 +97,7 @@ export default defineComponent({
                     }
                 }
             })
-            useEventListener(controlsCanvas, ['mouseup'], (e) => {
+            useEventListener(captureCanvas, ['mouseup'], (e) => {
                 if (canSelectCaptureArea && isHandlingCaptureArea && e.button === 0) {
                     makeCapture()
                     console.log('mouseup')
@@ -74,8 +106,8 @@ export default defineComponent({
         })
         // -------------------------------------------------------------------------------------------------------------
         function handleResize() {
-            canvasWidth = controlsCanvas!.width = controlsCanvas!.clientWidth
-            canvasHeight = controlsCanvas!.height = controlsCanvas!.clientHeight
+            canvasWidth = captureCanvas!.width = captureCanvas!.clientWidth
+            canvasHeight = captureCanvas!.height = captureCanvas!.clientHeight
         }
         function handleSelectCaptureArea() {
             startingCaptureArea = startingCaptureArea || { x: pointerX, y: pointerY }
@@ -92,7 +124,25 @@ export default defineComponent({
             }
         }
         // -------------------------------------------------------------------------------------------------------------
+        const openModal = () => {
+            modalActive.value = true
+            particleLife.sidebarLeftOpen = false
+        }
+        function closeModal() {
+            modalActive.value = false
+            setTimeout(() => {
+                particleLife.isControlsCanvasOpen = false
+                particleLife.sidebarLeftOpen = true
+            }, 300)
+        }
+        function onChooseCaptureMode(mode: string) {
+            particleLife.captureType = mode
+            modalActive.value = false
+            drawBackground()
+        }
+        // -------------------------------------------------------------------------------------------------------------
         function takeScreenshot() {
+            if (!currentCaptureArea) return
             // Define capture zone
             const x = currentCaptureArea.x + captureAreaBorderSize / 2
             const y = currentCaptureArea.y + captureAreaBorderSize / 2
@@ -129,7 +179,7 @@ export default defineComponent({
         }
         // -------------------------------------------------------------------------------------------------------------
         function takeGIF() {
-            if (!startingCaptureArea || !endingCaptureArea) return
+            if (!currentCaptureArea) return
             const fps = 30
             const duration = 3 // seconds
             GIFOptions = {
@@ -194,23 +244,26 @@ export default defineComponent({
             const height = endingCaptureArea.y - y
             currentCaptureArea = { x, y, width, height }
 
-            ctx!.clearRect(0, 0, canvasWidth, canvasHeight)
-            ctx!.fillStyle = canvasColor // Fill the entire canvas with a semi-transparent color
-            ctx!.fillRect(0, 0, canvasWidth, canvasHeight)
+            drawBackground()
             ctx!.clearRect(x, y, width, height) // Clear the capture area to make it transparent
 
             ctx!.strokeStyle = captureAreaBorderColor
             ctx!.lineWidth = captureAreaBorderSize
             ctx!.strokeRect(x, y, width, height)
         }
+        function drawBackground() { // Fill the entire canvas with a semi-transparent color
+            ctx!.clearRect(0, 0, canvasWidth, canvasHeight)
+            ctx!.fillStyle = canvasColor
+            ctx!.fillRect(0, 0, canvasWidth, canvasHeight)
+        }
         // -------------------------------------------------------------------------------------------------------------
-        return { captureFrame, particleLife, GIFCaptureProgress }
+        return { captureFrame, particleLife, GIFCaptureProgress, modalActive, closeModal, onChooseCaptureMode }
     }
 })
 </script>
 
 <style scoped>
-#controlsCanvas {
+#captureCanvas {
     background:  transparent;
 }
 </style>

@@ -187,7 +187,7 @@
         </SidebarLeft>
 
         <canvas ref="lifeCanvas" id="lifeCanvas" @contextmenu.prevent w-full h-full cursor-crosshair></canvas>
-        <ParticleLifeControlsCanvas v-if="particleLife.isControlsCanvasOpen" ref="controlsCanvas" :getSelectedAreaImageData="getSelectedAreaImageData" />
+        <ParticleLifeShareOptions v-if="particleLife.isControlsCanvasOpen" ref="shareOptions" :getSelectedAreaImageData="getSelectedAreaImageData" />
 
         <div absolute top-0 right-0 flex flex-col items-end text-right pointer-events-none>
             <div flex items-center text-start text-xs pl-4 pr-1 bg-gray-800 rounded-bl-xl style="padding-bottom: 1px; opacity: 75%">
@@ -262,7 +262,7 @@ export default defineComponent({
         })
 
         const particleLife = useParticleLifeStore()
-        const controlsCanvas = ref( )
+        const shareOptions = ref( )
         const mainContainer = ref<HTMLElement | null>(null)
         const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(mainContainer)
 
@@ -1698,7 +1698,7 @@ export default defineComponent({
             return ctx!.getImageData(x, y, width, height)
         }
         function captureFrame() {
-            controlsCanvas.value.captureFrame(ctx)
+            shareOptions.value.captureFrame(ctx)
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -1791,7 +1791,7 @@ export default defineComponent({
         return {
             lifeCanvas, particleLife, toggleFullscreen, isFullscreen, toggleCaptureMode, getSelectedAreaImageData,
             fps, cellCount, executionTime, step, newRandomRulesMatrix, handleZoom, updateGridWidth, updateGridHeight,
-            updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, regenerateLife, controlsCanvas
+            updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, regenerateLife, shareOptions
         }
     }
 })
