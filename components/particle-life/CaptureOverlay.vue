@@ -20,6 +20,14 @@ export default defineComponent({
         getSelectedAreaImageData: {
             type: Function as PropType<(x: number, y: number, width: number, height: number) => ImageData>,
             required: true
+        },
+        captureFPS: {
+            type: Number,
+            required: true,
+        },
+        captureDuration: {
+            type: Number,
+            required: true,
         }
     },
     setup(props, { emit }) {
@@ -113,12 +121,6 @@ export default defineComponent({
             newCtx!.putImageData(imageData, 0, 0) // Draw image data on the new canvas
             const imageURL = newCanvas.toDataURL('image/png') // Convert canvas to image URL
 
-            // Download the image
-            const link = document.createElement('a')
-            link.href = imageURL
-            link.download = 'particle-life_screenshot.png'
-            link.click()
-
             canSelectCaptureArea = false
             isHandlingCaptureArea = false
             startingCaptureArea = null
@@ -132,8 +134,8 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         function takeGIF() {
             if (!currentCaptureArea) return
-            const fps = 30
-            const duration = 3 // seconds
+            const fps = props.captureFPS
+            const duration = props.captureDuration // seconds
             GIFOptions = {
                 x: currentCaptureArea.x + captureAreaBorderSize / 2,
                 y: currentCaptureArea.y + captureAreaBorderSize / 2,
@@ -172,10 +174,6 @@ export default defineComponent({
             const buffer = gif.bytesView()
             const blob = new Blob([buffer], { type: 'image/gif' })
             const imageURL = URL.createObjectURL(blob)
-            const link = document.createElement('a')
-            link.href = imageURL
-            link.download = 'particle-life_animation.gif'
-            link.click()
 
             canSelectCaptureArea = false
             isHandlingCaptureArea = false
