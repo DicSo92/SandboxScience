@@ -26,15 +26,24 @@ export default defineComponent({
         let CANVAS_HEIGHT: number = 0
         let animationFrameId: number | null = null
 
-        const NUM_PARTICLES = 20480
+        let forceFactor: number = 1.2 // Decrease will increase the impact of the force on the velocity (the higher the value, the slower the particles will move) (can't be 0)
+        let frictionFactor: number = 0.5 // Slow down the particles (0 to 1, where 1 is no friction)
+        let deltaTime: number = 0.1
+
+        const NUM_PARTICLES = 10000
         const PARTICLE_SIZE = 2
-        const NUM_TYPES = 6
+        const NUM_TYPES = 10
 
         let device: GPUDevice
         let computePipeline: GPUComputePipeline
         let renderPipeline: GPURenderPipeline
 
-        let positionBuffer: GPUBuffer
+        // let positionBuffer: GPUBuffer
+        let positionBufferA: GPUBuffer
+        let positionBufferB: GPUBuffer
+        let currentPositionBuffer: GPUBuffer
+        let nextPositionBuffer: GPUBuffer
+
         let velocityBuffer: GPUBuffer
         let typeBuffer: GPUBuffer
         let colorBuffer: GPUBuffer
@@ -103,13 +112,18 @@ export default defineComponent({
             })
 
             renderPass.setPipeline(renderPipeline)
-            renderPass.setVertexBuffer(0, positionBuffer)
+            renderPass.setVertexBuffer(0, nextPositionBuffer)
             renderPass.setVertexBuffer(1, typeBuffer)
             renderPass.setBindGroup(0, renderBindGroup)
             renderPass.draw(NUM_PARTICLES)
             renderPass.end()
 
             device.queue.submit([encoder.finish()])
+
+            // Swap position buffers
+            ;[currentPositionBuffer, nextPositionBuffer] = [nextPositionBuffer, currentPositionBuffer]
+            createBindGroups()
+
             animationFrameId = requestAnimationFrame(frame)
         }
 
@@ -133,10 +147,8 @@ export default defineComponent({
 
             for (let i = 0; i < NUM_TYPES * NUM_TYPES; i++) {
                 rulesMatrix[i] = (Math.random() - 0.5) * 2.0
-                // minRanges[i] = 5 + Math.random() * 10
-                // maxRanges[i] = 20 + Math.random() * 40
-                minRanges[i] = 5
-                maxRanges[i] = 20
+                minRanges[i] = 5 + Math.random() * 40
+                maxRanges[i] = 20 + Math.random() * 160
             }
 
             for (let i = 0; i < NUM_TYPES; i++) {
@@ -152,13 +164,21 @@ export default defineComponent({
             console.log(`Min Ranges: ${minRanges}`)
             console.log(`Max Ranges: ${maxRanges}`)
 
-            positionBuffer = device.createBuffer({
+            positionBufferA = device.createBuffer({
                 size: positions.byteLength,
                 usage: GPUBufferUsage.STORAGE | GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
                 mappedAtCreation: true
             })
-            new Float32Array(positionBuffer.getMappedRange()).set(positions)
-            positionBuffer.unmap()
+            new Float32Array(positionBufferA.getMappedRange()).set(positions)
+            positionBufferA.unmap()
+
+            positionBufferB = device.createBuffer({
+                size: positions.byteLength,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.VERTEX,
+            })
+
+            currentPositionBuffer = positionBufferA
+            nextPositionBuffer = positionBufferB
 
             velocityBuffer = device.createBuffer({
                 size: velocities.byteLength,
@@ -225,20 +245,21 @@ export default defineComponent({
                           data: array<f32>,
                         };
 
-                        @group(0) @binding(0) var<storage, read_write> positions : Particles;
-                        @group(0) @binding(1) var<storage, read_write> velocities : Particles;
-                        @group(0) @binding(2) var<storage, read> types : Types;
-                        @group(0) @binding(3) var<storage, read> rules : Matrix;
+                        @group(0) @binding(0) var<storage, read> currentPositions: Particles;
+                        @group(0) @binding(1) var<storage, read_write> nextPositions: Particles;
+                        @group(0) @binding(2) var<storage, read_write> velocities: Particles;
+                        @group(0) @binding(3) var<storage, read> types: Types;
                         @group(0) @binding(4) var<storage, read> colors: Matrix;
-                        @group(0) @binding(5) var<storage, read> minRanges: Matrix;
-                        @group(0) @binding(6) var<storage, read> maxRanges: Matrix;
+                        @group(0) @binding(5) var<storage, read> rules: Matrix;
+                        @group(0) @binding(6) var<storage, read> minRanges: Matrix;
+                        @group(0) @binding(7) var<storage, read> maxRanges: Matrix;
 
                         @compute @workgroup_size(64)
                         fn main(@builtin(global_invocation_id) id: vec3<u32>) {
                           let i = id.x;
                           if (i >= ${NUM_PARTICLES}u) { return; }
 
-                          let myPos = positions.data[i];
+                          let myPos = currentPositions.data[i];
                           let myType = types.data[i];
                           var velocitySum = vec2<f32>(0.0, 0.0);
                           var acc = vec2<f32>(0.0, 0.0);
@@ -246,7 +267,7 @@ export default defineComponent({
                           for (var j = 0u; j < ${NUM_PARTICLES}u; j = j + 1u) {
                             if (i == j) { continue; }
 
-                            let otherPos = positions.data[j];
+                            let otherPos = currentPositions.data[j];
                             let otherType = types.data[j];
                             let delta = otherPos - myPos;
                             let dist = length(delta);
@@ -256,7 +277,6 @@ export default defineComponent({
                             let maxR = maxRanges.data[index];
                             let rule = rules.data[index];
 
-                            // Répulsion forte à courte distance
                             var force = 0.0;
                             if (dist < minR) {
                               force = (1.0 / minR) * dist - 1.0;
@@ -271,9 +291,13 @@ export default defineComponent({
                             }
                           }
 
-                          velocities.data[i] = velocitySum / 0.5;
-                          positions.data[i] += velocities.data[i] * 0.1;
-                        }
+                          let oldVelocity = velocities.data[i];
+                          let acceleration = (velocitySum / ${forceFactor}) * ${frictionFactor};
+                          let newVelocity = acceleration;
+                          // let newVelocity = oldVelocity + acceleration;
+                          velocities.data[i] = newVelocity;
+                          nextPositions.data[i] = myPos + newVelocity * ${deltaTime};
+                        };
                     `
             })
 
@@ -353,12 +377,13 @@ export default defineComponent({
             computeBindGroup = device.createBindGroup({
                 layout: computePipeline.getBindGroupLayout(0),
                 entries: [
-                    { binding: 0, resource: { buffer: positionBuffer } },
-                    { binding: 1, resource: { buffer: velocityBuffer } },
-                    { binding: 2, resource: { buffer: typeBuffer } },
-                    { binding: 3, resource: { buffer: rulesMatrixBuffer } },
-                    { binding: 5, resource: { buffer: minRangeBuffer } },
-                    { binding: 6, resource: { buffer: maxRangeBuffer } }
+                    { binding: 0, resource: { buffer: currentPositionBuffer } },
+                    { binding: 1, resource: { buffer: nextPositionBuffer } },
+                    { binding: 2, resource: { buffer: velocityBuffer } },
+                    { binding: 3, resource: { buffer: typeBuffer } },
+                    { binding: 5, resource: { buffer: rulesMatrixBuffer } },
+                    { binding: 6, resource: { buffer: minRangeBuffer } },
+                    { binding: 7, resource: { buffer: maxRangeBuffer } }
                 ]
             })
 
