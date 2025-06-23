@@ -26,11 +26,10 @@ export default defineComponent({
         let CANVAS_HEIGHT: number = 0
         let animationFrameId: number | null = null
 
-        let forceFactor: number = 1.2 // Decrease will increase the impact of the force on the velocity (the higher the value, the slower the particles will move) (can't be 0)
+        let forceFactor: number = 0.8 // Decrease will increase the impact of the force on the velocity (the higher the value, the slower the particles will move) (can't be 0)
         let frictionFactor: number = 0.5 // Slow down the particles (0 to 1, where 1 is no friction)
-        let deltaTime: number = 0.1
 
-        const NUM_PARTICLES = 10000
+        const NUM_PARTICLES = 20000
         const PARTICLE_SIZE = 2
         const NUM_TYPES = 10
 
@@ -53,6 +52,9 @@ export default defineComponent({
 
         let computeBindGroup: GPUBindGroup
         let renderBindGroup: GPUBindGroup
+
+        let lastFrameTime = performance.now();
+        let deltaTimeBuffer: GPUBuffer;
 
         const fps = useFps()
 
@@ -92,6 +94,11 @@ export default defineComponent({
 
 
         const frame = () => {
+            const now = performance.now();
+            const deltaTime = Math.min((now - lastFrameTime) / 1000, 0.05)
+            lastFrameTime = now
+            device.queue.writeBuffer(deltaTimeBuffer, 0, new Float32Array([deltaTime]))
+
             const encoder = device.createCommandEncoder()
 
             const computePass = encoder.beginComputePass()
@@ -163,6 +170,11 @@ export default defineComponent({
             console.log(`Rules Matrix: ${rulesMatrix}`)
             console.log(`Min Ranges: ${minRanges}`)
             console.log(`Max Ranges: ${maxRanges}`)
+
+            deltaTimeBuffer = device.createBuffer({
+                size: 4,
+                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+            })
 
             positionBufferA = device.createBuffer({
                 size: positions.byteLength,
@@ -253,6 +265,7 @@ export default defineComponent({
                         @group(0) @binding(5) var<storage, read> rules: Matrix;
                         @group(0) @binding(6) var<storage, read> minRanges: Matrix;
                         @group(0) @binding(7) var<storage, read> maxRanges: Matrix;
+                        @group(0) @binding(8) var<uniform> deltaTime: f32;
 
                         @compute @workgroup_size(64)
                         fn main(@builtin(global_invocation_id) id: vec3<u32>) {
@@ -292,11 +305,10 @@ export default defineComponent({
                           }
 
                           let oldVelocity = velocities.data[i];
-                          let acceleration = (velocitySum / ${forceFactor}) * ${frictionFactor};
-                          let newVelocity = acceleration;
-                          // let newVelocity = oldVelocity + acceleration;
+                          let acceleration = (velocitySum / ${forceFactor});
+                          let newVelocity = (oldVelocity + acceleration) * ${frictionFactor};
                           velocities.data[i] = newVelocity;
-                          nextPositions.data[i] = myPos + newVelocity * ${deltaTime};
+                          nextPositions.data[i] = myPos + newVelocity * deltaTime;
                         };
                     `
             })
@@ -383,7 +395,8 @@ export default defineComponent({
                     { binding: 3, resource: { buffer: typeBuffer } },
                     { binding: 5, resource: { buffer: rulesMatrixBuffer } },
                     { binding: 6, resource: { buffer: minRangeBuffer } },
-                    { binding: 7, resource: { buffer: maxRangeBuffer } }
+                    { binding: 7, resource: { buffer: maxRangeBuffer } },
+                    { binding: 8, resource: { buffer: deltaTimeBuffer } },
                 ]
             })
 
