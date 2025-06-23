@@ -22,12 +22,13 @@ export default defineComponent({
 
         let canvasRef: HTMLCanvasElement | undefined
         let ctx: GPUCanvasContext
-        let canvasWidth: number = 0
-        let canvasHeight: number = 0
+        let CANVAS_WIDTH: number = 0
+        let CANVAS_HEIGHT: number = 0
         let animationFrameId: number | null = null
 
-        const NUM_PARTICLES = 1000
+        const NUM_PARTICLES = 10000
         const PARTICLE_SIZE = 2
+        const NUM_TYPES = 6
 
         let device: GPUDevice
         let positionBuffer: GPUBuffer
@@ -35,18 +36,23 @@ export default defineComponent({
         let computePipeline: GPUComputePipeline
         let renderPipeline: GPURenderPipeline
         let bindGroup: GPUBindGroup
+        let typeBuffer: GPUBuffer
+        let colorBuffer: GPUBuffer
+        let rulesMatrixBuffer: GPUBuffer
+        let computeBindGroup: GPUBindGroup
+        let renderBindGroup: GPUBindGroup
 
         const fps = useFps()
 
         onMounted(() => {
-            initWebGPU();
+            initWebGPU()
 
             useEventListener('resize', handleResize)
         })
         // -------------------------------------------------------------------------------------------------------------
         function handleResize() {
-            canvasWidth = canvasRef!.width = canvasRef!.clientWidth
-            canvasHeight = canvasRef!.height = canvasRef!.clientHeight
+            CANVAS_WIDTH = canvasRef!.width = canvasRef!.clientWidth
+            CANVAS_HEIGHT = canvasRef!.height = canvasRef!.clientHeight
         }
 
         const initWebGPU = async () => {
@@ -68,16 +74,17 @@ export default defineComponent({
 
             createBuffers()
             createPipelines()
-            createBindGroup()
+            createBindGroups()
             animationFrameId = requestAnimationFrame(frame)
         }
+
 
         const frame = () => {
             const encoder = device.createCommandEncoder()
 
             const computePass = encoder.beginComputePass()
             computePass.setPipeline(computePipeline)
-            computePass.setBindGroup(0, bindGroup)
+            computePass.setBindGroup(0, computeBindGroup)
             computePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
             computePass.end()
 
@@ -91,8 +98,11 @@ export default defineComponent({
                     }
                 ]
             })
+
             renderPass.setPipeline(renderPipeline)
             renderPass.setVertexBuffer(0, positionBuffer)
+            renderPass.setVertexBuffer(1, typeBuffer)
+            renderPass.setBindGroup(0, renderBindGroup)
             renderPass.draw(NUM_PARTICLES)
             renderPass.end()
 
@@ -100,15 +110,30 @@ export default defineComponent({
             animationFrameId = requestAnimationFrame(frame)
         }
 
+
         const createBuffers = () => {
             const positions = new Float32Array(NUM_PARTICLES * 2)
             const velocities = new Float32Array(NUM_PARTICLES * 2)
+            const types = new Uint32Array(NUM_PARTICLES)
+            const rulesMatrix = new Float32Array(NUM_TYPES * NUM_TYPES)
+            const colors = new Float32Array(NUM_TYPES * 3)
 
             for (let i = 0; i < NUM_PARTICLES; i++) {
-                positions[2 * i] = Math.random() * canvasWidth
-                positions[2 * i + 1] = Math.random() * canvasHeight
+                positions[2 * i] = Math.random() * CANVAS_WIDTH
+                positions[2 * i + 1] = Math.random() * CANVAS_HEIGHT
                 velocities[2 * i] = 0
                 velocities[2 * i + 1] = 0
+                types[i] = Math.floor(Math.random() * NUM_TYPES)
+            }
+
+            for (let i = 0; i < NUM_TYPES * NUM_TYPES; i++) {
+                rulesMatrix[i] = (Math.random() - 0.5) * 2.0
+            }
+
+            for (let i = 0; i < NUM_TYPES; i++) {
+                colors[i * 3 + 0] = Math.random()
+                colors[i * 3 + 1] = Math.random()
+                colors[i * 3 + 2] = Math.random()
             }
 
             positionBuffer = device.createBuffer({
@@ -126,69 +151,119 @@ export default defineComponent({
             })
             new Float32Array(velocityBuffer.getMappedRange()).set(velocities)
             velocityBuffer.unmap()
+
+            typeBuffer = device.createBuffer({
+                size: types.byteLength,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+                mappedAtCreation: true
+            })
+            new Uint32Array(typeBuffer.getMappedRange()).set(types)
+            typeBuffer.unmap()
+
+            rulesMatrixBuffer = device.createBuffer({
+                size: rulesMatrix.byteLength,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+                mappedAtCreation: true
+            })
+            new Float32Array(rulesMatrixBuffer.getMappedRange()).set(rulesMatrix)
+            rulesMatrixBuffer.unmap()
+
+            colorBuffer = device.createBuffer({
+                size: colors.byteLength,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+                mappedAtCreation: true
+            })
+
+            new Float32Array(colorBuffer.getMappedRange()).set(colors)
+            colorBuffer.unmap()
         }
 
         const createPipelines = () => {
             const computeShader = device.createShaderModule({
                 code: `
-                        struct Particles {
-                          data: array<vec2<f32>>
-                        };
+        struct Particles {
+          data: array<vec2<f32>>
+        };
 
-                        @group(0) @binding(0) var<storage, read_write> positions : Particles;
-                        @group(0) @binding(1) var<storage, read_write> velocities : Particles;
+        struct Types {
+          data: array<u32>
+        };
 
-                        @compute @workgroup_size(64)
-                        fn main(@builtin(global_invocation_id) id : vec3<u32>) {
-                          let i = id.x;
-                          if (i >= ${NUM_PARTICLES}u) { return; }
+        struct Rules {
+          data: array<f32>
+        };
 
-                          var acc = vec2<f32>(0.0, 0.0);
-                          let myPos = positions.data[i];
+        @group(0) @binding(0) var<storage, read_write> positions : Particles;
+        @group(0) @binding(1) var<storage, read_write> velocities : Particles;
+        @group(0) @binding(2) var<storage, read> types : Types;
+        @group(0) @binding(3) var<storage, read> rules : Rules;
 
-                          for (var j = 0u; j < ${NUM_PARTICLES}u; j = j + 1u) {
-                            if (i == j) { continue; }
-                            let other = positions.data[j];
-                            let diff = other - myPos;
-                            let distSqr = max(dot(diff, diff), 1.0);
-                            acc += normalize(diff) / distSqr;
-                          }
+        @compute @workgroup_size(64)
+        fn main(@builtin(global_invocation_id) id : vec3<u32>) {
+          let i = id.x;
+          if (i >= ${NUM_PARTICLES}u) { return; };
 
-                          velocities.data[i] += acc * 0.05;
-                          positions.data[i] += velocities.data[i];
-                        }
-                    `
-            })
-            computePipeline = device.createComputePipeline({
-                layout: 'auto',
-                compute: {
-                    module: computeShader,
-                    entryPoint: 'main'
-                }
+          var acc = vec2<f32>(0.0, 0.0);
+          let myPos = positions.data[i];
+          let myType = types.data[i];
+
+          for (var j = 0u; j < ${NUM_PARTICLES}u; j = j + 1u) {
+            if (i == j) { continue; }
+            let other = positions.data[j];
+            let otherType = types.data[j];
+            let diff = other - myPos;
+            let distSqr = max(dot(diff, diff), 1.0);
+
+            let index = myType * ${NUM_TYPES}u + otherType;
+            let factor = rules.data[index];
+
+            acc += normalize(diff) * factor / distSqr;
+          };
+
+          velocities.data[i] += acc * 0.05;
+          positions.data[i] += velocities.data[i];
+        }
+        `
             })
 
             const vertexShader = device.createShaderModule({
                 code: `
-                        @vertex
-                        fn main(@location(0) pos: vec2<f32>) -> @builtin(position) vec4<f32> {
-                          return vec4<f32>(
-                            (pos.x / ${canvasWidth}.0) * 2.0 - 1.0,
-                            -((pos.y / ${canvasHeight}.0) * 2.0 - 1.0),
-                            0.0,
-                            1.0
-                          );
-                        }
-                    `
+        struct VertexOutput {
+          @builtin(position) position: vec4<f32>,
+          @location(0) @interpolate(flat) particleType: u32
+        };
+
+        @vertex
+        fn main(@location(0) pos: vec2<f32>, @location(1) particleType: u32) -> VertexOutput {
+          var output: VertexOutput;
+          output.position = vec4<f32>(
+            (pos.x / ${CANVAS_WIDTH}.0) * 2.0 - 1.0,
+            -((pos.y / ${CANVAS_HEIGHT}.0) * 2.0 - 1.0),
+            0.0,
+            1.0
+          );
+          output.particleType = particleType;
+          return output;
+        }
+        `
             })
 
             const fragmentShader = device.createShaderModule({
                 code: `
+                        struct Colors {
+                          data: array<vec3<f32>>
+                        };
+
+                        @group(0) @binding(4) var<storage, read> colors: Colors;
+
                         @fragment
-                        fn main() -> @location(0) vec4<f32> {
-                          return vec4<f32>(1.0, 1.0, 1.0, 1.0);
+                        fn main(@location(0) @interpolate(flat) particleType: u32) -> @location(0) vec4<f32> {
+                          let color = colors.data[particleType];
+                          return vec4<f32>(color, 1.0);
                         }
-                    `
+                      `
             })
+
 
             renderPipeline = device.createRenderPipeline({
                 layout: 'auto',
@@ -198,39 +273,49 @@ export default defineComponent({
                     buffers: [
                         {
                             arrayStride: 8,
-                            attributes: [
-                                { shaderLocation: 0, format: 'float32x2', offset: 0 }
-                            ]
+                            attributes: [{ shaderLocation: 0, format: 'float32x2', offset: 0 }]
+                        },
+                        {
+                            arrayStride: 4,
+                            attributes: [{ shaderLocation: 1, format: 'uint32', offset: 0 }]
                         }
                     ]
                 },
                 fragment: {
                     module: fragmentShader,
                     entryPoint: 'main',
-                    targets: [
-                        {
-                            format: navigator.gpu.getPreferredCanvasFormat(),
-                            // blend: {
-                            //     color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha', operation: 'add' },
-                            //     alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' },
-                            // },
-                        }
-                    ]
+                    targets: [{ format: navigator.gpu.getPreferredCanvasFormat() }]
                 },
                 primitive: { topology: 'point-list' }
             })
-        }
 
-        const createBindGroup = () => {
-            bindGroup = device.createBindGroup({
-                layout: computePipeline.getBindGroupLayout(0),
-                entries: [
-                    { binding: 0, resource: { buffer: positionBuffer } },
-                    { binding: 1, resource: { buffer: velocityBuffer } }
-                ]
+            computePipeline = device.createComputePipeline({
+                layout: 'auto',
+                compute: {
+                    module: computeShader,
+                    entryPoint: 'main'
+                }
             })
         }
 
+        const createBindGroups = () => {
+            computeBindGroup = device.createBindGroup({
+                layout: computePipeline.getBindGroupLayout(0),
+                entries: [
+                    { binding: 0, resource: { buffer: positionBuffer } },
+                    { binding: 1, resource: { buffer: velocityBuffer } },
+                    { binding: 2, resource: { buffer: typeBuffer } },
+                    { binding: 3, resource: { buffer: rulesMatrixBuffer } }
+                ]
+            })
+
+            renderBindGroup = device.createBindGroup({
+                layout: renderPipeline.getBindGroupLayout(0),
+                entries: [
+                    { binding: 4, resource: { buffer: colorBuffer } }
+                ]
+            })
+        }
         // -------------------------------------------------------------------------------------------------------------
         onUnmounted(() => {
             if (animationFrameId) {
