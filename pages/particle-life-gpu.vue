@@ -26,7 +26,7 @@ export default defineComponent({
         let canvasHeight: number = 0
         let animationFrameId: number | null = null
 
-        const NUM_PARTICLES = 500
+        const NUM_PARTICLES = 1000
         const PARTICLE_SIZE = 2
 
         let device: GPUDevice
@@ -131,35 +131,34 @@ export default defineComponent({
         const createPipelines = () => {
             const computeShader = device.createShaderModule({
                 code: `
-        struct Particles {
-          data: array<vec2<f32>>
-        };
+                        struct Particles {
+                          data: array<vec2<f32>>
+                        };
 
-        @group(0) @binding(0) var<storage, read_write> positions : Particles;
-        @group(0) @binding(1) var<storage, read_write> velocities : Particles;
+                        @group(0) @binding(0) var<storage, read_write> positions : Particles;
+                        @group(0) @binding(1) var<storage, read_write> velocities : Particles;
 
-        @compute @workgroup_size(64)
-        fn main(@builtin(global_invocation_id) id : vec3<u32>) {
-          let i = id.x;
-          if (i >= ${NUM_PARTICLES}u) { return; }
+                        @compute @workgroup_size(64)
+                        fn main(@builtin(global_invocation_id) id : vec3<u32>) {
+                          let i = id.x;
+                          if (i >= ${NUM_PARTICLES}u) { return; }
 
-          var acc = vec2<f32>(0.0, 0.0);
-          let myPos = positions.data[i];
+                          var acc = vec2<f32>(0.0, 0.0);
+                          let myPos = positions.data[i];
 
-          for (var j = 0u; j < ${NUM_PARTICLES}u; j = j + 1u) {
-            if (i == j) { continue; }
-            let other = positions.data[j];
-            let diff = other - myPos;
-            let distSqr = max(dot(diff, diff), 1.0);
-            acc += normalize(diff) / distSqr;
-          }
+                          for (var j = 0u; j < ${NUM_PARTICLES}u; j = j + 1u) {
+                            if (i == j) { continue; }
+                            let other = positions.data[j];
+                            let diff = other - myPos;
+                            let distSqr = max(dot(diff, diff), 1.0);
+                            acc += normalize(diff) / distSqr;
+                          }
 
-          velocities.data[i] += acc * 0.05;
-          positions.data[i] += velocities.data[i];
-        }
-        `
+                          velocities.data[i] += acc * 0.05;
+                          positions.data[i] += velocities.data[i];
+                        }
+                    `
             })
-
             computePipeline = device.createComputePipeline({
                 layout: 'auto',
                 compute: {
@@ -170,25 +169,25 @@ export default defineComponent({
 
             const vertexShader = device.createShaderModule({
                 code: `
-        @vertex
-        fn main(@location(0) pos: vec2<f32>) -> @builtin(position) vec4<f32> {
-          return vec4<f32>(
-            (pos.x / ${canvasWidth}.0) * 2.0 - 1.0,
-            -((pos.y / ${canvasHeight}.0) * 2.0 - 1.0),
-            0.0,
-            1.0
-          );
-        }
-        `
+                        @vertex
+                        fn main(@location(0) pos: vec2<f32>) -> @builtin(position) vec4<f32> {
+                          return vec4<f32>(
+                            (pos.x / ${canvasWidth}.0) * 2.0 - 1.0,
+                            -((pos.y / ${canvasHeight}.0) * 2.0 - 1.0),
+                            0.0,
+                            1.0
+                          );
+                        }
+                    `
             })
 
             const fragmentShader = device.createShaderModule({
                 code: `
-        @fragment
-        fn main() -> @location(0) vec4<f32> {
-          return vec4<f32>(1.0, 1.0, 1.0, 1.0);
-        }
-        `
+                        @fragment
+                        fn main() -> @location(0) vec4<f32> {
+                          return vec4<f32>(1.0, 1.0, 1.0, 1.0);
+                        }
+                    `
             })
 
             renderPipeline = device.createRenderPipeline({
@@ -208,7 +207,15 @@ export default defineComponent({
                 fragment: {
                     module: fragmentShader,
                     entryPoint: 'main',
-                    targets: [{ format: navigator.gpu.getPreferredCanvasFormat() }]
+                    targets: [
+                        {
+                            format: navigator.gpu.getPreferredCanvasFormat(),
+                            // blend: {
+                            //     color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha', operation: 'add' },
+                            //     alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' },
+                            // },
+                        }
+                    ]
                 },
                 primitive: { topology: 'point-list' }
             })
