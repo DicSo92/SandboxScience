@@ -26,19 +26,22 @@ export default defineComponent({
         let CANVAS_HEIGHT: number = 0
         let animationFrameId: number | null = null
 
-        const NUM_PARTICLES = 10000
+        const NUM_PARTICLES = 20480
         const PARTICLE_SIZE = 2
         const NUM_TYPES = 6
 
         let device: GPUDevice
-        let positionBuffer: GPUBuffer
-        let velocityBuffer: GPUBuffer
         let computePipeline: GPUComputePipeline
         let renderPipeline: GPURenderPipeline
-        let bindGroup: GPUBindGroup
+
+        let positionBuffer: GPUBuffer
+        let velocityBuffer: GPUBuffer
         let typeBuffer: GPUBuffer
         let colorBuffer: GPUBuffer
         let rulesMatrixBuffer: GPUBuffer
+        let minRangeBuffer: GPUBuffer
+        let maxRangeBuffer: GPUBuffer
+
         let computeBindGroup: GPUBindGroup
         let renderBindGroup: GPUBindGroup
 
@@ -116,6 +119,8 @@ export default defineComponent({
             const velocities = new Float32Array(NUM_PARTICLES * 2)
             const types = new Uint32Array(NUM_PARTICLES)
             const rulesMatrix = new Float32Array(NUM_TYPES * NUM_TYPES)
+            const minRanges = new Float32Array(NUM_TYPES * NUM_TYPES)
+            const maxRanges = new Float32Array(NUM_TYPES * NUM_TYPES)
             const colors = new Float32Array(NUM_TYPES * 3)
 
             for (let i = 0; i < NUM_PARTICLES; i++) {
@@ -128,6 +133,10 @@ export default defineComponent({
 
             for (let i = 0; i < NUM_TYPES * NUM_TYPES; i++) {
                 rulesMatrix[i] = (Math.random() - 0.5) * 2.0
+                // minRanges[i] = 5 + Math.random() * 10
+                // maxRanges[i] = 20 + Math.random() * 40
+                minRanges[i] = 5
+                maxRanges[i] = 20
             }
 
             for (let i = 0; i < NUM_TYPES; i++) {
@@ -135,6 +144,13 @@ export default defineComponent({
                 colors[i * 3 + 1] = Math.random()
                 colors[i * 3 + 2] = Math.random()
             }
+            console.log(`Colors: ${colors}`)
+            console.log(`Types: ${types}`)
+            console.log(`Positions: ${positions}`)
+            console.log(`Velocities: ${velocities}`)
+            console.log(`Rules Matrix: ${rulesMatrix}`)
+            console.log(`Min Ranges: ${minRanges}`)
+            console.log(`Max Ranges: ${maxRanges}`)
 
             positionBuffer = device.createBuffer({
                 size: positions.byteLength,
@@ -168,6 +184,22 @@ export default defineComponent({
             new Float32Array(rulesMatrixBuffer.getMappedRange()).set(rulesMatrix)
             rulesMatrixBuffer.unmap()
 
+            minRangeBuffer = device.createBuffer({
+                size: minRanges.byteLength,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+                mappedAtCreation: true
+            })
+            new Float32Array(minRangeBuffer.getMappedRange()).set(minRanges)
+            minRangeBuffer.unmap()
+
+            maxRangeBuffer = device.createBuffer({
+                size: maxRanges.byteLength,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+                mappedAtCreation: true
+            })
+            new Float32Array(maxRangeBuffer.getMappedRange()).set(maxRanges)
+            maxRangeBuffer.unmap()
+
             colorBuffer = device.createBuffer({
                 size: colors.byteLength,
                 usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
@@ -181,71 +213,90 @@ export default defineComponent({
         const createPipelines = () => {
             const computeShader = device.createShaderModule({
                 code: `
-        struct Particles {
-          data: array<vec2<f32>>
-        };
+                        struct Particles {
+                          data: array<vec2<f32>>
+                        };
 
-        struct Types {
-          data: array<u32>
-        };
+                        struct Types {
+                          data: array<u32>
+                        };
 
-        struct Rules {
-          data: array<f32>
-        };
+                        struct Matrix {
+                          data: array<f32>,
+                        };
 
-        @group(0) @binding(0) var<storage, read_write> positions : Particles;
-        @group(0) @binding(1) var<storage, read_write> velocities : Particles;
-        @group(0) @binding(2) var<storage, read> types : Types;
-        @group(0) @binding(3) var<storage, read> rules : Rules;
+                        @group(0) @binding(0) var<storage, read_write> positions : Particles;
+                        @group(0) @binding(1) var<storage, read_write> velocities : Particles;
+                        @group(0) @binding(2) var<storage, read> types : Types;
+                        @group(0) @binding(3) var<storage, read> rules : Matrix;
+                        @group(0) @binding(4) var<storage, read> colors: Matrix;
+                        @group(0) @binding(5) var<storage, read> minRanges: Matrix;
+                        @group(0) @binding(6) var<storage, read> maxRanges: Matrix;
 
-        @compute @workgroup_size(64)
-        fn main(@builtin(global_invocation_id) id : vec3<u32>) {
-          let i = id.x;
-          if (i >= ${NUM_PARTICLES}u) { return; };
+                        @compute @workgroup_size(64)
+                        fn main(@builtin(global_invocation_id) id: vec3<u32>) {
+                          let i = id.x;
+                          if (i >= ${NUM_PARTICLES}u) { return; }
 
-          var acc = vec2<f32>(0.0, 0.0);
-          let myPos = positions.data[i];
-          let myType = types.data[i];
+                          let myPos = positions.data[i];
+                          let myType = types.data[i];
+                          var velocitySum = vec2<f32>(0.0, 0.0);
+                          var acc = vec2<f32>(0.0, 0.0);
 
-          for (var j = 0u; j < ${NUM_PARTICLES}u; j = j + 1u) {
-            if (i == j) { continue; }
-            let other = positions.data[j];
-            let otherType = types.data[j];
-            let diff = other - myPos;
-            let distSqr = max(dot(diff, diff), 1.0);
+                          for (var j = 0u; j < ${NUM_PARTICLES}u; j = j + 1u) {
+                            if (i == j) { continue; }
 
-            let index = myType * ${NUM_TYPES}u + otherType;
-            let factor = rules.data[index];
+                            let otherPos = positions.data[j];
+                            let otherType = types.data[j];
+                            let delta = otherPos - myPos;
+                            let dist = length(delta);
 
-            acc += normalize(diff) * factor / distSqr;
-          };
+                            let index = myType * ${NUM_TYPES}u + otherType;
+                            let minR = minRanges.data[index];
+                            let maxR = maxRanges.data[index];
+                            let rule = rules.data[index];
 
-          velocities.data[i] += acc * 0.05;
-          positions.data[i] += velocities.data[i];
-        }
-        `
+                            // Répulsion forte à courte distance
+                            var force = 0.0;
+                            if (dist < minR) {
+                              force = (1.0 / minR) * dist - 1.0;
+                            } else if (dist <= maxR) {
+                              let mid = (minR + maxR) / 2.0;
+                              let slope = rule / (mid - minR);
+                              force = -(slope * abs(dist - mid)) + rule;
+                            }
+
+                            if (force != 0.0) {
+                              velocitySum += delta / dist * force;
+                            }
+                          }
+
+                          velocities.data[i] = velocitySum / 0.5;
+                          positions.data[i] += velocities.data[i] * 0.1;
+                        }
+                    `
             })
 
             const vertexShader = device.createShaderModule({
                 code: `
-        struct VertexOutput {
-          @builtin(position) position: vec4<f32>,
-          @location(0) @interpolate(flat) particleType: u32
-        };
+                        struct VertexOutput {
+                          @builtin(position) position: vec4<f32>,
+                          @location(0) @interpolate(flat) particleType: u32
+                        };
 
-        @vertex
-        fn main(@location(0) pos: vec2<f32>, @location(1) particleType: u32) -> VertexOutput {
-          var output: VertexOutput;
-          output.position = vec4<f32>(
-            (pos.x / ${CANVAS_WIDTH}.0) * 2.0 - 1.0,
-            -((pos.y / ${CANVAS_HEIGHT}.0) * 2.0 - 1.0),
-            0.0,
-            1.0
-          );
-          output.particleType = particleType;
-          return output;
-        }
-        `
+                        @vertex
+                        fn main(@location(0) pos: vec2<f32>, @location(1) particleType: u32) -> VertexOutput {
+                          var output: VertexOutput;
+                          output.position = vec4<f32>(
+                            (pos.x / ${CANVAS_WIDTH}.0) * 2.0 - 1.0,
+                            -((pos.y / ${CANVAS_HEIGHT}.0) * 2.0 - 1.0),
+                            0.0,
+                            1.0
+                          );
+                          output.particleType = particleType;
+                          return output;
+                        }
+                    `
             })
 
             const fragmentShader = device.createShaderModule({
@@ -305,7 +356,9 @@ export default defineComponent({
                     { binding: 0, resource: { buffer: positionBuffer } },
                     { binding: 1, resource: { buffer: velocityBuffer } },
                     { binding: 2, resource: { buffer: typeBuffer } },
-                    { binding: 3, resource: { buffer: rulesMatrixBuffer } }
+                    { binding: 3, resource: { buffer: rulesMatrixBuffer } },
+                    { binding: 5, resource: { buffer: minRangeBuffer } },
+                    { binding: 6, resource: { buffer: maxRangeBuffer } }
                 ]
             })
 
