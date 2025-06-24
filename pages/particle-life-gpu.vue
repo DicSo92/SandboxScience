@@ -20,7 +20,7 @@ export default defineComponent({
             hideNavBar: true
         })
 
-        let canvasRef: HTMLCanvasElement | undefined
+        const canvasRef = ref<HTMLCanvasElement | null>(null)
         let ctx: GPUCanvasContext
         let CANVAS_WIDTH: number = 0
         let CANVAS_HEIGHT: number = 0
@@ -29,8 +29,8 @@ export default defineComponent({
         let forceFactor: number = 0.6 // Decrease will increase the impact of the force on the velocity (the higher the value, the slower the particles will move) (can't be 0)
         let frictionFactor: number = 0.6 // Slow down the particles (0 to 1, where 1 is no friction)
 
-        const NUM_PARTICLES = 20000
-        const PARTICLE_SIZE = 2
+        const NUM_PARTICLES = 12000
+        const PARTICLE_SIZE = 1.2
         const NUM_TYPES = 8
 
         let device: GPUDevice
@@ -53,10 +53,20 @@ export default defineComponent({
         let computeBindGroup: GPUBindGroup
         let renderBindGroup: GPUBindGroup
 
-        let lastFrameTime = performance.now();
-        let deltaTimeBuffer: GPUBuffer;
+        let lastFrameTime = performance.now()
+        let deltaTimeBuffer: GPUBuffer
 
-        let triangleVertexBuffer: GPUBuffer;
+        let triangleVertexBuffer: GPUBuffer
+
+        let cameraBuffer: GPUBuffer
+        let zoomFactor = 1.0
+        let cameraCenter = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 }
+
+        // Define the properties for dragging and zooming
+        let lastPointerX: number = 0 // For dragging
+        let lastPointerY: number = 0 // For dragging
+        let pointerX: number = 0 // Pointer X
+        let pointerY: number = 0 // Pointer Y
 
         const fps = useFps()
 
@@ -64,11 +74,44 @@ export default defineComponent({
             initWebGPU()
 
             useEventListener('resize', handleResize)
+
+            useEventListener(canvasRef.value, ['mousemove'], (e) => {
+                pointerX = e.x - canvasRef.value!.getBoundingClientRect().left
+                pointerY = e.y - canvasRef.value!.getBoundingClientRect().top
+            })
+
+            useEventListener(canvasRef.value, 'wheel', (e) => {
+                if (e.deltaY < 0) { // Zoom in
+                    handleZoom(1, pointerX, pointerY)
+                } else { // Zoom out
+                    handleZoom(-1, pointerX, pointerY)
+                }
+            })
+
+            window.addEventListener('keydown', e => {
+                const step = 20 * zoomFactor;
+                if (e.key === 'ArrowUp') cameraCenter.y -= step
+                if (e.key === 'ArrowDown') cameraCenter.y += step
+                if (e.key === 'ArrowLeft') cameraCenter.x -= step
+                if (e.key === 'ArrowRight') cameraCenter.x += step
+            })
         })
         // -------------------------------------------------------------------------------------------------------------
+        function handleZoom(delta: number, x: number, y: number) {
+            const oldZoomFactor = zoomFactor
+            const zoomIntensity = 0.1
+            const zoomDelta = delta * zoomIntensity
+            zoomFactor = Math.max(0.1, Math.min(3.2, zoomFactor + zoomDelta))
+            console.log(`Zoom factor: ${zoomFactor}`)
+
+            // // Adjust grid offsets by scaling the cursor position with the ratio of the new and old zoom factors
+            // // This maintains the cursor's position on the grid during zoom operations
+            // gridOffsetX -= (x / zoomFactor) * ((zoomFactor / oldZoomFactor) - 1)
+            // gridOffsetY -= (y / zoomFactor) * ((zoomFactor / oldZoomFactor) - 1)
+        }
         function handleResize() {
-            CANVAS_WIDTH = canvasRef!.width = canvasRef!.clientWidth
-            CANVAS_HEIGHT = canvasRef!.height = canvasRef!.clientHeight
+            CANVAS_WIDTH = canvasRef.value!.width = canvasRef.value!.clientWidth
+            CANVAS_HEIGHT = canvasRef.value!.height = canvasRef.value!.clientHeight
         }
 
         const initWebGPU = async () => {
@@ -77,16 +120,15 @@ export default defineComponent({
 
             device = await adapter.requestDevice()
 
-            canvasRef = document.getElementById('canvasRef') as HTMLCanvasElement
-            ctx = canvasRef.getContext('webgpu')!
-            handleResize()
-
-
+            ctx = canvasRef.value!.getContext('webgpu')!
             ctx.configure({
                 device,
                 format: navigator.gpu.getPreferredCanvasFormat(),
                 alphaMode: 'opaque'
             })
+
+            handleResize()
+            cameraCenter = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 }
 
             createBuffers()
             createPipelines()
@@ -127,6 +169,11 @@ export default defineComponent({
             renderPass.setVertexBuffer(0, triangleVertexBuffer)
             renderPass.setVertexBuffer(1, nextPositionBuffer)
             renderPass.setVertexBuffer(2, typeBuffer)
+
+            device.queue.writeBuffer(cameraBuffer, 0, new Float32Array([
+                cameraCenter.x, cameraCenter.y, zoomFactor, 0
+            ]))
+
             renderPass.draw(6, NUM_PARTICLES)
             renderPass.end()
 
@@ -253,6 +300,15 @@ export default defineComponent({
             })
             new Float32Array(triangleVertexBuffer.getMappedRange()).set(quadVertices)
             triangleVertexBuffer.unmap()
+
+            const cameraData = new Float32Array([cameraCenter.x, cameraCenter.y, zoomFactor, 0]);
+            cameraBuffer = device.createBuffer({
+                size: cameraData.byteLength,
+                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+                mappedAtCreation: true
+            });
+            new Float32Array(cameraBuffer.getMappedRange()).set(cameraData);
+            cameraBuffer.unmap();
         }
 
         const createPipelines = () => {
@@ -379,20 +435,37 @@ export default defineComponent({
                             @location(1) @interpolate(flat) particleType: u32
                         };
 
+                        struct Camera {
+                            center: vec2f,
+                            zoomFactor: f32,
+                            pad: f32
+                        };
+
+                        @group(0) @binding(1) var<uniform> camera: Camera;
+
                         @vertex
-                        fn main(@location(0) localPos: vec2f, @location(1) instancePos: vec2f, @location(2) particleType: u32) -> VertexOutput {
+                        fn main(
+                            @location(0) localPos: vec2f,
+                            @location(1) instancePos: vec2f,
+                            @location(2) particleType: u32
+                        ) -> VertexOutput {
                             var out: VertexOutput;
-                            let pos = instancePos + localPos * ${PARTICLE_SIZE};
+
+                            let worldPos = instancePos + localPos * ${PARTICLE_SIZE};
+                            let pos = (worldPos - camera.center) * camera.zoomFactor;
+
                             out.position = vec4f(
-                                (pos.x / f32(${CANVAS_WIDTH})) * 2.0 - 1.0,
-                                -((pos.y / f32(${CANVAS_HEIGHT})) * 2.0 - 1.0),
+                                (pos.x / ${CANVAS_WIDTH}.0) * 2.0,
+                                -(pos.y / ${CANVAS_HEIGHT}.0) * 2.0,
                                 0.0, 1.0
                             );
+
                             out.offset = localPos;
                             out.particleType = particleType;
+
                             return out;
                         }
-                    `
+                      `
             })
 
             const fragmentShader = device.createShaderModule({
@@ -487,7 +560,8 @@ export default defineComponent({
             renderBindGroup = device.createBindGroup({
                 layout: renderPipeline.getBindGroupLayout(0),
                 entries: [
-                    { binding: 0, resource: { buffer: colorBuffer } }
+                    { binding: 0, resource: { buffer: colorBuffer } },
+                    { binding: 1, resource: { buffer: cameraBuffer } }
                 ]
             })
         }
