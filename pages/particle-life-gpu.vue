@@ -26,12 +26,12 @@ export default defineComponent({
         let CANVAS_HEIGHT: number = 0
         let animationFrameId: number | null = null
 
-        let forceFactor: number = 0.8 // Decrease will increase the impact of the force on the velocity (the higher the value, the slower the particles will move) (can't be 0)
+        let forceFactor: number = 0.6 // Decrease will increase the impact of the force on the velocity (the higher the value, the slower the particles will move) (can't be 0)
         let frictionFactor: number = 0.5 // Slow down the particles (0 to 1, where 1 is no friction)
 
         const NUM_PARTICLES = 20000
-        const PARTICLE_SIZE = 2
-        const NUM_TYPES = 10
+        const PARTICLE_SIZE = 1.5
+        const NUM_TYPES = 8
 
         let device: GPUDevice
         let computePipeline: GPUComputePipeline
@@ -127,7 +127,7 @@ export default defineComponent({
             renderPass.setVertexBuffer(0, triangleVertexBuffer)
             renderPass.setVertexBuffer(1, nextPositionBuffer)
             renderPass.setVertexBuffer(2, typeBuffer)
-            renderPass.draw(3, NUM_PARTICLES)
+            renderPass.draw(6, NUM_PARTICLES)
             renderPass.end()
 
             device.queue.submit([encoder.finish()])
@@ -242,21 +242,16 @@ export default defineComponent({
                 usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
                 mappedAtCreation: true
             })
-
             new Float32Array(colorBuffer.getMappedRange()).set(colors)
             colorBuffer.unmap()
 
-            const triangleVertices = new Float32Array([
-                -1, -1,
-                1, -1,
-                0,  1
-            ])
+            const quadVertices = new Float32Array([-1,-1, 1,-1, 1,1, -1,-1, 1,1, -1,1]);
             triangleVertexBuffer = device.createBuffer({
-                size: triangleVertices.byteLength,
+                size: quadVertices.byteLength,
                 usage: GPUBufferUsage.VERTEX,
                 mappedAtCreation: true
             })
-            new Float32Array(triangleVertexBuffer.getMappedRange()).set(triangleVertices)
+            new Float32Array(triangleVertexBuffer.getMappedRange()).set(quadVertices)
             triangleVertexBuffer.unmap()
         }
 
@@ -337,19 +332,21 @@ export default defineComponent({
             const vertexShader = device.createShaderModule({
                 code: `
                         struct VertexOutput {
-                            @builtin(position) position: vec4<f32>,
-                            @location(0) @interpolate(flat) particleType: u32 // à envoyer au fragment
+                            @builtin(position) position: vec4f,
+                            @location(0) offset: vec2f,
+                            @location(1) @interpolate(flat) particleType: u32
                         };
 
                         @vertex
-                        fn main(@location(0) localPos: vec2<f32>, @location(1) instancePos: vec2<f32>, @location(2) particleType: u32) -> VertexOutput {
-                            let pos = instancePos + localPos * ${PARTICLE_SIZE}; // taille du triangle = 2px
+                        fn main(@location(0) localPos: vec2f, @location(1) instancePos: vec2f, @location(2) particleType: u32) -> VertexOutput {
                             var out: VertexOutput;
+                            let pos = instancePos + localPos * ${PARTICLE_SIZE};
                             out.position = vec4f(
                                 (pos.x / f32(${CANVAS_WIDTH})) * 2.0 - 1.0,
                                 -((pos.y / f32(${CANVAS_HEIGHT})) * 2.0 - 1.0),
                                 0.0, 1.0
                             );
+                            out.offset = localPos;
                             out.particleType = particleType;
                             return out;
                         }
@@ -358,12 +355,18 @@ export default defineComponent({
 
             const fragmentShader = device.createShaderModule({
                 code: `
-                        @group(0) @binding(0) var<storage, read> colors: array<vec3f>;
+                        struct Colors {
+                            data: array<vec3f>
+                        };
+                        @group(0) @binding(0) var<storage, read> colors: Colors;
 
                         @fragment
-                        fn main(@location(0) @interpolate(flat) particleType: u32) -> @location(0) vec4f {
-                            let color = colors[particleType];
-                            return vec4f(color, 1.0);
+                        fn main(@location(0) offset: vec2f, @location(1) @interpolate(flat) particleType: u32) -> @location(0) vec4f {
+                            let color = colors.data[particleType];
+                            if (length(offset) > 1.0) {
+                                discard;
+                            }
+                            return vec4f(color, 0.95 - smoothstep(0.75, 0.95, length(offset)));
                         }
                       `
             })
@@ -395,7 +398,22 @@ export default defineComponent({
                 fragment: {
                     module: fragmentShader,
                     entryPoint: 'main',
-                    targets: [{ format: navigator.gpu.getPreferredCanvasFormat() }]
+                    targets: [{
+                        format: navigator.gpu.getPreferredCanvasFormat(),
+                        blend: {
+                            color: {
+                                srcFactor: 'src-alpha',
+                                dstFactor: 'one-minus-src-alpha',
+                                operation: 'add'
+                            },
+                            alpha: {
+                                srcFactor: 'one',
+                                dstFactor: 'one-minus-src-alpha',
+                                operation: 'add'
+                            }
+                        },
+                        writeMask: GPUColorWrite.ALL
+                    }]
                 },
                 primitive: { topology: 'triangle-list' }
             })
