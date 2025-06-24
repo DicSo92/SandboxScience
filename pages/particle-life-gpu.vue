@@ -63,6 +63,7 @@ export default defineComponent({
         let cameraCenter = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 }
 
         // Define the properties for dragging and zooming
+        let isDragging: boolean = false // Flag to check if the mouse is being dragged
         let lastPointerX: number = 0 // For dragging
         let lastPointerY: number = 0 // For dragging
         let pointerX: number = 0 // Pointer X
@@ -74,10 +75,23 @@ export default defineComponent({
             initWebGPU()
 
             useEventListener('resize', handleResize)
-
+            useEventListener(canvasRef.value, ['mousedown'], (e) => {
+                lastPointerX = e.x - canvasRef.value!.getBoundingClientRect().left
+                lastPointerY = e.y - canvasRef.value!.getBoundingClientRect().top
+            })
             useEventListener(canvasRef.value, ['mousemove'], (e) => {
                 pointerX = e.x - canvasRef.value!.getBoundingClientRect().left
                 pointerY = e.y - canvasRef.value!.getBoundingClientRect().top
+
+                if (e.buttons > 0) { // if mouse is pressed
+                    isDragging = true
+                    if (e.buttons === 1) { // if primary button is pressed (left click)
+                        handleMove()
+                    }
+                }
+                else if (e.buttons === 0) {
+                    isDragging = false
+                }
             })
 
             useEventListener(canvasRef.value, 'wheel', (e) => {
@@ -97,34 +111,41 @@ export default defineComponent({
             })
         })
         // -------------------------------------------------------------------------------------------------------------
+        function handleResize() {
+            CANVAS_WIDTH = canvasRef.value!.width = canvasRef.value!.clientWidth
+            CANVAS_HEIGHT = canvasRef.value!.height = canvasRef.value!.clientHeight
+        }
+        function handleMove() {
+            if (isDragging) {
+                const dx = pointerX - lastPointerX
+                const dy = pointerY - lastPointerY
+                cameraCenter.x -= dx / zoomFactor
+                cameraCenter.y -= dy / zoomFactor
+                lastPointerX = pointerX
+                lastPointerY = pointerY
+            }
+        }
         function handleZoom(delta: number, x: number, y: number) {
             const oldZoomFactor = zoomFactor
             const zoomIntensity = 0.1
             const zoomDelta = delta * zoomIntensity
             zoomFactor = Math.max(0.1, Math.min(3.2, zoomFactor + zoomDelta))
-            console.log(`Zoom factor: ${zoomFactor}`)
 
             // Convert the mouse position to world coordinates (before zoom)
             const worldBefore = {
                 x: cameraCenter.x + (x - CANVAS_WIDTH / 2) / oldZoomFactor,
                 y: cameraCenter.y + (y - CANVAS_HEIGHT / 2) / oldZoomFactor
-            };
-
+            }
             // Convert the mouse position to world coordinates (after zoom)
             const worldAfter = {
                 x: cameraCenter.x + (x - CANVAS_WIDTH / 2) / zoomFactor,
                 y: cameraCenter.y + (y - CANVAS_HEIGHT / 2) / zoomFactor
-            };
-
+            }
             // Adjust the camera center to keep the mouse cursor over the same point in world space
-            cameraCenter.x += worldBefore.x - worldAfter.x;
-            cameraCenter.y += worldBefore.y - worldAfter.y;
+            cameraCenter.x += worldBefore.x - worldAfter.x
+            cameraCenter.y += worldBefore.y - worldAfter.y
         }
-        function handleResize() {
-            CANVAS_WIDTH = canvasRef.value!.width = canvasRef.value!.clientWidth
-            CANVAS_HEIGHT = canvasRef.value!.height = canvasRef.value!.clientHeight
-        }
-
+        // -------------------------------------------------------------------------------------------------------------
         const initWebGPU = async () => {
             const adapter = await navigator.gpu.requestAdapter()
             if (!adapter) throw new Error("WebGPU adapter not found")
@@ -146,8 +167,6 @@ export default defineComponent({
             createBindGroups()
             animationFrameId = requestAnimationFrame(frame)
         }
-
-
         const frame = () => {
             const now = performance.now();
             const deltaTime = Math.min((now - lastFrameTime) / 1000, 0.05)
@@ -194,8 +213,7 @@ export default defineComponent({
 
             animationFrameId = requestAnimationFrame(frame)
         }
-
-
+        // -------------------------------------------------------------------------------------------------------------
         const createBuffers = () => {
             const positions = new Float32Array(NUM_PARTICLES * 2)
             const velocities = new Float32Array(NUM_PARTICLES * 2)
@@ -319,7 +337,7 @@ export default defineComponent({
             new Float32Array(cameraBuffer.getMappedRange()).set(cameraData);
             cameraBuffer.unmap();
         }
-
+        // -------------------------------------------------------------------------------------------------------------
         const createPipelines = () => {
             const computeShader = device.createShaderModule({
                 code: `
@@ -550,7 +568,7 @@ export default defineComponent({
                 }
             })
         }
-
+        // -------------------------------------------------------------------------------------------------------------
         const createBindGroups = () => {
             computeBindGroup = device.createBindGroup({
                 layout: computePipeline.getBindGroupLayout(0),
