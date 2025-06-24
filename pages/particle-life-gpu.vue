@@ -27,10 +27,10 @@ export default defineComponent({
         let animationFrameId: number | null = null
 
         let forceFactor: number = 0.6 // Decrease will increase the impact of the force on the velocity (the higher the value, the slower the particles will move) (can't be 0)
-        let frictionFactor: number = 0.5 // Slow down the particles (0 to 1, where 1 is no friction)
+        let frictionFactor: number = 0.6 // Slow down the particles (0 to 1, where 1 is no friction)
 
         const NUM_PARTICLES = 20000
-        const PARTICLE_SIZE = 1.5
+        const PARTICLE_SIZE = 2
         const NUM_TYPES = 8
 
         let device: GPUDevice
@@ -294,14 +294,25 @@ export default defineComponent({
 
                                 let otherPos = currentPositions.data[j];
                                 let otherType = types.data[j];
-                                let delta = otherPos - myPos;
-                                let dist = length(delta);
+                                var delta = otherPos - myPos;
 
+                                // Wrap around the canvas edges
+                                // if (delta.x > ${CANVAS_WIDTH}.0 / 2.0) {
+                                //     delta.x -= ${CANVAS_WIDTH}.0;
+                                // } else if (delta.x < -${CANVAS_WIDTH}.0 / 2.0) {
+                                //     delta.x += ${CANVAS_WIDTH}.0;
+                                // }
+                                // if (delta.y > ${CANVAS_HEIGHT}.0 / 2.0) {
+                                //     delta.y -= ${CANVAS_HEIGHT}.0;
+                                // } else if (delta.y < -${CANVAS_HEIGHT}.0 / 2.0) {
+                                //     delta.y += ${CANVAS_HEIGHT}.0;
+                                // }
+
+                                let dist = length(delta);
                                 let index = myType * ${NUM_TYPES}u + otherType;
                                 let minR = minRanges.data[index];
                                 let maxR = maxRanges.data[index];
                                 let rule = rules.data[index];
-
 
                                 if (dist < maxR) {
                                     var force = 0.0;
@@ -318,13 +329,44 @@ export default defineComponent({
                                         velocitySum += normalize(delta) * force;
                                     }
                                 }
-                          }
+                            }
 
-                          let oldVelocity = velocities.data[i];
-                          let acceleration = (velocitySum / ${forceFactor});
-                          let newVelocity = (oldVelocity + acceleration) * ${frictionFactor};
-                          velocities.data[i] = newVelocity;
-                          nextPositions.data[i] = myPos + newVelocity * deltaTime;
+                            let oldVelocity = velocities.data[i];
+                            let acceleration = (velocitySum / ${forceFactor});
+                            var newVelocity = (oldVelocity + acceleration) * ${frictionFactor};
+                            velocities.data[i] = newVelocity;
+
+                            var newPos = myPos + newVelocity * deltaTime;
+
+                            // No walls
+                            nextPositions.data[i] = myPos + newVelocity * deltaTime;
+
+                            // With walls
+                            // let margin = f32(${PARTICLE_SIZE});
+                            // if (newPos.x < margin || newPos.x > ${CANVAS_WIDTH}.0 - margin) {
+                            //   newVelocity.x = -newVelocity.x * 1.8;
+                            //   newPos.x = clamp(newPos.x, margin, ${CANVAS_WIDTH}.0 - margin);
+                            // }
+                            // if (newPos.y < margin || newPos.y > ${CANVAS_HEIGHT}.0 - margin) {
+                            //   newVelocity.y = -newVelocity.y * 1.8;
+                            //   newPos.y = clamp(newPos.y, margin, ${CANVAS_HEIGHT}.0 - margin);
+                            // }
+
+                            // Wall Wrapping
+                            // var newPos = myPos + newVelocity * deltaTime;
+                            // if (newPos.x < 0.0) {
+                            //     newPos.x += ${CANVAS_WIDTH}.0;
+                            // } else if (newPos.x > ${CANVAS_WIDTH}.0) {
+                            //     newPos.x -= ${CANVAS_WIDTH}.0;
+                            // }
+                            // if (newPos.y < 0.0) {
+                            //     newPos.y += ${CANVAS_HEIGHT}.0;
+                            // } else if (newPos.y > ${CANVAS_HEIGHT}.0) {
+                            //     newPos.y -= ${CANVAS_HEIGHT}.0;
+                            // }
+
+                            velocities.data[i] = newVelocity;
+                            nextPositions.data[i] = newPos;
                         };
                     `
             })
