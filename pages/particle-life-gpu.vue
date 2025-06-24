@@ -290,17 +290,21 @@ export default defineComponent({
                             let maxR = maxRanges.data[index];
                             let rule = rules.data[index];
 
-                            var force = 0.0;
-                            if (dist < minR) {
-                              force = (1.0 / minR) * dist - 1.0;
-                            } else if (dist <= maxR) {
-                              let mid = (minR + maxR) / 2.0;
-                              let slope = rule / (mid - minR);
-                              force = -(slope * abs(dist - mid)) + rule;
-                            }
 
-                            if (force != 0.0) {
-                              velocitySum += delta / dist * force;
+                            if (dist < maxR) {
+                                var force = 0.0;
+                                if (dist < minR) {
+                                  force = (1.0 / minR) * dist - 1.0;
+                                } else {
+                                  let mid = (minR + maxR) / 2.0;
+                                  let slope = rule / (mid - minR);
+                                  force = -(slope * abs(dist - mid)) + rule;
+                                }
+
+                                if (force != 0.0) {
+                                  // velocitySum += delta / dist * force;
+                                  velocitySum += normalize(delta) * force;
+                                }
                             }
                           }
 
