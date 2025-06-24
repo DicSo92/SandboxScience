@@ -56,6 +56,8 @@ export default defineComponent({
         let lastFrameTime = performance.now();
         let deltaTimeBuffer: GPUBuffer;
 
+        let triangleVertexBuffer: GPUBuffer;
+
         const fps = useFps()
 
         onMounted(() => {
@@ -119,10 +121,13 @@ export default defineComponent({
             })
 
             renderPass.setPipeline(renderPipeline)
-            renderPass.setVertexBuffer(0, nextPositionBuffer)
-            renderPass.setVertexBuffer(1, typeBuffer)
+            // renderPass.setVertexBuffer(0, nextPositionBuffer)
+            // renderPass.setVertexBuffer(1, typeBuffer)
             renderPass.setBindGroup(0, renderBindGroup)
-            renderPass.draw(NUM_PARTICLES)
+            renderPass.setVertexBuffer(0, triangleVertexBuffer)
+            renderPass.setVertexBuffer(1, nextPositionBuffer)
+            renderPass.setVertexBuffer(2, typeBuffer)
+            renderPass.draw(3, NUM_PARTICLES)
             renderPass.end()
 
             device.queue.submit([encoder.finish()])
@@ -240,72 +245,84 @@ export default defineComponent({
 
             new Float32Array(colorBuffer.getMappedRange()).set(colors)
             colorBuffer.unmap()
+
+            const triangleVertices = new Float32Array([
+                -1, -1,
+                1, -1,
+                0,  1
+            ])
+            triangleVertexBuffer = device.createBuffer({
+                size: triangleVertices.byteLength,
+                usage: GPUBufferUsage.VERTEX,
+                mappedAtCreation: true
+            })
+            new Float32Array(triangleVertexBuffer.getMappedRange()).set(triangleVertices)
+            triangleVertexBuffer.unmap()
         }
 
         const createPipelines = () => {
             const computeShader = device.createShaderModule({
                 code: `
                         struct Particles {
-                          data: array<vec2<f32>>
+                            data: array<vec2<f32>>
                         };
 
                         struct Types {
-                          data: array<u32>
+                            data: array<u32>
                         };
 
                         struct Matrix {
-                          data: array<f32>,
+                            data: array<f32>,
                         };
 
                         @group(0) @binding(0) var<storage, read> currentPositions: Particles;
                         @group(0) @binding(1) var<storage, read_write> nextPositions: Particles;
                         @group(0) @binding(2) var<storage, read_write> velocities: Particles;
                         @group(0) @binding(3) var<storage, read> types: Types;
-                        @group(0) @binding(4) var<storage, read> colors: Matrix;
-                        @group(0) @binding(5) var<storage, read> rules: Matrix;
-                        @group(0) @binding(6) var<storage, read> minRanges: Matrix;
-                        @group(0) @binding(7) var<storage, read> maxRanges: Matrix;
-                        @group(0) @binding(8) var<uniform> deltaTime: f32;
+                        @group(0) @binding(4) var<storage, read> rules: Matrix;
+                        @group(0) @binding(5) var<storage, read> minRanges: Matrix;
+                        @group(0) @binding(6) var<storage, read> maxRanges: Matrix;
+                        @group(0) @binding(7) var<uniform> deltaTime: f32;
 
                         @compute @workgroup_size(64)
                         fn main(@builtin(global_invocation_id) id: vec3<u32>) {
-                          let i = id.x;
-                          if (i >= ${NUM_PARTICLES}u) { return; }
+                            let i = id.x;
+                            if (i >= ${NUM_PARTICLES}u) { return; }
 
-                          let myPos = currentPositions.data[i];
-                          let myType = types.data[i];
-                          var velocitySum = vec2<f32>(0.0, 0.0);
-                          var acc = vec2<f32>(0.0, 0.0);
+                            let myPos = currentPositions.data[i];
+                            let myType = types.data[i];
+                            var velocitySum = vec2<f32>(0.0, 0.0);
+                            var acc = vec2<f32>(0.0, 0.0);
 
-                          for (var j = 0u; j < ${NUM_PARTICLES}u; j = j + 1u) {
-                            if (i == j) { continue; }
+                            for (var j = 0u; j < ${NUM_PARTICLES}u; j = j + 1u) {
+                                if (i == j) { continue; }
 
-                            let otherPos = currentPositions.data[j];
-                            let otherType = types.data[j];
-                            let delta = otherPos - myPos;
-                            let dist = length(delta);
+                                let otherPos = currentPositions.data[j];
+                                let otherType = types.data[j];
+                                let delta = otherPos - myPos;
+                                let dist = length(delta);
 
-                            let index = myType * ${NUM_TYPES}u + otherType;
-                            let minR = minRanges.data[index];
-                            let maxR = maxRanges.data[index];
-                            let rule = rules.data[index];
+                                let index = myType * ${NUM_TYPES}u + otherType;
+                                let minR = minRanges.data[index];
+                                let maxR = maxRanges.data[index];
+                                let rule = rules.data[index];
 
 
-                            if (dist < maxR) {
-                                var force = 0.0;
-                                if (dist < minR) {
-                                  force = (1.0 / minR) * dist - 1.0;
-                                } else {
-                                  let mid = (minR + maxR) / 2.0;
-                                  let slope = rule / (mid - minR);
-                                  force = -(slope * abs(dist - mid)) + rule;
+                                if (dist < maxR) {
+                                    var force = 0.0;
+                                    if (dist < minR) {
+                                        force = (1.0 / minR) * dist - 1.0;
+                                    } else {
+                                        let mid = (minR + maxR) / 2.0;
+                                        let slope = rule / (mid - minR);
+                                        force = -(slope * abs(dist - mid)) + rule;
+                                    }
+
+                                    if (force != 0.0) {
+                                        // velocitySum += delta / dist * force;
+                                        velocitySum += normalize(delta) * force;
+                                    }
                                 }
-
-                                if (force != 0.0) {
-                                  // velocitySum += delta / dist * force;
-                                  velocitySum += normalize(delta) * force;
-                                }
-                            }
                           }
 
                           let oldVelocity = velocities.data[i];
@@ -320,37 +337,33 @@ export default defineComponent({
             const vertexShader = device.createShaderModule({
                 code: `
                         struct VertexOutput {
-                          @builtin(position) position: vec4<f32>,
-                          @location(0) @interpolate(flat) particleType: u32
+                            @builtin(position) position: vec4<f32>,
+                            @location(0) @interpolate(flat) particleType: u32 // à envoyer au fragment
                         };
 
                         @vertex
-                        fn main(@location(0) pos: vec2<f32>, @location(1) particleType: u32) -> VertexOutput {
-                          var output: VertexOutput;
-                          output.position = vec4<f32>(
-                            (pos.x / ${CANVAS_WIDTH}.0) * 2.0 - 1.0,
-                            -((pos.y / ${CANVAS_HEIGHT}.0) * 2.0 - 1.0),
-                            0.0,
-                            1.0
-                          );
-                          output.particleType = particleType;
-                          return output;
+                        fn main(@location(0) localPos: vec2<f32>, @location(1) instancePos: vec2<f32>, @location(2) particleType: u32) -> VertexOutput {
+                            let pos = instancePos + localPos * ${PARTICLE_SIZE}; // taille du triangle = 2px
+                            var out: VertexOutput;
+                            out.position = vec4f(
+                                (pos.x / f32(${CANVAS_WIDTH})) * 2.0 - 1.0,
+                                -((pos.y / f32(${CANVAS_HEIGHT})) * 2.0 - 1.0),
+                                0.0, 1.0
+                            );
+                            out.particleType = particleType;
+                            return out;
                         }
                     `
             })
 
             const fragmentShader = device.createShaderModule({
                 code: `
-                        struct Colors {
-                          data: array<vec3<f32>>
-                        };
-
-                        @group(0) @binding(4) var<storage, read> colors: Colors;
+                        @group(0) @binding(0) var<storage, read> colors: array<vec3f>;
 
                         @fragment
-                        fn main(@location(0) @interpolate(flat) particleType: u32) -> @location(0) vec4<f32> {
-                          let color = colors.data[particleType];
-                          return vec4<f32>(color, 1.0);
+                        fn main(@location(0) @interpolate(flat) particleType: u32) -> @location(0) vec4f {
+                            let color = colors[particleType];
+                            return vec4f(color, 1.0);
                         }
                       `
             })
@@ -362,13 +375,20 @@ export default defineComponent({
                     module: vertexShader,
                     entryPoint: 'main',
                     buffers: [
-                        {
+                        { // triangle
                             arrayStride: 8,
+                            stepMode: 'vertex',
                             attributes: [{ shaderLocation: 0, format: 'float32x2', offset: 0 }]
+                        },
+                        { // positions
+                            arrayStride: 8,
+                            stepMode: 'instance',
+                            attributes: [{ shaderLocation: 1, format: 'float32x2', offset: 0 }]
                         },
                         {
                             arrayStride: 4,
-                            attributes: [{ shaderLocation: 1, format: 'uint32', offset: 0 }]
+                            stepMode: 'instance',
+                            attributes: [{ shaderLocation: 2, format: 'uint32', offset: 0 }]
                         }
                     ]
                 },
@@ -377,7 +397,7 @@ export default defineComponent({
                     entryPoint: 'main',
                     targets: [{ format: navigator.gpu.getPreferredCanvasFormat() }]
                 },
-                primitive: { topology: 'point-list' }
+                primitive: { topology: 'triangle-list' }
             })
 
             computePipeline = device.createComputePipeline({
@@ -397,17 +417,17 @@ export default defineComponent({
                     { binding: 1, resource: { buffer: nextPositionBuffer } },
                     { binding: 2, resource: { buffer: velocityBuffer } },
                     { binding: 3, resource: { buffer: typeBuffer } },
-                    { binding: 5, resource: { buffer: rulesMatrixBuffer } },
-                    { binding: 6, resource: { buffer: minRangeBuffer } },
-                    { binding: 7, resource: { buffer: maxRangeBuffer } },
-                    { binding: 8, resource: { buffer: deltaTimeBuffer } },
+                    { binding: 4, resource: { buffer: rulesMatrixBuffer } },
+                    { binding: 5, resource: { buffer: minRangeBuffer } },
+                    { binding: 6, resource: { buffer: maxRangeBuffer } },
+                    { binding: 7, resource: { buffer: deltaTimeBuffer } },
                 ]
             })
 
             renderBindGroup = device.createBindGroup({
                 layout: renderPipeline.getBindGroupLayout(0),
                 entries: [
-                    { binding: 4, resource: { buffer: colorBuffer } }
+                    { binding: 0, resource: { buffer: colorBuffer } }
                 ]
             })
         }
