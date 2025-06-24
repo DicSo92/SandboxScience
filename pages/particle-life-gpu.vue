@@ -104,10 +104,21 @@ export default defineComponent({
             zoomFactor = Math.max(0.1, Math.min(3.2, zoomFactor + zoomDelta))
             console.log(`Zoom factor: ${zoomFactor}`)
 
-            // // Adjust grid offsets by scaling the cursor position with the ratio of the new and old zoom factors
-            // // This maintains the cursor's position on the grid during zoom operations
-            // gridOffsetX -= (x / zoomFactor) * ((zoomFactor / oldZoomFactor) - 1)
-            // gridOffsetY -= (y / zoomFactor) * ((zoomFactor / oldZoomFactor) - 1)
+            // Convert the mouse position to world coordinates (before zoom)
+            const worldBefore = {
+                x: cameraCenter.x + (x - CANVAS_WIDTH / 2) / oldZoomFactor,
+                y: cameraCenter.y + (y - CANVAS_HEIGHT / 2) / oldZoomFactor
+            };
+
+            // Convert the mouse position to world coordinates (after zoom)
+            const worldAfter = {
+                x: cameraCenter.x + (x - CANVAS_WIDTH / 2) / zoomFactor,
+                y: cameraCenter.y + (y - CANVAS_HEIGHT / 2) / zoomFactor
+            };
+
+            // Adjust the camera center to keep the mouse cursor over the same point in world space
+            cameraCenter.x += worldBefore.x - worldAfter.x;
+            cameraCenter.y += worldBefore.y - worldAfter.y;
         }
         function handleResize() {
             CANVAS_WIDTH = canvasRef.value!.width = canvasRef.value!.clientWidth
@@ -163,8 +174,6 @@ export default defineComponent({
             })
 
             renderPass.setPipeline(renderPipeline)
-            // renderPass.setVertexBuffer(0, nextPositionBuffer)
-            // renderPass.setVertexBuffer(1, typeBuffer)
             renderPass.setBindGroup(0, renderBindGroup)
             renderPass.setVertexBuffer(0, triangleVertexBuffer)
             renderPass.setVertexBuffer(1, nextPositionBuffer)
@@ -438,7 +447,7 @@ export default defineComponent({
                         struct Camera {
                             center: vec2f,
                             zoomFactor: f32,
-                            pad: f32
+                            pad: f32 // Padding to ensure the struct size is aligned to 16 bytes (required for uniform buffers)
                         };
 
                         @group(0) @binding(1) var<uniform> camera: Camera;
