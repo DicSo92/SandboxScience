@@ -20,49 +20,46 @@ export default defineComponent({
             hideNavBar: true
         })
 
+        // Define refs and variables
         const canvasRef = ref<HTMLCanvasElement | null>(null)
         let ctx: GPUCanvasContext
         let CANVAS_WIDTH: number = 0
         let CANVAS_HEIGHT: number = 0
         let animationFrameId: number | null = null
+        let lastFrameTime = performance.now()
 
-        let forceFactor: number = 0.6 // Decrease will increase the impact of the force on the velocity (the higher the value, the slower the particles will move) (can't be 0)
-        let frictionFactor: number = 0.6 // Slow down the particles (0 to 1, where 1 is no friction)
-
+        // Constants for the simulation
+        const forceFactor: number = 0.6 // Decrease will increase the impact of the force on the velocity (the higher the value, the slower the particles will move) (can't be 0)
+        const frictionFactor: number = 0.6 // Slow down the particles (0 to 1, where 1 is no friction)
         const NUM_PARTICLES = 25000
         const PARTICLE_SIZE = 1.2
         const NUM_TYPES = 8
 
+        // Define the GPU device, pipelines, and bind groups
         let device: GPUDevice
         let computePipeline: GPUComputePipeline
         let renderPipeline: GPURenderPipeline
+        let computeBindGroup: GPUBindGroup
+        let renderBindGroup: GPUBindGroup
 
-        // let positionBuffer: GPUBuffer
+        // Define the buffers
         let positionBufferA: GPUBuffer
         let positionBufferB: GPUBuffer
         let currentPositionBuffer: GPUBuffer
         let nextPositionBuffer: GPUBuffer
-
         let velocityBuffer: GPUBuffer
         let typeBuffer: GPUBuffer
         let colorBuffer: GPUBuffer
         let rulesMatrixBuffer: GPUBuffer
         let minRangeBuffer: GPUBuffer
         let maxRangeBuffer: GPUBuffer
-
-        let computeBindGroup: GPUBindGroup
-        let renderBindGroup: GPUBindGroup
-
-        let lastFrameTime = performance.now()
         let deltaTimeBuffer: GPUBuffer
-
         let triangleVertexBuffer: GPUBuffer
-
         let cameraBuffer: GPUBuffer
-        let zoomFactor = 1.0
-        let cameraCenter = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 }
 
         // Define the properties for dragging and zooming
+        let zoomFactor = 1.0
+        let cameraCenter = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 }
         let isDragging: boolean = false // Flag to check if the mouse is being dragged
         let lastPointerX: number = 0 // For dragging
         let lastPointerY: number = 0 // For dragging
@@ -202,7 +199,6 @@ export default defineComponent({
                     }
                 ]
             })
-
             renderPass.setPipeline(renderPipeline)
             renderPass.setBindGroup(0, renderBindGroup)
             renderPass.setVertexBuffer(0, triangleVertexBuffer)
@@ -458,9 +454,9 @@ export default defineComponent({
 
                         @vertex
                         fn main(
-                            @location(0) localPos: vec2f,
-                            @location(1) instancePos: vec2f,
-                            @location(2) particleType: u32
+                            @location(0) localPos: vec2f,     // triangleVertexBuffer
+                            @location(1) instancePos: vec2f,  // nextPositionBuffer
+                            @location(2) particleType: u32    // typeBuffer
                         ) -> VertexOutput {
                             var out: VertexOutput;
 
