@@ -67,7 +67,7 @@ export default defineComponent({
         let buildCellsBindGroup: GPUBindGroup
         let cellSizeBuffer: GPUBuffer
         let gridOffsetBuffer: GPUBuffer // For walls or global offset
-        const MAX_CELLS = 131072 // 2^17, enough for 4096x4096 grid with cell size of 2
+        const MAX_CELLS = 131072 // 2^17, enough for 4096x4096 grid with cell size of 2 | 1 << 22
         let buildCellsBindGroupLayout: GPUBindGroupLayout
         let computeBindGroupLayout: GPUBindGroupLayout
 
@@ -399,24 +399,6 @@ export default defineComponent({
                         @group(0) @binding(3) var<uniform> cellSize: f32;
                         @group(0) @binding(4) var<uniform> gridOffset: vec2<f32>; // pour murs ou offset global
 
-                        // @compute @workgroup_size(64)
-                        // fn main(@builtin(global_invocation_id) id: vec3<u32>) {
-                        //     let i = id.x;
-                        //     if (i >= ${NUM_PARTICLES}u) {
-                        //         return;
-                        //     }
-//
-                        //     let pos = currentPositions.data[i] - gridOffset;
-                        //     let cellX = i32(floor(pos.x / cellSize));
-                        //     let cellY = i32(floor(pos.y / cellSize));
-//
-                        //     // Encode la cellule (cellX, cellY) en un identifiant unique
-                        //     let cellHash = u32(cellX * 73856093 ^ cellY * 19349663) % ${MAX_CELLS}u;
-//
-                        //     // Insertion atomique dans la liste chaînée
-                        //     let previousHead = atomicExchange(&cellHeads[cellHash], i);
-                        //     particleNextIndex[i] = previousHead;
-                        // }
                         @compute @workgroup_size(64)
                         fn main(@builtin(global_invocation_id) id: vec3<u32>) {
                             let i = id.x;
@@ -424,16 +406,13 @@ export default defineComponent({
 
                             let pos = currentPositions.data[i];
 
-                            let cellX = i32(floor((pos.x - gridOffset.x) / cellSize));
-                            let cellY = i32(floor((pos.y - gridOffset.y) / cellSize));
+                            let cellX = clamp(i32(floor((pos.x - gridOffset.x) / cellSize)), 0, 4095);
+                            let cellY = clamp(i32(floor((pos.y - gridOffset.y) / cellSize)), 0, 4095);
+                            let gridHash = (cellY * 4096) + cellX;
+                            let cellIndex = u32(gridHash) & 0x3FFFFFu; // 22 bits
 
-                            let gridHash = (cellY * 4096) + cellX; // supporte large grille
-                            // let cellIndex = u32(gridHash & 0x3FFFFFu); // hash 22 bits
-                            let cellIndex = u32(gridHash & i32(0x3FFFFF)); // hash 22 bits
-
-                            let prev = atomicLoad(&cellHeads[cellIndex]);
+                            let prev = atomicExchange(&cellHeads[cellIndex], i);
                             particleNextIndex[i] = prev;
-                            atomicStore(&cellHeads[cellIndex], i);
                         }
                     `
             })
@@ -479,49 +458,63 @@ export default defineComponent({
                             let myPos = currentPositions.data[i];
                             let myType = types.data[i];
                             var velocitySum = vec2<f32>(0.0, 0.0);
-                            var acc = vec2<f32>(0.0, 0.0);
 
-                            for (var j = 0u; j < ${NUM_PARTICLES}u; j = j + 1u) {
-                                if (i == j) { continue; }
+                            let myCellX = i32(floor((myPos.x - gridOffset.x) / cellSize));
+                            let myCellY = i32(floor((myPos.y - gridOffset.y) / cellSize));
 
-                                let otherPos = currentPositions.data[j];
-                                let otherType = types.data[j];
-                                var delta = otherPos - myPos;
+                            for (var offsetY = -1; offsetY <= 1; offsetY = offsetY + 1) {
+                                for (var offsetX = -1; offsetX <= 1; offsetX = offsetX + 1) {
+                                    let neighborX = myCellX + offsetX;
+                                    let neighborY = myCellY + offsetY;
 
-                                // Wrap around the canvas edges
-                                if (options.isWallWrap == 1u) {
-                                    if (delta.x > ${CANVAS_WIDTH}.0 / 2.0) {
-                                        delta.x -= ${CANVAS_WIDTH}.0;
-                                    } else if (delta.x < -${CANVAS_WIDTH}.0 / 2.0) {
-                                        delta.x += ${CANVAS_WIDTH}.0;
-                                    }
-                                    if (delta.y > ${CANVAS_HEIGHT}.0 / 2.0) {
-                                        delta.y -= ${CANVAS_HEIGHT}.0;
-                                    } else if (delta.y < -${CANVAS_HEIGHT}.0 / 2.0) {
-                                        delta.y += ${CANVAS_HEIGHT}.0;
-                                    }
-                                }
+                                    let neighborHash = (neighborY * 4096) + neighborX;
+                                    let cellIndex = (u32(neighborHash) & 0x3FFFFFu); // borne à 22 bits
 
-                                let dist = length(delta);
+                                    var j = atomicLoad(&cellHeads[cellIndex]);
+                                    while (j != 0xFFFFFFFFu) {
+                                        if (j != i) {
+                                            let otherPos = currentPositions.data[j];
+                                            let otherType = types.data[j];
+                                            var delta = otherPos - myPos;
 
-                                let index = (myType * ${NUM_TYPES}u + otherType) * 3u;
-                                let rule = interactions.data[index];
-                                let minR = interactions.data[index + 1];
-                                let maxR = interactions.data[index + 2];
+                                            // Wrap around the canvas edges
+                                            if (options.isWallWrap == 1u) {
+                                                if (delta.x > ${CANVAS_WIDTH}.0 / 2.0) {
+                                                    delta.x -= ${CANVAS_WIDTH}.0;
+                                                } else if (delta.x < -${CANVAS_WIDTH}.0 / 2.0) {
+                                                    delta.x += ${CANVAS_WIDTH}.0;
+                                                }
+                                                if (delta.y > ${CANVAS_HEIGHT}.0 / 2.0) {
+                                                    delta.y -= ${CANVAS_HEIGHT}.0;
+                                                } else if (delta.y < -${CANVAS_HEIGHT}.0 / 2.0) {
+                                                    delta.y += ${CANVAS_HEIGHT}.0;
+                                                }
+                                            }
 
-                                if (dist < maxR) {
-                                    var force = 0.0;
-                                    if (dist < minR) {
-                                        force = (1.0 / minR) * dist - 1.0;
-                                    } else {
-                                        let mid = (minR + maxR) / 2.0;
-                                        let slope = rule / (mid - minR);
-                                        force = -(slope * abs(dist - mid)) + rule;
-                                    }
+                                            let dist = length(delta);
 
-                                    if (force != 0.0) {
-                                        // velocitySum += delta / dist * force;
-                                        velocitySum += normalize(delta) * force;
+                                            let index = (myType * ${NUM_TYPES}u + otherType) * 3u;
+                                            let rule = interactions.data[index];
+                                            let minR = interactions.data[index + 1];
+                                            let maxR = interactions.data[index + 2];
+
+                                            if (dist < maxR) {
+                                                var force = 0.0;
+                                                if (dist < minR) {
+                                                    force = (1.0 / minR) * dist - 1.0;
+                                                } else {
+                                                    let mid = (minR + maxR) / 2.0;
+                                                    let slope = rule / (mid - minR);
+                                                    force = -(slope * abs(dist - mid)) + rule;
+                                                }
+
+                                                if (force != 0.0) {
+                                                    velocitySum += normalize(delta) * force;
+                                                }
+                                            }
+                                        }
+
+                                        j = particleNextIndex[j];
                                     }
                                 }
                             }
@@ -531,22 +524,22 @@ export default defineComponent({
                             var newVelocity = (oldVelocity + acceleration) * ${frictionFactor};
                             velocities.data[i] = newVelocity;
 
-                            var newPos = myPos + newVelocity * deltaTime;
+                            var newPos = myPos + newVelocity * deltaTime; // * deltaTime
 
-                            // With walls
+                            // Rebond contre les murs
                             if (options.isWallRepel == 1u) {
                                 let margin = f32(${PARTICLE_SIZE});
                                 if (newPos.x < margin || newPos.x > ${CANVAS_WIDTH}.0 - margin) {
-                                  newVelocity.x = -newVelocity.x * 1.8;
-                                  newPos.x = clamp(newPos.x, margin, ${CANVAS_WIDTH}.0 - margin);
+                                    newVelocity.x = -newVelocity.x * 1.8;
+                                    newPos.x = clamp(newPos.x, margin, ${CANVAS_WIDTH}.0 - margin);
                                 }
                                 if (newPos.y < margin || newPos.y > ${CANVAS_HEIGHT}.0 - margin) {
-                                  newVelocity.y = -newVelocity.y * 1.8;
-                                  newPos.y = clamp(newPos.y, margin, ${CANVAS_HEIGHT}.0 - margin);
+                                    newVelocity.y = -newVelocity.y * 1.8;
+                                    newPos.y = clamp(newPos.y, margin, ${CANVAS_HEIGHT}.0 - margin);
                                 }
                             }
 
-                            // Wall Wrapping
+                            // Wrap autour des bords
                             else if (options.isWallWrap == 1u) {
                                 if (newPos.x < 0.0) {
                                     newPos.x += ${CANVAS_WIDTH}.0;
@@ -562,7 +555,7 @@ export default defineComponent({
 
                             velocities.data[i] = newVelocity;
                             nextPositions.data[i] = newPos;
-                        };
+                        }
                     `
             })
 
