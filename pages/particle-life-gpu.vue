@@ -69,6 +69,7 @@ export default defineComponent({
         let gridOffsetBuffer: GPUBuffer // For walls or global offset
         const MAX_CELLS = 131072 // 2^17, enough for 4096x4096 grid with cell size of 2
         let buildCellsBindGroupLayout: GPUBindGroupLayout
+        let computeBindGroupLayout: GPUBindGroupLayout
 
         // Define the properties for dragging and zooming
         let zoomFactor = 1.0
@@ -465,6 +466,10 @@ export default defineComponent({
                         @group(0) @binding(4) var<storage, read> interactions: InteractionMatrix;
                         @group(0) @binding(5) var<uniform> deltaTime: f32;
                         @group(0) @binding(6) var<uniform> options: SimOptions;
+                        @group(0) @binding(7) var<storage, read_write> cellHeads: array<atomic<u32>>;
+                        @group(0) @binding(8) var<storage, read> particleNextIndex: array<u32>;
+                        @group(0) @binding(9) var<uniform> cellSize: f32;
+                        @group(0) @binding(10) var<uniform> gridOffset: vec2<f32>; // pour murs ou offset global
 
                         @compute @workgroup_size(64)
                         fn main(@builtin(global_invocation_id) id: vec3<u32>) {
@@ -678,8 +683,11 @@ export default defineComponent({
                     entryPoint: 'main'
                 }
             })
+            const computePipelineLayout = device.createPipelineLayout({
+                bindGroupLayouts: [computeBindGroupLayout]
+            })
             computePipeline = device.createComputePipeline({
-                layout: 'auto',
+                layout: computePipelineLayout,
                 compute: {
                     module: computeShader,
                     entryPoint: 'main'
@@ -697,6 +705,21 @@ export default defineComponent({
                     { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" } },
                 ]
             })
+            computeBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" } },
+                    { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
+                    { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
+                    { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" } },
+                    { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" } },
+                    { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" } },
+                    { binding: 6, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" } },
+                    { binding: 7, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } }, // cellHeads (atomic)
+                    { binding: 8, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" } }, // particleNextIndex
+                    { binding: 9, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" } }, // cellSize
+                    { binding: 10, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" } }, // gridOffset
+                ]
+            })
         }
         const createBindGroups = () => {
             buildCellsBindGroup = device.createBindGroup({
@@ -711,7 +734,7 @@ export default defineComponent({
             })
 
             computeBindGroup = device.createBindGroup({
-                layout: computePipeline.getBindGroupLayout(0),
+                layout: computeBindGroupLayout,
                 entries: [
                     { binding: 0, resource: { buffer: currentPositionBuffer } },
                     { binding: 1, resource: { buffer: nextPositionBuffer } },
@@ -719,7 +742,11 @@ export default defineComponent({
                     { binding: 3, resource: { buffer: typeBuffer } },
                     { binding: 4, resource: { buffer: interactionMatrixBuffer } },
                     { binding: 5, resource: { buffer: deltaTimeBuffer } },
-                    { binding: 6, resource: { buffer: simOptionsBuffer } }
+                    { binding: 6, resource: { buffer: simOptionsBuffer } },
+                    { binding: 7, resource: { buffer: cellHeadsBuffer } }, // Add cell heads buffer for compute shader
+                    { binding: 8, resource: { buffer: particleNextIndexBuffer } }, // Add particle next index buffer for compute shader
+                    { binding: 9, resource: { buffer: cellSizeBuffer } }, // Add cell size buffer for compute shader
+                    { binding: 10, resource: { buffer: gridOffsetBuffer } } // Add grid offset buffer for compute shader
                 ]
             })
 
