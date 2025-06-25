@@ -31,7 +31,7 @@ export default defineComponent({
         // Constants for the simulation
         const forceFactor: number = 0.6 // Decrease will increase the impact of the force on the velocity (the higher the value, the slower the particles will move) (can't be 0)
         const frictionFactor: number = 0.6 // Slow down the particles (0 to 1, where 1 is no friction)
-        const NUM_PARTICLES = 25000
+        const NUM_PARTICLES = 40000
         const PARTICLE_SIZE = 1.2
         const NUM_TYPES = 8
 
@@ -266,13 +266,26 @@ export default defineComponent({
             new Uint32Array(typeBuffer.getMappedRange()).set(types)
             typeBuffer.unmap()
 
+
+            const rulesArray = new Float32Array(NUM_TYPES * 4); // vec4<f32> per rule
+
+            for (let a = 0; a < NUM_TYPES; a++) {
+                for (let b = 0; b < NUM_TYPES; b++) {
+                    const index = a * NUM_TYPES + b;
+                    rulesArray[index * 4 + 0] = rulesMatrix[a][b]; // .x = rule
+                    rulesArray[index * 4 + 1] = 0; // .y (unused)
+                    rulesArray[index * 4 + 2] = 0; // .z (unused)
+                    rulesArray[index * 4 + 3] = 0; // .w (unused)
+                }
+            }
             rulesMatrixBuffer = device.createBuffer({
-                size: rules.byteLength,
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-                mappedAtCreation: true
+                size: 1024,
+                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
             })
-            new Float32Array(rulesMatrixBuffer.getMappedRange()).set(rules)
-            rulesMatrixBuffer.unmap()
+            device.queue.writeBuffer(rulesMatrixBuffer, 0, rulesArray)
+
+
+
             minRangeBuffer = device.createBuffer({
                 size: minRanges.byteLength,
                 usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
@@ -335,11 +348,13 @@ export default defineComponent({
                             data: array<f32>,
                         };
 
+                        const NUM_RULES = ${NUM_TYPES} * ${NUM_TYPES};
+
                         @group(0) @binding(0) var<storage, read> currentPositions: Particles;
                         @group(0) @binding(1) var<storage, read_write> nextPositions: Particles;
                         @group(0) @binding(2) var<storage, read_write> velocities: Particles;
                         @group(0) @binding(3) var<storage, read> types: Types;
-                        @group(0) @binding(4) var<storage, read> rules: Matrix;
+                        @group(0) @binding(4) var<uniform> rules: array<vec4<f32>, NUM_RULES>;
                         @group(0) @binding(5) var<storage, read> minRanges: Matrix;
                         @group(0) @binding(6) var<storage, read> maxRanges: Matrix;
                         @group(0) @binding(7) var<uniform> deltaTime: f32;
@@ -377,7 +392,7 @@ export default defineComponent({
                                 let index = myType * ${NUM_TYPES}u + otherType;
                                 let minR = minRanges.data[index];
                                 let maxR = maxRanges.data[index];
-                                let rule = rules.data[index];
+                                let rule = rules[index].x;
 
                                 if (dist < maxR) {
                                     var force = 0.0;
