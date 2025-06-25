@@ -28,12 +28,14 @@ export default defineComponent({
         let animationFrameId: number | null = null
         let lastFrameTime = performance.now()
 
-        // Constants for the simulation
+        // Define variables for the simulation
         const forceFactor: number = 0.6 // Decrease will increase the impact of the force on the velocity (the higher the value, the slower the particles will move) (can't be 0)
         const frictionFactor: number = 0.6 // Slow down the particles (0 to 1, where 1 is no friction)
         const NUM_PARTICLES = 40000
         const PARTICLE_SIZE = 1.2
         const NUM_TYPES = 8
+        let isWallRepel: boolean = false // Enable walls X and Y for the particles
+        let isWallWrap: boolean = false // Enable wrapping for the particles
 
         // Define the GPU device, pipelines, and bind groups
         let device: GPUDevice
@@ -57,6 +59,7 @@ export default defineComponent({
         let triangleVertexBuffer: GPUBuffer
         let cameraBuffer: GPUBuffer
         let interactionMatrixBuffer: GPUBuffer
+        let simOptionsBuffer: GPUBuffer // Buffer for simulation options
 
         // Define the properties for dragging and zooming
         let zoomFactor = 1.0
@@ -237,6 +240,18 @@ export default defineComponent({
                 }
             }
 
+            const simOptionsArray = new Uint32Array([
+                isWallRepel ? 1 : 0,
+                isWallWrap ? 1 : 0,
+                0, 0 // padding
+            ])
+            simOptionsBuffer = device.createBuffer({
+                size: simOptionsArray.byteLength,
+                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+            })
+            device.queue.writeBuffer(simOptionsBuffer, 0, simOptionsArray)
+
+
             positionBufferA = device.createBuffer({
                 size: positions.byteLength,
                 usage: GPUBufferUsage.STORAGE | GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
@@ -330,12 +345,20 @@ export default defineComponent({
                           data: array<f32>
                         };
 
+                        struct SimOptions {
+                            isWallRepel: u32, // 0 = false, 1 = true
+                            isWallWrap: u32,  // 0 = false, 1 = true
+                            pad1: u32,
+                            pad2: u32
+                        };
+
                         @group(0) @binding(0) var<storage, read> currentPositions: Particles;
                         @group(0) @binding(1) var<storage, read_write> nextPositions: Particles;
                         @group(0) @binding(2) var<storage, read_write> velocities: Particles;
                         @group(0) @binding(3) var<storage, read> types: Types;
                         @group(0) @binding(4) var<storage, read> interactions: InteractionMatrix;
                         @group(0) @binding(5) var<uniform> deltaTime: f32;
+                        @group(0) @binding(6) var<uniform> options: SimOptions;
 
                         @compute @workgroup_size(64)
                         fn main(@builtin(global_invocation_id) id: vec3<u32>) {
@@ -355,15 +378,17 @@ export default defineComponent({
                                 var delta = otherPos - myPos;
 
                                 // Wrap around the canvas edges
-                                // if (delta.x > ${CANVAS_WIDTH}.0 / 2.0) {
-                                //     delta.x -= ${CANVAS_WIDTH}.0;
-                                // } else if (delta.x < -${CANVAS_WIDTH}.0 / 2.0) {
-                                //     delta.x += ${CANVAS_WIDTH}.0;
-                                // }
-                                // if (delta.y > ${CANVAS_HEIGHT}.0 / 2.0) {
-                                //     delta.y -= ${CANVAS_HEIGHT}.0;
-                                // } else if (delta.y < -${CANVAS_HEIGHT}.0 / 2.0) {
-                                //     delta.y += ${CANVAS_HEIGHT}.0;
+                                // if (options.isWallWrap == 1u) {
+                                //     if (delta.x > ${CANVAS_WIDTH}.0 / 2.0) {
+                                //         delta.x -= ${CANVAS_WIDTH}.0;
+                                //     } else if (delta.x < -${CANVAS_WIDTH}.0 / 2.0) {
+                                //         delta.x += ${CANVAS_WIDTH}.0;
+                                //     }
+                                //     if (delta.y > ${CANVAS_HEIGHT}.0 / 2.0) {
+                                //         delta.y -= ${CANVAS_HEIGHT}.0;
+                                //     } else if (delta.y < -${CANVAS_HEIGHT}.0 / 2.0) {
+                                //         delta.y += ${CANVAS_HEIGHT}.0;
+                                //     }
                                 // }
 
                                 let dist = length(delta);
@@ -397,31 +422,32 @@ export default defineComponent({
 
                             var newPos = myPos + newVelocity * deltaTime;
 
-                            // No walls
-                            nextPositions.data[i] = myPos + newVelocity * deltaTime;
-
                             // With walls
-                            // let margin = f32(${PARTICLE_SIZE});
-                            // if (newPos.x < margin || newPos.x > ${CANVAS_WIDTH}.0 - margin) {
-                            //   newVelocity.x = -newVelocity.x * 1.8;
-                            //   newPos.x = clamp(newPos.x, margin, ${CANVAS_WIDTH}.0 - margin);
-                            // }
-                            // if (newPos.y < margin || newPos.y > ${CANVAS_HEIGHT}.0 - margin) {
-                            //   newVelocity.y = -newVelocity.y * 1.8;
-                            //   newPos.y = clamp(newPos.y, margin, ${CANVAS_HEIGHT}.0 - margin);
-                            // }
+                            if (options.isWallRepel == 1u) {
+                                let margin = f32(${PARTICLE_SIZE});
+                                if (newPos.x < margin || newPos.x > ${CANVAS_WIDTH}.0 - margin) {
+                                  newVelocity.x = -newVelocity.x * 1.8;
+                                  newPos.x = clamp(newPos.x, margin, ${CANVAS_WIDTH}.0 - margin);
+                                }
+                                if (newPos.y < margin || newPos.y > ${CANVAS_HEIGHT}.0 - margin) {
+                                  newVelocity.y = -newVelocity.y * 1.8;
+                                  newPos.y = clamp(newPos.y, margin, ${CANVAS_HEIGHT}.0 - margin);
+                                }
+                            }
 
                             // Wall Wrapping
-                            // var newPos = myPos + newVelocity * deltaTime;
-                            // if (newPos.x < 0.0) {
-                            //     newPos.x += ${CANVAS_WIDTH}.0;
-                            // } else if (newPos.x > ${CANVAS_WIDTH}.0) {
-                            //     newPos.x -= ${CANVAS_WIDTH}.0;
-                            // }
-                            // if (newPos.y < 0.0) {
-                            //     newPos.y += ${CANVAS_HEIGHT}.0;
-                            // } else if (newPos.y > ${CANVAS_HEIGHT}.0) {
-                            //     newPos.y -= ${CANVAS_HEIGHT}.0;
+                            // else if (options.isWallWrap == 1u) {
+                            //     var newPos = myPos + newVelocity * deltaTime;
+                            //     if (newPos.x < 0.0) {
+                            //         newPos.x += ${CANVAS_WIDTH}.0;
+                            //     } else if (newPos.x > ${CANVAS_WIDTH}.0) {
+                            //         newPos.x -= ${CANVAS_WIDTH}.0;
+                            //     }
+                            //     if (newPos.y < 0.0) {
+                            //         newPos.y += ${CANVAS_HEIGHT}.0;
+                            //     } else if (newPos.y > ${CANVAS_HEIGHT}.0) {
+                            //         newPos.y -= ${CANVAS_HEIGHT}.0;
+                            //     }
                             // }
 
                             velocities.data[i] = newVelocity;
@@ -555,6 +581,7 @@ export default defineComponent({
                     { binding: 3, resource: { buffer: typeBuffer } },
                     { binding: 4, resource: { buffer: interactionMatrixBuffer } },
                     { binding: 5, resource: { buffer: deltaTimeBuffer } },
+                    { binding: 6, resource: { buffer: simOptionsBuffer } }
                 ]
             })
 
