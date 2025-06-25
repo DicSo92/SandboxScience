@@ -266,34 +266,27 @@ export default defineComponent({
             new Uint32Array(typeBuffer.getMappedRange()).set(types)
             typeBuffer.unmap()
 
-
-            const rulesArray = new Float32Array(NUM_TYPES * NUM_TYPES * 4); // vec4<f32> per rule
-            const minRangesData = new Float32Array(NUM_TYPES * NUM_TYPES * 4);
-            const maxRangesData = new Float32Array(NUM_TYPES * NUM_TYPES * 4);
-
-            for (let a = 0; a < NUM_TYPES; a++) {
-                for (let b = 0; b < NUM_TYPES; b++) {
-                    const index = a * NUM_TYPES + b;
-                    rulesArray[index * 4 + 0] = rulesMatrix[a][b]; // .x = rule
-                    minRangesData[index * 4 + 0] = minRadiusMatrix[a][b]; // .x = min range
-                    maxRangesData[index * 4 + 0] = maxRadiusMatrix[a][b]; // .x = max range
-                }
-            }
             rulesMatrixBuffer = device.createBuffer({
-                size: Math.max(rulesArray.byteLength, 1024),
-                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+                size: rules.byteLength,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+                mappedAtCreation: true
             })
+            new Float32Array(rulesMatrixBuffer.getMappedRange()).set(rules)
+            rulesMatrixBuffer.unmap()
             minRangeBuffer = device.createBuffer({
-                size: Math.max(minRangesData.byteLength, 1024),
-                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-            });
+                size: minRanges.byteLength,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+                mappedAtCreation: true
+            })
+            new Float32Array(minRangeBuffer.getMappedRange()).set(minRanges)
+            minRangeBuffer.unmap()
             maxRangeBuffer = device.createBuffer({
-                size: Math.max(maxRangesData.byteLength, 1024),
-                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-            });
-            device.queue.writeBuffer(rulesMatrixBuffer, 0, rulesArray)
-            device.queue.writeBuffer(minRangeBuffer, 0, minRangesData);
-            device.queue.writeBuffer(maxRangeBuffer, 0, maxRangesData);
+                size: maxRanges.byteLength,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+                mappedAtCreation: true
+            })
+            new Float32Array(maxRangeBuffer.getMappedRange()).set(maxRanges)
+            maxRangeBuffer.unmap()
 
             deltaTimeBuffer = device.createBuffer({
                 size: 4,
@@ -338,20 +331,17 @@ export default defineComponent({
                             data: array<u32>
                         };
 
-                        const NUM_RULES = ${NUM_TYPES} * ${NUM_TYPES};
-
                         struct Matrix {
-                            data: array<vec4<f32>, NUM_RULES>
+                            data: array<f32>,
                         };
-
 
                         @group(0) @binding(0) var<storage, read> currentPositions: Particles;
                         @group(0) @binding(1) var<storage, read_write> nextPositions: Particles;
                         @group(0) @binding(2) var<storage, read_write> velocities: Particles;
                         @group(0) @binding(3) var<storage, read> types: Types;
-                        @group(0) @binding(4) var<uniform> rules: Matrix;
-                        @group(0) @binding(5) var<uniform> minRanges: Matrix;
-                        @group(0) @binding(6) var<uniform> maxRanges: Matrix;
+                        @group(0) @binding(4) var<storage, read> rules: Matrix;
+                        @group(0) @binding(5) var<storage, read> minRanges: Matrix;
+                        @group(0) @binding(6) var<storage, read> maxRanges: Matrix;
                         @group(0) @binding(7) var<uniform> deltaTime: f32;
 
                         @compute @workgroup_size(64)
@@ -385,9 +375,9 @@ export default defineComponent({
 
                                 let dist = length(delta);
                                 let index = myType * ${NUM_TYPES}u + otherType;
-                                let minR = minRanges.data[index].x;
-                                let maxR = maxRanges.data[index].x;
-                                let rule = rules.data[index].x;
+                                let minR = minRanges.data[index];
+                                let maxR = maxRanges.data[index];
+                                let rule = rules.data[index];
 
                                 if (dist < maxR) {
                                     var force = 0.0;
@@ -414,7 +404,7 @@ export default defineComponent({
                             var newPos = myPos + newVelocity * deltaTime;
 
                             // No walls
-                            // nextPositions.data[i] = myPos + newVelocity * deltaTime;
+                            nextPositions.data[i] = myPos + newVelocity * deltaTime;
 
                             // With walls
                             // let margin = f32(${PARTICLE_SIZE});
