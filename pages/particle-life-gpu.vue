@@ -378,18 +378,18 @@ export default defineComponent({
                                 var delta = otherPos - myPos;
 
                                 // Wrap around the canvas edges
-                                // if (options.isWallWrap == 1u) {
-                                //     if (delta.x > ${CANVAS_WIDTH}.0 / 2.0) {
-                                //         delta.x -= ${CANVAS_WIDTH}.0;
-                                //     } else if (delta.x < -${CANVAS_WIDTH}.0 / 2.0) {
-                                //         delta.x += ${CANVAS_WIDTH}.0;
-                                //     }
-                                //     if (delta.y > ${CANVAS_HEIGHT}.0 / 2.0) {
-                                //         delta.y -= ${CANVAS_HEIGHT}.0;
-                                //     } else if (delta.y < -${CANVAS_HEIGHT}.0 / 2.0) {
-                                //         delta.y += ${CANVAS_HEIGHT}.0;
-                                //     }
-                                // }
+                                if (options.isWallWrap == 1u) {
+                                    if (delta.x > ${CANVAS_WIDTH}.0 / 2.0) {
+                                        delta.x -= ${CANVAS_WIDTH}.0;
+                                    } else if (delta.x < -${CANVAS_WIDTH}.0 / 2.0) {
+                                        delta.x += ${CANVAS_WIDTH}.0;
+                                    }
+                                    if (delta.y > ${CANVAS_HEIGHT}.0 / 2.0) {
+                                        delta.y -= ${CANVAS_HEIGHT}.0;
+                                    } else if (delta.y < -${CANVAS_HEIGHT}.0 / 2.0) {
+                                        delta.y += ${CANVAS_HEIGHT}.0;
+                                    }
+                                }
 
                                 let dist = length(delta);
 
@@ -436,19 +436,18 @@ export default defineComponent({
                             }
 
                             // Wall Wrapping
-                            // else if (options.isWallWrap == 1u) {
-                            //     var newPos = myPos + newVelocity * deltaTime;
-                            //     if (newPos.x < 0.0) {
-                            //         newPos.x += ${CANVAS_WIDTH}.0;
-                            //     } else if (newPos.x > ${CANVAS_WIDTH}.0) {
-                            //         newPos.x -= ${CANVAS_WIDTH}.0;
-                            //     }
-                            //     if (newPos.y < 0.0) {
-                            //         newPos.y += ${CANVAS_HEIGHT}.0;
-                            //     } else if (newPos.y > ${CANVAS_HEIGHT}.0) {
-                            //         newPos.y -= ${CANVAS_HEIGHT}.0;
-                            //     }
-                            // }
+                            else if (options.isWallWrap == 1u) {
+                                if (newPos.x < 0.0) {
+                                    newPos.x += ${CANVAS_WIDTH}.0;
+                                } else if (newPos.x > ${CANVAS_WIDTH}.0) {
+                                    newPos.x -= ${CANVAS_WIDTH}.0;
+                                }
+                                if (newPos.y < 0.0) {
+                                    newPos.y += ${CANVAS_HEIGHT}.0;
+                                } else if (newPos.y > ${CANVAS_HEIGHT}.0) {
+                                    newPos.y -= ${CANVAS_HEIGHT}.0;
+                                }
+                            }
 
                             velocities.data[i] = newVelocity;
                             nextPositions.data[i] = newPos;
