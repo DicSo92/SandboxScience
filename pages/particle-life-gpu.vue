@@ -56,6 +56,7 @@ export default defineComponent({
         let deltaTimeBuffer: GPUBuffer
         let triangleVertexBuffer: GPUBuffer
         let cameraBuffer: GPUBuffer
+        let interactionMatrixBuffer: GPUBuffer
 
         // Define the properties for dragging and zooming
         let zoomFactor = 1.0
@@ -266,27 +267,21 @@ export default defineComponent({
             new Uint32Array(typeBuffer.getMappedRange()).set(types)
             typeBuffer.unmap()
 
-            rulesMatrixBuffer = device.createBuffer({
-                size: rules.byteLength,
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-                mappedAtCreation: true
-            })
-            new Float32Array(rulesMatrixBuffer.getMappedRange()).set(rules)
-            rulesMatrixBuffer.unmap()
-            minRangeBuffer = device.createBuffer({
-                size: minRanges.byteLength,
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-                mappedAtCreation: true
-            })
-            new Float32Array(minRangeBuffer.getMappedRange()).set(minRanges)
-            minRangeBuffer.unmap()
-            maxRangeBuffer = device.createBuffer({
-                size: maxRanges.byteLength,
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-                mappedAtCreation: true
-            })
-            new Float32Array(maxRangeBuffer.getMappedRange()).set(maxRanges)
-            maxRangeBuffer.unmap()
+            const interactionData = new Float32Array(NUM_TYPES * NUM_TYPES * 3); // no vec4f
+            for (let a = 0; a < NUM_TYPES; a++) {
+                for (let b = 0; b < NUM_TYPES; b++) {
+                    const index = (a * NUM_TYPES + b) * 3;
+                    interactionData[index] = rulesMatrix[a][b];
+                    interactionData[index + 1] = minRadiusMatrix[a][b];
+                    interactionData[index + 2] = maxRadiusMatrix[a][b];
+                }
+            }
+            interactionMatrixBuffer = device.createBuffer({
+                size: interactionData.byteLength,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+            });
+            device.queue.writeBuffer(interactionMatrixBuffer, 0, interactionData)
+
 
             deltaTimeBuffer = device.createBuffer({
                 size: 4,
@@ -331,18 +326,16 @@ export default defineComponent({
                             data: array<u32>
                         };
 
-                        struct Matrix {
-                            data: array<f32>,
+                        struct InteractionMatrix {
+                          data: array<f32>
                         };
 
                         @group(0) @binding(0) var<storage, read> currentPositions: Particles;
                         @group(0) @binding(1) var<storage, read_write> nextPositions: Particles;
                         @group(0) @binding(2) var<storage, read_write> velocities: Particles;
                         @group(0) @binding(3) var<storage, read> types: Types;
-                        @group(0) @binding(4) var<storage, read> rules: Matrix;
-                        @group(0) @binding(5) var<storage, read> minRanges: Matrix;
-                        @group(0) @binding(6) var<storage, read> maxRanges: Matrix;
-                        @group(0) @binding(7) var<uniform> deltaTime: f32;
+                        @group(0) @binding(4) var<storage, read> interactions: InteractionMatrix;
+                        @group(0) @binding(5) var<uniform> deltaTime: f32;
 
                         @compute @workgroup_size(64)
                         fn main(@builtin(global_invocation_id) id: vec3<u32>) {
@@ -374,10 +367,11 @@ export default defineComponent({
                                 // }
 
                                 let dist = length(delta);
-                                let index = myType * ${NUM_TYPES}u + otherType;
-                                let minR = minRanges.data[index];
-                                let maxR = maxRanges.data[index];
-                                let rule = rules.data[index];
+
+                                let index = (myType * ${NUM_TYPES}u + otherType) * 3u;
+                                let rule = interactions.data[index];
+                                let minR = interactions.data[index + 1];
+                                let maxR = interactions.data[index + 2];
 
                                 if (dist < maxR) {
                                     var force = 0.0;
@@ -559,10 +553,8 @@ export default defineComponent({
                     { binding: 1, resource: { buffer: nextPositionBuffer } },
                     { binding: 2, resource: { buffer: velocityBuffer } },
                     { binding: 3, resource: { buffer: typeBuffer } },
-                    { binding: 4, resource: { buffer: rulesMatrixBuffer } },
-                    { binding: 5, resource: { buffer: minRangeBuffer } },
-                    { binding: 6, resource: { buffer: maxRangeBuffer } },
-                    { binding: 7, resource: { buffer: deltaTimeBuffer } },
+                    { binding: 4, resource: { buffer: interactionMatrixBuffer } },
+                    { binding: 5, resource: { buffer: deltaTimeBuffer } },
                 ]
             })
 
