@@ -61,6 +61,15 @@ export default defineComponent({
         let interactionMatrixBuffer: GPUBuffer
         let simOptionsBuffer: GPUBuffer // Buffer for simulation options
 
+        let cellHeadsBuffer: GPUBuffer // For spatial partitioning
+        let particleNextIndexBuffer: GPUBuffer // For spatial partitioning
+        let buildCellsPipeline: GPUComputePipeline
+        let buildCellsBindGroup: GPUBindGroup
+        let cellSizeBuffer: GPUBuffer
+        let gridOffsetBuffer: GPUBuffer // For walls or global offset
+        const MAX_CELLS = 131072 // 2^17, enough for 4096x4096 grid with cell size of 2
+        let buildCellsBindGroupLayout: GPUBindGroupLayout
+
         // Define the properties for dragging and zooming
         let zoomFactor = 1.0
         let cameraCenter = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 }
@@ -76,6 +85,7 @@ export default defineComponent({
         let minRadiusMatrix: number[][] = [] // Min radius matrix for each color
 
         let currentMaxRadius: number // Max value between all colors max radius (for cell size)
+        let cellSize: number // Cell size for the spatial partitioning
 
         const fps = useFps()
 
@@ -175,6 +185,7 @@ export default defineComponent({
             maxRadiusMatrix = makeRandomMaxRadiusMatrix()
 
             createBuffers()
+            createBindGroupLayouts()
             createPipelines()
             createBindGroups()
             animationFrameId = requestAnimationFrame(frame)
@@ -186,6 +197,20 @@ export default defineComponent({
             device.queue.writeBuffer(deltaTimeBuffer, 0, new Float32Array([deltaTime]))
 
             const encoder = device.createCommandEncoder()
+
+            device.queue.writeBuffer(cellHeadsBuffer, 0, new Uint32Array(MAX_CELLS).fill(0xFFFFFFFF))
+            device.queue.writeBuffer(particleNextIndexBuffer, 0, new Uint32Array(NUM_PARTICLES).fill(0xFFFFFFFF))
+
+            // // ✅ Clear les buffers liés à la linked list
+            // encoder.clearBuffer(cellHeadsBuffer)
+            // encoder.clearBuffer(particleNextIndexBuffer)
+
+            // 🔧 Pass 1 : Construction des linked lists
+            const buildPass = encoder.beginComputePass()
+            buildPass.setPipeline(buildCellsPipeline)
+            buildPass.setBindGroup(0, buildCellsBindGroup)
+            buildPass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
+            buildPass.end() // ← très important
 
             const computePass = encoder.beginComputePass()
             computePass.setPipeline(computePipeline)
@@ -328,9 +353,90 @@ export default defineComponent({
             });
             new Float32Array(cameraBuffer.getMappedRange()).set(cameraData);
             cameraBuffer.unmap();
+
+
+
+            const numCellsX = Math.ceil(CANVAS_WIDTH / cellSize)
+            const numCellsY = Math.ceil(CANVAS_HEIGHT / cellSize)
+            const numCells = numCellsX * numCellsY
+
+            cellHeadsBuffer = device.createBuffer({
+                size: MAX_CELLS * Uint32Array.BYTES_PER_ELEMENT,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+            })
+
+            particleNextIndexBuffer = device.createBuffer({
+                size: NUM_PARTICLES * Uint32Array.BYTES_PER_ELEMENT,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.STORAGE
+            })
+
+            cellSizeBuffer = device.createBuffer({
+                size: 4,
+                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+            })
+            device.queue.writeBuffer(cellSizeBuffer, 0, new Float32Array([cellSize]))
+
+            let offsetX = 0
+            let offsetY = 0
+            gridOffsetBuffer = device.createBuffer({
+                size: 8,
+                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+            })
+            device.queue.writeBuffer(gridOffsetBuffer, 0, new Float32Array([offsetX, offsetY]));
         }
         // -------------------------------------------------------------------------------------------------------------
         const createPipelines = () => {
+            const buildCellsShader = device.createShaderModule({
+                code: `
+                        struct Particles {
+                            data: array<vec2<f32>>
+                        };
+
+                        @group(0) @binding(0) var<storage, read> currentPositions: Particles;
+                        @group(0) @binding(1) var<storage, read_write> cellHeads: array<atomic<u32>>;
+                        @group(0) @binding(2) var<storage, read_write> particleNextIndex: array<u32>;
+                        @group(0) @binding(3) var<uniform> cellSize: f32;
+                        @group(0) @binding(4) var<uniform> gridOffset: vec2<f32>; // pour murs ou offset global
+
+                        // @compute @workgroup_size(64)
+                        // fn main(@builtin(global_invocation_id) id: vec3<u32>) {
+                        //     let i = id.x;
+                        //     if (i >= ${NUM_PARTICLES}u) {
+                        //         return;
+                        //     }
+//
+                        //     let pos = currentPositions.data[i] - gridOffset;
+                        //     let cellX = i32(floor(pos.x / cellSize));
+                        //     let cellY = i32(floor(pos.y / cellSize));
+//
+                        //     // Encode la cellule (cellX, cellY) en un identifiant unique
+                        //     let cellHash = u32(cellX * 73856093 ^ cellY * 19349663) % ${MAX_CELLS}u;
+//
+                        //     // Insertion atomique dans la liste chaînée
+                        //     let previousHead = atomicExchange(&cellHeads[cellHash], i);
+                        //     particleNextIndex[i] = previousHead;
+                        // }
+                        @compute @workgroup_size(64)
+                        fn main(@builtin(global_invocation_id) id: vec3<u32>) {
+                            let i = id.x;
+                            if (i >= ${NUM_PARTICLES}u) { return; }
+
+                            let pos = currentPositions.data[i];
+
+                            let cellX = i32(floor((pos.x - gridOffset.x) / cellSize));
+                            let cellY = i32(floor((pos.y - gridOffset.y) / cellSize));
+
+                            let gridHash = (cellY * 4096) + cellX; // supporte large grille
+                            // let cellIndex = u32(gridHash & 0x3FFFFFu); // hash 22 bits
+                            let cellIndex = u32(gridHash & i32(0x3FFFFF)); // hash 22 bits
+
+                            let prev = atomicLoad(&cellHeads[cellIndex]);
+                            particleNextIndex[i] = prev;
+                            atomicStore(&cellHeads[cellIndex], i);
+                        }
+                    `
+            })
+
             const computeShader = device.createShaderModule({
                 code: `
                         struct Particles {
@@ -561,6 +667,17 @@ export default defineComponent({
                 primitive: { topology: 'triangle-list' }
             })
 
+
+            const buildCellsPipelineLayout = device.createPipelineLayout({
+                bindGroupLayouts: [buildCellsBindGroupLayout]
+            })
+            buildCellsPipeline = device.createComputePipeline({
+                layout: buildCellsPipelineLayout,
+                compute: {
+                    module: buildCellsShader,
+                    entryPoint: 'main'
+                }
+            })
             computePipeline = device.createComputePipeline({
                 layout: 'auto',
                 compute: {
@@ -570,7 +687,29 @@ export default defineComponent({
             })
         }
         // -------------------------------------------------------------------------------------------------------------
+        const createBindGroupLayouts = () => {
+            buildCellsBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" } },
+                    { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } }, // atomic<u32>
+                    { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
+                    { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" } },
+                    { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" } },
+                ]
+            })
+        }
         const createBindGroups = () => {
+            buildCellsBindGroup = device.createBindGroup({
+                layout: buildCellsBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: currentPositionBuffer } },
+                    { binding: 1, resource: { buffer: cellHeadsBuffer } },
+                    { binding: 2, resource: { buffer: particleNextIndexBuffer } },
+                    { binding: 3, resource: { buffer: cellSizeBuffer } },
+                    { binding: 4, resource: { buffer: gridOffsetBuffer } },
+                ]
+            })
+
             computeBindGroup = device.createBindGroup({
                 layout: computePipeline.getBindGroupLayout(0),
                 entries: [
@@ -656,6 +795,7 @@ export default defineComponent({
                 }
             }
             currentMaxRadius = maxRandom
+            cellSize = currentMaxRadius * 2 // Cell size is twice the max radius
             return matrix
         }
         // -------------------------------------------------------------------------------------------------------------
