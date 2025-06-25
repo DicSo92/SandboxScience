@@ -29,7 +29,7 @@ export default defineComponent({
         let forceFactor: number = 0.6 // Decrease will increase the impact of the force on the velocity (the higher the value, the slower the particles will move) (can't be 0)
         let frictionFactor: number = 0.6 // Slow down the particles (0 to 1, where 1 is no friction)
 
-        const NUM_PARTICLES = 12000
+        const NUM_PARTICLES = 25000
         const PARTICLE_SIZE = 1.2
         const NUM_TYPES = 8
 
@@ -68,6 +68,13 @@ export default defineComponent({
         let lastPointerY: number = 0 // For dragging
         let pointerX: number = 0 // Pointer X
         let pointerY: number = 0 // Pointer Y
+
+        // Define color list and rules matrix for the particles
+        let rulesMatrix: number[][] = [] // Rules matrix for each color
+        let maxRadiusMatrix: number[][] = [] // Max radius matrix for each color
+        let minRadiusMatrix: number[][] = [] // Min radius matrix for each color
+
+        let currentMaxRadius: number // Max value between all colors max radius (for cell size)
 
         const fps = useFps()
 
@@ -162,6 +169,10 @@ export default defineComponent({
             handleResize()
             cameraCenter = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 }
 
+            rulesMatrix = makeRandomRulesMatrix()
+            minRadiusMatrix = makeRandomMinRadiusMatrix()
+            maxRadiusMatrix = makeRandomMaxRadiusMatrix()
+
             createBuffers()
             createPipelines()
             createBindGroups()
@@ -215,45 +226,19 @@ export default defineComponent({
         }
         // -------------------------------------------------------------------------------------------------------------
         const createBuffers = () => {
-            const positions = new Float32Array(NUM_PARTICLES * 2)
-            const velocities = new Float32Array(NUM_PARTICLES * 2)
-            const types = new Uint32Array(NUM_PARTICLES)
-            const rulesMatrix = new Float32Array(NUM_TYPES * NUM_TYPES)
+            const { positions, velocities, types } = initParticles()
+            const colors = initColors()
+
+            const rules = new Float32Array(NUM_TYPES * NUM_TYPES)
             const minRanges = new Float32Array(NUM_TYPES * NUM_TYPES)
             const maxRanges = new Float32Array(NUM_TYPES * NUM_TYPES)
-            const colors = new Float32Array(NUM_TYPES * 3)
-
-            for (let i = 0; i < NUM_PARTICLES; i++) {
-                positions[2 * i] = Math.random() * CANVAS_WIDTH
-                positions[2 * i + 1] = Math.random() * CANVAS_HEIGHT
-                velocities[2 * i] = 0
-                velocities[2 * i + 1] = 0
-                types[i] = Math.floor(Math.random() * NUM_TYPES)
+            for (let a = 0; a < NUM_TYPES; a++) {
+                for (let b = 0; b < NUM_TYPES; b++) {
+                    rules[a * NUM_TYPES + b] = rulesMatrix[a][b]
+                    minRanges[a * NUM_TYPES + b] = minRadiusMatrix[a][b]
+                    maxRanges[a * NUM_TYPES + b] = maxRadiusMatrix[a][b]
+                }
             }
-
-            for (let i = 0; i < NUM_TYPES * NUM_TYPES; i++) {
-                rulesMatrix[i] = (Math.random() - 0.5) * 2.0
-                minRanges[i] = 5 + Math.random() * 40
-                maxRanges[i] = 20 + Math.random() * 160
-            }
-
-            for (let i = 0; i < NUM_TYPES; i++) {
-                colors[i * 3 + 0] = Math.random()
-                colors[i * 3 + 1] = Math.random()
-                colors[i * 3 + 2] = Math.random()
-            }
-            console.log(`Colors: ${colors}`)
-            console.log(`Types: ${types}`)
-            console.log(`Positions: ${positions}`)
-            console.log(`Velocities: ${velocities}`)
-            console.log(`Rules Matrix: ${rulesMatrix}`)
-            console.log(`Min Ranges: ${minRanges}`)
-            console.log(`Max Ranges: ${maxRanges}`)
-
-            deltaTimeBuffer = device.createBuffer({
-                size: 4,
-                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-            })
 
             positionBufferA = device.createBuffer({
                 size: positions.byteLength,
@@ -262,12 +247,10 @@ export default defineComponent({
             })
             new Float32Array(positionBufferA.getMappedRange()).set(positions)
             positionBufferA.unmap()
-
             positionBufferB = device.createBuffer({
                 size: positions.byteLength,
                 usage: GPUBufferUsage.STORAGE | GPUBufferUsage.VERTEX,
             })
-
             currentPositionBuffer = positionBufferA
             nextPositionBuffer = positionBufferB
 
@@ -288,13 +271,12 @@ export default defineComponent({
             typeBuffer.unmap()
 
             rulesMatrixBuffer = device.createBuffer({
-                size: rulesMatrix.byteLength,
+                size: rules.byteLength,
                 usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
                 mappedAtCreation: true
             })
-            new Float32Array(rulesMatrixBuffer.getMappedRange()).set(rulesMatrix)
+            new Float32Array(rulesMatrixBuffer.getMappedRange()).set(rules)
             rulesMatrixBuffer.unmap()
-
             minRangeBuffer = device.createBuffer({
                 size: minRanges.byteLength,
                 usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
@@ -302,7 +284,6 @@ export default defineComponent({
             })
             new Float32Array(minRangeBuffer.getMappedRange()).set(minRanges)
             minRangeBuffer.unmap()
-
             maxRangeBuffer = device.createBuffer({
                 size: maxRanges.byteLength,
                 usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
@@ -310,6 +291,11 @@ export default defineComponent({
             })
             new Float32Array(maxRangeBuffer.getMappedRange()).set(maxRanges)
             maxRangeBuffer.unmap()
+
+            deltaTimeBuffer = device.createBuffer({
+                size: 4,
+                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+            })
 
             colorBuffer = device.createBuffer({
                 size: colors.byteLength,
@@ -591,6 +577,72 @@ export default defineComponent({
                     { binding: 1, resource: { buffer: cameraBuffer } }
                 ]
             })
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        function initColors() {
+            const colors = new Float32Array(NUM_TYPES * 3)
+
+            for (let i = 0; i < NUM_TYPES; ++i) {
+                colors[i * 3 + 0] = Math.random()
+                colors[i * 3 + 1] = Math.random()
+                colors[i * 3 + 2] = Math.random()
+            }
+            return colors
+        }
+        function initParticles() {
+            const positions = new Float32Array(NUM_PARTICLES * 2)
+            const velocities = new Float32Array(NUM_PARTICLES * 2)
+            const types = new Uint32Array(NUM_PARTICLES)
+
+            for (let i = 0; i < NUM_PARTICLES; i++) {
+                positions[2 * i] = Math.random() * CANVAS_WIDTH
+                positions[2 * i + 1] = Math.random() * CANVAS_HEIGHT
+                velocities[2 * i] = 0
+                velocities[2 * i + 1] = 0
+                types[i] = Math.floor(Math.random() * NUM_TYPES)
+            }
+            return { positions, velocities, types }
+        }
+        function makeRandomRulesMatrix() {
+            let matrix: number[][] = []
+            for (let i = 0; i < NUM_TYPES; i++) {
+                matrix.push([])
+                for (let j = 0; j < NUM_TYPES; j++) {
+                    matrix[i].push(Number((Math.random() * 2 - 1).toFixed(4)))
+                }
+            }
+            return matrix
+        }
+        function makeRandomMinRadiusMatrix() {
+            let matrix: number[][] = []
+            const min: number = 30
+            const max: number = 70
+            for (let i = 0; i < NUM_TYPES; i++) {
+                matrix.push([])
+                for (let j = 0; j < NUM_TYPES; j++) {
+                    const random = Math.floor(Math.random() * (max - min + 1) + min)
+                    matrix[i].push(random)
+                }
+            }
+            return matrix
+        }
+        function makeRandomMaxRadiusMatrix() {
+            let matrix: number[][] = []
+            const min: number = 90
+            const max: number = 200
+            let maxRandom: number = min
+            for (let i = 0; i < NUM_TYPES; i++) {
+                matrix.push([])
+                for (let j = 0; j < NUM_TYPES; j++) {
+                    const random = Math.floor(Math.random() * (max - min + 1) + min)
+                    matrix[i].push(random)
+                    if (random > maxRandom) {
+                        maxRandom = random
+                    }
+                }
+            }
+            currentMaxRadius = maxRandom
+            return matrix
         }
         // -------------------------------------------------------------------------------------------------------------
         onUnmounted(() => {
