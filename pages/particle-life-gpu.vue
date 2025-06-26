@@ -432,8 +432,8 @@ export default defineComponent({
                             let myPos = currentPositions.data[i];
                             let myType = types.data[i];
                             let myCell = particleCellIndices[i];
-                            let cellX = myCell % ${gridWidth};
-                            let cellY = myCell / ${gridWidth};
+                            let cellX = i32(myCell % ${gridWidth});
+                            let cellY = i32(myCell / ${gridWidth});
 
                             var velocitySum = vec2<f32>(0.0, 0.0);
 
@@ -445,8 +445,9 @@ export default defineComponent({
                                     let neighborCell = u32(ny) * ${gridWidth} + u32(nx);
                                     let count = cellParticleCounts[neighborCell];
                                     if (count == 0u) { continue; }
-                                    for (var k = 0u; k < count; k = k + 1u) {
-                                        let j = cellParticleIndices[neighborCell * ${maxParticlesPerCell} + k];
+                                    let safeCount = min(count, ${maxParticlesPerCell}u);
+                                    for (var k = 0u; k < safeCount; k = k + 1u) {
+                                        let j = cellParticleIndices[u32(neighborCell) * ${maxParticlesPerCell}u + k];
                                         if (i == j) { continue; }
 
                                         let otherPos = currentPositions.data[j];
@@ -467,11 +468,12 @@ export default defineComponent({
                                             }
                                         }
 
-                                        let dist = length(delta);
+                                        let distSquared = dot(delta, delta);
                                         let index = (myType * ${NUM_TYPES}u + otherType) * 3u;
                                         let maxR = interactions.data[index + 2];
+                                        if (distSquared < maxR * maxR) {
+                                            let dist = sqrt(distSquared);
 
-                                        if (dist < maxR) {
                                             let rule = interactions.data[index];
                                             let minR = interactions.data[index + 1];
                                             var force = 0.0;
@@ -484,8 +486,7 @@ export default defineComponent({
                                             }
 
                                             if (force != 0.0) {
-                                                // velocitySum += delta / dist * force;
-                                                velocitySum += normalize(delta) * force;
+                                                velocitySum += delta * (force / dist);
                                             }
                                         }
                                     }
