@@ -61,6 +61,13 @@ export default defineComponent({
         let interactionMatrixBuffer: GPUBuffer
         let simOptionsBuffer: GPUBuffer // Buffer for simulation options
 
+        let buildCellsPipeline: GPUComputePipeline
+        let buildCellsBindGroupLayout: GPUBindGroupLayout
+        let buildCellsBindGroup: GPUBindGroup
+        let cellParticleCountsBuffer: GPUBuffer // Buffer to count particles in each cell
+        let cellParticleIndicesBuffer: GPUBuffer // Buffer to store particle indices in each cell
+        let particleCellIndicesBuffer: GPUBuffer // Buffer to store the cell index for each particle
+
         // Define the properties for dragging and zooming
         let zoomFactor = 1.0
         let cameraCenter = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 }
@@ -76,6 +83,10 @@ export default defineComponent({
         let minRadiusMatrix: number[][] = [] // Min radius matrix for each color
 
         let currentMaxRadius: number // Max value between all colors max radius (for cell size)
+        let cellSize: number = 0 // Size of the cells in the grid (in pixels)
+        let gridWidth: number
+        let gridHeight: number
+        let maxParticlesPerCell: number = 32768 // Max particles per cell (for the grid)
 
         const fps = useFps()
 
@@ -175,6 +186,7 @@ export default defineComponent({
             maxRadiusMatrix = makeRandomMaxRadiusMatrix()
 
             createBuffers()
+            createBindGroupLayouts()
             createPipelines()
             createBindGroups()
             animationFrameId = requestAnimationFrame(frame)
@@ -186,6 +198,14 @@ export default defineComponent({
             device.queue.writeBuffer(deltaTimeBuffer, 0, new Float32Array([deltaTime]))
 
             const encoder = device.createCommandEncoder()
+
+            encoder.clearBuffer?.(cellParticleCountsBuffer)
+
+            const buildCellsPass = encoder.beginComputePass()
+            buildCellsPass.setPipeline(buildCellsPipeline)
+            buildCellsPass.setBindGroup(0, buildCellsBindGroup)
+            buildCellsPass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
+            buildCellsPass.end()
 
             const computePass = encoder.beginComputePass()
             computePass.setPipeline(computePipeline)
@@ -328,9 +348,50 @@ export default defineComponent({
             });
             new Float32Array(cameraBuffer.getMappedRange()).set(cameraData);
             cameraBuffer.unmap();
+
+            // Paramètres de la grille
+            gridWidth = Math.ceil(CANVAS_WIDTH / cellSize)
+            gridHeight = Math.ceil(CANVAS_HEIGHT / cellSize)
+            const numCells = gridWidth * gridHeight
+
+            // Buffers pour la grille
+            cellParticleCountsBuffer = device.createBuffer({
+                size: numCells * 4,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+            })
+            cellParticleIndicesBuffer = device.createBuffer({
+                size: numCells * maxParticlesPerCell * 4,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+            })
+            particleCellIndicesBuffer = device.createBuffer({
+                size: NUM_PARTICLES * 4,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+            })
         }
         // -------------------------------------------------------------------------------------------------------------
         const createPipelines = () => {
+            const buildCellsShader = device.createShaderModule({
+                code: `
+                    @group(0) @binding(0) var<storage, read> positions: array<vec2<f32>>;
+                    @group(0) @binding(1) var<storage, read_write> cellParticleCounts: array<atomic<u32>>;
+                    @group(0) @binding(2) var<storage, read_write> cellParticleIndices: array<u32>;
+                    @group(0) @binding(3) var<storage, read_write> particleCellIndices: array<u32>;
+
+                    @compute @workgroup_size(64)
+                    fn main(@builtin(global_invocation_id) id: vec3<u32>) {
+                        let i = id.x;
+                        if (i >= ${NUM_PARTICLES}) { return; }
+                        let pos = positions[i];
+                        let cellX = u32(pos.x / ${cellSize});
+                        let cellY = u32(pos.y / ${cellSize});
+                        let cellIndex = cellY * ${gridWidth} + cellX;
+                        let offset = atomicAdd(&cellParticleCounts[cellIndex], 1u);
+                        cellParticleIndices[cellIndex * ${maxParticlesPerCell} + offset] = i;
+                        particleCellIndices[i] = cellIndex;
+                    }
+                `
+            })
+
             const computeShader = device.createShaderModule({
                 code: `
                         struct Particles {
@@ -359,58 +420,74 @@ export default defineComponent({
                         @group(0) @binding(4) var<storage, read> interactions: InteractionMatrix;
                         @group(0) @binding(5) var<uniform> deltaTime: f32;
                         @group(0) @binding(6) var<uniform> options: SimOptions;
+                        @group(0) @binding(7) var<storage, read> cellParticleCounts: array<u32>;
+                        @group(0) @binding(8) var<storage, read> cellParticleIndices: array<u32>;
+                        @group(0) @binding(9) var<storage, read> particleCellIndices: array<u32>;
 
                         @compute @workgroup_size(64)
                         fn main(@builtin(global_invocation_id) id: vec3<u32>) {
                             let i = id.x;
-                            if (i >= ${NUM_PARTICLES}u) { return; }
+                            if (i >= ${NUM_PARTICLES}) { return; }
 
                             let myPos = currentPositions.data[i];
                             let myType = types.data[i];
+                            let myCell = particleCellIndices[i];
+                            let cellX = myCell % ${gridWidth};
+                            let cellY = myCell / ${gridWidth};
+
                             var velocitySum = vec2<f32>(0.0, 0.0);
-                            var acc = vec2<f32>(0.0, 0.0);
 
-                            for (var j = 0u; j < ${NUM_PARTICLES}u; j = j + 1u) {
-                                if (i == j) { continue; }
+                            for(var dx: i32 = -1; dx <= 1; dx = dx + 1) {
+                                for(var dy: i32 = -1; dy <= 1; dy = dy + 1) {
+                                    let nx = i32(cellX) + dx;
+                                    let ny = i32(cellY) + dy;
+                                    if (nx < 0 || nx >= i32(${gridWidth}) || ny < 0 || ny >= i32(${gridHeight})) { continue; }
+                                    let neighborCell = u32(ny) * ${gridWidth} + u32(nx);
+                                    let count = cellParticleCounts[neighborCell];
+                                    if (count == 0u) { continue; }
+                                    for (var k = 0u; k < count; k = k + 1u) {
+                                        let j = cellParticleIndices[neighborCell * ${maxParticlesPerCell} + k];
+                                        if (i == j) { continue; }
 
-                                let otherPos = currentPositions.data[j];
-                                let otherType = types.data[j];
-                                var delta = otherPos - myPos;
+                                        let otherPos = currentPositions.data[j];
+                                        let otherType = types.data[j];
+                                        var delta = otherPos - myPos;
 
-                                // Wrap around the canvas edges
-                                if (options.isWallWrap == 1u) {
-                                    if (delta.x > ${CANVAS_WIDTH}.0 / 2.0) {
-                                        delta.x -= ${CANVAS_WIDTH}.0;
-                                    } else if (delta.x < -${CANVAS_WIDTH}.0 / 2.0) {
-                                        delta.x += ${CANVAS_WIDTH}.0;
-                                    }
-                                    if (delta.y > ${CANVAS_HEIGHT}.0 / 2.0) {
-                                        delta.y -= ${CANVAS_HEIGHT}.0;
-                                    } else if (delta.y < -${CANVAS_HEIGHT}.0 / 2.0) {
-                                        delta.y += ${CANVAS_HEIGHT}.0;
-                                    }
-                                }
+                                        // Wrap around the canvas edges
+                                        if (options.isWallWrap == 1u) {
+                                            if (delta.x > ${CANVAS_WIDTH}.0 / 2.0) {
+                                                delta.x -= ${CANVAS_WIDTH}.0;
+                                            } else if (delta.x < -${CANVAS_WIDTH}.0 / 2.0) {
+                                                delta.x += ${CANVAS_WIDTH}.0;
+                                            }
+                                            if (delta.y > ${CANVAS_HEIGHT}.0 / 2.0) {
+                                                delta.y -= ${CANVAS_HEIGHT}.0;
+                                            } else if (delta.y < -${CANVAS_HEIGHT}.0 / 2.0) {
+                                                delta.y += ${CANVAS_HEIGHT}.0;
+                                            }
+                                        }
 
-                                let dist = length(delta);
+                                        let dist = length(delta);
+                                        let index = (myType * ${NUM_TYPES}u + otherType) * 3u;
+                                        let maxR = interactions.data[index + 2];
 
-                                let index = (myType * ${NUM_TYPES}u + otherType) * 3u;
-                                let rule = interactions.data[index];
-                                let minR = interactions.data[index + 1];
-                                let maxR = interactions.data[index + 2];
+                                        if (dist < maxR) {
+                                            let rule = interactions.data[index];
+                                            let minR = interactions.data[index + 1];
+                                            var force = 0.0;
+                                            if (dist < minR) {
+                                                force = (1.0 / minR) * dist - 1.0;
+                                            } else {
+                                                let mid = (minR + maxR) / 2.0;
+                                                let slope = rule / (mid - minR);
+                                                force = -(slope * abs(dist - mid)) + rule;
+                                            }
 
-                                if (dist < maxR) {
-                                    var force = 0.0;
-                                    if (dist < minR) {
-                                        force = (1.0 / minR) * dist - 1.0;
-                                    } else {
-                                        let mid = (minR + maxR) / 2.0;
-                                        let slope = rule / (mid - minR);
-                                        force = -(slope * abs(dist - mid)) + rule;
-                                    }
-
-                                    if (force != 0.0) {
-                                        // velocitySum += delta / dist * force;
-                                        velocitySum += normalize(delta) * force;
+                                            if (force != 0.0) {
+                                                // velocitySum += delta / dist * force;
+                                                velocitySum += normalize(delta) * force;
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -561,6 +638,13 @@ export default defineComponent({
                 primitive: { topology: 'triangle-list' }
             })
 
+            buildCellsPipeline = device.createComputePipeline({
+                layout: device.createPipelineLayout({ bindGroupLayouts: [buildCellsBindGroupLayout] }),
+                compute: {
+                    module: buildCellsShader,
+                    entryPoint: 'main'
+                }
+            })
             computePipeline = device.createComputePipeline({
                 layout: 'auto',
                 compute: {
@@ -570,7 +654,26 @@ export default defineComponent({
             })
         }
         // -------------------------------------------------------------------------------------------------------------
+        const createBindGroupLayouts = () => {
+            buildCellsBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" } },
+                    { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
+                    { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
+                    { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } }
+                ]
+            })
+        }
         const createBindGroups = () => {
+            buildCellsBindGroup = device.createBindGroup({
+                layout: buildCellsBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: currentPositionBuffer } },
+                    { binding: 1, resource: { buffer: cellParticleCountsBuffer } },
+                    { binding: 2, resource: { buffer: cellParticleIndicesBuffer } },
+                    { binding: 3, resource: { buffer: particleCellIndicesBuffer } }
+                ]
+            })
             computeBindGroup = device.createBindGroup({
                 layout: computePipeline.getBindGroupLayout(0),
                 entries: [
@@ -580,7 +683,10 @@ export default defineComponent({
                     { binding: 3, resource: { buffer: typeBuffer } },
                     { binding: 4, resource: { buffer: interactionMatrixBuffer } },
                     { binding: 5, resource: { buffer: deltaTimeBuffer } },
-                    { binding: 6, resource: { buffer: simOptionsBuffer } }
+                    { binding: 6, resource: { buffer: simOptionsBuffer } },
+                    { binding: 7, resource: { buffer: cellParticleCountsBuffer } },
+                    { binding: 8, resource: { buffer: cellParticleIndicesBuffer } },
+                    { binding: 9, resource: { buffer: particleCellIndicesBuffer } }
                 ]
             })
 
@@ -656,6 +762,8 @@ export default defineComponent({
                 }
             }
             currentMaxRadius = maxRandom
+            cellSize = currentMaxRadius * 2
+
             return matrix
         }
         // -------------------------------------------------------------------------------------------------------------
