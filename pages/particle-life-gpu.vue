@@ -382,11 +382,13 @@ export default defineComponent({
                         let i = id.x;
                         if (i >= ${NUM_PARTICLES}) { return; }
                         let pos = positions[i];
-                        let cellX = u32(pos.x / ${cellSize});
-                        let cellY = u32(pos.y / ${cellSize});
-                        let cellIndex = cellY * ${gridWidth} + cellX;
+                        let rawCellX = i32(floor(pos.x /  ${cellSize}));
+                        let rawCellY = i32(floor(pos.y /  ${cellSize}));
+                        let cellX = clamp(rawCellX, 0, ${gridWidth - 1});
+                        let cellY = clamp(rawCellY, 0, ${gridHeight - 1});
+                        let cellIndex = u32(cellY * ${gridWidth} + cellX);
                         let offset = atomicAdd(&cellParticleCounts[cellIndex], 1u);
-                        cellParticleIndices[cellIndex * ${maxParticlesPerCell} + offset] = i;
+                        cellParticleIndices[cellIndex * ${maxParticlesPerCell}u + offset] = i;
                         particleCellIndices[i] = cellIndex;
                     }
                 `
