@@ -31,7 +31,7 @@ export default defineComponent({
         // Define variables for the simulation
         const forceFactor: number = 0.6 // Decrease will increase the impact of the force on the velocity (the higher the value, the slower the particles will move) (can't be 0)
         const frictionFactor: number = 0.6 // Slow down the particles (0 to 1, where 1 is no friction)
-        const NUM_PARTICLES = 40000
+        const NUM_PARTICLES = 20000
         const PARTICLE_SIZE = 1.2
         const NUM_TYPES = 8
         let isWallRepel: boolean = false // Enable walls X and Y for the particles
@@ -67,6 +67,11 @@ export default defineComponent({
         let cellParticleCountsBuffer: GPUBuffer // Buffer to count particles in each cell
         let cellParticleIndicesBuffer: GPUBuffer // Buffer to store particle indices in each cell
         let particleCellIndicesBuffer: GPUBuffer // Buffer to store the cell index for each particle
+
+        let renderBindGroupLayout: GPUBindGroupLayout
+        let fragmentBindGroupLayout: GPUBindGroupLayout
+        let fragmentBindGroup: GPUBindGroup
+        let renderPipelineLayout: GPUPipelineLayout
 
         // Define the properties for dragging and zooming
         let zoomFactor = 1.0
@@ -148,7 +153,7 @@ export default defineComponent({
             const oldZoomFactor = zoomFactor
             const zoomIntensity = 0.1
             const zoomDelta = delta * zoomIntensity
-            zoomFactor = Math.max(0.1, Math.min(3.2, zoomFactor + zoomDelta))
+            zoomFactor = Math.max(0.3, Math.min(3.2, zoomFactor + zoomDelta))
 
             // Convert the mouse position to world coordinates (before zoom)
             const worldBefore = {
@@ -224,16 +229,22 @@ export default defineComponent({
                 ]
             })
             renderPass.setPipeline(renderPipeline)
-            renderPass.setBindGroup(0, renderBindGroup)
-            renderPass.setVertexBuffer(0, triangleVertexBuffer)
-            renderPass.setVertexBuffer(1, nextPositionBuffer)
-            renderPass.setVertexBuffer(2, typeBuffer)
 
             device.queue.writeBuffer(cameraBuffer, 0, new Float32Array([
                 cameraCenter.x, cameraCenter.y, zoomFactor, 0
             ]))
 
-            renderPass.draw(6, NUM_PARTICLES)
+            // renderPass.setVertexBuffer(0, triangleVertexBuffer);
+            // renderPass.setBindGroup(0, renderBindGroup);
+            // renderPass.draw(6, NUM_PARTICLES * 9);
+
+
+
+            renderPass.setVertexBuffer(0, triangleVertexBuffer);
+            renderPass.setBindGroup(0, renderBindGroup);
+            renderPass.setBindGroup(1, fragmentBindGroup);
+            renderPass.draw(6, NUM_PARTICLES * 9);
+
             renderPass.end()
 
             device.queue.submit([encoder.finish()])
@@ -548,40 +559,45 @@ export default defineComponent({
             const vertexShader = device.createShaderModule({
                 code: `
                         struct VertexOutput {
-                            @builtin(position) position: vec4f,
-                            @location(0) offset: vec2f,
-                            @location(1) @interpolate(flat) particleType: u32
+                          @builtin(position) position: vec4f,
+                          @location(0) offset: vec2f,
+                          @location(1) @interpolate(flat) particleType: u32
                         };
 
                         struct Camera {
-                            center: vec2f,
-                            zoomFactor: f32,
-                            pad: f32 // Padding to ensure the struct size is aligned to 16 bytes (required for uniform buffers)
+                          center: vec2f,
+                          zoomFactor: f32,
+                          _pad: f32
                         };
 
-                        @group(0) @binding(1) var<uniform> camera: Camera;
+                        @group(0) @binding(0) var<storage, read> particlePositions: array<vec2f>;
+                        @group(0) @binding(1) var<storage, read> particleTypes: array<u32>;
+                        @group(0) @binding(2) var<uniform> camera: Camera;
 
                         @vertex
                         fn main(
-                            @location(0) localPos: vec2f,     // triangleVertexBuffer
-                            @location(1) instancePos: vec2f,  // nextPositionBuffer
-                            @location(2) particleType: u32    // typeBuffer
+                          @builtin(instance_index) instanceIndex: u32,
+                          @location(0) localPos: vec2f,
                         ) -> VertexOutput {
-                            var out: VertexOutput;
+                          var out: VertexOutput;
+                          let particleIndex = instanceIndex / 9u;
+                          let wrap = instanceIndex % 9u;
+                          let dx = f32(i32(wrap % 3u) - 1);
+                          let dy = f32(i32(wrap / 3u) - 1);
+                          let wrapOffset = vec2f(dx * f32(${CANVAS_WIDTH}), dy * f32(${CANVAS_HEIGHT}));
+                          let instancePos = particlePositions[particleIndex];
+                          let particleType = particleTypes[particleIndex];
+                          let worldPos = instancePos + localPos * ${PARTICLE_SIZE} + wrapOffset;
+                          let pos = (worldPos - camera.center) * camera.zoomFactor;
 
-                            let worldPos = instancePos + localPos * ${PARTICLE_SIZE};
-                            let pos = (worldPos - camera.center) * camera.zoomFactor;
+                          out.position = vec4f(
+                            (pos.x / f32(${CANVAS_WIDTH})) * 2.0,
+                            -(pos.y / f32(${CANVAS_HEIGHT})) * 2.0,
+                            0.0, 1.0);
 
-                            out.position = vec4f(
-                                (pos.x / ${CANVAS_WIDTH}.0) * 2.0,
-                                -(pos.y / ${CANVAS_HEIGHT}.0) * 2.0,
-                                0.0, 1.0
-                            );
-
-                            out.offset = localPos;
-                            out.particleType = particleType;
-
-                            return out;
+                          out.offset = localPos;
+                          out.particleType = particleType;
+                          return out;
                         }
                       `
             })
@@ -591,7 +607,7 @@ export default defineComponent({
                         struct Colors {
                             data: array<vec3f>
                         };
-                        @group(0) @binding(0) var<storage, read> colors: Colors;
+                        @group(1) @binding(0) var<storage, read> colors: Colors;
 
                         @fragment
                         fn main(@location(0) offset: vec2f, @location(1) @interpolate(flat) particleType: u32) -> @location(0) vec4f {
@@ -606,25 +622,15 @@ export default defineComponent({
 
 
             renderPipeline = device.createRenderPipeline({
-                layout: 'auto',
+                layout: renderPipelineLayout,
                 vertex: {
                     module: vertexShader,
                     entryPoint: 'main',
                     buffers: [
-                        { // triangle
+                        {
                             arrayStride: 8,
                             stepMode: 'vertex',
                             attributes: [{ shaderLocation: 0, format: 'float32x2', offset: 0 }]
-                        },
-                        { // positions
-                            arrayStride: 8,
-                            stepMode: 'instance',
-                            attributes: [{ shaderLocation: 1, format: 'float32x2', offset: 0 }]
-                        },
-                        {
-                            arrayStride: 4,
-                            stepMode: 'instance',
-                            attributes: [{ shaderLocation: 2, format: 'uint32', offset: 0 }]
                         }
                     ]
                 },
@@ -676,6 +682,22 @@ export default defineComponent({
                     { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } }
                 ]
             })
+            renderBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: 'read-only-storage' } },
+                    { binding: 1, visibility: GPUShaderStage.VERTEX, buffer: { type: 'read-only-storage' } },
+                    { binding: 2, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } },
+                ]
+            })
+            fragmentBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } }
+                ]
+            })
+            renderPipelineLayout = device.createPipelineLayout({
+                bindGroupLayouts: [renderBindGroupLayout, fragmentBindGroupLayout]
+            })
+
         }
         const createBindGroups = () => {
             buildCellsBindGroup = device.createBindGroup({
@@ -702,12 +724,19 @@ export default defineComponent({
                     { binding: 9, resource: { buffer: particleCellIndicesBuffer } }
                 ]
             })
-
+            
             renderBindGroup = device.createBindGroup({
-                layout: renderPipeline.getBindGroupLayout(0),
+                layout: renderBindGroupLayout,
                 entries: [
-                    { binding: 0, resource: { buffer: colorBuffer } },
-                    { binding: 1, resource: { buffer: cameraBuffer } }
+                    { binding: 0, resource: { buffer: nextPositionBuffer } }, // particlePositions
+                    { binding: 1, resource: { buffer: typeBuffer } },         // particleTypes
+                    { binding: 2, resource: { buffer: cameraBuffer } }        // camera
+                ]
+            })
+            fragmentBindGroup = device.createBindGroup({
+                layout: fragmentBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: colorBuffer } } // colors
                 ]
             })
         }
