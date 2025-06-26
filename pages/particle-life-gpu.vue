@@ -35,7 +35,7 @@ export default defineComponent({
         const PARTICLE_SIZE = 1.2
         const NUM_TYPES = 8
         let isWallRepel: boolean = false // Enable walls X and Y for the particles
-        let isWallWrap: boolean = false // Enable wrapping for the particles
+        let isWallWrap: boolean = true // Enable wrapping for the particles
 
         // Define the GPU device, pipelines, and bind groups
         let device: GPUDevice
@@ -349,12 +349,11 @@ export default defineComponent({
             new Float32Array(cameraBuffer.getMappedRange()).set(cameraData);
             cameraBuffer.unmap();
 
-            // Paramètres de la grille
+
             gridWidth = Math.ceil(CANVAS_WIDTH / cellSize)
             gridHeight = Math.ceil(CANVAS_HEIGHT / cellSize)
             const numCells = gridWidth * gridHeight
 
-            // Buffers pour la grille
             cellParticleCountsBuffer = device.createBuffer({
                 size: numCells * 4,
                 usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
@@ -441,9 +440,20 @@ export default defineComponent({
 
                             for(var dx: i32 = -1; dx <= 1; dx = dx + 1) {
                                 for(var dy: i32 = -1; dy <= 1; dy = dy + 1) {
-                                    let nx = i32(cellX) + dx;
-                                    let ny = i32(cellY) + dy;
-                                    if (nx < 0 || nx >= i32(${gridWidth}) || ny < 0 || ny >= i32(${gridHeight})) { continue; }
+                                    var nx = cellX + dx;
+                                    var ny = cellY + dy;
+                                    // if (nx < 0 || nx >= i32(${gridWidth}) || ny < 0 || ny >= i32(${gridHeight})) { continue; }
+
+                                    if (options.isWallWrap == 1u) {
+                                        if (nx < 0) { nx = ${gridWidth - 1}; }
+                                        else if (nx >= ${gridWidth}) { nx = 0; }
+                                        if (ny < 0) { ny = ${gridHeight - 1}; }
+                                        else if (ny >= ${gridHeight}) { ny = 0; }
+                                    }
+                                    // else {
+                                    //     if (nx < 0 || nx >= ${gridWidth} || ny < 0 || ny >= ${gridHeight}) { continue; }
+                                    // }
+
                                     let neighborCell = u32(ny) * ${gridWidth} + u32(nx);
                                     let count = cellParticleCounts[neighborCell];
                                     if (count == 0u) { continue; }
@@ -706,7 +716,7 @@ export default defineComponent({
             const colors = new Float32Array(NUM_TYPES * 3)
 
             for (let i = 0; i < NUM_TYPES; ++i) {
-                colors[i * 3 + 0] = Math.random()
+                colors[i * 3] = Math.random()
                 colors[i * 3 + 1] = Math.random()
                 colors[i * 3 + 2] = Math.random()
             }
