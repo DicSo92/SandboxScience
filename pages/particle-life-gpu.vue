@@ -391,14 +391,14 @@ export default defineComponent({
                                     }
                                 }
 
-                                let dist = length(delta);
-
+                                let distSquared = dot(delta, delta);
                                 let index = (myType * ${NUM_TYPES}u + otherType) * 3u;
-                                let rule = interactions.data[index];
-                                let minR = interactions.data[index + 1];
                                 let maxR = interactions.data[index + 2];
+                                if (distSquared < maxR * maxR) {
+                                    let dist = sqrt(distSquared);
 
-                                if (dist < maxR) {
+                                    let rule = interactions.data[index];
+                                    let minR = interactions.data[index + 1];
                                     var force = 0.0;
                                     if (dist < minR) {
                                         force = (1.0 / minR) * dist - 1.0;
@@ -409,8 +409,7 @@ export default defineComponent({
                                     }
 
                                     if (force != 0.0) {
-                                        // velocitySum += delta / dist * force;
-                                        velocitySum += normalize(delta) * force;
+                                        velocitySum += delta * (force / dist);
                                     }
                                 }
                             }
