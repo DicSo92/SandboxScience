@@ -77,6 +77,20 @@ export default defineComponent({
 
         let currentMaxRadius: number // Max value between all colors max radius (for cell size)
 
+
+        let particleHashesBuffer: GPUBuffer
+        let cellHeadsBuffer: GPUBuffer
+        let particleNextIndicesBuffer: GPUBuffer
+
+        let clearHashPipeline: GPUComputePipeline
+        let buildHashPipeline: GPUComputePipeline
+
+        let clearHashBindGroup: GPUBindGroup
+        let buildHashBindGroup: GPUBindGroup
+
+        let SPATIAL_HASH_TABLE_SIZE = NUM_PARTICLES
+
+
         const fps = useFps()
 
         onMounted(() => {
@@ -187,6 +201,17 @@ export default defineComponent({
 
             const encoder = device.createCommandEncoder()
 
+            const clearPass = encoder.beginComputePass()
+            clearPass.setPipeline(clearHashPipeline)
+            clearPass.setBindGroup(0, clearHashBindGroup)
+            clearPass.dispatchWorkgroups(Math.ceil(SPATIAL_HASH_TABLE_SIZE / 64))
+            clearPass.end()
+            const buildHashPass = encoder.beginComputePass()
+            buildHashPass.setPipeline(buildHashPipeline)
+            buildHashPass.setBindGroup(0, buildHashBindGroup)
+            buildHashPass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
+            buildHashPass.end()
+
             const computePass = encoder.beginComputePass()
             computePass.setPipeline(computePipeline)
             computePass.setBindGroup(0, computeBindGroup)
@@ -228,6 +253,21 @@ export default defineComponent({
         const createBuffers = () => {
             const { positions, velocities, types } = initParticles()
             const colors = initColors()
+
+
+            particleHashesBuffer = device.createBuffer({
+                size: NUM_PARTICLES * 4, // u32
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+            })
+            cellHeadsBuffer = device.createBuffer({
+                size: SPATIAL_HASH_TABLE_SIZE * 4, // u32
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+            })
+            particleNextIndicesBuffer = device.createBuffer({
+                size: NUM_PARTICLES * 4, // u32
+                usage: GPUBufferUsage.STORAGE,
+            })
+
 
             const rules = new Float32Array(NUM_TYPES * NUM_TYPES)
             const minRanges = new Float32Array(NUM_TYPES * NUM_TYPES)
@@ -331,26 +371,93 @@ export default defineComponent({
         }
         // -------------------------------------------------------------------------------------------------------------
         const createPipelines = () => {
+            const clearHashShader = device.createShaderModule({
+                code: `
+                        struct CellHeads {
+                            data: array<atomic<u32>>
+                        };
+                        @group(0) @binding(0) var<storage, read_write> cellHeads: CellHeads;
+
+                        @compute @workgroup_size(64)
+                        fn main(@builtin(global_invocation_id) id: vec3<u32>) {
+                            if (id.x >= ${SPATIAL_HASH_TABLE_SIZE}u) { return; }
+                            atomicStore(&cellHeads.data[id.x], 0xFFFFFFFFu);
+                        }
+                    `
+            })
+            clearHashPipeline = device.createComputePipeline({
+                layout: 'auto',
+                compute: {
+                    module: clearHashShader,
+                    entryPoint: 'main'
+                }
+            })
+
+            const buildHashShader = device.createShaderModule({
+                code: `
+                        struct Positions { data: array<vec2<f32>> };
+                        struct ParticleHashes { data: array<u32> };
+                        struct ParticleNextIndices { data: array<u32> };
+                        struct CellHeads { data: array<atomic<u32>> };
+
+                        @group(0) @binding(0) var<storage, read> positions: Positions;
+                        @group(0) @binding(1) var<storage, read_write> particleHashes: ParticleHashes;
+                        @group(0) @binding(2) var<storage, read_write> cellHeads: CellHeads;
+                        @group(0) @binding(3) var<storage, read_write> particleNextIndices: ParticleNextIndices;
+
+                        const CELL_SIZE: f32 = ${currentMaxRadius}.0;
+                        const P1: i32 = 73856093;
+                        const P2: i32 = 19349663;
+                        const HASH_TABLE_SIZE: u32 = ${SPATIAL_HASH_TABLE_SIZE}u;
+
+                        fn get_cell_coords(pos: vec2<f32>) -> vec2<i32> {
+                            return vec2<i32>(floor(pos / CELL_SIZE));
+                        }
+
+                        fn hash_coords(coords: vec2<i32>) -> u32 {
+                            let h = u32((coords.x * P1) ^ (coords.y * P2));
+                            return h % HASH_TABLE_SIZE;
+                        }
+
+                        @compute @workgroup_size(64)
+                        fn main(@builtin(global_invocation_id) id: vec3<u32>) {
+                            let i = id.x;
+                            if (i >= ${NUM_PARTICLES}u) { return; }
+
+                            let pos = positions.data[i];
+                            let cell_coords = get_cell_coords(pos);
+                            let hash = hash_coords(cell_coords);
+
+                            particleHashes.data[i] = hash;
+
+                            let old_head = atomicExchange(&cellHeads.data[hash], i);
+                            particleNextIndices.data[i] = old_head;
+                        }
+                    `
+            })
+            buildHashPipeline = device.createComputePipeline({
+                layout: 'auto',
+                compute: {
+                    module: buildHashShader,
+                    entryPoint: 'main'
+                }
+            })
+
+
             const computeShader = device.createShaderModule({
                 code: `
-                        struct Particles {
-                            data: array<vec2<f32>>
-                        };
-
-                        struct Types {
-                            data: array<u32>
-                        };
-
-                        struct InteractionMatrix {
-                          data: array<f32>
-                        };
-
+                        struct Particles { data: array<vec2<f32>> };
+                        struct Types { data: array<u32> };
+                        struct InteractionMatrix { data: array<f32> };
                         struct SimOptions {
-                            isWallRepel: u32, // 0 = false, 1 = true
-                            isWallWrap: u32,  // 0 = false, 1 = true
+                            isWallRepel: u32,
+                            isWallWrap: u32,
                             pad1: u32,
                             pad2: u32
                         };
+
+                        struct ParticleNextIndices { data: array<u32> };
+                        struct CellHeads { data: array<u32> };
 
                         @group(0) @binding(0) var<storage, read> currentPositions: Particles;
                         @group(0) @binding(1) var<storage, read_write> nextPositions: Particles;
@@ -359,6 +466,21 @@ export default defineComponent({
                         @group(0) @binding(4) var<storage, read> interactions: InteractionMatrix;
                         @group(0) @binding(5) var<uniform> deltaTime: f32;
                         @group(0) @binding(6) var<uniform> options: SimOptions;
+                        @group(0) @binding(7) var<storage, read> cellHeads: CellHeads;
+                        @group(0) @binding(8) var<storage, read> particleNextIndices: ParticleNextIndices;
+
+                        const CELL_SIZE: f32 = ${currentMaxRadius}.0;
+                        const P1: i32 = 73856093;
+                        const P2: i32 = 19349663;
+                        const HASH_TABLE_SIZE: u32 = ${SPATIAL_HASH_TABLE_SIZE}u;
+
+                        fn get_cell_coords(pos: vec2<f32>) -> vec2<i32> {
+                            return vec2<i32>(floor(pos / CELL_SIZE));
+                        }
+                        fn hash_coords(coords: vec2<i32>) -> u32 {
+                            let h = u32((coords.x * P1) ^ (coords.y * P2));
+                            return h % HASH_TABLE_SIZE;
+                        }
 
                         @compute @workgroup_size(64)
                         fn main(@builtin(global_invocation_id) id: vec3<u32>) {
@@ -368,48 +490,57 @@ export default defineComponent({
                             let myPos = currentPositions.data[i];
                             let myType = types.data[i];
                             var velocitySum = vec2<f32>(0.0, 0.0);
-                            var acc = vec2<f32>(0.0, 0.0);
 
-                            for (var j = 0u; j < ${NUM_PARTICLES}u; j = j + 1u) {
-                                if (i == j) { continue; }
+                            let my_cell_coords = get_cell_coords(myPos);
 
-                                let otherPos = currentPositions.data[j];
-                                let otherType = types.data[j];
-                                var delta = otherPos - myPos;
+                            for (var offsetY = -1; offsetY <= 1; offsetY = offsetY + 1) {
+                                for (var offsetX = -1; offsetX <= 1; offsetX = offsetX + 1) {
+                                    let neighbor_cell_coords = my_cell_coords + vec2<i32>(offsetX, offsetY);
+                                    let hash = hash_coords(neighbor_cell_coords);
 
-                                // Wrap around the canvas edges
-                                if (options.isWallWrap == 1u) {
-                                    if (delta.x > ${CANVAS_WIDTH}.0 / 2.0) {
-                                        delta.x -= ${CANVAS_WIDTH}.0;
-                                    } else if (delta.x < -${CANVAS_WIDTH}.0 / 2.0) {
-                                        delta.x += ${CANVAS_WIDTH}.0;
-                                    }
-                                    if (delta.y > ${CANVAS_HEIGHT}.0 / 2.0) {
-                                        delta.y -= ${CANVAS_HEIGHT}.0;
-                                    } else if (delta.y < -${CANVAS_HEIGHT}.0 / 2.0) {
-                                        delta.y += ${CANVAS_HEIGHT}.0;
-                                    }
-                                }
+                                    var j = cellHeads.data[hash];
+                                    loop {
+                                        if (j == 0xFFFFFFFFu) { // End of the linked list
+                                            break;
+                                        }
+                                        if (i == j) { // Skip self
+                                            j = particleNextIndices.data[j];
+                                            continue;
+                                        }
 
-                                let distSquared = dot(delta, delta);
-                                let index = (myType * ${NUM_TYPES}u + otherType) * 3u;
-                                let maxR = interactions.data[index + 2];
-                                if (distSquared < maxR * maxR) {
-                                    let dist = sqrt(distSquared);
+                                        let otherPos = currentPositions.data[j];
+                                        let otherType = types.data[j];
+                                        var delta = otherPos - myPos;
 
-                                    let rule = interactions.data[index];
-                                    let minR = interactions.data[index + 1];
-                                    var force = 0.0;
-                                    if (dist < minR) {
-                                        force = (1.0 / minR) * dist - 1.0;
-                                    } else {
-                                        let mid = (minR + maxR) / 2.0;
-                                        let slope = rule / (mid - minR);
-                                        force = -(slope * abs(dist - mid)) + rule;
-                                    }
+                                        if (options.isWallWrap == 1u) {
+                                            if (delta.x > ${CANVAS_WIDTH}.0 / 2.0) { delta.x -= ${CANVAS_WIDTH}.0; }
+                                            else if (delta.x < -${CANVAS_WIDTH}.0 / 2.0) { delta.x += ${CANVAS_WIDTH}.0; }
+                                            if (delta.y > ${CANVAS_HEIGHT}.0 / 2.0) { delta.y -= ${CANVAS_HEIGHT}.0; }
+                                            else if (delta.y < -${CANVAS_HEIGHT}.0 / 2.0) { delta.y += ${CANVAS_HEIGHT}.0; }
+                                        }
 
-                                    if (force != 0.0) {
-                                        velocitySum += delta * (force / dist);
+                                        let distSquared = dot(delta, delta);
+                                        let index = (myType * ${NUM_TYPES}u + otherType) * 3u;
+                                        let maxR = interactions.data[index + 2];
+
+                                        if (distSquared > 0.0 && distSquared < maxR * maxR) {
+                                            let dist = sqrt(distSquared);
+                                            let rule = interactions.data[index];
+                                            let minR = interactions.data[index + 1];
+                                            var force = 0.0;
+                                            if (dist < minR) {
+                                                force = (1.0 / minR) * dist - 1.0;
+                                            } else {
+                                                let mid = (minR + maxR) / 2.0;
+                                                let slope = rule / (mid - minR);
+                                                force = -(slope * abs(dist - mid)) + rule;
+                                            }
+                                            if (force != 0.0) {
+                                                velocitySum += delta * (force / dist);
+                                            }
+                                        }
+
+                                        j = particleNextIndices.data[j]; // Move to the next particle in the linked list
                                     }
                                 }
                             }
@@ -417,11 +548,9 @@ export default defineComponent({
                             let oldVelocity = velocities.data[i];
                             let acceleration = (velocitySum / ${forceFactor});
                             var newVelocity = (oldVelocity + acceleration) * ${frictionFactor};
-                            velocities.data[i] = newVelocity;
 
                             var newPos = myPos + newVelocity * deltaTime;
 
-                            // With walls
                             if (options.isWallRepel == 1u) {
                                 let margin = f32(${PARTICLE_SIZE});
                                 if (newPos.x < margin || newPos.x > ${CANVAS_WIDTH}.0 - margin) {
@@ -432,25 +561,16 @@ export default defineComponent({
                                   newVelocity.y = -newVelocity.y * 1.8;
                                   newPos.y = clamp(newPos.y, margin, ${CANVAS_HEIGHT}.0 - margin);
                                 }
-                            }
-
-                            // Wall Wrapping
-                            else if (options.isWallWrap == 1u) {
-                                if (newPos.x < 0.0) {
-                                    newPos.x += ${CANVAS_WIDTH}.0;
-                                } else if (newPos.x > ${CANVAS_WIDTH}.0) {
-                                    newPos.x -= ${CANVAS_WIDTH}.0;
-                                }
-                                if (newPos.y < 0.0) {
-                                    newPos.y += ${CANVAS_HEIGHT}.0;
-                                } else if (newPos.y > ${CANVAS_HEIGHT}.0) {
-                                    newPos.y -= ${CANVAS_HEIGHT}.0;
-                                }
+                            } else if (options.isWallWrap == 1u) {
+                                if (newPos.x < 0.0) { newPos.x += ${CANVAS_WIDTH}.0; }
+                                else if (newPos.x > ${CANVAS_WIDTH}.0) { newPos.x -= ${CANVAS_WIDTH}.0; }
+                                if (newPos.y < 0.0) { newPos.y += ${CANVAS_HEIGHT}.0; }
+                                else if (newPos.y > ${CANVAS_HEIGHT}.0) { newPos.y -= ${CANVAS_HEIGHT}.0; }
                             }
 
                             velocities.data[i] = newVelocity;
                             nextPositions.data[i] = newPos;
-                        };
+                        }
                     `
             })
 
@@ -570,6 +690,22 @@ export default defineComponent({
         }
         // -------------------------------------------------------------------------------------------------------------
         const createBindGroups = () => {
+            clearHashBindGroup = device.createBindGroup({
+                layout: clearHashPipeline.getBindGroupLayout(0),
+                entries: [
+                    { binding: 0, resource: { buffer: cellHeadsBuffer } }
+                ]
+            })
+            buildHashBindGroup = device.createBindGroup({
+                layout: buildHashPipeline.getBindGroupLayout(0),
+                entries: [
+                    { binding: 0, resource: { buffer: currentPositionBuffer } },
+                    { binding: 1, resource: { buffer: particleHashesBuffer } },
+                    { binding: 2, resource: { buffer: cellHeadsBuffer } },
+                    { binding: 3, resource: { buffer: particleNextIndicesBuffer } }
+                ]
+            })
+
             computeBindGroup = device.createBindGroup({
                 layout: computePipeline.getBindGroupLayout(0),
                 entries: [
@@ -579,7 +715,9 @@ export default defineComponent({
                     { binding: 3, resource: { buffer: typeBuffer } },
                     { binding: 4, resource: { buffer: interactionMatrixBuffer } },
                     { binding: 5, resource: { buffer: deltaTimeBuffer } },
-                    { binding: 6, resource: { buffer: simOptionsBuffer } }
+                    { binding: 6, resource: { buffer: simOptionsBuffer } },
+                    { binding: 7, resource: { buffer: cellHeadsBuffer } },
+                    { binding: 8, resource: { buffer: particleNextIndicesBuffer } }
                 ]
             })
 
