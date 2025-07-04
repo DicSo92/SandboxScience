@@ -1,5 +1,62 @@
 <template>
     <section h-screen flex flex-col justify-center overflow-hidden relative ref="mainContainer" id="mainContainer">
+        <SidebarLeft v-model="particleLife.sidebarLeftOpen">
+            <template #controls>
+            </template>
+            <template #default>
+                <div h-full px-2 flex flex-col>
+                    <div flex justify-between items-end mb-2 px-1>
+                        <div flex items-center class="-mb-0.5">
+                            <div i-lets-icons-bubble text-2xl mr-2 class="text-[#2a9d8f] -mt-0.5"></div>
+                            <h1 font-800 text-lg tracking-widest class="text-[#dff6f3] drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Particle Life (GPU)</h1>
+                        </div>
+                        <ToggleSwitch inactive-label="2D" label="3D" colorful-label v-model="particleLife.is3D" />
+                    </div>
+                    <hr>
+                    <div overflow-auto flex-1 mt-2 class="scrollableArea">
+                        <Collapse label="World Settings" icon="i-tabler-world-cog" opened mt-2>
+                            <RangeInput input label="Particle Number"
+                                        tooltip="Adjust the total number of particles. <br> More particles may reveal complex interactions but can increase computational demand."
+                                        :min="0" :max="100000" :step="10" v-model="particleLife.numParticles">
+                            </RangeInput>
+                            <RangeInput input label="Color Number"
+                                        tooltip="Specify the number of particle colors. <br> Each color interacts with all others, with distinct forces and interaction ranges."
+                                        :min="1" :max="20" :step="1" v-model="particleLife.numColors" mt-2>
+                            </RangeInput>
+
+                            <div mb-2>
+                                <WallStateSelection :store="particleLife" />
+                            </div>
+                        </Collapse>
+                        <Collapse label="Force Settings" icon="i-tabler-atom" opened mt-2>
+                            <RangeInput input label="Repel Force"
+                                        tooltip="Adjust the force that repels particles from each other. <br> Higher values increase the separation distance."
+                                        :min="0.01" :max="4" :step="0.01" v-model="particleLife.repel">
+                            </RangeInput>
+                            <RangeInput input label="Force Factor"
+                                        tooltip="Adjust the force scaling factor. <br> Increase it to reduce particle speed, prevent explosive behavior, and manage overly rapid interactions."
+                                        :min="0.01" :max="2" :step="0.01" v-model="particleLife.forceFactor" mt-2>
+                            </RangeInput>
+                            <RangeInput input label="Friction Factor"
+                                        tooltip="Adjust the friction level. <br> Lowering it slows down particles, reducing chaotic movement and stabilizing the system."
+                                        :min="0" :max="1" :step="0.01" v-model="particleLife.frictionFactor" mt-2>
+                            </RangeInput>
+                        </Collapse>
+                        <Collapse label="Graphics Settings" icon="i-tabler-photo-cog" mt-2>
+                            <RangeInput input label="Particle Size"
+                                        tooltip="Controls the overall size of the particles in the simulation, allowing you to make them larger or smaller depending on your preference. This setting does not impact performance."
+                                        :min="1" :max="20" :step="1" v-model="particleLife.particleSize" mt-2>
+                            </RangeInput>
+                        </Collapse>
+                    </div>
+                    <div absolute bottom-2 right-0 z-100 class="-mr-px">
+                        <button rounded-l-lg border border-gray-400 flex items-center p-1 bg="gray-800 hover:gray-900" @click="particleLife.sidebarLeftOpen = false">
+                            <span i-tabler-chevron-left text-2xl></span>
+                        </button>
+                    </div>
+                </div>
+            </template>
+        </SidebarLeft>
         <canvas ref="canvasRef" id="canvasRef" w-full h-full></canvas>
         <div absolute top-0 right-0 flex flex-col items-end text-right pointer-events-none>
             <div flex items-center text-start text-xs pl-4 pr-1 bg-gray-800 rounded-bl-xl style="padding-bottom: 1px; opacity: 75%">
@@ -11,14 +68,19 @@
 
 <script lang="ts">
 import { defineComponent, onMounted, ref } from 'vue';
+import WallStateSelection from "~/components/particle-life/WallStateSelection.vue";
+import MatrixSettings from "~/components/particle-life/MatrixSettings.vue";
 
 export default defineComponent({
     name: 'ParticleLifeGpu',
+    components: {MatrixSettings, WallStateSelection},
     setup() {
         definePageMeta({
             layout: 'life',
             hideNavBar: true
         })
+
+        const particleLife = useParticleLifeGPUStore()
 
         // Define refs and variables
         const canvasRef = ref<HTMLCanvasElement | null>(null)
@@ -32,13 +94,14 @@ export default defineComponent({
         let lastFrameTime = performance.now()
 
         // Define variables for the simulation
-        const forceFactor: number = 0.6 // Decrease will increase the impact of the force on the velocity (the higher the value, the slower the particles will move) (can't be 0)
-        const frictionFactor: number = 0.6 // Slow down the particles (0 to 1, where 1 is no friction)
-        const NUM_PARTICLES = 40000
-        const PARTICLE_SIZE = 1.2
-        const NUM_TYPES = 8
-        let isWallRepel: boolean = false // Enable walls X and Y for the particles
-        let isWallWrap: boolean = true // Enable wrapping for the particles
+        let repel: number = particleLife.repel // Repel force between particles
+        let forceFactor: number = particleLife.forceFactor // Decrease will increase the impact of the force on the velocity (the higher the value, the slower the particles will move) (can't be 0)
+        let frictionFactor: number = particleLife.frictionFactor // Slow down the particles (0 to 1, where 1 is no friction)
+        let NUM_PARTICLES = particleLife.numParticles
+        let PARTICLE_SIZE = particleLife.particleSize
+        let NUM_TYPES = particleLife.numColors
+        let isWallRepel: boolean = particleLife.isWallRepel // Enable walls X and Y for the particles
+        let isWallWrap: boolean = particleLife.isWallWrap // Enable wrapping for the particles
 
         // Define the GPU device, pipelines, and bind groups
         let device: GPUDevice
@@ -72,14 +135,12 @@ export default defineComponent({
         let lastPointerY: number = 0 // For dragging
         let pointerX: number = 0 // Pointer X
         let pointerY: number = 0 // Pointer Y
+        let currentMaxRadius: number // Max value between all colors max radius (for cell size)
 
         // Define color list and rules matrix for the particles
         let rulesMatrix: number[][] = [] // Rules matrix for each color
         let maxRadiusMatrix: number[][] = [] // Max radius matrix for each color
         let minRadiusMatrix: number[][] = [] // Min radius matrix for each color
-
-        let currentMaxRadius: number // Max value between all colors max radius (for cell size)
-
 
         let particleHashesBuffer: GPUBuffer
         let cellHeadsBuffer: GPUBuffer
@@ -182,15 +243,18 @@ export default defineComponent({
                 alphaMode: 'opaque'
             })
 
+            handleResize()
+            SIM_WIDTH = CANVAS_WIDTH
+            SIM_HEIGHT = CANVAS_HEIGHT
+            if (isWallWrap) setSimSizeWhenWrapped()
+            centerView()
+
             rulesMatrix = makeRandomRulesMatrix()
             minRadiusMatrix = makeRandomMinRadiusMatrix()
             maxRadiusMatrix = makeRandomMaxRadiusMatrix()
 
-            handleResize()
-            SIM_WIDTH = CANVAS_WIDTH
-            SIM_HEIGHT = CANVAS_HEIGHT
-            setSimSizeWhenWrapped()
-            centerView()
+            currentMaxRadius = particleLife.currentMaxRadius // Ensure this is set before creating buffers
+            CELL_SIZE = currentMaxRadius // Ensure CELL_SIZE is set before creating buffers
 
             createBuffers()
             createPipelines()
@@ -284,17 +348,7 @@ export default defineComponent({
                 }
             }
 
-            const simOptionsArray = new Uint32Array([
-                isWallRepel ? 1 : 0,
-                isWallWrap ? 1 : 0,
-                0, 0 // padding
-            ])
-            simOptionsBuffer = device.createBuffer({
-                size: simOptionsArray.byteLength,
-                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-            })
-            device.queue.writeBuffer(simOptionsBuffer, 0, simOptionsArray)
-
+            updateSimOptionsBuffer() // Set simulation options based on the store state
 
             positionBufferA = device.createBuffer({
                 size: positions.byteLength,
@@ -456,8 +510,12 @@ export default defineComponent({
                         struct SimOptions {
                             isWallRepel: u32,
                             isWallWrap: u32,
-                            pad1: u32,
-                            pad2: u32
+                            forceFactor: f32,
+                            frictionFactor: f32,
+                            repel: f32,
+                            particleSize: f32,
+                            _pad1: f32,
+                            _pad2: f32
                         };
 
                         struct ParticleNextIndices { data: array<u32> };
@@ -543,7 +601,8 @@ export default defineComponent({
                                             let minR = interactions.data[index + 1];
                                             var force = 0.0;
                                             if (dist < minR) {
-                                                force = (1.0 / minR) * dist - 1.0;
+                                                force = (options.repel / minR) * dist - options.repel;
+                                                // force = options.repel * ((1.0 / minR) * dist - 1.0);
                                             } else {
                                                 let mid = (minR + maxR) / 2.0;
                                                 let slope = rule / (mid - minR);
@@ -560,13 +619,13 @@ export default defineComponent({
                             }
 
                             let oldVelocity = velocities.data[i];
-                            let acceleration = (velocitySum / ${forceFactor});
-                            var newVelocity = (oldVelocity + acceleration) * ${frictionFactor};
+                            let acceleration = (velocitySum / options.forceFactor);
+                            var newVelocity = (oldVelocity + acceleration) * options.frictionFactor;
 
                             var newPos = myPos + newVelocity * deltaTime;
 
                             if (options.isWallRepel == 1u) {
-                                let margin = f32(${PARTICLE_SIZE});
+                                let margin = options.particleSize;
                                 if (newPos.x < margin || newPos.x > ${SIM_WIDTH}.0 - margin) {
                                   newVelocity.x = -newVelocity.x * 1.8;
                                   newPos.x = clamp(newPos.x, margin, ${SIM_WIDTH}.0 - margin);
@@ -596,6 +655,17 @@ export default defineComponent({
                             @location(1) @interpolate(flat) particleType: u32
                         };
 
+                        struct SimOptions {
+                            isWallRepel: u32,
+                            isWallWrap: u32,
+                            forceFactor: f32,
+                            frictionFactor: f32,
+                            repel: f32,
+                            particleSize: f32,
+                            _pad1: f32,
+                            _pad2: f32
+                        };
+
                         struct Camera {
                             center: vec2f,
                             zoomFactor: f32,
@@ -603,6 +673,7 @@ export default defineComponent({
                         };
 
                         @group(0) @binding(1) var<uniform> camera: Camera;
+                        @group(0) @binding(2) var<uniform> options: SimOptions;
 
                         @vertex
                         fn main(
@@ -612,7 +683,7 @@ export default defineComponent({
                         ) -> VertexOutput {
                             var out: VertexOutput;
 
-                            let worldPos = instancePos + localPos * ${PARTICLE_SIZE};
+                            let worldPos = instancePos + localPos * options.particleSize;
                             let pos = (worldPos - camera.center) * camera.zoomFactor;
 
                             out.position = vec4f(
@@ -739,7 +810,8 @@ export default defineComponent({
                 layout: renderPipeline.getBindGroupLayout(0),
                 entries: [
                     { binding: 0, resource: { buffer: colorBuffer } },
-                    { binding: 1, resource: { buffer: cameraBuffer } }
+                    { binding: 1, resource: { buffer: cameraBuffer } },
+                    { binding: 2, resource: { buffer: simOptionsBuffer } }
                 ]
             })
         }
@@ -780,8 +852,8 @@ export default defineComponent({
         }
         function makeRandomMinRadiusMatrix() {
             let matrix: number[][] = []
-            const min: number = 30
-            const max: number = 70
+            const min: number = particleLife.minRadiusRange[0]
+            const max: number = particleLife.minRadiusRange[1]
             for (let i = 0; i < NUM_TYPES; i++) {
                 matrix.push([])
                 for (let j = 0; j < NUM_TYPES; j++) {
@@ -793,8 +865,8 @@ export default defineComponent({
         }
         function makeRandomMaxRadiusMatrix() {
             let matrix: number[][] = []
-            const min: number = 90
-            const max: number = 200
+            const min: number = particleLife.maxRadiusRange[0]
+            const max: number = particleLife.maxRadiusRange[1]
             let maxRandom: number = min
             for (let i = 0; i < NUM_TYPES; i++) {
                 matrix.push([])
@@ -806,8 +878,9 @@ export default defineComponent({
                     }
                 }
             }
-            currentMaxRadius = maxRandom
-            CELL_SIZE = currentMaxRadius
+            particleLife.currentMaxRadius = maxRandom
+            // currentMaxRadius = particleLife.currentMaxRadius
+            // CELL_SIZE = currentMaxRadius
             return matrix
         }
         // -------------------------------------------------------------------------------------------------------------
@@ -818,6 +891,57 @@ export default defineComponent({
         function centerView() {
             cameraCenter = { x: SIM_WIDTH / 2, y: SIM_HEIGHT / 2 }
         }
+        function updateSimOptionsBuffer() {
+            const simOptionsData = new ArrayBuffer(32) // 8 * 4 bytes
+            const simOptionsView = new DataView(simOptionsData)
+            simOptionsView.setUint32(0, particleLife.isWallRepel ? 1 : 0, true)
+            simOptionsView.setUint32(4, particleLife.isWallWrap ? 1 : 0, true)
+            simOptionsView.setFloat32(8, particleLife.forceFactor, true)
+            simOptionsView.setFloat32(12, particleLife.frictionFactor, true)
+            simOptionsView.setFloat32(16, particleLife.repel, true)
+            simOptionsView.setFloat32(20, particleLife.particleSize, true)
+
+            if (!simOptionsBuffer) {
+                simOptionsBuffer = device.createBuffer({
+                    size: simOptionsData.byteLength,
+                    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+                })
+            }
+
+            device.queue.writeBuffer(simOptionsBuffer, 0, simOptionsData)
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
+        function watchAndDraw(effect: any, callback: any) {
+            watch(effect, (value) => {
+                callback(value)
+                // if (!isRunning) simpleDrawParticles()
+                updateSimOptionsBuffer()
+            })
+        }
+        watchAndDraw(() => particleLife.particleSize, (value: number) => PARTICLE_SIZE = value)
+        watchAndDraw(() => particleLife.isWallRepel, (value: boolean) => {
+            isWallRepel = value
+            if (isWallRepel) particleLife.isWallWrap = false
+        })
+        watchAndDraw(() => particleLife.isWallWrap, (value: boolean) => {
+            isWallWrap = value
+            if (isWallWrap) {
+                particleLife.isWallRepel = false
+                setSimSizeWhenWrapped()
+            }
+        })
+        watchAndDraw(() => particleLife.repel, (value: number) => repel = value)
+        watchAndDraw(() => particleLife.forceFactor, (value: number) => forceFactor = value)
+        watchAndDraw(() => particleLife.frictionFactor, (value: number) => frictionFactor = value)
+        watchAndDraw(() => particleLife.currentMaxRadius, (value: number) => {
+            currentMaxRadius = value
+            CELL_SIZE = currentMaxRadius
+            if (isWallWrap) {
+                setSimSizeWhenWrapped()
+            }
+        })
         // -------------------------------------------------------------------------------------------------------------
         onUnmounted(() => {
             if (animationFrameId) {
@@ -828,7 +952,7 @@ export default defineComponent({
         })
 
         return {
-            canvasRef, fps
+            particleLife, canvasRef, fps
         }
     }
 });

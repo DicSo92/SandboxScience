@@ -26,9 +26,15 @@
 <script lang="ts">
 import { defineComponent } from 'vue'
 export default defineComponent({
+    props: {
+        store: {
+            type: Object,
+            required: true,
+        }
+    },
     setup(props, { emit }) {
         const currentValue = ref()
-        const particleLife = useParticleLifeStore()
+        const particleLife = props.store
 
         onMounted(() => {
             if (particleLife.isWallRepel) {

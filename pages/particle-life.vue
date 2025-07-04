@@ -51,7 +51,7 @@
                                 </div>
                             </div>
                             <div mb-2>
-                                <WallStateSelection />
+                                <WallStateSelection :store="particleLife" />
                             </div>
                             <div flex mb-1>
                                 <SelectButton :id="1" label="Screen" v-model="particleLife.screenMultiplierForGridSize" mr-1.5 />
