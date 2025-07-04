@@ -156,15 +156,13 @@ export default defineComponent({
             const zoomDelta = delta * zoomIntensity
             zoomFactor = Math.max(0.1, Math.min(3.2, zoomFactor + zoomDelta))
 
-            // Convert the mouse position to world coordinates (before zoom)
             const worldBefore = {
-                x: cameraCenter.x + (x - CANVAS_WIDTH / 2) / oldZoomFactor,
-                y: cameraCenter.y + (y - CANVAS_HEIGHT / 2) / oldZoomFactor
+                x: cameraCenter.x + (x - CANVAS_WIDTH / 2) * (SIM_WIDTH / CANVAS_WIDTH) / oldZoomFactor,
+                y: cameraCenter.y + (y - CANVAS_HEIGHT / 2) * (SIM_HEIGHT / CANVAS_HEIGHT) / oldZoomFactor
             }
-            // Convert the mouse position to world coordinates (after zoom)
             const worldAfter = {
-                x: cameraCenter.x + (x - CANVAS_WIDTH / 2) / zoomFactor,
-                y: cameraCenter.y + (y - CANVAS_HEIGHT / 2) / zoomFactor
+                x: cameraCenter.x + (x - CANVAS_WIDTH / 2) * (SIM_WIDTH / CANVAS_WIDTH) / zoomFactor,
+                y: cameraCenter.y + (y - CANVAS_HEIGHT / 2) * (SIM_HEIGHT / CANVAS_HEIGHT) / zoomFactor
             }
             // Adjust the camera center to keep the mouse cursor over the same point in world space
             cameraCenter.x += worldBefore.x - worldAfter.x
@@ -184,16 +182,15 @@ export default defineComponent({
                 alphaMode: 'opaque'
             })
 
-            handleResize()
-            SIM_WIDTH = CANVAS_WIDTH
-            SIM_HEIGHT = CANVAS_HEIGHT
-            cameraCenter = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 }
-
             rulesMatrix = makeRandomRulesMatrix()
             minRadiusMatrix = makeRandomMinRadiusMatrix()
             maxRadiusMatrix = makeRandomMaxRadiusMatrix()
 
-            // setSimSizeWhenWrapped()
+            handleResize()
+            SIM_WIDTH = CANVAS_WIDTH
+            SIM_HEIGHT = CANVAS_HEIGHT
+            setSimSizeWhenWrapped()
+            centerView()
 
             createBuffers()
             createPipelines()
@@ -751,7 +748,7 @@ export default defineComponent({
             const colors = new Float32Array(NUM_TYPES * 3)
 
             for (let i = 0; i < NUM_TYPES; ++i) {
-                colors[i * 3 + 0] = Math.random()
+                colors[i * 3] = Math.random()
                 colors[i * 3 + 1] = Math.random()
                 colors[i * 3 + 2] = Math.random()
             }
@@ -813,9 +810,13 @@ export default defineComponent({
             CELL_SIZE = currentMaxRadius
             return matrix
         }
+        // -------------------------------------------------------------------------------------------------------------
         function setSimSizeWhenWrapped() { // Set the grid size when the walls are wrapped
             SIM_WIDTH = CELL_SIZE * Math.round(CANVAS_WIDTH / CELL_SIZE)
             SIM_HEIGHT = CELL_SIZE * Math.round(SIM_HEIGHT / CELL_SIZE)
+        }
+        function centerView() {
+            cameraCenter = { x: SIM_WIDTH / 2, y: SIM_HEIGHT / 2 }
         }
         // -------------------------------------------------------------------------------------------------------------
         onUnmounted(() => {
