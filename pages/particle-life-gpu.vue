@@ -434,11 +434,27 @@ export default defineComponent({
                         struct CellHeads {
                             data: array<atomic<u32>>
                         };
+                        struct SimOptions {
+                            isWallRepel: u32,
+                            isWallWrap: u32,
+                            forceFactor: f32,
+                            frictionFactor: f32,
+                            repel: f32,
+                            particleSize: f32,
+                            simWidth: f32,
+                            simHeight: f32,
+                            cellSize: f32,
+                            spatialHashTableSize: u32,
+                            numParticles: u32,
+                            numTypes: u32
+                        };
+
                         @group(0) @binding(0) var<storage, read_write> cellHeads: CellHeads;
+                        @group(0) @binding(1) var<uniform> options: SimOptions;
 
                         @compute @workgroup_size(64)
                         fn main(@builtin(global_invocation_id) id: vec3<u32>) {
-                            if (id.x >= ${SPATIAL_HASH_TABLE_SIZE}u) { return; }
+                            if (id.x >= options.spatialHashTableSize) { return; }
                             atomicStore(&cellHeads.data[id.x], 0xFFFFFFFFu);
                         }
                     `
@@ -457,30 +473,43 @@ export default defineComponent({
                         struct ParticleHashes { data: array<u32> };
                         struct ParticleNextIndices { data: array<u32> };
                         struct CellHeads { data: array<atomic<u32>> };
+                        struct SimOptions {
+                            isWallRepel: u32,
+                            isWallWrap: u32,
+                            forceFactor: f32,
+                            frictionFactor: f32,
+                            repel: f32,
+                            particleSize: f32,
+                            simWidth: f32,
+                            simHeight: f32,
+                            cellSize: f32,
+                            spatialHashTableSize: u32,
+                            numParticles: u32,
+                            numTypes: u32
+                        };
 
                         @group(0) @binding(0) var<storage, read> positions: Positions;
                         @group(0) @binding(1) var<storage, read_write> particleHashes: ParticleHashes;
                         @group(0) @binding(2) var<storage, read_write> cellHeads: CellHeads;
                         @group(0) @binding(3) var<storage, read_write> particleNextIndices: ParticleNextIndices;
+                        @group(0) @binding(4) var<uniform> options: SimOptions;
 
-                        const CELL_SIZE: f32 = ${CELL_SIZE}.0;
                         const P1: i32 = 73856093;
                         const P2: i32 = 19349663;
-                        const HASH_TABLE_SIZE: u32 = ${SPATIAL_HASH_TABLE_SIZE}u;
 
                         fn get_cell_coords(pos: vec2<f32>) -> vec2<i32> {
-                            return vec2<i32>(floor(pos / CELL_SIZE));
+                            return vec2<i32>(floor(pos / options.cellSize));
                         }
 
                         fn hash_coords(coords: vec2<i32>) -> u32 {
                             let h = u32((coords.x * P1) ^ (coords.y * P2));
-                            return h % HASH_TABLE_SIZE;
+                            return h % options.spatialHashTableSize;
                         }
 
                         @compute @workgroup_size(64)
                         fn main(@builtin(global_invocation_id) id: vec3<u32>) {
                             let i = id.x;
-                            if (i >= ${NUM_PARTICLES}u) { return; }
+                            if (i >= options.numParticles) { return; }
 
                             let pos = positions.data[i];
                             let cell_coords = get_cell_coords(pos);
@@ -514,8 +543,12 @@ export default defineComponent({
                             frictionFactor: f32,
                             repel: f32,
                             particleSize: f32,
-                            _pad1: f32,
-                            _pad2: f32
+                            simWidth: f32,
+                            simHeight: f32,
+                            cellSize: f32,
+                            spatialHashTableSize: u32,
+                            numParticles: u32,
+                            numTypes: u32
                         };
 
                         struct ParticleNextIndices { data: array<u32> };
@@ -531,25 +564,24 @@ export default defineComponent({
                         @group(0) @binding(7) var<storage, read> cellHeads: CellHeads;
                         @group(0) @binding(8) var<storage, read> particleNextIndices: ParticleNextIndices;
 
-                        const GRID_WIDTH: i32 = ${Math.ceil(SIM_WIDTH / currentMaxRadius)};
-                        const GRID_HEIGHT: i32 = ${Math.ceil(SIM_HEIGHT / currentMaxRadius)};
-                        const CELL_SIZE: f32 = ${CELL_SIZE}.0;
                         const P1: i32 = 73856093;
                         const P2: i32 = 19349663;
-                        const HASH_TABLE_SIZE: u32 = ${SPATIAL_HASH_TABLE_SIZE}u;
 
                         fn get_cell_coords(pos: vec2<f32>) -> vec2<i32> {
-                            return vec2<i32>(floor(pos / CELL_SIZE));
+                            return vec2<i32>(floor(pos / options.cellSize));
                         }
                         fn hash_coords(coords: vec2<i32>) -> u32 {
                             let h = u32((coords.x * P1) ^ (coords.y * P2));
-                            return h % HASH_TABLE_SIZE;
+                            return h % options.spatialHashTableSize;
                         }
 
                         @compute @workgroup_size(64)
                         fn main(@builtin(global_invocation_id) id: vec3<u32>) {
                             let i = id.x;
-                            if (i >= ${NUM_PARTICLES}u) { return; }
+                            if (i >= options.numParticles) { return; }
+
+                            let GRID_WIDTH: i32 = i32(ceil(options.simWidth / options.cellSize));
+                            let GRID_HEIGHT: i32 = i32(ceil(options.simHeight / options.cellSize));
 
                             let myPos = currentPositions.data[i];
                             let myType = types.data[i];
@@ -585,14 +617,14 @@ export default defineComponent({
                                         var delta = otherPos - myPos;
 
                                         if (options.isWallWrap == 1u) {
-                                            if (delta.x > ${SIM_WIDTH}.0 / 2.0) { delta.x -= ${SIM_WIDTH}.0; }
-                                            else if (delta.x < -${SIM_WIDTH}.0 / 2.0) { delta.x += ${SIM_WIDTH}.0; }
-                                            if (delta.y > ${SIM_HEIGHT}.0 / 2.0) { delta.y -= ${SIM_HEIGHT}.0; }
-                                            else if (delta.y < -${SIM_HEIGHT}.0 / 2.0) { delta.y += ${SIM_HEIGHT}.0; }
+                                            if (delta.x > options.simWidth / 2.0) { delta.x -= options.simWidth; }
+                                            else if (delta.x < -options.simWidth / 2.0) { delta.x += options.simWidth; }
+                                            if (delta.y > options.simHeight / 2.0) { delta.y -= options.simHeight; }
+                                            else if (delta.y < -options.simHeight / 2.0) { delta.y += options.simHeight; }
                                         }
 
                                         let distSquared = dot(delta, delta);
-                                        let index = (myType * ${NUM_TYPES}u + otherType) * 3u;
+                                        let index = (myType * options.numTypes + otherType) * 3u;
                                         let maxR = interactions.data[index + 2];
 
                                         if (distSquared > 0.0 && distSquared < maxR * maxR) {
@@ -626,19 +658,19 @@ export default defineComponent({
 
                             if (options.isWallRepel == 1u) {
                                 let margin = options.particleSize;
-                                if (newPos.x < margin || newPos.x > ${SIM_WIDTH}.0 - margin) {
+                                if (newPos.x < margin || newPos.x > options.simWidth - margin) {
                                   newVelocity.x = -newVelocity.x * 1.8;
-                                  newPos.x = clamp(newPos.x, margin, ${SIM_WIDTH}.0 - margin);
+                                  newPos.x = clamp(newPos.x, margin, options.simWidth - margin);
                                 }
-                                if (newPos.y < margin || newPos.y > ${SIM_HEIGHT}.0 - margin) {
+                                if (newPos.y < margin || newPos.y > options.simHeight - margin) {
                                   newVelocity.y = -newVelocity.y * 1.8;
-                                  newPos.y = clamp(newPos.y, margin, ${SIM_HEIGHT}.0 - margin);
+                                  newPos.y = clamp(newPos.y, margin, options.simHeight - margin);
                                 }
                             } else if (options.isWallWrap == 1u) {
-                                if (newPos.x < 0.0) { newPos.x += ${SIM_WIDTH}.0; }
-                                else if (newPos.x > ${SIM_WIDTH}.0) { newPos.x -= ${SIM_WIDTH}.0; }
-                                if (newPos.y < 0.0) { newPos.y += ${SIM_HEIGHT}.0; }
-                                else if (newPos.y > ${SIM_HEIGHT}.0) { newPos.y -= ${SIM_HEIGHT}.0; }
+                                if (newPos.x < 0.0) { newPos.x += options.simWidth; }
+                                else if (newPos.x > options.simWidth) { newPos.x -= options.simWidth; }
+                                if (newPos.y < 0.0) { newPos.y += options.simHeight; }
+                                else if (newPos.y > options.simHeight) { newPos.y -= options.simHeight; }
                             }
 
                             velocities.data[i] = newVelocity;
@@ -654,7 +686,6 @@ export default defineComponent({
                             @location(0) offset: vec2f,
                             @location(1) @interpolate(flat) particleType: u32
                         };
-
                         struct SimOptions {
                             isWallRepel: u32,
                             isWallWrap: u32,
@@ -662,8 +693,12 @@ export default defineComponent({
                             frictionFactor: f32,
                             repel: f32,
                             particleSize: f32,
-                            _pad1: f32,
-                            _pad2: f32
+                            simWidth: f32,
+                            simHeight: f32,
+                            cellSize: f32,
+                            spatialHashTableSize: u32,
+                            numParticles: u32,
+                            numTypes: u32
                         };
 
                         struct Camera {
@@ -687,8 +722,8 @@ export default defineComponent({
                             let pos = (worldPos - camera.center) * camera.zoomFactor;
 
                             out.position = vec4f(
-                                (pos.x / ${SIM_WIDTH}.0) * 2.0,
-                                -(pos.y / ${SIM_HEIGHT}.0) * 2.0,
+                                (pos.x / options.simWidth) * 2.0,
+                                -(pos.y / options.simHeight) * 2.0,
                                 0.0, 1.0
                             );
 
@@ -778,7 +813,8 @@ export default defineComponent({
             clearHashBindGroup = device.createBindGroup({
                 layout: clearHashPipeline.getBindGroupLayout(0),
                 entries: [
-                    { binding: 0, resource: { buffer: cellHeadsBuffer } }
+                    { binding: 0, resource: { buffer: cellHeadsBuffer } },
+                    { binding: 1, resource: { buffer: simOptionsBuffer } }
                 ]
             })
             buildHashBindGroup = device.createBindGroup({
@@ -787,7 +823,8 @@ export default defineComponent({
                     { binding: 0, resource: { buffer: currentPositionBuffer } },
                     { binding: 1, resource: { buffer: particleHashesBuffer } },
                     { binding: 2, resource: { buffer: cellHeadsBuffer } },
-                    { binding: 3, resource: { buffer: particleNextIndicesBuffer } }
+                    { binding: 3, resource: { buffer: particleNextIndicesBuffer } },
+                    { binding: 4, resource: { buffer: simOptionsBuffer } }
                 ]
             })
 
@@ -892,7 +929,7 @@ export default defineComponent({
             cameraCenter = { x: SIM_WIDTH / 2, y: SIM_HEIGHT / 2 }
         }
         function updateSimOptionsBuffer() {
-            const simOptionsData = new ArrayBuffer(32) // 8 * 4 bytes
+            const simOptionsData = new ArrayBuffer(48)
             const simOptionsView = new DataView(simOptionsData)
             simOptionsView.setUint32(0, particleLife.isWallRepel ? 1 : 0, true)
             simOptionsView.setUint32(4, particleLife.isWallWrap ? 1 : 0, true)
@@ -900,6 +937,13 @@ export default defineComponent({
             simOptionsView.setFloat32(12, particleLife.frictionFactor, true)
             simOptionsView.setFloat32(16, particleLife.repel, true)
             simOptionsView.setFloat32(20, particleLife.particleSize, true)
+            simOptionsView.setFloat32(24, SIM_WIDTH, true)
+            simOptionsView.setFloat32(28, SIM_HEIGHT, true)
+            simOptionsView.setFloat32(32, CELL_SIZE, true)
+            simOptionsView.setUint32(36, SPATIAL_HASH_TABLE_SIZE, true)
+            simOptionsView.setUint32(40, NUM_PARTICLES, true)
+            simOptionsView.setUint32(44, NUM_TYPES, true)
+
 
             if (!simOptionsBuffer) {
                 simOptionsBuffer = device.createBuffer({
