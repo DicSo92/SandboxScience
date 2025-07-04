@@ -25,6 +25,9 @@ export default defineComponent({
         let ctx: GPUCanvasContext
         let CANVAS_WIDTH: number = 0
         let CANVAS_HEIGHT: number = 0
+        let SIM_WIDTH: number = 0
+        let SIM_HEIGHT: number = 0
+        let CELL_SIZE: number = 0
         let animationFrameId: number | null = null
         let lastFrameTime = performance.now()
 
@@ -35,7 +38,7 @@ export default defineComponent({
         const PARTICLE_SIZE = 1.2
         const NUM_TYPES = 8
         let isWallRepel: boolean = false // Enable walls X and Y for the particles
-        let isWallWrap: boolean = false // Enable wrapping for the particles
+        let isWallWrap: boolean = true // Enable wrapping for the particles
 
         // Define the GPU device, pipelines, and bind groups
         let device: GPUDevice
@@ -182,11 +185,15 @@ export default defineComponent({
             })
 
             handleResize()
+            SIM_WIDTH = CANVAS_WIDTH
+            SIM_HEIGHT = CANVAS_HEIGHT
             cameraCenter = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 }
 
             rulesMatrix = makeRandomRulesMatrix()
             minRadiusMatrix = makeRandomMinRadiusMatrix()
             maxRadiusMatrix = makeRandomMaxRadiusMatrix()
+
+            // setSimSizeWhenWrapped()
 
             createBuffers()
             createPipelines()
@@ -405,7 +412,7 @@ export default defineComponent({
                         @group(0) @binding(2) var<storage, read_write> cellHeads: CellHeads;
                         @group(0) @binding(3) var<storage, read_write> particleNextIndices: ParticleNextIndices;
 
-                        const CELL_SIZE: f32 = ${currentMaxRadius}.0;
+                        const CELL_SIZE: f32 = ${CELL_SIZE}.0;
                         const P1: i32 = 73856093;
                         const P2: i32 = 19349663;
                         const HASH_TABLE_SIZE: u32 = ${SPATIAL_HASH_TABLE_SIZE}u;
@@ -469,7 +476,9 @@ export default defineComponent({
                         @group(0) @binding(7) var<storage, read> cellHeads: CellHeads;
                         @group(0) @binding(8) var<storage, read> particleNextIndices: ParticleNextIndices;
 
-                        const CELL_SIZE: f32 = ${currentMaxRadius}.0;
+                        const GRID_WIDTH: i32 = ${Math.ceil(SIM_WIDTH / currentMaxRadius)};
+                        const GRID_HEIGHT: i32 = ${Math.ceil(SIM_HEIGHT / currentMaxRadius)};
+                        const CELL_SIZE: f32 = ${CELL_SIZE}.0;
                         const P1: i32 = 73856093;
                         const P2: i32 = 19349663;
                         const HASH_TABLE_SIZE: u32 = ${SPATIAL_HASH_TABLE_SIZE}u;
@@ -495,10 +504,18 @@ export default defineComponent({
 
                             for (var offsetY = -1; offsetY <= 1; offsetY = offsetY + 1) {
                                 for (var offsetX = -1; offsetX <= 1; offsetX = offsetX + 1) {
-                                    let neighbor_cell_coords = my_cell_coords + vec2<i32>(offsetX, offsetY);
-                                    let hash = hash_coords(neighbor_cell_coords);
+                                    var neighbor_cell_coords = my_cell_coords + vec2<i32>(offsetX, offsetY);
 
+                                    if (options.isWallWrap == 1u) {
+                                        if (neighbor_cell_coords.x < 0) { neighbor_cell_coords.x += GRID_WIDTH; }
+                                        if (neighbor_cell_coords.x >= GRID_WIDTH) { neighbor_cell_coords.x -= GRID_WIDTH; }
+                                        if (neighbor_cell_coords.y < 0) { neighbor_cell_coords.y += GRID_HEIGHT; }
+                                        if (neighbor_cell_coords.y >= GRID_HEIGHT) { neighbor_cell_coords.y -= GRID_HEIGHT; }
+                                    }
+
+                                    let hash = hash_coords(neighbor_cell_coords);
                                     var j = cellHeads.data[hash];
+
                                     loop {
                                         if (j == 0xFFFFFFFFu) { // End of the linked list
                                             break;
@@ -513,10 +530,10 @@ export default defineComponent({
                                         var delta = otherPos - myPos;
 
                                         if (options.isWallWrap == 1u) {
-                                            if (delta.x > ${CANVAS_WIDTH}.0 / 2.0) { delta.x -= ${CANVAS_WIDTH}.0; }
-                                            else if (delta.x < -${CANVAS_WIDTH}.0 / 2.0) { delta.x += ${CANVAS_WIDTH}.0; }
-                                            if (delta.y > ${CANVAS_HEIGHT}.0 / 2.0) { delta.y -= ${CANVAS_HEIGHT}.0; }
-                                            else if (delta.y < -${CANVAS_HEIGHT}.0 / 2.0) { delta.y += ${CANVAS_HEIGHT}.0; }
+                                            if (delta.x > ${SIM_WIDTH}.0 / 2.0) { delta.x -= ${SIM_WIDTH}.0; }
+                                            else if (delta.x < -${SIM_WIDTH}.0 / 2.0) { delta.x += ${SIM_WIDTH}.0; }
+                                            if (delta.y > ${SIM_HEIGHT}.0 / 2.0) { delta.y -= ${SIM_HEIGHT}.0; }
+                                            else if (delta.y < -${SIM_HEIGHT}.0 / 2.0) { delta.y += ${SIM_HEIGHT}.0; }
                                         }
 
                                         let distSquared = dot(delta, delta);
@@ -553,19 +570,19 @@ export default defineComponent({
 
                             if (options.isWallRepel == 1u) {
                                 let margin = f32(${PARTICLE_SIZE});
-                                if (newPos.x < margin || newPos.x > ${CANVAS_WIDTH}.0 - margin) {
+                                if (newPos.x < margin || newPos.x > ${SIM_WIDTH}.0 - margin) {
                                   newVelocity.x = -newVelocity.x * 1.8;
-                                  newPos.x = clamp(newPos.x, margin, ${CANVAS_WIDTH}.0 - margin);
+                                  newPos.x = clamp(newPos.x, margin, ${SIM_WIDTH}.0 - margin);
                                 }
-                                if (newPos.y < margin || newPos.y > ${CANVAS_HEIGHT}.0 - margin) {
+                                if (newPos.y < margin || newPos.y > ${SIM_HEIGHT}.0 - margin) {
                                   newVelocity.y = -newVelocity.y * 1.8;
-                                  newPos.y = clamp(newPos.y, margin, ${CANVAS_HEIGHT}.0 - margin);
+                                  newPos.y = clamp(newPos.y, margin, ${SIM_HEIGHT}.0 - margin);
                                 }
                             } else if (options.isWallWrap == 1u) {
-                                if (newPos.x < 0.0) { newPos.x += ${CANVAS_WIDTH}.0; }
-                                else if (newPos.x > ${CANVAS_WIDTH}.0) { newPos.x -= ${CANVAS_WIDTH}.0; }
-                                if (newPos.y < 0.0) { newPos.y += ${CANVAS_HEIGHT}.0; }
-                                else if (newPos.y > ${CANVAS_HEIGHT}.0) { newPos.y -= ${CANVAS_HEIGHT}.0; }
+                                if (newPos.x < 0.0) { newPos.x += ${SIM_WIDTH}.0; }
+                                else if (newPos.x > ${SIM_WIDTH}.0) { newPos.x -= ${SIM_WIDTH}.0; }
+                                if (newPos.y < 0.0) { newPos.y += ${SIM_HEIGHT}.0; }
+                                else if (newPos.y > ${SIM_HEIGHT}.0) { newPos.y -= ${SIM_HEIGHT}.0; }
                             }
 
                             velocities.data[i] = newVelocity;
@@ -602,8 +619,8 @@ export default defineComponent({
                             let pos = (worldPos - camera.center) * camera.zoomFactor;
 
                             out.position = vec4f(
-                                (pos.x / ${CANVAS_WIDTH}.0) * 2.0,
-                                -(pos.y / ${CANVAS_HEIGHT}.0) * 2.0,
+                                (pos.x / ${SIM_WIDTH}.0) * 2.0,
+                                -(pos.y / ${SIM_HEIGHT}.0) * 2.0,
                                 0.0, 1.0
                             );
 
@@ -746,8 +763,8 @@ export default defineComponent({
             const types = new Uint32Array(NUM_PARTICLES)
 
             for (let i = 0; i < NUM_PARTICLES; i++) {
-                positions[2 * i] = Math.random() * CANVAS_WIDTH
-                positions[2 * i + 1] = Math.random() * CANVAS_HEIGHT
+                positions[2 * i] = Math.random() * SIM_WIDTH
+                positions[2 * i + 1] = Math.random() * SIM_HEIGHT
                 velocities[2 * i] = 0
                 velocities[2 * i + 1] = 0
                 types[i] = Math.floor(Math.random() * NUM_TYPES)
@@ -793,7 +810,12 @@ export default defineComponent({
                 }
             }
             currentMaxRadius = maxRandom
+            CELL_SIZE = currentMaxRadius
             return matrix
+        }
+        function setSimSizeWhenWrapped() { // Set the grid size when the walls are wrapped
+            SIM_WIDTH = CELL_SIZE * Math.round(CANVAS_WIDTH / CELL_SIZE)
+            SIM_HEIGHT = CELL_SIZE * Math.round(SIM_HEIGHT / CELL_SIZE)
         }
         // -------------------------------------------------------------------------------------------------------------
         onUnmounted(() => {
