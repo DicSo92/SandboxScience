@@ -269,16 +269,16 @@ export default defineComponent({
 
             const encoder = device.createCommandEncoder()
 
-            const clearPass = encoder.beginComputePass()
-            clearPass.setPipeline(clearHashPipeline)
-            clearPass.setBindGroup(0, clearHashBindGroup)
-            clearPass.dispatchWorkgroups(Math.ceil(SPATIAL_HASH_TABLE_SIZE / 64))
-            clearPass.end()
-            const buildHashPass = encoder.beginComputePass()
-            buildHashPass.setPipeline(buildHashPipeline)
-            buildHashPass.setBindGroup(0, buildHashBindGroup)
-            buildHashPass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
-            buildHashPass.end()
+            // const clearPass = encoder.beginComputePass()
+            // clearPass.setPipeline(clearHashPipeline)
+            // clearPass.setBindGroup(0, clearHashBindGroup)
+            // clearPass.dispatchWorkgroups(Math.ceil(SPATIAL_HASH_TABLE_SIZE / 64))
+            // clearPass.end()
+            // const buildHashPass = encoder.beginComputePass()
+            // buildHashPass.setPipeline(buildHashPipeline)
+            // buildHashPass.setBindGroup(0, buildHashBindGroup)
+            // buildHashPass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
+            // buildHashPass.end()
 
             const computePass = encoder.beginComputePass()
             computePass.setPipeline(computePipeline)
@@ -493,7 +493,7 @@ export default defineComponent({
             })
 
 
-            const computeShader = device.createShaderModule({
+            const computeShaderOld = device.createShaderModule({
                 code: `
                         struct Particles { data: array<vec2<f32>> };
                         struct Types { data: array<u32> };
@@ -638,6 +638,136 @@ export default defineComponent({
                             velocities.data[i] = newVelocity;
                             nextPositions.data[i] = newPos;
                         }
+                    `
+            })
+
+            const computeShader = device.createShaderModule({
+                code: `
+                        struct Particles {
+                            data: array<vec2<f32>>
+                        };
+
+                        struct Types {
+                            data: array<u32>
+                        };
+
+                        struct InteractionMatrix {
+                          data: array<f32>
+                        };
+
+                        struct SimOptions {
+                            isWallRepel: u32,
+                            isWallWrap: u32,
+                            forceFactor: f32,
+                            frictionFactor: f32,
+                            repel: f32,
+                            particleSize: f32,
+                            simWidth: f32,
+                            simHeight: f32,
+                            cellSize: f32,
+                            spatialHashTableSize: u32,
+                            numParticles: u32,
+                            numTypes: u32
+                        };
+
+                        @group(0) @binding(0) var<storage, read> currentPositions: Particles;
+                        @group(0) @binding(1) var<storage, read_write> nextPositions: Particles;
+                        @group(0) @binding(2) var<storage, read_write> velocities: Particles;
+                        @group(0) @binding(3) var<storage, read> types: Types;
+                        @group(0) @binding(4) var<storage, read> interactions: InteractionMatrix;
+                        @group(0) @binding(5) var<uniform> deltaTime: f32;
+                        @group(0) @binding(6) var<uniform> options: SimOptions;
+
+                        @compute @workgroup_size(64)
+                        fn main(@builtin(global_invocation_id) id: vec3<u32>) {
+                            let i = id.x;
+                            if (i >= options.numParticles) { return; }
+
+                            let myPos = currentPositions.data[i];
+                            let myType = types.data[i];
+                            var velocitySum = vec2<f32>(0.0, 0.0);
+
+                            for (var j = 0u; j < options.numParticles; j = j + 1u) {
+                                if (i == j) { continue; }
+
+                                let otherPos = currentPositions.data[j];
+                                let otherType = types.data[j];
+                                var delta = otherPos - myPos;
+
+                                // Wrap around the canvas edges
+                                if (options.isWallWrap == 1u) {
+                                    if (delta.x > options.simWidth / 2.0) {
+                                        delta.x -= options.simWidth;
+                                    } else if (delta.x < -options.simWidth / 2.0) {
+                                        delta.x += options.simWidth;
+                                    }
+                                    if (delta.y > options.simHeight / 2.0) {
+                                        delta.y -= options.simHeight;
+                                    } else if (delta.y < -options.simHeight / 2.0) {
+                                        delta.y += options.simHeight;
+                                    }
+                                }
+
+                                let distSquared = dot(delta, delta);
+                                let index = (myType * options.numTypes + otherType) * 3u;
+                                let maxR = interactions.data[index + 2];
+                                if (distSquared < maxR * maxR) {
+                                    let dist = sqrt(distSquared);
+
+                                    let rule = interactions.data[index];
+                                    let minR = interactions.data[index + 1];
+                                    var force = 0.0;
+                                    if (dist < minR) {
+                                        force = (1.0 / minR) * dist - 1.0;
+                                    } else {
+                                        let mid = (minR + maxR) / 2.0;
+                                        let slope = rule / (mid - minR);
+                                        force = -(slope * abs(dist - mid)) + rule;
+                                    }
+
+                                    if (force != 0.0) {
+                                        velocitySum += delta * (force / dist);
+                                    }
+                                }
+                            }
+
+                            let oldVelocity = velocities.data[i];
+                            let acceleration = (velocitySum / options.forceFactor);
+                            var newVelocity = (oldVelocity + acceleration) * options.frictionFactor;
+                            velocities.data[i] = newVelocity;
+
+                            var newPos = myPos + newVelocity * deltaTime;
+
+                            // With walls
+                            if (options.isWallRepel == 1u) {
+                                let margin = options.particleSize;
+                                if (newPos.x < margin || newPos.x > options.simWidth - margin) {
+                                  newVelocity.x = -newVelocity.x * 1.8;
+                                  newPos.x = clamp(newPos.x, margin, options.simWidth - margin);
+                                }
+                                if (newPos.y < margin || newPos.y > options.simHeight - margin) {
+                                  newVelocity.y = -newVelocity.y * 1.8;
+                                  newPos.y = clamp(newPos.y, margin, options.simHeight - margin);
+                                }
+                            }
+
+                            // Wall Wrapping
+                            else if (options.isWallWrap == 1u) {
+                                if (newPos.x < 0.0) {
+                                    newPos.x += options.simWidth;
+                                } else if (newPos.x > options.simWidth) {
+                                    newPos.x -= options.simWidth;
+                                }
+                                if (newPos.y < 0.0) {
+                                    newPos.y += options.simHeight;
+                                } else if (newPos.y > options.simHeight) {
+                                    newPos.y -= options.simHeight;
+                                }
+                            }
+
+                            velocities.data[i] = newVelocity;
+                            nextPositions.data[i] = newPos;
+                        };
                     `
             })
 
@@ -800,8 +930,8 @@ export default defineComponent({
                     { binding: 4, resource: { buffer: interactionMatrixBuffer } },
                     { binding: 5, resource: { buffer: deltaTimeBuffer } },
                     { binding: 6, resource: { buffer: simOptionsBuffer } },
-                    { binding: 7, resource: { buffer: cellHeadsBuffer } },
-                    { binding: 8, resource: { buffer: particleNextIndicesBuffer } }
+                    // { binding: 7, resource: { buffer: cellHeadsBuffer } },
+                    // { binding: 8, resource: { buffer: particleNextIndicesBuffer } }
                 ]
             })
 
