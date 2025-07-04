@@ -33,6 +33,8 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
 
     const currentMaxRadius = ref<number>(0) // Current max radius for the particles
 
+    const useSpatialHash = ref<boolean>(true) // Use spatial hash for collision detection or brute force
+
     function $reset() {
         sidebarLeftOpen.value = false
         currentMaxRadius.value = 0 // Prevent watcher from not triggering when page is reloaded (!important)
@@ -46,7 +48,7 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
         numParticles, particleSize, numColors,
         is3D, isWallRepel, isWallWrap, screenMultiplierForGridSize,
         minRadiusRange, maxRadiusRange, currentMaxRadius,
-        repel, forceFactor, frictionFactor,
+        repel, forceFactor, frictionFactor, useSpatialHash,
         $reset
     }
 })

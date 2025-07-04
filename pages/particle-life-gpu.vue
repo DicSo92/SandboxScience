@@ -27,6 +27,7 @@
                             <div mb-2>
                                 <WallStateSelection :store="particleLife" />
                             </div>
+                            <ToggleSwitch inactive-label="BruteForce" label="SpatialHash" colorful-label v-model="particleLife.useSpatialHash" />
                         </Collapse>
                         <Collapse label="Force Settings" icon="i-tabler-atom" opened mt-2>
                             <RangeInput input label="Repel Force"
@@ -70,7 +71,12 @@
 import { defineComponent, onMounted, ref } from 'vue';
 import WallStateSelection from "~/components/particle-life/WallStateSelection.vue";
 import MatrixSettings from "~/components/particle-life/MatrixSettings.vue";
-
+import buildHashShaderCode from 'assets/particle-life-gpu/shaders/compute_buildHash.wgsl?raw';
+import clearHashShaderCode from 'assets/particle-life-gpu/shaders/compute_clearHash.wgsl?raw';
+import bruteForceShaderCode from '~/assets/particle-life-gpu/shaders/compute_bruteForce.wgsl?raw';
+import spatialHashShaderCode from '~/assets/particle-life-gpu/shaders/compute_spatialHash.wgsl?raw';
+import vertexShaderCode from '~/assets/particle-life-gpu/shaders/render_vertex.wgsl?raw';
+import fragmentShaderCode from '~/assets/particle-life-gpu/shaders/render_fragment.wgsl?raw';
 export default defineComponent({
     name: 'ParticleLifeGpu',
     components: {MatrixSettings, WallStateSelection},
@@ -105,9 +111,7 @@ export default defineComponent({
 
         // Define the GPU device, pipelines, and bind groups
         let device: GPUDevice
-        let computePipeline: GPUComputePipeline
         let renderPipeline: GPURenderPipeline
-        let computeBindGroup: GPUBindGroup
         let renderBindGroup: GPUBindGroup
 
         // Define the buffers
@@ -148,9 +152,15 @@ export default defineComponent({
 
         let clearHashPipeline: GPUComputePipeline
         let buildHashPipeline: GPUComputePipeline
-
         let clearHashBindGroup: GPUBindGroup
         let buildHashBindGroup: GPUBindGroup
+
+        let bruteForceComputePipeline: GPUComputePipeline
+        let spatialHashComputePipeline: GPUComputePipeline
+        let bruteForceComputeBindGroup: GPUBindGroup
+        let spatialHashComputeBindGroup: GPUBindGroup
+
+        let useSpatialHash: boolean = particleLife.useSpatialHash // Use spatial hash or brute force
 
         let SPATIAL_HASH_TABLE_SIZE = NUM_PARTICLES
 
@@ -269,22 +279,29 @@ export default defineComponent({
 
             const encoder = device.createCommandEncoder()
 
-            // const clearPass = encoder.beginComputePass()
-            // clearPass.setPipeline(clearHashPipeline)
-            // clearPass.setBindGroup(0, clearHashBindGroup)
-            // clearPass.dispatchWorkgroups(Math.ceil(SPATIAL_HASH_TABLE_SIZE / 64))
-            // clearPass.end()
-            // const buildHashPass = encoder.beginComputePass()
-            // buildHashPass.setPipeline(buildHashPipeline)
-            // buildHashPass.setBindGroup(0, buildHashBindGroup)
-            // buildHashPass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
-            // buildHashPass.end()
-
-            const computePass = encoder.beginComputePass()
-            computePass.setPipeline(computePipeline)
-            computePass.setBindGroup(0, computeBindGroup)
-            computePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
-            computePass.end()
+            if (useSpatialHash) {
+                const clearPass = encoder.beginComputePass()
+                clearPass.setPipeline(clearHashPipeline)
+                clearPass.setBindGroup(0, clearHashBindGroup)
+                clearPass.dispatchWorkgroups(Math.ceil(SPATIAL_HASH_TABLE_SIZE / 64))
+                clearPass.end()
+                const buildHashPass = encoder.beginComputePass()
+                buildHashPass.setPipeline(buildHashPipeline)
+                buildHashPass.setBindGroup(0, buildHashBindGroup)
+                buildHashPass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
+                buildHashPass.end()
+                const computePass = encoder.beginComputePass()
+                computePass.setPipeline(spatialHashComputePipeline)
+                computePass.setBindGroup(0, spatialHashComputeBindGroup)
+                computePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
+                computePass.end()
+            } else {
+                const computePass = encoder.beginComputePass()
+                computePass.setPipeline(bruteForceComputePipeline)
+                computePass.setBindGroup(0, bruteForceComputeBindGroup)
+                computePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
+                computePass.end()
+            }
 
             const renderPass = encoder.beginRenderPass({
                 colorAttachments: [
@@ -356,7 +373,6 @@ export default defineComponent({
             new Uint32Array(typeBuffer.getMappedRange()).set(types)
             typeBuffer.unmap()
             // ----------------------------------------------------------------------------------------------
-
             const colors = initColors()
             colorBuffer = device.createBuffer({
                 size: colors.byteLength,
@@ -391,461 +407,29 @@ export default defineComponent({
         }
         // -------------------------------------------------------------------------------------------------------------
         const createPipelines = () => {
-            const clearHashShader = device.createShaderModule({
-                code: `
-                        struct CellHeads {
-                            data: array<atomic<u32>>
-                        };
-                        struct SimOptions {
-                            isWallRepel: u32,
-                            isWallWrap: u32,
-                            forceFactor: f32,
-                            frictionFactor: f32,
-                            repel: f32,
-                            particleSize: f32,
-                            simWidth: f32,
-                            simHeight: f32,
-                            cellSize: f32,
-                            spatialHashTableSize: u32,
-                            numParticles: u32,
-                            numTypes: u32
-                        };
-
-                        @group(0) @binding(0) var<storage, read_write> cellHeads: CellHeads;
-                        @group(0) @binding(1) var<uniform> options: SimOptions;
-
-                        @compute @workgroup_size(64)
-                        fn main(@builtin(global_invocation_id) id: vec3<u32>) {
-                            if (id.x >= options.spatialHashTableSize) { return; }
-                            atomicStore(&cellHeads.data[id.x], 0xFFFFFFFFu);
-                        }
-                    `
-            })
+            const clearHashShader = device.createShaderModule({ code: clearHashShaderCode })
             clearHashPipeline = device.createComputePipeline({
                 layout: 'auto',
-                compute: {
-                    module: clearHashShader,
-                    entryPoint: 'main'
-                }
+                compute: { module: clearHashShader, entryPoint: 'main' }
             })
-
-            const buildHashShader = device.createShaderModule({
-                code: `
-                        struct Positions { data: array<vec2<f32>> };
-                        struct ParticleHashes { data: array<u32> };
-                        struct ParticleNextIndices { data: array<u32> };
-                        struct CellHeads { data: array<atomic<u32>> };
-                        struct SimOptions {
-                            isWallRepel: u32,
-                            isWallWrap: u32,
-                            forceFactor: f32,
-                            frictionFactor: f32,
-                            repel: f32,
-                            particleSize: f32,
-                            simWidth: f32,
-                            simHeight: f32,
-                            cellSize: f32,
-                            spatialHashTableSize: u32,
-                            numParticles: u32,
-                            numTypes: u32
-                        };
-
-                        @group(0) @binding(0) var<storage, read> positions: Positions;
-                        @group(0) @binding(1) var<storage, read_write> particleHashes: ParticleHashes;
-                        @group(0) @binding(2) var<storage, read_write> cellHeads: CellHeads;
-                        @group(0) @binding(3) var<storage, read_write> particleNextIndices: ParticleNextIndices;
-                        @group(0) @binding(4) var<uniform> options: SimOptions;
-
-                        const P1: i32 = 73856093;
-                        const P2: i32 = 19349663;
-
-                        fn get_cell_coords(pos: vec2<f32>) -> vec2<i32> {
-                            return vec2<i32>(floor(pos / options.cellSize));
-                        }
-
-                        fn hash_coords(coords: vec2<i32>) -> u32 {
-                            let h = u32((coords.x * P1) ^ (coords.y * P2));
-                            return h % options.spatialHashTableSize;
-                        }
-
-                        @compute @workgroup_size(64)
-                        fn main(@builtin(global_invocation_id) id: vec3<u32>) {
-                            let i = id.x;
-                            if (i >= options.numParticles) { return; }
-
-                            let pos = positions.data[i];
-                            let cell_coords = get_cell_coords(pos);
-                            let hash = hash_coords(cell_coords);
-
-                            particleHashes.data[i] = hash;
-
-                            let old_head = atomicExchange(&cellHeads.data[hash], i);
-                            particleNextIndices.data[i] = old_head;
-                        }
-                    `
-            })
+            const buildHashShader = device.createShaderModule({ code: buildHashShaderCode })
             buildHashPipeline = device.createComputePipeline({
                 layout: 'auto',
-                compute: {
-                    module: buildHashShader,
-                    entryPoint: 'main'
-                }
+                compute: { module: buildHashShader, entryPoint: 'main' }
+            })
+            const bruteForceShader = device.createShaderModule({ code: bruteForceShaderCode })
+            bruteForceComputePipeline = device.createComputePipeline({
+                layout: 'auto',
+                compute: { module: bruteForceShader, entryPoint: 'main' }
+            })
+            const spatialHashShader = device.createShaderModule({ code: spatialHashShaderCode })
+            spatialHashComputePipeline = device.createComputePipeline({
+                layout: 'auto',
+                compute: { module: spatialHashShader, entryPoint: 'main' }
             })
 
-
-            const computeShaderOld = device.createShaderModule({
-                code: `
-                        struct Particles { data: array<vec2<f32>> };
-                        struct Types { data: array<u32> };
-                        struct InteractionMatrix { data: array<f32> };
-                        struct SimOptions {
-                            isWallRepel: u32,
-                            isWallWrap: u32,
-                            forceFactor: f32,
-                            frictionFactor: f32,
-                            repel: f32,
-                            particleSize: f32,
-                            simWidth: f32,
-                            simHeight: f32,
-                            cellSize: f32,
-                            spatialHashTableSize: u32,
-                            numParticles: u32,
-                            numTypes: u32
-                        };
-
-                        struct ParticleNextIndices { data: array<u32> };
-                        struct CellHeads { data: array<u32> };
-
-                        @group(0) @binding(0) var<storage, read> currentPositions: Particles;
-                        @group(0) @binding(1) var<storage, read_write> nextPositions: Particles;
-                        @group(0) @binding(2) var<storage, read_write> velocities: Particles;
-                        @group(0) @binding(3) var<storage, read> types: Types;
-                        @group(0) @binding(4) var<storage, read> interactions: InteractionMatrix;
-                        @group(0) @binding(5) var<uniform> deltaTime: f32;
-                        @group(0) @binding(6) var<uniform> options: SimOptions;
-                        @group(0) @binding(7) var<storage, read> cellHeads: CellHeads;
-                        @group(0) @binding(8) var<storage, read> particleNextIndices: ParticleNextIndices;
-
-                        const P1: i32 = 73856093;
-                        const P2: i32 = 19349663;
-
-                        fn get_cell_coords(pos: vec2<f32>) -> vec2<i32> {
-                            return vec2<i32>(floor(pos / options.cellSize));
-                        }
-                        fn hash_coords(coords: vec2<i32>) -> u32 {
-                            let h = u32((coords.x * P1) ^ (coords.y * P2));
-                            return h % options.spatialHashTableSize;
-                        }
-
-                        @compute @workgroup_size(64)
-                        fn main(@builtin(global_invocation_id) id: vec3<u32>) {
-                            let i = id.x;
-                            if (i >= options.numParticles) { return; }
-
-                            let GRID_WIDTH: i32 = i32(ceil(options.simWidth / options.cellSize));
-                            let GRID_HEIGHT: i32 = i32(ceil(options.simHeight / options.cellSize));
-
-                            let myPos = currentPositions.data[i];
-                            let myType = types.data[i];
-                            var velocitySum = vec2<f32>(0.0, 0.0);
-
-                            let my_cell_coords = get_cell_coords(myPos);
-
-                            for (var offsetY = -1; offsetY <= 1; offsetY = offsetY + 1) {
-                                for (var offsetX = -1; offsetX <= 1; offsetX = offsetX + 1) {
-                                    var neighbor_cell_coords = my_cell_coords + vec2<i32>(offsetX, offsetY);
-
-                                    if (options.isWallWrap == 1u) {
-                                        if (neighbor_cell_coords.x < 0) { neighbor_cell_coords.x += GRID_WIDTH; }
-                                        if (neighbor_cell_coords.x >= GRID_WIDTH) { neighbor_cell_coords.x -= GRID_WIDTH; }
-                                        if (neighbor_cell_coords.y < 0) { neighbor_cell_coords.y += GRID_HEIGHT; }
-                                        if (neighbor_cell_coords.y >= GRID_HEIGHT) { neighbor_cell_coords.y -= GRID_HEIGHT; }
-                                    }
-
-                                    let hash = hash_coords(neighbor_cell_coords);
-                                    var j = cellHeads.data[hash];
-
-                                    loop {
-                                        if (j == 0xFFFFFFFFu) { // End of the linked list
-                                            break;
-                                        }
-                                        if (i == j) { // Skip self
-                                            j = particleNextIndices.data[j];
-                                            continue;
-                                        }
-
-                                        let otherPos = currentPositions.data[j];
-                                        let otherType = types.data[j];
-                                        var delta = otherPos - myPos;
-
-                                        if (options.isWallWrap == 1u) {
-                                            if (delta.x > options.simWidth / 2.0) { delta.x -= options.simWidth; }
-                                            else if (delta.x < -options.simWidth / 2.0) { delta.x += options.simWidth; }
-                                            if (delta.y > options.simHeight / 2.0) { delta.y -= options.simHeight; }
-                                            else if (delta.y < -options.simHeight / 2.0) { delta.y += options.simHeight; }
-                                        }
-
-                                        let distSquared = dot(delta, delta);
-                                        let index = (myType * options.numTypes + otherType) * 3u;
-                                        let maxR = interactions.data[index + 2];
-
-                                        if (distSquared > 0.0 && distSquared < maxR * maxR) {
-                                            let dist = sqrt(distSquared);
-                                            let rule = interactions.data[index];
-                                            let minR = interactions.data[index + 1];
-                                            var force = 0.0;
-                                            if (dist < minR) {
-                                                force = (options.repel / minR) * dist - options.repel;
-                                                // force = options.repel * ((1.0 / minR) * dist - 1.0);
-                                            } else {
-                                                let mid = (minR + maxR) / 2.0;
-                                                let slope = rule / (mid - minR);
-                                                force = -(slope * abs(dist - mid)) + rule;
-                                            }
-                                            if (force != 0.0) {
-                                                velocitySum += delta * (force / dist);
-                                            }
-                                        }
-
-                                        j = particleNextIndices.data[j]; // Move to the next particle in the linked list
-                                    }
-                                }
-                            }
-
-                            let oldVelocity = velocities.data[i];
-                            let acceleration = (velocitySum / options.forceFactor);
-                            var newVelocity = (oldVelocity + acceleration) * options.frictionFactor;
-
-                            var newPos = myPos + newVelocity * deltaTime;
-
-                            if (options.isWallRepel == 1u) {
-                                let margin = options.particleSize;
-                                if (newPos.x < margin || newPos.x > options.simWidth - margin) {
-                                  newVelocity.x = -newVelocity.x * 1.8;
-                                  newPos.x = clamp(newPos.x, margin, options.simWidth - margin);
-                                }
-                                if (newPos.y < margin || newPos.y > options.simHeight - margin) {
-                                  newVelocity.y = -newVelocity.y * 1.8;
-                                  newPos.y = clamp(newPos.y, margin, options.simHeight - margin);
-                                }
-                            } else if (options.isWallWrap == 1u) {
-                                if (newPos.x < 0.0) { newPos.x += options.simWidth; }
-                                else if (newPos.x > options.simWidth) { newPos.x -= options.simWidth; }
-                                if (newPos.y < 0.0) { newPos.y += options.simHeight; }
-                                else if (newPos.y > options.simHeight) { newPos.y -= options.simHeight; }
-                            }
-
-                            velocities.data[i] = newVelocity;
-                            nextPositions.data[i] = newPos;
-                        }
-                    `
-            })
-
-            const computeShader = device.createShaderModule({
-                code: `
-                        struct Particles {
-                            data: array<vec2<f32>>
-                        };
-
-                        struct Types {
-                            data: array<u32>
-                        };
-
-                        struct InteractionMatrix {
-                          data: array<f32>
-                        };
-
-                        struct SimOptions {
-                            isWallRepel: u32,
-                            isWallWrap: u32,
-                            forceFactor: f32,
-                            frictionFactor: f32,
-                            repel: f32,
-                            particleSize: f32,
-                            simWidth: f32,
-                            simHeight: f32,
-                            cellSize: f32,
-                            spatialHashTableSize: u32,
-                            numParticles: u32,
-                            numTypes: u32
-                        };
-
-                        @group(0) @binding(0) var<storage, read> currentPositions: Particles;
-                        @group(0) @binding(1) var<storage, read_write> nextPositions: Particles;
-                        @group(0) @binding(2) var<storage, read_write> velocities: Particles;
-                        @group(0) @binding(3) var<storage, read> types: Types;
-                        @group(0) @binding(4) var<storage, read> interactions: InteractionMatrix;
-                        @group(0) @binding(5) var<uniform> deltaTime: f32;
-                        @group(0) @binding(6) var<uniform> options: SimOptions;
-
-                        @compute @workgroup_size(64)
-                        fn main(@builtin(global_invocation_id) id: vec3<u32>) {
-                            let i = id.x;
-                            if (i >= options.numParticles) { return; }
-
-                            let myPos = currentPositions.data[i];
-                            let myType = types.data[i];
-                            var velocitySum = vec2<f32>(0.0, 0.0);
-
-                            for (var j = 0u; j < options.numParticles; j = j + 1u) {
-                                if (i == j) { continue; }
-
-                                let otherPos = currentPositions.data[j];
-                                let otherType = types.data[j];
-                                var delta = otherPos - myPos;
-
-                                // Wrap around the canvas edges
-                                if (options.isWallWrap == 1u) {
-                                    if (delta.x > options.simWidth / 2.0) {
-                                        delta.x -= options.simWidth;
-                                    } else if (delta.x < -options.simWidth / 2.0) {
-                                        delta.x += options.simWidth;
-                                    }
-                                    if (delta.y > options.simHeight / 2.0) {
-                                        delta.y -= options.simHeight;
-                                    } else if (delta.y < -options.simHeight / 2.0) {
-                                        delta.y += options.simHeight;
-                                    }
-                                }
-
-                                let distSquared = dot(delta, delta);
-                                let index = (myType * options.numTypes + otherType) * 3u;
-                                let maxR = interactions.data[index + 2];
-                                if (distSquared < maxR * maxR) {
-                                    let dist = sqrt(distSquared);
-
-                                    let rule = interactions.data[index];
-                                    let minR = interactions.data[index + 1];
-                                    var force = 0.0;
-                                    if (dist < minR) {
-                                        force = (1.0 / minR) * dist - 1.0;
-                                    } else {
-                                        let mid = (minR + maxR) / 2.0;
-                                        let slope = rule / (mid - minR);
-                                        force = -(slope * abs(dist - mid)) + rule;
-                                    }
-
-                                    if (force != 0.0) {
-                                        velocitySum += delta * (force / dist);
-                                    }
-                                }
-                            }
-
-                            let oldVelocity = velocities.data[i];
-                            let acceleration = (velocitySum / options.forceFactor);
-                            var newVelocity = (oldVelocity + acceleration) * options.frictionFactor;
-                            velocities.data[i] = newVelocity;
-
-                            var newPos = myPos + newVelocity * deltaTime;
-
-                            // With walls
-                            if (options.isWallRepel == 1u) {
-                                let margin = options.particleSize;
-                                if (newPos.x < margin || newPos.x > options.simWidth - margin) {
-                                  newVelocity.x = -newVelocity.x * 1.8;
-                                  newPos.x = clamp(newPos.x, margin, options.simWidth - margin);
-                                }
-                                if (newPos.y < margin || newPos.y > options.simHeight - margin) {
-                                  newVelocity.y = -newVelocity.y * 1.8;
-                                  newPos.y = clamp(newPos.y, margin, options.simHeight - margin);
-                                }
-                            }
-
-                            // Wall Wrapping
-                            else if (options.isWallWrap == 1u) {
-                                if (newPos.x < 0.0) {
-                                    newPos.x += options.simWidth;
-                                } else if (newPos.x > options.simWidth) {
-                                    newPos.x -= options.simWidth;
-                                }
-                                if (newPos.y < 0.0) {
-                                    newPos.y += options.simHeight;
-                                } else if (newPos.y > options.simHeight) {
-                                    newPos.y -= options.simHeight;
-                                }
-                            }
-
-                            velocities.data[i] = newVelocity;
-                            nextPositions.data[i] = newPos;
-                        };
-                    `
-            })
-
-            const vertexShader = device.createShaderModule({
-                code: `
-                        struct VertexOutput {
-                            @builtin(position) position: vec4f,
-                            @location(0) offset: vec2f,
-                            @location(1) @interpolate(flat) particleType: u32
-                        };
-                        struct SimOptions {
-                            isWallRepel: u32,
-                            isWallWrap: u32,
-                            forceFactor: f32,
-                            frictionFactor: f32,
-                            repel: f32,
-                            particleSize: f32,
-                            simWidth: f32,
-                            simHeight: f32,
-                            cellSize: f32,
-                            spatialHashTableSize: u32,
-                            numParticles: u32,
-                            numTypes: u32
-                        };
-
-                        struct Camera {
-                            center: vec2f,
-                            zoomFactor: f32,
-                            pad: f32 // Padding to ensure the struct size is aligned to 16 bytes (required for uniform buffers)
-                        };
-
-                        @group(0) @binding(1) var<uniform> camera: Camera;
-                        @group(0) @binding(2) var<uniform> options: SimOptions;
-
-                        @vertex
-                        fn main(
-                            @location(0) localPos: vec2f,     // triangleVertexBuffer
-                            @location(1) instancePos: vec2f,  // nextPositionBuffer
-                            @location(2) particleType: u32    // typeBuffer
-                        ) -> VertexOutput {
-                            var out: VertexOutput;
-
-                            let worldPos = instancePos + localPos * options.particleSize;
-                            let pos = (worldPos - camera.center) * camera.zoomFactor;
-
-                            out.position = vec4f(
-                                (pos.x / options.simWidth) * 2.0,
-                                -(pos.y / options.simHeight) * 2.0,
-                                0.0, 1.0
-                            );
-
-                            out.offset = localPos;
-                            out.particleType = particleType;
-
-                            return out;
-                        }
-                      `
-            })
-
-            const fragmentShader = device.createShaderModule({
-                code: `
-                        struct Colors {
-                            data: array<vec3f>
-                        };
-                        @group(0) @binding(0) var<storage, read> colors: Colors;
-
-                        @fragment
-                        fn main(@location(0) offset: vec2f, @location(1) @interpolate(flat) particleType: u32) -> @location(0) vec4f {
-                            let color = colors.data[particleType];
-                            if (length(offset) > 1.0) {
-                                discard;
-                            }
-                            return vec4f(color, 0.95 - smoothstep(0.75, 0.95, length(offset)));
-                        }
-                      `
-            })
-
-
+            const vertexShader = device.createShaderModule({ code: vertexShaderCode });
+            const fragmentShader = device.createShaderModule({ code: fragmentShaderCode })
             renderPipeline = device.createRenderPipeline({
                 layout: 'auto',
                 vertex: {
@@ -891,49 +475,57 @@ export default defineComponent({
                 },
                 primitive: { topology: 'triangle-list' }
             })
-
-            computePipeline = device.createComputePipeline({
-                layout: 'auto',
-                compute: {
-                    module: computeShader,
-                    entryPoint: 'main'
-                }
-            })
         }
         // -------------------------------------------------------------------------------------------------------------
         const createBindGroups = () => {
-            clearHashBindGroup = device.createBindGroup({
-                layout: clearHashPipeline.getBindGroupLayout(0),
-                entries: [
-                    { binding: 0, resource: { buffer: cellHeadsBuffer } },
-                    { binding: 1, resource: { buffer: simOptionsBuffer } }
-                ]
-            })
-            buildHashBindGroup = device.createBindGroup({
-                layout: buildHashPipeline.getBindGroupLayout(0),
-                entries: [
-                    { binding: 0, resource: { buffer: currentPositionBuffer } },
-                    { binding: 1, resource: { buffer: particleHashesBuffer } },
-                    { binding: 2, resource: { buffer: cellHeadsBuffer } },
-                    { binding: 3, resource: { buffer: particleNextIndicesBuffer } },
-                    { binding: 4, resource: { buffer: simOptionsBuffer } }
-                ]
-            })
+            if (useSpatialHash) {
+                clearHashBindGroup = device.createBindGroup({
+                    layout: clearHashPipeline.getBindGroupLayout(0),
+                    entries: [
+                        { binding: 0, resource: { buffer: cellHeadsBuffer } },
+                        { binding: 1, resource: { buffer: simOptionsBuffer } }
+                    ]
+                })
+                buildHashBindGroup = device.createBindGroup({
+                    layout: buildHashPipeline.getBindGroupLayout(0),
+                    entries: [
+                        { binding: 0, resource: { buffer: currentPositionBuffer } },
+                        { binding: 1, resource: { buffer: particleHashesBuffer } },
+                        { binding: 2, resource: { buffer: cellHeadsBuffer } },
+                        { binding: 3, resource: { buffer: particleNextIndicesBuffer } },
+                        { binding: 4, resource: { buffer: simOptionsBuffer } }
+                    ]
+                })
+                spatialHashComputeBindGroup = device.createBindGroup({
+                    layout: spatialHashComputePipeline.getBindGroupLayout(0),
+                    entries: [
+                        { binding: 0, resource: { buffer: currentPositionBuffer } },
+                        { binding: 1, resource: { buffer: nextPositionBuffer } },
+                        { binding: 2, resource: { buffer: velocityBuffer } },
+                        { binding: 3, resource: { buffer: typeBuffer } },
+                        { binding: 4, resource: { buffer: interactionMatrixBuffer } },
+                        { binding: 5, resource: { buffer: deltaTimeBuffer } },
+                        { binding: 6, resource: { buffer: simOptionsBuffer } },
+                        { binding: 7, resource: { buffer: cellHeadsBuffer } },
+                        { binding: 8, resource: { buffer: particleNextIndicesBuffer } }
+                    ]
+                })
+            }
+            else {
+                bruteForceComputeBindGroup = device.createBindGroup({
+                    layout: bruteForceComputePipeline.getBindGroupLayout(0),
+                    entries: [
+                        { binding: 0, resource: { buffer: currentPositionBuffer } },
+                        { binding: 1, resource: { buffer: nextPositionBuffer } },
+                        { binding: 2, resource: { buffer: velocityBuffer } },
+                        { binding: 3, resource: { buffer: typeBuffer } },
+                        { binding: 4, resource: { buffer: interactionMatrixBuffer } },
+                        { binding: 5, resource: { buffer: deltaTimeBuffer } },
+                        { binding: 6, resource: { buffer: simOptionsBuffer } },
+                    ]
+                })
+            }
 
-            computeBindGroup = device.createBindGroup({
-                layout: computePipeline.getBindGroupLayout(0),
-                entries: [
-                    { binding: 0, resource: { buffer: currentPositionBuffer } },
-                    { binding: 1, resource: { buffer: nextPositionBuffer } },
-                    { binding: 2, resource: { buffer: velocityBuffer } },
-                    { binding: 3, resource: { buffer: typeBuffer } },
-                    { binding: 4, resource: { buffer: interactionMatrixBuffer } },
-                    { binding: 5, resource: { buffer: deltaTimeBuffer } },
-                    { binding: 6, resource: { buffer: simOptionsBuffer } },
-                    // { binding: 7, resource: { buffer: cellHeadsBuffer } },
-                    // { binding: 8, resource: { buffer: particleNextIndicesBuffer } }
-                ]
-            })
 
             renderBindGroup = device.createBindGroup({
                 layout: renderPipeline.getBindGroupLayout(0),
@@ -1102,6 +694,7 @@ export default defineComponent({
                 updateSimOptionsBuffer()
             })
         }
+        watch(() => particleLife.useSpatialHash, (value: boolean) => useSpatialHash = value)
         watchAndDraw(() => particleLife.particleSize, (value: number) => PARTICLE_SIZE = value)
         watchAndDraw(() => particleLife.repel, (value: number) => repel = value)
         watchAndDraw(() => particleLife.forceFactor, (value: number) => forceFactor = value)
