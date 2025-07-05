@@ -1,6 +1,4 @@
-struct CellHeads {
-    data: array<atomic<u32>>
-};
+struct CellHeads { data: array<atomic<u32>> };
 struct SimOptions {
     isWallRepel: u32,
     isWallWrap: u32,

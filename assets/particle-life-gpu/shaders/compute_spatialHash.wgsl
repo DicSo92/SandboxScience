@@ -1,6 +1,8 @@
 struct Particles { data: array<vec2<f32>> };
 struct Types { data: array<u32> };
 struct InteractionMatrix { data: array<f32> };
+struct CellHeads { data: array<u32> };
+struct ParticleNextIndices { data: array<u32> };
 struct SimOptions {
     isWallRepel: u32,
     isWallWrap: u32,
@@ -16,19 +18,6 @@ struct SimOptions {
     numTypes: u32
 };
 
-struct ParticleNextIndices { data: array<u32> };
-struct CellHeads { data: array<u32> };
-
-@group(0) @binding(0) var<storage, read> currentPositions: Particles;
-@group(0) @binding(1) var<storage, read_write> nextPositions: Particles;
-@group(0) @binding(2) var<storage, read_write> velocities: Particles;
-@group(0) @binding(3) var<storage, read> types: Types;
-@group(0) @binding(4) var<storage, read> interactions: InteractionMatrix;
-@group(0) @binding(5) var<uniform> deltaTime: f32;
-@group(0) @binding(6) var<uniform> options: SimOptions;
-@group(0) @binding(7) var<storage, read> cellHeads: CellHeads;
-@group(0) @binding(8) var<storage, read> particleNextIndices: ParticleNextIndices;
-
 const P1: i32 = 73856093;
 const P2: i32 = 19349663;
 
@@ -39,6 +28,16 @@ fn hash_coords(coords: vec2<i32>) -> u32 {
     let h = u32((coords.x * P1) ^ (coords.y * P2));
     return h % options.spatialHashTableSize;
 }
+
+@group(0) @binding(0) var<storage, read> currentPositions: Particles;
+@group(0) @binding(1) var<storage, read_write> nextPositions: Particles;
+@group(0) @binding(2) var<storage, read_write> velocities: Particles;
+@group(0) @binding(3) var<storage, read> types: Types;
+@group(0) @binding(4) var<storage, read> interactions: InteractionMatrix;
+@group(0) @binding(5) var<uniform> deltaTime: f32;
+@group(0) @binding(6) var<uniform> options: SimOptions;
+@group(0) @binding(7) var<storage, read> cellHeads: CellHeads;
+@group(0) @binding(8) var<storage, read> particleNextIndices: ParticleNextIndices;
 
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {

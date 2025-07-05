@@ -1,15 +1,6 @@
-struct Particles {
-    data: array<vec2<f32>>
-};
-
-struct Types {
-    data: array<u32>
-};
-
-struct InteractionMatrix {
-  data: array<f32>
-};
-
+struct Particles { data: array<vec2<f32>> };
+struct Types { data: array<u32> };
+struct InteractionMatrix { data: array<f32> };
 struct SimOptions {
     isWallRepel: u32,
     isWallWrap: u32,
@@ -73,7 +64,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
             let minR = interactions.data[index + 1];
             var force = 0.0;
             if (dist < minR) {
-                force = (1.0 / minR) * dist - 1.0;
+                force = (options.repel / minR) * dist - options.repel;
             } else {
                 let mid = (minR + maxR) / 2.0;
                 let slope = rule / (mid - minR);

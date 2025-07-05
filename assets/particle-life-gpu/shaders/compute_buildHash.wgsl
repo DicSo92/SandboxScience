@@ -17,23 +17,22 @@ struct SimOptions {
     numTypes: u32
 };
 
-@group(0) @binding(0) var<storage, read> positions: Positions;
-@group(0) @binding(1) var<storage, read_write> particleHashes: ParticleHashes;
-@group(0) @binding(2) var<storage, read_write> cellHeads: CellHeads;
-@group(0) @binding(3) var<storage, read_write> particleNextIndices: ParticleNextIndices;
-@group(0) @binding(4) var<uniform> options: SimOptions;
-
 const P1: i32 = 73856093;
 const P2: i32 = 19349663;
 
 fn get_cell_coords(pos: vec2<f32>) -> vec2<i32> {
     return vec2<i32>(floor(pos / options.cellSize));
 }
-
 fn hash_coords(coords: vec2<i32>) -> u32 {
     let h = u32((coords.x * P1) ^ (coords.y * P2));
     return h % options.spatialHashTableSize;
 }
+
+@group(0) @binding(0) var<storage, read> positions: Positions;
+@group(0) @binding(1) var<storage, read_write> particleHashes: ParticleHashes;
+@group(0) @binding(2) var<storage, read_write> cellHeads: CellHeads;
+@group(0) @binding(3) var<storage, read_write> particleNextIndices: ParticleNextIndices;
+@group(0) @binding(4) var<uniform> options: SimOptions;
 
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {

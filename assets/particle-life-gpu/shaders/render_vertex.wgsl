@@ -17,7 +17,6 @@ struct SimOptions {
     numParticles: u32,
     numTypes: u32
 };
-
 struct Camera {
     center: vec2f,
     zoomFactor: f32,

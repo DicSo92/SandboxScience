@@ -33,7 +33,7 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
 
     const currentMaxRadius = ref<number>(0) // Current max radius for the particles
 
-    const useSpatialHash = ref<boolean>(true) // Use spatial hash for collision detection or brute force
+    const useSpatialHash = ref<boolean>(false) // Use spatial hash for collision detection or brute force
 
     function $reset() {
         sidebarLeftOpen.value = false

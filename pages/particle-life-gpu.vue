@@ -85,19 +85,62 @@ export default defineComponent({
             layout: 'life',
             hideNavBar: true
         })
-
-        const particleLife = useParticleLifeGPUStore()
-
         // Define refs and variables
+        const particleLife = useParticleLifeGPUStore()
+        const fps = useFps()
         const canvasRef = ref<HTMLCanvasElement | null>(null)
         let ctx: GPUCanvasContext
+        let animationFrameId: number | null = null
+        let lastFrameTime = performance.now()
         let CANVAS_WIDTH: number = 0
         let CANVAS_HEIGHT: number = 0
         let SIM_WIDTH: number = 0
         let SIM_HEIGHT: number = 0
         let CELL_SIZE: number = 0
-        let animationFrameId: number | null = null
-        let lastFrameTime = performance.now()
+        let SPATIAL_HASH_TABLE_SIZE: number = 0
+
+        // Define color list and rules matrix for the particles
+        let rulesMatrix: number[][] = [] // Rules matrix for each color
+        let maxRadiusMatrix: number[][] = [] // Max radius matrix for each color
+        let minRadiusMatrix: number[][] = [] // Min radius matrix for each color
+        let currentMaxRadius: number = 0 // Max value between all colors max radius (for cell size)
+
+        // Define the properties for dragging and zooming
+        let zoomFactor = 1.0
+        let cameraCenter = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 }
+        let isDragging: boolean = false // Flag to check if the mouse is being dragged
+        let lastPointerX: number = 0 // For dragging
+        let lastPointerY: number = 0 // For dragging
+        let pointerX: number = 0 // Pointer X
+        let pointerY: number = 0 // Pointer Y
+
+        // Define the GPU device, pipelines, and bind groups
+        let device: GPUDevice
+        let renderPipeline: GPURenderPipeline
+        let clearHashPipeline: GPUComputePipeline
+        let buildHashPipeline: GPUComputePipeline
+        let bruteForceComputePipeline: GPUComputePipeline
+        let spatialHashComputePipeline: GPUComputePipeline
+        let renderBindGroup: GPUBindGroup
+        let clearHashBindGroup: GPUBindGroup
+        let buildHashBindGroup: GPUBindGroup
+        let bruteForceComputeBindGroup: GPUBindGroup
+        let spatialHashComputeBindGroup: GPUBindGroup
+
+        // Define the buffers
+        let currentPositionBuffer: GPUBuffer
+        let nextPositionBuffer: GPUBuffer
+        let velocityBuffer: GPUBuffer
+        let typeBuffer: GPUBuffer
+        let colorBuffer: GPUBuffer
+        let deltaTimeBuffer: GPUBuffer
+        let triangleVertexBuffer: GPUBuffer
+        let cameraBuffer: GPUBuffer
+        let interactionMatrixBuffer: GPUBuffer
+        let simOptionsBuffer: GPUBuffer
+        let particleHashesBuffer: GPUBuffer
+        let cellHeadsBuffer: GPUBuffer
+        let particleNextIndicesBuffer: GPUBuffer
 
         // Define variables for the simulation
         let repel: number = particleLife.repel // Repel force between particles
@@ -108,64 +151,7 @@ export default defineComponent({
         let NUM_TYPES: number = particleLife.numColors
         let isWallRepel: boolean = particleLife.isWallRepel // Enable walls X and Y for the particles
         let isWallWrap: boolean = particleLife.isWallWrap // Enable wrapping for the particles
-
-        // Define the GPU device, pipelines, and bind groups
-        let device: GPUDevice
-        let renderPipeline: GPURenderPipeline
-        let renderBindGroup: GPUBindGroup
-
-        // Define the buffers
-        let positionBufferA: GPUBuffer
-        let positionBufferB: GPUBuffer
-        let currentPositionBuffer: GPUBuffer
-        let nextPositionBuffer: GPUBuffer
-        let velocityBuffer: GPUBuffer
-        let typeBuffer: GPUBuffer
-        let colorBuffer: GPUBuffer
-        let rulesMatrixBuffer: GPUBuffer
-        let minRangeBuffer: GPUBuffer
-        let maxRangeBuffer: GPUBuffer
-        let deltaTimeBuffer: GPUBuffer
-        let triangleVertexBuffer: GPUBuffer
-        let cameraBuffer: GPUBuffer
-        let interactionMatrixBuffer: GPUBuffer
-        let simOptionsBuffer: GPUBuffer // Buffer for simulation options
-
-        // Define the properties for dragging and zooming
-        let zoomFactor = 1.0
-        let cameraCenter = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 }
-        let isDragging: boolean = false // Flag to check if the mouse is being dragged
-        let lastPointerX: number = 0 // For dragging
-        let lastPointerY: number = 0 // For dragging
-        let pointerX: number = 0 // Pointer X
-        let pointerY: number = 0 // Pointer Y
-        let currentMaxRadius: number // Max value between all colors max radius (for cell size)
-
-        // Define color list and rules matrix for the particles
-        let rulesMatrix: number[][] = [] // Rules matrix for each color
-        let maxRadiusMatrix: number[][] = [] // Max radius matrix for each color
-        let minRadiusMatrix: number[][] = [] // Min radius matrix for each color
-
-        let particleHashesBuffer: GPUBuffer
-        let cellHeadsBuffer: GPUBuffer
-        let particleNextIndicesBuffer: GPUBuffer
-
-        let clearHashPipeline: GPUComputePipeline
-        let buildHashPipeline: GPUComputePipeline
-        let clearHashBindGroup: GPUBindGroup
-        let buildHashBindGroup: GPUBindGroup
-
-        let bruteForceComputePipeline: GPUComputePipeline
-        let spatialHashComputePipeline: GPUComputePipeline
-        let bruteForceComputeBindGroup: GPUBindGroup
-        let spatialHashComputeBindGroup: GPUBindGroup
-
         let useSpatialHash: boolean = particleLife.useSpatialHash // Use spatial hash or brute force
-
-        let SPATIAL_HASH_TABLE_SIZE = NUM_PARTICLES
-
-
-        const fps = useFps()
 
         onMounted(() => {
             initWebGPU()
@@ -196,14 +182,6 @@ export default defineComponent({
                 } else { // Zoom out
                     handleZoom(-1, pointerX, pointerY)
                 }
-            })
-
-            window.addEventListener('keydown', e => {
-                const step = 20 * zoomFactor;
-                if (e.key === 'ArrowUp') cameraCenter.y -= step
-                if (e.key === 'ArrowDown') cameraCenter.y += step
-                if (e.key === 'ArrowLeft') cameraCenter.x -= step
-                if (e.key === 'ArrowRight') cameraCenter.x += step
             })
         })
         // -------------------------------------------------------------------------------------------------------------
@@ -243,9 +221,7 @@ export default defineComponent({
         const initWebGPU = async () => {
             const adapter = await navigator.gpu.requestAdapter()
             if (!adapter) throw new Error("WebGPU adapter not found")
-
             device = await adapter.requestDevice()
-
             ctx = canvasRef.value!.getContext('webgpu')!
             ctx.configure({
                 device,
@@ -265,10 +241,11 @@ export default defineComponent({
 
             currentMaxRadius = particleLife.currentMaxRadius // Ensure this is set before creating buffers
             CELL_SIZE = currentMaxRadius // Ensure CELL_SIZE is set before creating buffers
+            SPATIAL_HASH_TABLE_SIZE = NUM_PARTICLES
 
             createBuffers()
             createPipelines()
-            createBindGroups()
+            // createBindGroups()
             animationFrameId = requestAnimationFrame(frame)
         }
         const frame = () => {
@@ -277,6 +254,7 @@ export default defineComponent({
             lastFrameTime = now
             device.queue.writeBuffer(deltaTimeBuffer, 0, new Float32Array([deltaTime]))
 
+            createBindGroups()
             const encoder = device.createCommandEncoder()
 
             if (useSpatialHash) {
@@ -303,6 +281,9 @@ export default defineComponent({
                 computePass.end()
             }
 
+            device.queue.writeBuffer(cameraBuffer, 0, new Float32Array([
+                cameraCenter.x, cameraCenter.y, zoomFactor, 0
+            ]))
             const renderPass = encoder.beginRenderPass({
                 colorAttachments: [
                     {
@@ -318,11 +299,6 @@ export default defineComponent({
             renderPass.setVertexBuffer(0, triangleVertexBuffer)
             renderPass.setVertexBuffer(1, nextPositionBuffer)
             renderPass.setVertexBuffer(2, typeBuffer)
-
-            device.queue.writeBuffer(cameraBuffer, 0, new Float32Array([
-                cameraCenter.x, cameraCenter.y, zoomFactor, 0
-            ]))
-
             renderPass.draw(6, NUM_PARTICLES)
             renderPass.end()
 
@@ -330,7 +306,6 @@ export default defineComponent({
 
             // Swap position buffers
             ;[currentPositionBuffer, nextPositionBuffer] = [nextPositionBuffer, currentPositionBuffer]
-            createBindGroups()
 
             animationFrameId = requestAnimationFrame(frame)
         }
@@ -343,19 +318,18 @@ export default defineComponent({
             // ----------------------------------------------------------------------------------------------
             const { positions, velocities, types } = initParticles()
 
-            positionBufferA = device.createBuffer({
+            currentPositionBuffer = device.createBuffer({
                 size: positions.byteLength,
                 usage: GPUBufferUsage.STORAGE | GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
                 mappedAtCreation: true
             })
-            new Float32Array(positionBufferA.getMappedRange()).set(positions)
-            positionBufferA.unmap()
-            positionBufferB = device.createBuffer({
+            new Float32Array(currentPositionBuffer.getMappedRange()).set(positions)
+            currentPositionBuffer.unmap()
+
+            nextPositionBuffer = device.createBuffer({
                 size: positions.byteLength,
                 usage: GPUBufferUsage.STORAGE | GPUBufferUsage.VERTEX,
             })
-            currentPositionBuffer = positionBufferA
-            nextPositionBuffer = positionBufferB
 
             velocityBuffer = device.createBuffer({
                 size: velocities.byteLength,
@@ -510,8 +484,7 @@ export default defineComponent({
                         { binding: 8, resource: { buffer: particleNextIndicesBuffer } }
                     ]
                 })
-            }
-            else {
+            } else {
                 bruteForceComputeBindGroup = device.createBindGroup({
                     layout: bruteForceComputePipeline.getBindGroupLayout(0),
                     entries: [
@@ -526,7 +499,6 @@ export default defineComponent({
                 })
             }
 
-
             renderBindGroup = device.createBindGroup({
                 layout: renderPipeline.getBindGroupLayout(0),
                 entries: [
@@ -537,9 +509,69 @@ export default defineComponent({
             })
         }
         // -------------------------------------------------------------------------------------------------------------
+        function updateSimOptionsBuffer() {
+            const simOptionsData = new ArrayBuffer(48)
+            const simOptionsView = new DataView(simOptionsData)
+            simOptionsView.setUint32(0, particleLife.isWallRepel ? 1 : 0, true)
+            simOptionsView.setUint32(4, particleLife.isWallWrap ? 1 : 0, true)
+            simOptionsView.setFloat32(8, particleLife.forceFactor, true)
+            simOptionsView.setFloat32(12, particleLife.frictionFactor, true)
+            simOptionsView.setFloat32(16, particleLife.repel, true)
+            simOptionsView.setFloat32(20, particleLife.particleSize, true)
+            simOptionsView.setFloat32(24, SIM_WIDTH, true)
+            simOptionsView.setFloat32(28, SIM_HEIGHT, true)
+            simOptionsView.setFloat32(32, CELL_SIZE, true)
+            simOptionsView.setUint32(36, SPATIAL_HASH_TABLE_SIZE, true)
+            simOptionsView.setUint32(40, NUM_PARTICLES, true)
+            simOptionsView.setUint32(44, NUM_TYPES, true)
+
+            if (!simOptionsBuffer) {
+                simOptionsBuffer = device.createBuffer({
+                    size: simOptionsData.byteLength,
+                    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+                })
+            }
+
+            device.queue.writeBuffer(simOptionsBuffer, 0, simOptionsData)
+        }
+
+        function updateInteractionMatrixBuffer() {
+            const interactionData = new Float32Array(NUM_TYPES * NUM_TYPES * 3);
+            for (let a = 0; a < NUM_TYPES; a++) {
+                for (let b = 0; b < NUM_TYPES; b++) {
+                    const index = (a * NUM_TYPES + b) * 3;
+                    interactionData[index] = rulesMatrix[a][b];
+                    interactionData[index + 1] = minRadiusMatrix[a][b];
+                    interactionData[index + 2] = maxRadiusMatrix[a][b];
+                }
+            }
+
+            if (!interactionMatrixBuffer) {
+                interactionMatrixBuffer = device.createBuffer({
+                    size: interactionData.byteLength,
+                    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+                })
+            }
+
+            device.queue.writeBuffer(interactionMatrixBuffer, 0, interactionData)
+        }
+        function updateSpatialHashBuffers() {
+            particleHashesBuffer = device.createBuffer({
+                size: NUM_PARTICLES * 4, // u32
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+            })
+            cellHeadsBuffer = device.createBuffer({
+                size: SPATIAL_HASH_TABLE_SIZE * 4, // u32
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+            })
+            particleNextIndicesBuffer = device.createBuffer({
+                size: NUM_PARTICLES * 4, // u32
+                usage: GPUBufferUsage.STORAGE,
+            })
+        }
+        // -------------------------------------------------------------------------------------------------------------
         function initColors() {
             const colors = new Float32Array(NUM_TYPES * 3)
-
             for (let i = 0; i < NUM_TYPES; ++i) {
                 colors[i * 3] = Math.random()
                 colors[i * 3 + 1] = Math.random()
@@ -551,7 +583,6 @@ export default defineComponent({
             const positions = new Float32Array(NUM_PARTICLES * 2)
             const velocities = new Float32Array(NUM_PARTICLES * 2)
             const types = new Uint32Array(NUM_PARTICLES)
-
             for (let i = 0; i < NUM_PARTICLES; i++) {
                 positions[2 * i] = Math.random() * SIM_WIDTH
                 positions[2 * i + 1] = Math.random() * SIM_HEIGHT
@@ -612,82 +643,9 @@ export default defineComponent({
             cameraCenter = { x: SIM_WIDTH / 2, y: SIM_HEIGHT / 2 }
         }
         // -------------------------------------------------------------------------------------------------------------
-        function updateSimOptionsBuffer() {
-            const simOptionsData = new ArrayBuffer(48)
-            const simOptionsView = new DataView(simOptionsData)
-            simOptionsView.setUint32(0, particleLife.isWallRepel ? 1 : 0, true)
-            simOptionsView.setUint32(4, particleLife.isWallWrap ? 1 : 0, true)
-            simOptionsView.setFloat32(8, particleLife.forceFactor, true)
-            simOptionsView.setFloat32(12, particleLife.frictionFactor, true)
-            simOptionsView.setFloat32(16, particleLife.repel, true)
-            simOptionsView.setFloat32(20, particleLife.particleSize, true)
-            simOptionsView.setFloat32(24, SIM_WIDTH, true)
-            simOptionsView.setFloat32(28, SIM_HEIGHT, true)
-            simOptionsView.setFloat32(32, CELL_SIZE, true)
-            simOptionsView.setUint32(36, SPATIAL_HASH_TABLE_SIZE, true)
-            simOptionsView.setUint32(40, NUM_PARTICLES, true)
-            simOptionsView.setUint32(44, NUM_TYPES, true)
-
-
-            if (!simOptionsBuffer) {
-                simOptionsBuffer = device.createBuffer({
-                    size: simOptionsData.byteLength,
-                    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-                })
-            }
-
-            device.queue.writeBuffer(simOptionsBuffer, 0, simOptionsData)
-        }
-
-        function updateInteractionMatrixBuffer() {
-            // const rules = new Float32Array(NUM_TYPES * NUM_TYPES)
-            // const minRanges = new Float32Array(NUM_TYPES * NUM_TYPES)
-            // const maxRanges = new Float32Array(NUM_TYPES * NUM_TYPES)
-            // for (let a = 0; a < NUM_TYPES; a++) {
-            //     for (let b = 0; b < NUM_TYPES; b++) {
-            //         rules[a * NUM_TYPES + b] = rulesMatrix[a][b]
-            //         minRanges[a * NUM_TYPES + b] = minRadiusMatrix[a][b]
-            //         maxRanges[a * NUM_TYPES + b] = maxRadiusMatrix[a][b]
-            //     }
-            // }
-
-            const interactionData = new Float32Array(NUM_TYPES * NUM_TYPES * 3);
-            for (let a = 0; a < NUM_TYPES; a++) {
-                for (let b = 0; b < NUM_TYPES; b++) {
-                    const index = (a * NUM_TYPES + b) * 3;
-                    interactionData[index] = rulesMatrix[a][b];
-                    interactionData[index + 1] = minRadiusMatrix[a][b];
-                    interactionData[index + 2] = maxRadiusMatrix[a][b];
-                }
-            }
-
-            if (!interactionMatrixBuffer) {
-                interactionMatrixBuffer = device.createBuffer({
-                    size: interactionData.byteLength,
-                    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
-                })
-            }
-
-            device.queue.writeBuffer(interactionMatrixBuffer, 0, interactionData)
-        }
-        function updateSpatialHashBuffers() {
-            particleHashesBuffer = device.createBuffer({
-                size: NUM_PARTICLES * 4, // u32
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-            })
-            cellHeadsBuffer = device.createBuffer({
-                size: SPATIAL_HASH_TABLE_SIZE * 4, // u32
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-            })
-            particleNextIndicesBuffer = device.createBuffer({
-                size: NUM_PARTICLES * 4, // u32
-                usage: GPUBufferUsage.STORAGE,
-            })
-        }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
-        // -------------------------------------------------------------------------------------------------------------
-        function watchAndDraw(effect: any, callback: any) {
+        function watchAndUpdate(effect: any, callback: any) {
             watch(effect, (value) => {
                 callback(value)
                 // if (!isRunning) simpleDrawParticles()
@@ -695,22 +653,22 @@ export default defineComponent({
             })
         }
         watch(() => particleLife.useSpatialHash, (value: boolean) => useSpatialHash = value)
-        watchAndDraw(() => particleLife.particleSize, (value: number) => PARTICLE_SIZE = value)
-        watchAndDraw(() => particleLife.repel, (value: number) => repel = value)
-        watchAndDraw(() => particleLife.forceFactor, (value: number) => forceFactor = value)
-        watchAndDraw(() => particleLife.frictionFactor, (value: number) => frictionFactor = value)
-        watchAndDraw(() => particleLife.currentMaxRadius, (value: number) => {
+        watchAndUpdate(() => particleLife.particleSize, (value: number) => PARTICLE_SIZE = value)
+        watchAndUpdate(() => particleLife.repel, (value: number) => repel = value)
+        watchAndUpdate(() => particleLife.forceFactor, (value: number) => forceFactor = value)
+        watchAndUpdate(() => particleLife.frictionFactor, (value: number) => frictionFactor = value)
+        watchAndUpdate(() => particleLife.currentMaxRadius, (value: number) => {
             currentMaxRadius = value
             CELL_SIZE = currentMaxRadius
             if (isWallWrap) {
                 setSimSizeWhenWrapped()
             }
         })
-        watchAndDraw(() => particleLife.isWallRepel, (value: boolean) => {
+        watchAndUpdate(() => particleLife.isWallRepel, (value: boolean) => {
             isWallRepel = value
             if (isWallRepel) particleLife.isWallWrap = false
         })
-        watchAndDraw(() => particleLife.isWallWrap, (value: boolean) => {
+        watchAndUpdate(() => particleLife.isWallWrap, (value: boolean) => {
             isWallWrap = value
             if (isWallWrap) {
                 particleLife.isWallRepel = false
