@@ -19,7 +19,7 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
 
     const is3D = ref<boolean>(true) // Enable 3D Algorithm
     const isWallRepel = ref<boolean>(false) // Enable walls X and Y for the particles
-    const isWallWrap = ref<boolean>(false) // Enable wrapped particles
+    const isWallWrap = ref<boolean>(true) // Enable wrapped particles
     const screenMultiplierForGridSize = ref<number>(3) // Multiplier for the grid size (1 means the grid will be the same size as the screen)
 
     // Define force properties
@@ -28,12 +28,12 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
     const frictionFactor = ref<number>(0.6) // Slow down the particles (0 to 1, where 1 is no friction)
 
     // Define properties for randomizing radius matrix
-    const minRadiusRange = ref<number[]>([30, 60]) // Range for the random minRadius of each color
-    const maxRadiusRange = ref<number[]>([80, 130]) // Range for the random maxRadius of each color
+    const minRadiusRange = ref<number[]>([25, 40]) // Range for the random minRadius of each color
+    const maxRadiusRange = ref<number[]>([60, 80]) // Range for the random maxRadius of each color
 
     const currentMaxRadius = ref<number>(0) // Current max radius for the particles
 
-    const useSpatialHash = ref<boolean>(false) // Use spatial hash for collision detection or brute force
+    const useSpatialHash = ref<boolean>(true) // Use spatial hash for collision detection or brute force
 
     function $reset() {
         sidebarLeftOpen.value = false

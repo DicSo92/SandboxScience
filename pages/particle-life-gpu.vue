@@ -228,12 +228,7 @@ export default defineComponent({
                 format: navigator.gpu.getPreferredCanvasFormat(),
                 alphaMode: 'opaque'
             })
-
             handleResize()
-            SIM_WIDTH = CANVAS_WIDTH
-            SIM_HEIGHT = CANVAS_HEIGHT
-            if (isWallWrap) setSimSizeWhenWrapped()
-            centerView()
 
             rulesMatrix = makeRandomRulesMatrix()
             minRadiusMatrix = makeRandomMinRadiusMatrix()
@@ -242,6 +237,11 @@ export default defineComponent({
             currentMaxRadius = particleLife.currentMaxRadius // Ensure this is set before creating buffers
             CELL_SIZE = currentMaxRadius // Ensure CELL_SIZE is set before creating buffers
             SPATIAL_HASH_TABLE_SIZE = NUM_PARTICLES
+
+            SIM_WIDTH = CANVAS_WIDTH
+            SIM_HEIGHT = CANVAS_HEIGHT
+            if (isWallWrap) setSimSizeWhenWrapped()
+            centerView()
 
             createBuffers()
             createPipelines()
