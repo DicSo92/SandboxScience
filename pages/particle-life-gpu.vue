@@ -152,6 +152,7 @@ export default defineComponent({
         let isWallRepel: boolean = particleLife.isWallRepel // Enable walls X and Y for the particles
         let isWallWrap: boolean = particleLife.isWallWrap // Enable wrapping for the particles
         let useSpatialHash: boolean = particleLife.useSpatialHash // Use spatial hash or brute force
+        let useSortSpatialHash: boolean = particleLife.useSortSpatialHash
 
         onMounted(() => {
             initWebGPU()
@@ -257,29 +258,9 @@ export default defineComponent({
             createBindGroups()
             const encoder = device.createCommandEncoder()
 
-            if (useSpatialHash) {
-                const clearPass = encoder.beginComputePass()
-                clearPass.setPipeline(clearHashPipeline)
-                clearPass.setBindGroup(0, clearHashBindGroup)
-                clearPass.dispatchWorkgroups(Math.ceil(SPATIAL_HASH_TABLE_SIZE / 64))
-                clearPass.end()
-                const buildHashPass = encoder.beginComputePass()
-                buildHashPass.setPipeline(buildHashPipeline)
-                buildHashPass.setBindGroup(0, buildHashBindGroup)
-                buildHashPass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
-                buildHashPass.end()
-                const computePass = encoder.beginComputePass()
-                computePass.setPipeline(spatialHashComputePipeline)
-                computePass.setBindGroup(0, spatialHashComputeBindGroup)
-                computePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
-                computePass.end()
-            } else {
-                const computePass = encoder.beginComputePass()
-                computePass.setPipeline(bruteForceComputePipeline)
-                computePass.setBindGroup(0, bruteForceComputeBindGroup)
-                computePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
-                computePass.end()
-            }
+            if (useSpatialHash) computeSpatialHash(encoder)
+            else if (useSortSpatialHash) computeSortSpatialHash(encoder)
+            else computeBruteForce(encoder)
 
             device.queue.writeBuffer(cameraBuffer, 0, new Float32Array([
                 cameraCenter.x, cameraCenter.y, zoomFactor, 0
@@ -308,6 +289,33 @@ export default defineComponent({
             ;[currentPositionBuffer, nextPositionBuffer] = [nextPositionBuffer, currentPositionBuffer]
 
             animationFrameId = requestAnimationFrame(frame)
+        }
+        const computeSpatialHash = (encoder: GPUCommandEncoder) => {
+            const clearPass = encoder.beginComputePass()
+            clearPass.setPipeline(clearHashPipeline)
+            clearPass.setBindGroup(0, clearHashBindGroup)
+            clearPass.dispatchWorkgroups(Math.ceil(SPATIAL_HASH_TABLE_SIZE / 64))
+            clearPass.end()
+            const buildHashPass = encoder.beginComputePass()
+            buildHashPass.setPipeline(buildHashPipeline)
+            buildHashPass.setBindGroup(0, buildHashBindGroup)
+            buildHashPass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
+            buildHashPass.end()
+            const computePass = encoder.beginComputePass()
+            computePass.setPipeline(spatialHashComputePipeline)
+            computePass.setBindGroup(0, spatialHashComputeBindGroup)
+            computePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
+            computePass.end()
+        }
+        const computeBruteForce = (encoder: GPUCommandEncoder) => {
+            const computePass = encoder.beginComputePass()
+            computePass.setPipeline(bruteForceComputePipeline)
+            computePass.setBindGroup(0, bruteForceComputeBindGroup)
+            computePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
+            computePass.end()
+        }
+        const computeSortSpatialHash = (encoder: GPUCommandEncoder) => {
+            console.log("Sort Spatial Hash is not implemented yet.")
         }
         // -------------------------------------------------------------------------------------------------------------
         const createBuffers = () => {
