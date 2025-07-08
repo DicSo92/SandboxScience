@@ -246,7 +246,7 @@ export default defineComponent({
 
             currentMaxRadius = particleLife.currentMaxRadius // Ensure this is set before creating buffers
             CELL_SIZE = currentMaxRadius // Ensure CELL_SIZE is set before creating buffers
-            SPATIAL_HASH_TABLE_SIZE = NUM_PARTICLES
+            SPATIAL_HASH_TABLE_SIZE = Math.pow(2, Math.ceil(Math.log2(NUM_PARTICLES))) // Ensure SPATIAL_HASH_TABLE_SIZE is a power of 2
 
             SIM_WIDTH = CANVAS_WIDTH
             SIM_HEIGHT = CANVAS_HEIGHT
