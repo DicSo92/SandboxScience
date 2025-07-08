@@ -1,6 +1,6 @@
 struct Particles { data: array<vec2<f32>> };
 struct Types { data: array<u32> };
-struct InteractionMatrix { data: array<f32> };
+struct InteractionMatrix { data: array<u32> };
 struct CellHeads { data: array<u32> };
 struct ParticleNextIndices { data: array<u32> };
 struct SimOptions {
@@ -39,6 +39,14 @@ fn hash_coords(coords: vec2<i32>) -> u32 {
     let x = u32(coords.x);
     let y = u32(coords.y);
     return ((x * 73856093u) ^ (y * 19349663u)) & (options.spatialHashTableSize - 1u);
+}
+
+fn get_interaction(index: u32, numTypes: u32) -> vec3<f32> {
+    let word = interactions.data[index];
+    let rule = (f32((word >> 0u) & 0xFFu) / 255.0) * 2.0 - 1.0;
+    let minR = f32((word >> 8u) & 0xFFu);
+    let maxR = f32((word >> 16u) & 0xFFFFu);
+    return vec3<f32>(rule, minR, maxR);
 }
 
 @group(0) @binding(0) var<storage, read> currentPositions: Particles;
@@ -100,13 +108,13 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
                 }
 
                 let distSquared = dot(delta, delta);
-                let index = (myType * options.numTypes + otherType) * 3u;
-
-                let maxR = interactions.data[index + 2];
+                let index = myType * options.numTypes + otherType;
+                let params = get_interaction(index, options.numTypes);
+                let maxR = params.z;
                 if (distSquared > 0.0 && distSquared < maxR * maxR) {
                     let dist = sqrt(distSquared);
-                    let rule = interactions.data[index];
-                    let minR = interactions.data[index + 1];
+                    let rule = params.x;
+                    let minR = params.y;
                     var force = 0.0;
                     if (dist < minR) {
 //                        force = (options.repel / minR) * dist - options.repel;
