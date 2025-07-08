@@ -24,9 +24,21 @@ const P2: i32 = 19349663;
 fn get_cell_coords(pos: vec2<f32>) -> vec2<i32> {
     return vec2<i32>(floor(pos / options.cellSize));
 }
+//fn hash_coords(coords: vec2<i32>) -> u32 {
+//    let h = u32((coords.x * P1) ^ (coords.y * P2));
+//    return h % options.spatialHashTableSize;
+//}
+//fn hash_coords(coords: vec2<i32>) -> u32 {
+//    // Hachage FNV-1a plus uniforme
+//    var hash = 2166136261u;
+//    hash = (hash ^ u32(coords.x)) * 16777619u;
+//    hash = (hash ^ u32(coords.y)) * 16777619u;
+//    return hash % options.spatialHashTableSize;
+//}
 fn hash_coords(coords: vec2<i32>) -> u32 {
-    let h = u32((coords.x * P1) ^ (coords.y * P2));
-    return h % options.spatialHashTableSize;
+    let x = u32(coords.x);
+    let y = u32(coords.y);
+    return ((x * 73856093u) ^ (y * 19349663u)) & (options.spatialHashTableSize - 1u);
 }
 
 @group(0) @binding(0) var<storage, read> currentPositions: Particles;
@@ -46,6 +58,9 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
 
     let GRID_WIDTH: i32 = i32(ceil(options.simWidth / options.cellSize));
     let GRID_HEIGHT: i32 = i32(ceil(options.simHeight / options.cellSize));
+    let half_width = options.simWidth * 0.5;
+    let half_height = options.simHeight * 0.5;
+    let is_wrapping = options.isWallWrap == 1u;
 
     let myPos = currentPositions.data[i];
     let myType = types.data[i];
@@ -57,7 +72,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
         for (var offsetX = -1; offsetX <= 1; offsetX = offsetX + 1) {
             var neighbor_cell_coords = my_cell_coords + vec2<i32>(offsetX, offsetY);
 
-            if (options.isWallWrap == 1u) {
+            if (is_wrapping) {
                 if (neighbor_cell_coords.x < 0) { neighbor_cell_coords.x += GRID_WIDTH; }
                 if (neighbor_cell_coords.x >= GRID_WIDTH) { neighbor_cell_coords.x -= GRID_WIDTH; }
                 if (neighbor_cell_coords.y < 0) { neighbor_cell_coords.y += GRID_HEIGHT; }
@@ -66,11 +81,8 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
 
             let hash = hash_coords(neighbor_cell_coords);
             var j = cellHeads.data[hash];
-
             loop {
-                if (j == 0xFFFFFFFFu) { // End of the linked list
-                    break;
-                }
+                if (j == 0xFFFFFFFFu) { break; } // End of linked list
                 if (i == j) { // Skip self
                     j = particleNextIndices.data[j];
                     continue;
@@ -80,24 +92,25 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
                 let otherType = types.data[j];
                 var delta = otherPos - myPos;
 
-                if (options.isWallWrap == 1u) {
-                    if (delta.x > options.simWidth / 2.0) { delta.x -= options.simWidth; }
-                    else if (delta.x < -options.simWidth / 2.0) { delta.x += options.simWidth; }
-                    if (delta.y > options.simHeight / 2.0) { delta.y -= options.simHeight; }
-                    else if (delta.y < -options.simHeight / 2.0) { delta.y += options.simHeight; }
+                if (is_wrapping) {
+                    if (delta.x > half_width) { delta.x -= options.simWidth; }
+                    else if (delta.x < -half_width) { delta.x += options.simWidth; }
+                    if (delta.y > half_height) { delta.y -= options.simHeight; }
+                    else if (delta.y < -half_height) { delta.y += options.simHeight; }
                 }
 
                 let distSquared = dot(delta, delta);
                 let index = (myType * options.numTypes + otherType) * 3u;
-                let maxR = interactions.data[index + 2];
 
+                let maxR = interactions.data[index + 2];
                 if (distSquared > 0.0 && distSquared < maxR * maxR) {
                     let dist = sqrt(distSquared);
                     let rule = interactions.data[index];
                     let minR = interactions.data[index + 1];
                     var force = 0.0;
                     if (dist < minR) {
-                        force = (options.repel / minR) * dist - options.repel;
+//                        force = (options.repel / minR) * dist - options.repel;
+                        force = (dist / minR - 1.0) * options.repel;
                         // force = options.repel * ((1.0 / minR) * dist - 1.0);
                     } else {
                         let mid = (minR + maxR) / 2.0;
@@ -130,7 +143,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
           newVelocity.y = -newVelocity.y * 1.8;
           newPos.y = clamp(newPos.y, margin, options.simHeight - margin);
         }
-    } else if (options.isWallWrap == 1u) {
+    } else if (is_wrapping) {
         if (newPos.x < 0.0) { newPos.x += options.simWidth; }
         else if (newPos.x > options.simWidth) { newPos.x -= options.simWidth; }
         if (newPos.y < 0.0) { newPos.y += options.simHeight; }

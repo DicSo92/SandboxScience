@@ -13,13 +13,13 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
     const gridWidth = ref<number>(0) // Grid width
     const gridHeight = ref<number>(0) // Grid height
 
-    const numParticles = ref<number>(40000) // Number of particles
+    const numParticles = ref<number>(60000) // Number of particles
     const particleSize = ref<number>(1.3) // Size of the particles at zoomFactor = 1
     const numColors = ref<number>(7) // Number of colors to be used
 
     const is3D = ref<boolean>(true) // Enable 3D Algorithm
     const isWallRepel = ref<boolean>(false) // Enable walls X and Y for the particles
-    const isWallWrap = ref<boolean>(false) // Enable wrapped particles
+    const isWallWrap = ref<boolean>(true) // Enable wrapped particles
     const screenMultiplierForGridSize = ref<number>(3) // Multiplier for the grid size (1 means the grid will be the same size as the screen)
 
     // Define force properties
@@ -33,7 +33,7 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
 
     const currentMaxRadius = ref<number>(0) // Current max radius for the particles
 
-    const useSpatialHash = ref<boolean>(false) // Use spatial hash for collision detection or brute force
+    const useSpatialHash = ref<boolean>(true) // Use spatial hash for collision detection or brute force
     const useSortSpatialHash = ref<boolean>(false) // Use sorted spatial hash for collision detection
 
     function $reset() {

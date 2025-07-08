@@ -23,9 +23,21 @@ const P2: i32 = 19349663;
 fn get_cell_coords(pos: vec2<f32>) -> vec2<i32> {
     return vec2<i32>(floor(pos / options.cellSize));
 }
+//fn hash_coords(coords: vec2<i32>) -> u32 {
+//    let h = u32((coords.x * P1) ^ (coords.y * P2));
+//    return h % options.spatialHashTableSize;
+//}
+//fn hash_coords(coords: vec2<i32>) -> u32 {
+//    // Hachage FNV-1a plus uniforme
+//    var hash = 2166136261u;
+//    hash = (hash ^ u32(coords.x)) * 16777619u;
+//    hash = (hash ^ u32(coords.y)) * 16777619u;
+//    return hash % options.spatialHashTableSize;
+//}
 fn hash_coords(coords: vec2<i32>) -> u32 {
-    let h = u32((coords.x * P1) ^ (coords.y * P2));
-    return h % options.spatialHashTableSize;
+    let x = u32(coords.x);
+    let y = u32(coords.y);
+    return ((x * 73856093u) ^ (y * 19349663u)) & (options.spatialHashTableSize - 1u);
 }
 
 @group(0) @binding(0) var<storage, read> positions: Positions;

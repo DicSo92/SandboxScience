@@ -231,9 +231,18 @@ export default defineComponent({
             })
             handleResize()
 
-            rulesMatrix = makeRandomRulesMatrix()
-            minRadiusMatrix = makeRandomMinRadiusMatrix()
-            maxRadiusMatrix = makeRandomMaxRadiusMatrix()
+            // rulesMatrix = makeRandomRulesMatrix()
+            // minRadiusMatrix = makeRandomMinRadiusMatrix()
+            // maxRadiusMatrix = makeRandomMaxRadiusMatrix()
+
+            rulesMatrix = [[-0.2758, -0.9341, -0.7292, -0.2024, -0.4367, -0.4714, -0.8962],[0.3548, -0.4365, -0.5117, -0.3945, -0.7828, 0.7885, 0.4696],[-0.9114, -0.8742, -0.5724, 0.1277, 0.3471, 0.3468, -0.6377],[0.3619, 0.6267, -0.6251, -0.1823, -0.285, -0.7255, 0.4615],[-0.2717, 0.9975, -0.4783, -0.9001, -0.2176, -0.9916, -0.4428],[-0.133, -0.342, -0.5631, 0.1238, -0.2723, -0.7484, 0.8461],[0.571, -0.7669, 0.0851, 0.5078, 0.8143, -0.7627, 0.7893]]
+            minRadiusMatrix = [[25, 39, 37, 31, 31, 40, 30],[33, 27, 37, 33, 40, 33, 40],[26, 31, 25, 30, 32, 34, 39],[33, 27, 33, 39, 34, 25, 38],[28, 32, 31, 30, 40, 37, 30],[39, 39, 38, 35, 25, 31, 40],[33, 36, 29, 35, 30, 25, 40]]
+            maxRadiusMatrix = [[65, 72, 80, 66, 72, 67, 79],[69, 61, 75, 73, 69, 70, 73],[80, 69, 71, 74, 67, 62, 61],[73, 79, 70, 70, 70, 72, 79],[67, 65, 74, 76, 64, 77, 71],[61, 68, 72, 64, 69, 64, 79],[72, 68, 77, 74, 63, 70, 75]]
+            particleLife.currentMaxRadius = 80
+
+            console.log("Rules Matrix:", rulesMatrix);
+            console.log("Min Radius Matrix:", minRadiusMatrix);
+            console.log("Max Radius Matrix:", maxRadiusMatrix);
 
             currentMaxRadius = particleLife.currentMaxRadius // Ensure this is set before creating buffers
             CELL_SIZE = currentMaxRadius // Ensure CELL_SIZE is set before creating buffers
@@ -554,7 +563,7 @@ export default defineComponent({
                 }
             }
 
-            if (!interactionMatrixBuffer) {
+            if (!interactionMatrixBuffer || interactionMatrixBuffer.size !== interactionData.byteLength) {
                 interactionMatrixBuffer = device.createBuffer({
                     size: interactionData.byteLength,
                     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
