@@ -62,6 +62,7 @@
         <div absolute top-0 right-0 flex flex-col items-end text-right pointer-events-none>
             <div flex items-center text-start text-xs pl-4 pr-1 bg-gray-800 rounded-bl-xl style="padding-bottom: 1px; opacity: 75%">
                 <div flex>Fps: <div ml-1 min-w-8>{{ fps }}</div></div>
+                <div flex ml-3>Process: <div ml-1 min-w-7>{{ Math.round(executionTime) }}</div></div>
             </div>
         </div>
     </section>
@@ -88,6 +89,7 @@ export default defineComponent({
         // Define refs and variables
         const particleLife = useParticleLifeGPUStore()
         const fps = useFps()
+        const executionTime = ref<number>(0)
         const canvasRef = ref<HTMLCanvasElement | null>(null)
         let ctx: GPUCanvasContext
         let animationFrameId: number | null = null
@@ -259,9 +261,9 @@ export default defineComponent({
             animationFrameId = requestAnimationFrame(frame)
         }
         const frame = () => {
-            const now = performance.now();
-            const deltaTime = Math.min((now - lastFrameTime) / 1000, 0.05)
-            lastFrameTime = now
+            const startExecutionTime = performance.now()
+            const deltaTime = Math.min((startExecutionTime - lastFrameTime) / 1000, 0.05)
+            lastFrameTime = startExecutionTime
             device.queue.writeBuffer(deltaTimeBuffer, 0, new Float32Array([deltaTime]))
 
             createBindGroups()
@@ -293,6 +295,11 @@ export default defineComponent({
             renderPass.end()
 
             device.queue.submit([encoder.finish()])
+
+            // device.queue.onSubmittedWorkDone().then(() => {
+            //     const perf = performance.now() - startExecutionTime
+            //     executionTime.value = perf >= executionTime.value + 8 || perf <= executionTime.value - 8 ? perf : executionTime.value
+            // })
 
             // Swap position buffers
             ;[currentPositionBuffer, nextPositionBuffer] = [nextPositionBuffer, currentPositionBuffer]
@@ -705,7 +712,7 @@ export default defineComponent({
         })
 
         return {
-            particleLife, canvasRef, fps
+            particleLife, canvasRef, fps, executionTime
         }
     }
 });
