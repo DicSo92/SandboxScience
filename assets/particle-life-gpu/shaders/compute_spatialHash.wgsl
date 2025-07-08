@@ -138,7 +138,6 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     let oldVelocity = velocities.data[i];
     let acceleration = (velocitySum / options.forceFactor);
     var newVelocity = (oldVelocity + acceleration) * options.frictionFactor;
-
     var newPos = myPos + newVelocity * deltaTime;
 
     if (options.isWallRepel == 1u) {
