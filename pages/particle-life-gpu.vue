@@ -380,14 +380,15 @@ export default defineComponent({
             new Uint32Array(typeBuffer.getMappedRange()).set(types);
             typeBuffer.unmap();
             // ----------------------------------------------------------------------------------------------
-            const colors = initColors()
+            const colors = initColors();
+            const paddedSize = Math.ceil(colors.byteLength / 16) * 16 // Ensure padded to 16 bytes
             colorBuffer = device.createBuffer({
-                size: colors.byteLength,
+                size: paddedSize,
                 usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
                 mappedAtCreation: true
-            })
-            new Float32Array(colorBuffer.getMappedRange()).set(colors)
-            colorBuffer.unmap()
+            });
+            new Float32Array(colorBuffer.getMappedRange()).set(colors);
+            colorBuffer.unmap();
 
             const quadVertices = new Float32Array([-1,-1, 1,-1, 1,1, -1,-1, 1,1, -1,1]);
             triangleVertexBuffer = device.createBuffer({
@@ -582,14 +583,17 @@ export default defineComponent({
                 }
             }
 
-            if (!interactionMatrixBuffer || interactionMatrixBuffer.size !== interactionData.byteLength) {
+            const paddedSize = Math.ceil(interactionData.byteLength / 16) * 16 // Ensure padded to 16 bytes
+            const paddedInteractionData = new Uint8Array(paddedSize)
+            paddedInteractionData.set(interactionData)
+
+            if (!interactionMatrixBuffer || interactionMatrixBuffer.size !== paddedSize) {
                 interactionMatrixBuffer = device.createBuffer({
-                    size: interactionData.byteLength,
+                    size: paddedSize,
                     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
                 })
             }
-
-            device.queue.writeBuffer(interactionMatrixBuffer, 0, interactionData)
+            device.queue.writeBuffer(interactionMatrixBuffer, 0, paddedInteractionData)
         }
         function updateSpatialHashBuffers() {
             particleHashesBuffer = device.createBuffer({

@@ -49,23 +49,11 @@ fn get_interaction(index: u32, numTypes: u32) -> vec3<f32> {
     return vec3<f32>(rule, minR, maxR);
 }
 
-//fn get_type(idx: u32) -> u32 {
-//    let word = types.data[idx / 8u];
-//    let shift = (idx % 8u) * 4u;
-//    return (word >> shift) & 0xFu;
-//}
-
 fn get_type(idx: u32) -> u32 {
     let word = types.data[idx / 4u];
     let shift = (idx % 4u) * 8u;
     return (word >> shift) & 0xFFu;
 }
-
-//fn get_type(idx: u32) -> u32 {
-//    let word = types.data[idx / 6u];
-//    let shift = (idx % 6u) * 5u;
-//    return (word >> shift) & 0x1Fu;
-//}
 
 @group(0) @binding(0) var<storage, read> currentPositions: Particles;
 @group(0) @binding(1) var<storage, read_write> nextPositions: Particles;
