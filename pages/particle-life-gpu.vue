@@ -134,6 +134,7 @@ export default defineComponent({
         let nextPositionBuffer: GPUBuffer
         let velocityBuffer: GPUBuffer
         let typeBuffer: GPUBuffer
+        let typeBufferPacked: GPUBuffer // Packed type buffer for compute shader
         let colorBuffer: GPUBuffer
         let deltaTimeBuffer: GPUBuffer
         let triangleVertexBuffer: GPUBuffer
@@ -296,10 +297,10 @@ export default defineComponent({
 
             device.queue.submit([encoder.finish()])
 
-            // device.queue.onSubmittedWorkDone().then(() => {
-            //     const perf = performance.now() - startExecutionTime
-            //     executionTime.value = perf >= executionTime.value + 8 || perf <= executionTime.value - 8 ? perf : executionTime.value
-            // })
+            device.queue.onSubmittedWorkDone().then(() => {
+                const perf = performance.now() - startExecutionTime
+                executionTime.value = perf >= executionTime.value + 8 || perf <= executionTime.value - 8 ? perf : executionTime.value
+            })
 
             // Swap position buffers
             ;[currentPositionBuffer, nextPositionBuffer] = [nextPositionBuffer, currentPositionBuffer]
@@ -363,13 +364,21 @@ export default defineComponent({
             new Float32Array(velocityBuffer.getMappedRange()).set(velocities)
             velocityBuffer.unmap()
 
+            const packedTypes = packTypes8Bits(types);
+            typeBufferPacked = device.createBuffer({
+                size: packedTypes.byteLength,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+                mappedAtCreation: true
+            });
+            new Uint32Array(typeBufferPacked.getMappedRange()).set(packedTypes);
+            typeBufferPacked.unmap();
             typeBuffer = device.createBuffer({
                 size: types.byteLength,
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+                usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
                 mappedAtCreation: true
-            })
-            new Uint32Array(typeBuffer.getMappedRange()).set(types)
-            typeBuffer.unmap()
+            });
+            new Uint32Array(typeBuffer.getMappedRange()).set(types);
+            typeBuffer.unmap();
             // ----------------------------------------------------------------------------------------------
             const colors = initColors()
             colorBuffer = device.createBuffer({
@@ -500,7 +509,7 @@ export default defineComponent({
                         { binding: 0, resource: { buffer: currentPositionBuffer } },
                         { binding: 1, resource: { buffer: nextPositionBuffer } },
                         { binding: 2, resource: { buffer: velocityBuffer } },
-                        { binding: 3, resource: { buffer: typeBuffer } },
+                        { binding: 3, resource: { buffer: typeBufferPacked } },
                         { binding: 4, resource: { buffer: interactionMatrixBuffer } },
                         { binding: 5, resource: { buffer: deltaTimeBuffer } },
                         { binding: 6, resource: { buffer: simOptionsBuffer } },
@@ -618,6 +627,15 @@ export default defineComponent({
                 types[i] = Math.floor(Math.random() * NUM_TYPES)
             }
             return { positions, velocities, types }
+        }
+        function packTypes8Bits(types: Uint8Array): Uint32Array {
+            const packed = new Uint32Array(Math.ceil(types.length / 4));
+            for (let i = 0; i < types.length; i++) {
+                const wordIndex = Math.floor(i / 4);
+                const byteOffset = (i % 4) * 8;
+                packed[wordIndex] |= (types[i] & 0xFF) << byteOffset;
+            }
+            return packed;
         }
         function makeRandomRulesMatrix() {
             let matrix: number[][] = []
