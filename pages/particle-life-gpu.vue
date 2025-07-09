@@ -369,16 +369,16 @@ export default defineComponent({
                 size: packedTypes.byteLength,
                 usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
                 mappedAtCreation: true
-            });
-            new Uint32Array(typeBufferPacked.getMappedRange()).set(packedTypes);
-            typeBufferPacked.unmap();
+            })
+            new Uint32Array(typeBufferPacked.getMappedRange()).set(packedTypes)
+            typeBufferPacked.unmap()
             typeBuffer = device.createBuffer({
                 size: types.byteLength,
                 usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
                 mappedAtCreation: true
-            });
-            new Uint32Array(typeBuffer.getMappedRange()).set(types);
-            typeBuffer.unmap();
+            })
+            new Uint32Array(typeBuffer.getMappedRange()).set(types)
+            typeBuffer.unmap()
             // ----------------------------------------------------------------------------------------------
             const colors = initColors();
             const paddedSize = Math.ceil(colors.byteLength / 16) * 16 // Ensure padded to 16 bytes
@@ -386,9 +386,9 @@ export default defineComponent({
                 size: paddedSize,
                 usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
                 mappedAtCreation: true
-            });
-            new Float32Array(colorBuffer.getMappedRange()).set(colors);
-            colorBuffer.unmap();
+            })
+            new Float32Array(colorBuffer.getMappedRange()).set(colors)
+            colorBuffer.unmap()
 
             const quadVertices = new Float32Array([-1,-1, 1,-1, 1,1, -1,-1, 1,1, -1,1]);
             triangleVertexBuffer = device.createBuffer({
@@ -525,7 +525,7 @@ export default defineComponent({
                         { binding: 0, resource: { buffer: currentPositionBuffer } },
                         { binding: 1, resource: { buffer: nextPositionBuffer } },
                         { binding: 2, resource: { buffer: velocityBuffer } },
-                        { binding: 3, resource: { buffer: typeBuffer } },
+                        { binding: 3, resource: { buffer: typeBufferPacked } },
                         { binding: 4, resource: { buffer: interactionMatrixBuffer } },
                         { binding: 5, resource: { buffer: deltaTimeBuffer } },
                         { binding: 6, resource: { buffer: simOptionsBuffer } },
@@ -632,7 +632,7 @@ export default defineComponent({
             }
             return { positions, velocities, types }
         }
-        function packTypes8Bits(types: Uint8Array): Uint32Array {
+        function packTypes8Bits(types: Uint32Array): Uint32Array {
             const packed = new Uint32Array(Math.ceil(types.length / 4));
             for (let i = 0; i < types.length; i++) {
                 const wordIndex = Math.floor(i / 4);

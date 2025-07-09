@@ -24,6 +24,12 @@ fn get_interaction(index: u32, numTypes: u32) -> vec3<f32> {
     return vec3<f32>(rule, minR, maxR);
 }
 
+fn get_type(idx: u32) -> u32 {
+    let word = types.data[idx / 4u];
+    let shift = (idx % 4u) * 8u;
+    return (word >> shift) & 0xFFu;
+}
+
 @group(0) @binding(0) var<storage, read> currentPositions: Particles;
 @group(0) @binding(1) var<storage, read_write> nextPositions: Particles;
 @group(0) @binding(2) var<storage, read_write> velocities: Particles;
@@ -42,14 +48,14 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     let is_wrapping = options.isWallWrap == 1u;
 
     let myPos = currentPositions.data[i];
-    let myType = types.data[i];
+    let myType = get_type(i);
     var velocitySum = vec2<f32>(0.0, 0.0);
 
     for (var j = 0u; j < options.numParticles; j = j + 1u) {
         if (i == j) { continue; }
 
         let otherPos = currentPositions.data[j];
-        let otherType = types.data[j];
+        let otherType = get_type(j);
         var delta = otherPos - myPos;
 
         if (is_wrapping) {
