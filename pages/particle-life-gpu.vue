@@ -260,7 +260,8 @@ export default defineComponent({
 
             createBuffers()
             createPipelines()
-            // createBindGroups()
+            createBindGroups()
+
             lastFrameTime = performance.now()
             animationFrameId = requestAnimationFrame(frame)
         }
@@ -268,26 +269,22 @@ export default defineComponent({
             const startExecutionTime = performance.now()
             handleDeltaTime(startExecutionTime)
 
-            createBindGroups()
+            if (useSpatialHash) createSpatialHashBindGroups()
+            else createBruteForceBindGroup()
 
             const encoder = device.createCommandEncoder()
-
             if (useSpatialHash) computeSpatialHash(encoder)
             else computeBruteForce(encoder)
-
             renderParticles(encoder)
-
             device.queue.submit([encoder.finish()])
 
-            device.queue.onSubmittedWorkDone().then(() => {
-                const perf = performance.now() - startExecutionTime
-                executionTime.value = perf >= executionTime.value + 8 || perf <= executionTime.value - 8 ? perf : executionTime.value
-            })
+            // device.queue.onSubmittedWorkDone().then(() => executionTime.value = performance.now() - startExecutionTime) // Approximate execution time of the GPU commands
 
             ;[currentPositionBuffer, nextPositionBuffer] = [nextPositionBuffer, currentPositionBuffer] // Swap position buffers
 
             animationFrameId = requestAnimationFrame(frame)
         }
+        // -------------------------------------------------------------------------------------------------------------
         const handleDeltaTime = (startExecutionTime: number) => {
             const deltaTime = Math.min((startExecutionTime - lastFrameTime) / 1000, 0.1) // Cap deltaTime to avoid spikes
             lastFrameTime = startExecutionTime
@@ -503,54 +500,56 @@ export default defineComponent({
             })
         }
         // -------------------------------------------------------------------------------------------------------------
-        const createBindGroups = () => {
-            if (useSpatialHash) {
-                clearHashBindGroup = device.createBindGroup({
-                    layout: clearHashPipeline.getBindGroupLayout(0),
-                    entries: [
-                        { binding: 0, resource: { buffer: cellHeadsBuffer } },
-                        { binding: 1, resource: { buffer: simOptionsBuffer } }
-                    ]
-                })
-                buildHashBindGroup = device.createBindGroup({
-                    layout: buildHashPipeline.getBindGroupLayout(0),
-                    entries: [
-                        { binding: 0, resource: { buffer: currentPositionBuffer } },
-                        { binding: 1, resource: { buffer: particleHashesBuffer } },
-                        { binding: 2, resource: { buffer: cellHeadsBuffer } },
-                        { binding: 3, resource: { buffer: particleNextIndicesBuffer } },
-                        { binding: 4, resource: { buffer: simOptionsBuffer } }
-                    ]
-                })
-                spatialHashComputeBindGroup = device.createBindGroup({
-                    layout: spatialHashComputePipeline.getBindGroupLayout(0),
-                    entries: [
-                        { binding: 0, resource: { buffer: currentPositionBuffer } },
-                        { binding: 1, resource: { buffer: nextPositionBuffer } },
-                        { binding: 2, resource: { buffer: velocityBuffer } },
-                        { binding: 3, resource: { buffer: typeBufferPacked } },
-                        { binding: 4, resource: { buffer: interactionMatrixBuffer } },
-                        { binding: 5, resource: { buffer: deltaTimeBuffer } },
-                        { binding: 6, resource: { buffer: simOptionsBuffer } },
-                        { binding: 7, resource: { buffer: cellHeadsBuffer } },
-                        { binding: 8, resource: { buffer: particleNextIndicesBuffer } }
-                    ]
-                })
-            } else {
-                bruteForceComputeBindGroup = device.createBindGroup({
-                    layout: bruteForceComputePipeline.getBindGroupLayout(0),
-                    entries: [
-                        { binding: 0, resource: { buffer: currentPositionBuffer } },
-                        { binding: 1, resource: { buffer: nextPositionBuffer } },
-                        { binding: 2, resource: { buffer: velocityBuffer } },
-                        { binding: 3, resource: { buffer: typeBufferPacked } },
-                        { binding: 4, resource: { buffer: interactionMatrixBuffer } },
-                        { binding: 5, resource: { buffer: deltaTimeBuffer } },
-                        { binding: 6, resource: { buffer: simOptionsBuffer } },
-                    ]
-                })
-            }
-
+        const createClearHashBindGroup = () => {
+            clearHashBindGroup = device.createBindGroup({
+                layout: clearHashPipeline.getBindGroupLayout(0),
+                entries: [
+                    { binding: 0, resource: { buffer: cellHeadsBuffer } },
+                    { binding: 1, resource: { buffer: simOptionsBuffer } }
+                ]
+            })
+        }
+        const createSpatialHashBindGroups = () => {
+            buildHashBindGroup = device.createBindGroup({
+                layout: buildHashPipeline.getBindGroupLayout(0),
+                entries: [
+                    { binding: 0, resource: { buffer: currentPositionBuffer } },
+                    { binding: 1, resource: { buffer: particleHashesBuffer } },
+                    { binding: 2, resource: { buffer: cellHeadsBuffer } },
+                    { binding: 3, resource: { buffer: particleNextIndicesBuffer } },
+                    { binding: 4, resource: { buffer: simOptionsBuffer } }
+                ]
+            })
+            spatialHashComputeBindGroup = device.createBindGroup({
+                layout: spatialHashComputePipeline.getBindGroupLayout(0),
+                entries: [
+                    { binding: 0, resource: { buffer: currentPositionBuffer } },
+                    { binding: 1, resource: { buffer: nextPositionBuffer } },
+                    { binding: 2, resource: { buffer: velocityBuffer } },
+                    { binding: 3, resource: { buffer: typeBufferPacked } },
+                    { binding: 4, resource: { buffer: interactionMatrixBuffer } },
+                    { binding: 5, resource: { buffer: deltaTimeBuffer } },
+                    { binding: 6, resource: { buffer: simOptionsBuffer } },
+                    { binding: 7, resource: { buffer: cellHeadsBuffer } },
+                    { binding: 8, resource: { buffer: particleNextIndicesBuffer } }
+                ]
+            })
+        }
+        const createBruteForceBindGroup = () => {
+            bruteForceComputeBindGroup = device.createBindGroup({
+                layout: bruteForceComputePipeline.getBindGroupLayout(0),
+                entries: [
+                    { binding: 0, resource: { buffer: currentPositionBuffer } },
+                    { binding: 1, resource: { buffer: nextPositionBuffer } },
+                    { binding: 2, resource: { buffer: velocityBuffer } },
+                    { binding: 3, resource: { buffer: typeBufferPacked } },
+                    { binding: 4, resource: { buffer: interactionMatrixBuffer } },
+                    { binding: 5, resource: { buffer: deltaTimeBuffer } },
+                    { binding: 6, resource: { buffer: simOptionsBuffer } },
+                ]
+            })
+        }
+        const createRenderBindGroup = () => {
             renderBindGroup = device.createBindGroup({
                 layout: renderPipeline.getBindGroupLayout(0),
                 entries: [
@@ -559,6 +558,12 @@ export default defineComponent({
                     { binding: 2, resource: { buffer: simOptionsBuffer } }
                 ]
             })
+        }
+        const createBindGroups = () => {
+            createClearHashBindGroup()
+            createSpatialHashBindGroups()
+            createBruteForceBindGroup()
+            createRenderBindGroup()
         }
         // -------------------------------------------------------------------------------------------------------------
         function updateSimOptionsBuffer() {
