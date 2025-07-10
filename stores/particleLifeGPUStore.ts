@@ -34,7 +34,6 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
     const currentMaxRadius = ref<number>(0) // Current max radius for the particles
 
     const useSpatialHash = ref<boolean>(true) // Use spatial hash for collision detection or brute force
-    const useSortSpatialHash = ref<boolean>(false) // Use sorted spatial hash for collision detection
 
     function $reset() {
         sidebarLeftOpen.value = false
@@ -49,7 +48,7 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
         numParticles, particleSize, numColors,
         is3D, isWallRepel, isWallWrap, screenMultiplierForGridSize,
         minRadiusRange, maxRadiusRange, currentMaxRadius,
-        repel, forceFactor, frictionFactor, useSpatialHash, useSortSpatialHash,
+        repel, forceFactor, frictionFactor, useSpatialHash,
         $reset
     }
 })

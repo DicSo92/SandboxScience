@@ -94,6 +94,7 @@ export default defineComponent({
         let ctx: GPUCanvasContext
         let animationFrameId: number | null = null
         let lastFrameTime = performance.now()
+        let smoothedDeltaTime = 0.016 // Initial value (1/60s)
         let CANVAS_WIDTH: number = 0
         let CANVAS_HEIGHT: number = 0
         let SIM_WIDTH: number = 0
@@ -115,6 +116,7 @@ export default defineComponent({
         let lastPointerY: number = 0 // For dragging
         let pointerX: number = 0 // Pointer X
         let pointerY: number = 0 // Pointer Y
+        let cameraChanged = true
 
         // Define the GPU device, pipelines, and bind groups
         let device: GPUDevice
@@ -155,7 +157,6 @@ export default defineComponent({
         let isWallRepel: boolean = particleLife.isWallRepel // Enable walls X and Y for the particles
         let isWallWrap: boolean = particleLife.isWallWrap // Enable wrapping for the particles
         let useSpatialHash: boolean = particleLife.useSpatialHash // Use spatial hash or brute force
-        let useSortSpatialHash: boolean = particleLife.useSortSpatialHash
 
         onMounted(() => {
             initWebGPU()
@@ -201,6 +202,7 @@ export default defineComponent({
                 cameraCenter.y -= dy / zoomFactor
                 lastPointerX = pointerX
                 lastPointerY = pointerY
+                cameraChanged = true
             }
         }
         function handleZoom(delta: number, x: number, y: number) {
@@ -220,6 +222,7 @@ export default defineComponent({
             // Adjust the camera center to keep the mouse cursor over the same point in world space
             cameraCenter.x += worldBefore.x - worldAfter.x
             cameraCenter.y += worldBefore.y - worldAfter.y
+            cameraChanged = true
         }
         // -------------------------------------------------------------------------------------------------------------
         const initWebGPU = async () => {
@@ -237,7 +240,6 @@ export default defineComponent({
             // rulesMatrix = makeRandomRulesMatrix()
             // minRadiusMatrix = makeRandomMinRadiusMatrix()
             // maxRadiusMatrix = makeRandomMaxRadiusMatrix()
-
             rulesMatrix = [[-0.2758, -0.9341, -0.7292, -0.2024, -0.4367, -0.4714, -0.8962],[0.3548, -0.4365, -0.5117, -0.3945, -0.7828, 0.7885, 0.4696],[-0.9114, -0.8742, -0.5724, 0.1277, 0.3471, 0.3468, -0.6377],[0.3619, 0.6267, -0.6251, -0.1823, -0.285, -0.7255, 0.4615],[-0.2717, 0.9975, -0.4783, -0.9001, -0.2176, -0.9916, -0.4428],[-0.133, -0.342, -0.5631, 0.1238, -0.2723, -0.7484, 0.8461],[0.571, -0.7669, 0.0851, 0.5078, 0.8143, -0.7627, 0.7893]]
             minRadiusMatrix = [[25, 39, 37, 31, 31, 40, 30],[33, 27, 37, 33, 40, 33, 40],[26, 31, 25, 30, 32, 34, 39],[33, 27, 33, 39, 34, 25, 38],[28, 32, 31, 30, 40, 37, 30],[39, 39, 38, 35, 25, 31, 40],[33, 36, 29, 35, 30, 25, 40]]
             maxRadiusMatrix = [[65, 72, 80, 66, 72, 67, 79],[69, 61, 75, 73, 69, 70, 73],[80, 69, 71, 74, 67, 62, 61],[73, 79, 70, 70, 70, 72, 79],[67, 65, 74, 76, 64, 77, 71],[61, 68, 72, 64, 69, 64, 79],[72, 68, 77, 74, 63, 70, 75]]
@@ -259,41 +261,21 @@ export default defineComponent({
             createBuffers()
             createPipelines()
             // createBindGroups()
+            lastFrameTime = performance.now()
             animationFrameId = requestAnimationFrame(frame)
         }
         const frame = () => {
             const startExecutionTime = performance.now()
-            const deltaTime = Math.min((startExecutionTime - lastFrameTime) / 1000, 0.05)
-            lastFrameTime = startExecutionTime
-            device.queue.writeBuffer(deltaTimeBuffer, 0, new Float32Array([deltaTime]))
+            handleDeltaTime(startExecutionTime)
 
             createBindGroups()
+
             const encoder = device.createCommandEncoder()
 
             if (useSpatialHash) computeSpatialHash(encoder)
-            else if (useSortSpatialHash) computeSortSpatialHash(encoder)
             else computeBruteForce(encoder)
 
-            device.queue.writeBuffer(cameraBuffer, 0, new Float32Array([
-                cameraCenter.x, cameraCenter.y, zoomFactor, 0
-            ]))
-            const renderPass = encoder.beginRenderPass({
-                colorAttachments: [
-                    {
-                        view: ctx.getCurrentTexture().createView(),
-                        loadOp: 'clear',
-                        storeOp: 'store',
-                        clearValue: { r: 0, g: 0, b: 0, a: 1 }
-                    }
-                ]
-            })
-            renderPass.setPipeline(renderPipeline)
-            renderPass.setBindGroup(0, renderBindGroup)
-            renderPass.setVertexBuffer(0, triangleVertexBuffer)
-            renderPass.setVertexBuffer(1, nextPositionBuffer)
-            renderPass.setVertexBuffer(2, typeBuffer)
-            renderPass.draw(6, NUM_PARTICLES)
-            renderPass.end()
+            renderParticles(encoder)
 
             device.queue.submit([encoder.finish()])
 
@@ -302,10 +284,21 @@ export default defineComponent({
                 executionTime.value = perf >= executionTime.value + 8 || perf <= executionTime.value - 8 ? perf : executionTime.value
             })
 
-            // Swap position buffers
-            ;[currentPositionBuffer, nextPositionBuffer] = [nextPositionBuffer, currentPositionBuffer]
+            ;[currentPositionBuffer, nextPositionBuffer] = [nextPositionBuffer, currentPositionBuffer] // Swap position buffers
 
             animationFrameId = requestAnimationFrame(frame)
+        }
+        const handleDeltaTime = (startExecutionTime: number) => {
+            const deltaTime = Math.min((startExecutionTime - lastFrameTime) / 1000, 0.1) // Cap deltaTime to avoid spikes
+            lastFrameTime = startExecutionTime
+            const lastSmoothedDeltaTime = smoothedDeltaTime
+            smoothedDeltaTime = smoothedDeltaTime * (1 - 0.01) + deltaTime * 0.01 // Smooth the delta time
+
+            // Only update the delta time buffer if it has changed significantly
+            if (Math.round(lastSmoothedDeltaTime * 1000) !== Math.round(smoothedDeltaTime * 1000)) {
+                // console.log(`Delta time changed: ${smoothedDeltaTime.toFixed(3)}`)
+                device.queue.writeBuffer(deltaTimeBuffer, 0, new Float32Array([smoothedDeltaTime]))
+            }
         }
         const computeSpatialHash = (encoder: GPUCommandEncoder) => {
             const clearPass = encoder.beginComputePass()
@@ -331,8 +324,32 @@ export default defineComponent({
             computePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
             computePass.end()
         }
-        const computeSortSpatialHash = (encoder: GPUCommandEncoder) => {
-            console.log("Sort Spatial Hash is not implemented yet.")
+
+        const renderParticles = (encoder: GPUCommandEncoder) => {
+            if (cameraChanged) {
+                device.queue.writeBuffer(cameraBuffer, 0, new Float32Array([
+                    cameraCenter.x, cameraCenter.y, zoomFactor, 0
+                ]))
+                cameraChanged = false
+            }
+
+            const renderPass = encoder.beginRenderPass({
+                colorAttachments: [
+                    {
+                        view: ctx.getCurrentTexture().createView(),
+                        loadOp: 'clear',
+                        storeOp: 'store',
+                        clearValue: { r: 0, g: 0, b: 0, a: 1 }
+                    }
+                ]
+            })
+            renderPass.setPipeline(renderPipeline)
+            renderPass.setBindGroup(0, renderBindGroup)
+            renderPass.setVertexBuffer(0, triangleVertexBuffer)
+            renderPass.setVertexBuffer(1, nextPositionBuffer)
+            renderPass.setVertexBuffer(2, typeBuffer)
+            renderPass.draw(6, NUM_PARTICLES)
+            renderPass.end()
         }
         // -------------------------------------------------------------------------------------------------------------
         const createBuffers = () => {
@@ -412,6 +429,7 @@ export default defineComponent({
                 size: 4,
                 usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
             })
+            device.queue.writeBuffer(deltaTimeBuffer, 0, new Float32Array([smoothedDeltaTime]))
         }
         // -------------------------------------------------------------------------------------------------------------
         const createPipelines = () => {
