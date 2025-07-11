@@ -65,6 +65,25 @@
                 <div flex ml-3>Process: <div ml-1 min-w-7>{{ Math.round(executionTime) }}</div></div>
             </div>
         </div>
+        <div fixed z-10 bottom-2 flex justify-center items-end class="faded-hover-effect left-1/2 transform -translate-x-1/2">
+            <button type="button" name="Randomize" aria-label="Randomize" btn p2 rounded-full mx-1 flex items-center bg="#094F5D hover:#0B5F6F" @click="regenerateSimulation">
+                <span i-game-icons-perspective-dice-six-faces-random></span>
+            </button>
+<!--            3D-->
+            <button type="button" name="Zoom Out" aria-label="Zoom Out" btn p2 rounded-full mx-1 flex items-center bg="#212121 hover:#333333" @click="handleZoom(-1, canvasRef!.clientWidth / 2, canvasRef!.clientHeight / 2)">
+                <span i-tabler-zoom-out></span>
+            </button>
+            <button type="button" name="Play/Pause" aria-label="Play/Pause" btn p3 rounded-full mx-1 flex items-center bg="#212121 hover:#333333" @click="particleLife.isRunning = !particleLife.isRunning">
+                <span text-xl :class="particleLife.isRunning ? 'i-tabler-player-pause-filled' : 'i-tabler-player-play-filled'"></span>
+            </button>
+<!--            step-->
+            <button type="button" name="Zoom In" aria-label="Zoom In" btn p2 rounded-full mx-1 flex items-center bg="#212121 hover:#333333" @click="handleZoom(1, canvasRef!.clientWidth / 2, canvasRef!.clientHeight / 2)">
+                <span i-tabler-zoom-in></span>
+            </button>
+            <button type="button" name="Toggle Fullscreen" aria-label="Toggle Fullscreen" btn p2 rounded-full mx-1 flex items-center bg="#212121 hover:#333333" @click="toggleFullscreen">
+                <span :class="isFullscreen ? 'i-tabler-maximize-off' : 'i-tabler-maximize'"></span>
+            </button>
+        </div>
     </section>
 </template>
 
@@ -87,6 +106,8 @@ export default defineComponent({
             hideNavBar: true
         })
         // Define refs and variables
+        const mainContainer = ref<HTMLElement | null>(null)
+        const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(mainContainer)
         const particleLife = useParticleLifeGPUStore()
         const fps = useFps()
         const executionTime = ref<number>(0)
@@ -94,6 +115,7 @@ export default defineComponent({
         let ctx: GPUCanvasContext
         let animationFrameId: number | null = null
         let lastFrameTime = performance.now()
+        let isRunning: boolean = particleLife.isRunning
         let smoothedDeltaTime = 0.016 // Initial value (1/60s)
         let CANVAS_WIDTH: number = 0
         let CANVAS_HEIGHT: number = 0
@@ -264,8 +286,8 @@ export default defineComponent({
             if (isWallWrap) setSimSizeWhenWrapped()
             centerView()
 
-            initParticles()
             initColors()
+            initParticles()
 
             createBuffers()
             createPipelines()
@@ -276,22 +298,32 @@ export default defineComponent({
         }
         const frame = () => {
             const startExecutionTime = performance.now()
-            handleDeltaTime(startExecutionTime)
 
-            if (useSpatialHash) createSpatialHashBindGroups()
-            else createBruteForceBindGroup()
+            if (isRunning) {
+                handleDeltaTime(startExecutionTime)
 
-            const encoder = device.createCommandEncoder()
-            if (useSpatialHash) computeSpatialHash(encoder)
-            else computeBruteForce(encoder)
-            renderParticles(encoder)
-            device.queue.submit([encoder.finish()])
+                if (useSpatialHash) createSpatialHashBindGroups()
+                else createBruteForceBindGroup()
 
-            // device.queue.onSubmittedWorkDone().then(() => executionTime.value = performance.now() - startExecutionTime) // Approximate execution time of the GPU commands
+                const encoder = device.createCommandEncoder()
+                if (useSpatialHash) computeSpatialHash(encoder)
+                else computeBruteForce(encoder)
+                renderParticles(encoder)
+                device.queue.submit([encoder.finish()])
 
-            ;[currentPositionBuffer, nextPositionBuffer] = [nextPositionBuffer, currentPositionBuffer] // Swap position buffers
+                ;[currentPositionBuffer, nextPositionBuffer] = [nextPositionBuffer, currentPositionBuffer] // Swap position buffers
+            } else {
+                const encoder = device.createCommandEncoder()
+                renderParticles(encoder)
+                device.queue.submit([encoder.finish()])
+            }
+
+            device.queue.onSubmittedWorkDone().then(() => executionTime.value = performance.now() - startExecutionTime) // Approximate execution time of the GPU commands
 
             animationFrameId = requestAnimationFrame(frame)
+        }
+        const regenerateSimulation = () => {
+            cancelAnimationFrame(animationFrameId!)
         }
         // -------------------------------------------------------------------------------------------------------------
         const handleDeltaTime = (startExecutionTime: number) => {
@@ -575,12 +607,12 @@ export default defineComponent({
         function updateSimOptionsBuffer() {
             const simOptionsData = new ArrayBuffer(48)
             const simOptionsView = new DataView(simOptionsData)
-            simOptionsView.setUint32(0, particleLife.isWallRepel ? 1 : 0, true)
-            simOptionsView.setUint32(4, particleLife.isWallWrap ? 1 : 0, true)
-            simOptionsView.setFloat32(8, particleLife.forceFactor, true)
-            simOptionsView.setFloat32(12, particleLife.frictionFactor, true)
-            simOptionsView.setFloat32(16, particleLife.repel, true)
-            simOptionsView.setFloat32(20, particleLife.particleSize, true)
+            simOptionsView.setUint32(0, isWallRepel ? 1 : 0, true)
+            simOptionsView.setUint32(4, isWallWrap ? 1 : 0, true)
+            simOptionsView.setFloat32(8, forceFactor, true)
+            simOptionsView.setFloat32(12, frictionFactor, true)
+            simOptionsView.setFloat32(16, repel, true)
+            simOptionsView.setFloat32(20, PARTICLE_SIZE, true)
             simOptionsView.setFloat32(24, SIM_WIDTH, true)
             simOptionsView.setFloat32(28, SIM_HEIGHT, true)
             simOptionsView.setFloat32(32, CELL_SIZE, true)
@@ -728,6 +760,7 @@ export default defineComponent({
                 updateSimOptionsBuffer()
             })
         }
+        watch(() => particleLife.isRunning, (value: boolean) => isRunning = value)
         watch(() => particleLife.useSpatialHash, (value: boolean) => useSpatialHash = value)
         watchAndUpdate(() => particleLife.particleSize, (value: number) => PARTICLE_SIZE = value)
         watchAndUpdate(() => particleLife.repel, (value: number) => repel = value)
@@ -761,7 +794,8 @@ export default defineComponent({
         })
 
         return {
-            particleLife, canvasRef, fps, executionTime
+            particleLife, canvasRef, fps, executionTime,
+            handleZoom, toggleFullscreen, isFullscreen, regenerateSimulation,
         }
     }
 });
