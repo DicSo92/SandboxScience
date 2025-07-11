@@ -158,9 +158,9 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
         }
     } else if (is_wrapping) {
         if (newPos.x < 0.0) { newPos.x += options.simWidth; }
-        else if (newPos.x > options.simWidth) { newPos.x -= options.simWidth; }
+        else if (newPos.x >= options.simWidth) { newPos.x -= options.simWidth; }
         if (newPos.y < 0.0) { newPos.y += options.simHeight; }
-        else if (newPos.y > options.simHeight) { newPos.y -= options.simHeight; }
+        else if (newPos.y >= options.simHeight) { newPos.y -= options.simHeight; }
     }
 
     velocities.data[i] = newVelocity;
