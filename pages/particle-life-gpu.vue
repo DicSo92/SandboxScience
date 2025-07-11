@@ -76,7 +76,9 @@
             <button type="button" name="Play/Pause" aria-label="Play/Pause" btn p3 rounded-full mx-1 flex items-center bg="#212121 hover:#333333" @click="particleLife.isRunning = !particleLife.isRunning">
                 <span text-xl :class="particleLife.isRunning ? 'i-tabler-player-pause-filled' : 'i-tabler-player-play-filled'"></span>
             </button>
-<!--            step-->
+            <button type="button" name="Step" aria-label="Step" btn p2 rounded-full mx-1 flex items-center bg="#212121 hover:#333333" :disabled="particleLife.isRunning" @click="step">
+                <span i-tabler-player-skip-forward-filled></span>
+            </button>
             <button type="button" name="Zoom In" aria-label="Zoom In" btn p2 rounded-full mx-1 flex items-center bg="#212121 hover:#333333" @click="handleZoom(1, canvasRef!.clientWidth / 2, canvasRef!.clientHeight / 2)">
                 <span i-tabler-zoom-in></span>
             </button>
@@ -160,20 +162,20 @@ export default defineComponent({
         let spatialHashComputeBindGroup: GPUBindGroup
 
         // Define the buffers
-        let currentPositionBuffer: GPUBuffer
-        let nextPositionBuffer: GPUBuffer
-        let velocityBuffer: GPUBuffer
-        let typeBuffer: GPUBuffer
-        let typeBufferPacked: GPUBuffer // Packed type buffer for compute shader
-        let colorBuffer: GPUBuffer
-        let deltaTimeBuffer: GPUBuffer
-        let triangleVertexBuffer: GPUBuffer
-        let cameraBuffer: GPUBuffer
-        let interactionMatrixBuffer: GPUBuffer
-        let simOptionsBuffer: GPUBuffer
-        let particleHashesBuffer: GPUBuffer
-        let cellHeadsBuffer: GPUBuffer
-        let particleNextIndicesBuffer: GPUBuffer
+        let currentPositionBuffer: GPUBuffer | undefined
+        let nextPositionBuffer: GPUBuffer | undefined
+        let velocityBuffer: GPUBuffer | undefined
+        let typeBuffer: GPUBuffer | undefined
+        let typeBufferPacked: GPUBuffer | undefined // Packed type buffer for compute shader
+        let colorBuffer: GPUBuffer | undefined
+        let deltaTimeBuffer: GPUBuffer | undefined
+        let triangleVertexBuffer: GPUBuffer | undefined
+        let cameraBuffer: GPUBuffer | undefined
+        let interactionMatrixBuffer: GPUBuffer | undefined
+        let simOptionsBuffer: GPUBuffer | undefined
+        let particleHashesBuffer: GPUBuffer | undefined
+        let cellHeadsBuffer: GPUBuffer | undefined
+        let particleNextIndicesBuffer: GPUBuffer | undefined
 
         // Define variables for the simulation
         let repel: number = particleLife.repel // Repel force between particles
@@ -186,8 +188,9 @@ export default defineComponent({
         let isWallWrap: boolean = particleLife.isWallWrap // Enable wrapping for the particles
         let useSpatialHash: boolean = particleLife.useSpatialHash // Use spatial hash or brute force
 
-        onMounted(() => {
-            initWebGPU()
+        onMounted(async () => {
+            await initWebGPU()
+            initLife()
 
             useEventListener('resize', handleResize)
             useEventListener(canvasRef.value, ['mousedown'], (e) => {
@@ -263,15 +266,17 @@ export default defineComponent({
                 format: navigator.gpu.getPreferredCanvasFormat(),
                 alphaMode: 'opaque'
             })
+        }
+        const initLife = () => {
             handleResize()
 
-            // rulesMatrix = makeRandomRulesMatrix()
-            // minRadiusMatrix = makeRandomMinRadiusMatrix()
-            // maxRadiusMatrix = makeRandomMaxRadiusMatrix()
-            rulesMatrix = [[-0.2758, -0.9341, -0.7292, -0.2024, -0.4367, -0.4714, -0.8962],[0.3548, -0.4365, -0.5117, -0.3945, -0.7828, 0.7885, 0.4696],[-0.9114, -0.8742, -0.5724, 0.1277, 0.3471, 0.3468, -0.6377],[0.3619, 0.6267, -0.6251, -0.1823, -0.285, -0.7255, 0.4615],[-0.2717, 0.9975, -0.4783, -0.9001, -0.2176, -0.9916, -0.4428],[-0.133, -0.342, -0.5631, 0.1238, -0.2723, -0.7484, 0.8461],[0.571, -0.7669, 0.0851, 0.5078, 0.8143, -0.7627, 0.7893]]
-            minRadiusMatrix = [[25, 39, 37, 31, 31, 40, 30],[33, 27, 37, 33, 40, 33, 40],[26, 31, 25, 30, 32, 34, 39],[33, 27, 33, 39, 34, 25, 38],[28, 32, 31, 30, 40, 37, 30],[39, 39, 38, 35, 25, 31, 40],[33, 36, 29, 35, 30, 25, 40]]
-            maxRadiusMatrix = [[65, 72, 80, 66, 72, 67, 79],[69, 61, 75, 73, 69, 70, 73],[80, 69, 71, 74, 67, 62, 61],[73, 79, 70, 70, 70, 72, 79],[67, 65, 74, 76, 64, 77, 71],[61, 68, 72, 64, 69, 64, 79],[72, 68, 77, 74, 63, 70, 75]]
-            particleLife.currentMaxRadius = 80
+            rulesMatrix = makeRandomRulesMatrix()
+            minRadiusMatrix = makeRandomMinRadiusMatrix()
+            maxRadiusMatrix = makeRandomMaxRadiusMatrix()
+            // rulesMatrix = [[-0.2758, -0.9341, -0.7292, -0.2024, -0.4367, -0.4714, -0.8962],[0.3548, -0.4365, -0.5117, -0.3945, -0.7828, 0.7885, 0.4696],[-0.9114, -0.8742, -0.5724, 0.1277, 0.3471, 0.3468, -0.6377],[0.3619, 0.6267, -0.6251, -0.1823, -0.285, -0.7255, 0.4615],[-0.2717, 0.9975, -0.4783, -0.9001, -0.2176, -0.9916, -0.4428],[-0.133, -0.342, -0.5631, 0.1238, -0.2723, -0.7484, 0.8461],[0.571, -0.7669, 0.0851, 0.5078, 0.8143, -0.7627, 0.7893]]
+            // minRadiusMatrix = [[25, 39, 37, 31, 31, 40, 30],[33, 27, 37, 33, 40, 33, 40],[26, 31, 25, 30, 32, 34, 39],[33, 27, 33, 39, 34, 25, 38],[28, 32, 31, 30, 40, 37, 30],[39, 39, 38, 35, 25, 31, 40],[33, 36, 29, 35, 30, 25, 40]]
+            // maxRadiusMatrix = [[65, 72, 80, 66, 72, 67, 79],[69, 61, 75, 73, 69, 70, 73],[80, 69, 71, 74, 67, 62, 61],[73, 79, 70, 70, 70, 72, 79],[67, 65, 74, 76, 64, 77, 71],[61, 68, 72, 64, 69, 64, 79],[72, 68, 77, 74, 63, 70, 75]]
+            // particleLife.currentMaxRadius = 80
 
             console.log("Rules Matrix:", rulesMatrix);
             console.log("Min Radius Matrix:", minRadiusMatrix);
@@ -293,37 +298,46 @@ export default defineComponent({
             createPipelines()
             createBindGroups()
 
+            if (!isRunning) step() // Run a step if not running to initialize the simulation
+
             lastFrameTime = performance.now()
             animationFrameId = requestAnimationFrame(frame)
+        }
+        const step = () => {
+            if (useSpatialHash) createSpatialHashBindGroups()
+            else createBruteForceBindGroup()
+
+            const encoder = device.createCommandEncoder()
+            if (useSpatialHash) computeSpatialHash(encoder)
+            else computeBruteForce(encoder)
+            renderParticles(encoder)
+            device.queue.submit([encoder.finish()])
+
+            ;[currentPositionBuffer, nextPositionBuffer] = [nextPositionBuffer, currentPositionBuffer] // Swap position buffers
         }
         const frame = () => {
             const startExecutionTime = performance.now()
 
             if (isRunning) {
                 handleDeltaTime(startExecutionTime)
-
-                if (useSpatialHash) createSpatialHashBindGroups()
-                else createBruteForceBindGroup()
-
-                const encoder = device.createCommandEncoder()
-                if (useSpatialHash) computeSpatialHash(encoder)
-                else computeBruteForce(encoder)
-                renderParticles(encoder)
-                device.queue.submit([encoder.finish()])
-
-                ;[currentPositionBuffer, nextPositionBuffer] = [nextPositionBuffer, currentPositionBuffer] // Swap position buffers
+                step()
             } else {
                 const encoder = device.createCommandEncoder()
                 renderParticles(encoder)
                 device.queue.submit([encoder.finish()])
             }
-
-            device.queue.onSubmittedWorkDone().then(() => executionTime.value = performance.now() - startExecutionTime) // Approximate execution time of the GPU commands
-
+            // device.queue.onSubmittedWorkDone().then(() => executionTime.value = performance.now() - startExecutionTime) // Approximate execution time of the GPU commands
             animationFrameId = requestAnimationFrame(frame)
         }
         const regenerateSimulation = () => {
-            cancelAnimationFrame(animationFrameId!)
+            particleLife.isRunning = false // Stop the simulation before regenerating
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId)
+                animationFrameId = null
+            }
+            destroyBuffers()
+            initLife()
+            particleLife.isRunning = true // Restart the simulation after regeneration
         }
         // -------------------------------------------------------------------------------------------------------------
         const handleDeltaTime = (startExecutionTime: number) => {
@@ -335,7 +349,7 @@ export default defineComponent({
             // Only update the delta time buffer if it has changed significantly
             if (Math.round(lastSmoothedDeltaTime * 1000) !== Math.round(smoothedDeltaTime * 1000)) {
                 // console.log(`Delta time changed: ${smoothedDeltaTime.toFixed(3)}`)
-                device.queue.writeBuffer(deltaTimeBuffer, 0, new Float32Array([smoothedDeltaTime]))
+                device.queue.writeBuffer(deltaTimeBuffer!, 0, new Float32Array([smoothedDeltaTime]))
             }
         }
         const computeSpatialHash = (encoder: GPUCommandEncoder) => {
@@ -365,7 +379,7 @@ export default defineComponent({
 
         const renderParticles = (encoder: GPUCommandEncoder) => {
             if (cameraChanged) {
-                device.queue.writeBuffer(cameraBuffer, 0, new Float32Array([
+                device.queue.writeBuffer(cameraBuffer!, 0, new Float32Array([
                     cameraCenter.x, cameraCenter.y, zoomFactor, 0
                 ]))
                 cameraChanged = false
@@ -542,8 +556,8 @@ export default defineComponent({
             clearHashBindGroup = device.createBindGroup({
                 layout: clearHashPipeline.getBindGroupLayout(0),
                 entries: [
-                    { binding: 0, resource: { buffer: cellHeadsBuffer } },
-                    { binding: 1, resource: { buffer: simOptionsBuffer } }
+                    { binding: 0, resource: { buffer: cellHeadsBuffer! } },
+                    { binding: 1, resource: { buffer: simOptionsBuffer! } }
                 ]
             })
         }
@@ -551,25 +565,25 @@ export default defineComponent({
             buildHashBindGroup = device.createBindGroup({
                 layout: buildHashPipeline.getBindGroupLayout(0),
                 entries: [
-                    { binding: 0, resource: { buffer: currentPositionBuffer } },
-                    { binding: 1, resource: { buffer: particleHashesBuffer } },
-                    { binding: 2, resource: { buffer: cellHeadsBuffer } },
-                    { binding: 3, resource: { buffer: particleNextIndicesBuffer } },
-                    { binding: 4, resource: { buffer: simOptionsBuffer } }
+                    { binding: 0, resource: { buffer: currentPositionBuffer! } },
+                    { binding: 1, resource: { buffer: particleHashesBuffer! } },
+                    { binding: 2, resource: { buffer: cellHeadsBuffer! } },
+                    { binding: 3, resource: { buffer: particleNextIndicesBuffer! } },
+                    { binding: 4, resource: { buffer: simOptionsBuffer! } }
                 ]
             })
             spatialHashComputeBindGroup = device.createBindGroup({
                 layout: spatialHashComputePipeline.getBindGroupLayout(0),
                 entries: [
-                    { binding: 0, resource: { buffer: currentPositionBuffer } },
-                    { binding: 1, resource: { buffer: nextPositionBuffer } },
-                    { binding: 2, resource: { buffer: velocityBuffer } },
-                    { binding: 3, resource: { buffer: typeBufferPacked } },
-                    { binding: 4, resource: { buffer: interactionMatrixBuffer } },
-                    { binding: 5, resource: { buffer: deltaTimeBuffer } },
-                    { binding: 6, resource: { buffer: simOptionsBuffer } },
-                    { binding: 7, resource: { buffer: cellHeadsBuffer } },
-                    { binding: 8, resource: { buffer: particleNextIndicesBuffer } }
+                    { binding: 0, resource: { buffer: currentPositionBuffer! } },
+                    { binding: 1, resource: { buffer: nextPositionBuffer! } },
+                    { binding: 2, resource: { buffer: velocityBuffer! } },
+                    { binding: 3, resource: { buffer: typeBufferPacked! } },
+                    { binding: 4, resource: { buffer: interactionMatrixBuffer! } },
+                    { binding: 5, resource: { buffer: deltaTimeBuffer! } },
+                    { binding: 6, resource: { buffer: simOptionsBuffer! } },
+                    { binding: 7, resource: { buffer: cellHeadsBuffer! } },
+                    { binding: 8, resource: { buffer: particleNextIndicesBuffer! } }
                 ]
             })
         }
@@ -577,13 +591,13 @@ export default defineComponent({
             bruteForceComputeBindGroup = device.createBindGroup({
                 layout: bruteForceComputePipeline.getBindGroupLayout(0),
                 entries: [
-                    { binding: 0, resource: { buffer: currentPositionBuffer } },
-                    { binding: 1, resource: { buffer: nextPositionBuffer } },
-                    { binding: 2, resource: { buffer: velocityBuffer } },
-                    { binding: 3, resource: { buffer: typeBufferPacked } },
-                    { binding: 4, resource: { buffer: interactionMatrixBuffer } },
-                    { binding: 5, resource: { buffer: deltaTimeBuffer } },
-                    { binding: 6, resource: { buffer: simOptionsBuffer } },
+                    { binding: 0, resource: { buffer: currentPositionBuffer! } },
+                    { binding: 1, resource: { buffer: nextPositionBuffer! } },
+                    { binding: 2, resource: { buffer: velocityBuffer! } },
+                    { binding: 3, resource: { buffer: typeBufferPacked! } },
+                    { binding: 4, resource: { buffer: interactionMatrixBuffer! } },
+                    { binding: 5, resource: { buffer: deltaTimeBuffer! } },
+                    { binding: 6, resource: { buffer: simOptionsBuffer! } },
                 ]
             })
         }
@@ -591,9 +605,9 @@ export default defineComponent({
             renderBindGroup = device.createBindGroup({
                 layout: renderPipeline.getBindGroupLayout(0),
                 entries: [
-                    { binding: 0, resource: { buffer: colorBuffer } },
-                    { binding: 1, resource: { buffer: cameraBuffer } },
-                    { binding: 2, resource: { buffer: simOptionsBuffer } }
+                    { binding: 0, resource: { buffer: colorBuffer! } },
+                    { binding: 1, resource: { buffer: cameraBuffer! } },
+                    { binding: 2, resource: { buffer: simOptionsBuffer! } }
                 ]
             })
         }
@@ -785,17 +799,35 @@ export default defineComponent({
             }
         })
         // -------------------------------------------------------------------------------------------------------------
+        const destroyBuffers = () => {
+            currentPositionBuffer?.destroy(); currentPositionBuffer = undefined;
+            nextPositionBuffer?.destroy(); nextPositionBuffer = undefined;
+            velocityBuffer?.destroy(); velocityBuffer = undefined;
+            typeBuffer?.destroy(); typeBuffer = undefined;
+            typeBufferPacked?.destroy(); typeBufferPacked = undefined;
+            colorBuffer?.destroy(); colorBuffer = undefined;
+            deltaTimeBuffer?.destroy(); deltaTimeBuffer = undefined;
+            triangleVertexBuffer?.destroy(); triangleVertexBuffer = undefined;
+            cameraBuffer?.destroy(); cameraBuffer = undefined;
+            interactionMatrixBuffer?.destroy(); interactionMatrixBuffer = undefined;
+            simOptionsBuffer?.destroy(); simOptionsBuffer = undefined;
+            particleHashesBuffer?.destroy(); particleHashesBuffer = undefined;
+            cellHeadsBuffer?.destroy(); cellHeadsBuffer = undefined;
+            particleNextIndicesBuffer?.destroy(); particleNextIndicesBuffer = undefined;
+        }
+        // -------------------------------------------------------------------------------------------------------------
         onUnmounted(() => {
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId)
                 animationFrameId = null
             }
+            destroyBuffers()
             // particleLife.$reset()
         })
 
         return {
             particleLife, canvasRef, fps, executionTime,
-            handleZoom, toggleFullscreen, isFullscreen, regenerateSimulation,
+            handleZoom, toggleFullscreen, isFullscreen, regenerateSimulation, step,
         }
     }
 });
