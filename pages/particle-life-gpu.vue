@@ -108,6 +108,12 @@ export default defineComponent({
         let minRadiusMatrix: number[][] = [] // Min radius matrix for each color
         let currentMaxRadius: number = 0 // Max value between all colors max radius (for cell size)
 
+        // Define the simulation properties
+        let positions: Float32Array // Particle positions
+        let velocities: Float32Array // Particle velocities
+        let types: Uint32Array // Particle types (colors)
+        let colors: Float32Array // Particle colors
+
         // Define the properties for dragging and zooming
         let zoomFactor = 1.0
         let cameraCenter = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 }
@@ -258,6 +264,9 @@ export default defineComponent({
             if (isWallWrap) setSimSizeWhenWrapped()
             centerView()
 
+            initParticles()
+            initColors()
+
             createBuffers()
             createPipelines()
             createBindGroups()
@@ -355,8 +364,6 @@ export default defineComponent({
             updateSpatialHashBuffers() // Create spatial hash buffers
 
             // ----------------------------------------------------------------------------------------------
-            const { positions, velocities, types } = initParticles()
-
             currentPositionBuffer = device.createBuffer({
                 size: positions.byteLength,
                 usage: GPUBufferUsage.STORAGE | GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
@@ -394,7 +401,6 @@ export default defineComponent({
             new Uint32Array(typeBuffer.getMappedRange()).set(types)
             typeBuffer.unmap()
             // ----------------------------------------------------------------------------------------------
-            const colors = initColors();
             const paddedSize = Math.ceil(colors.byteLength / 16) * 16 // Ensure padded to 16 bytes
             colorBuffer = device.createBuffer({
                 size: paddedSize,
@@ -634,18 +640,17 @@ export default defineComponent({
         }
         // -------------------------------------------------------------------------------------------------------------
         function initColors() {
-            const colors = new Float32Array(NUM_TYPES * 3)
+            colors = new Float32Array(NUM_TYPES * 3)
             for (let i = 0; i < NUM_TYPES; ++i) {
                 colors[i * 3] = Math.random()
                 colors[i * 3 + 1] = Math.random()
                 colors[i * 3 + 2] = Math.random()
             }
-            return colors
         }
         function initParticles() {
-            const positions = new Float32Array(NUM_PARTICLES * 2)
-            const velocities = new Float32Array(NUM_PARTICLES * 2)
-            const types = new Uint32Array(NUM_PARTICLES)
+            positions = new Float32Array(NUM_PARTICLES * 2)
+            velocities = new Float32Array(NUM_PARTICLES * 2)
+            types = new Uint32Array(NUM_PARTICLES)
             for (let i = 0; i < NUM_PARTICLES; i++) {
                 positions[2 * i] = Math.random() * SIM_WIDTH
                 positions[2 * i + 1] = Math.random() * SIM_HEIGHT
@@ -653,7 +658,6 @@ export default defineComponent({
                 velocities[2 * i + 1] = 0
                 types[i] = Math.floor(Math.random() * NUM_TYPES)
             }
-            return { positions, velocities, types }
         }
         function packTypes8Bits(types: Uint32Array): Uint32Array {
             const packed = new Uint32Array(Math.ceil(types.length / 4));
