@@ -17,7 +17,7 @@
                         <Collapse label="World Settings" icon="i-tabler-world-cog" opened mt-2>
                             <RangeInput input label="Particle Number"
                                         tooltip="Adjust the total number of particles. <br> More particles may reveal complex interactions but can increase computational demand."
-                                        :min="0" :max="100000" :step="10" v-model="particleLife.numParticles">
+                                        :min="16" :max="100000" :step="16" v-model="particleLife.numParticles">
                             </RangeInput>
                             <RangeInput input label="Color Number"
                                         tooltip="Specify the number of particle colors. <br> Each color interacts with all others, with distinct forces and interaction ranges."
@@ -66,7 +66,7 @@
             </div>
         </div>
         <div fixed z-10 bottom-2 flex justify-center items-end class="faded-hover-effect left-1/2 transform -translate-x-1/2">
-            <button type="button" name="Randomize" aria-label="Randomize" btn p2 rounded-full mx-1 flex items-center bg="#094F5D hover:#0B5F6F" @click="regenerateSimulation">
+            <button type="button" name="Randomize" aria-label="Randomize" btn p2 rounded-full mx-1 flex items-center bg="#094F5D hover:#0B5F6F" @click="regenerateLife">
                 <span i-game-icons-perspective-dice-six-faces-random></span>
             </button>
 <!--            3D-->
@@ -116,9 +116,10 @@ export default defineComponent({
         const canvasRef = ref<HTMLCanvasElement | null>(null)
         let ctx: GPUCanvasContext
         let animationFrameId: number | null = null
-        let lastFrameTime = performance.now()
+        let lastFrameTime: number = performance.now()
         let isRunning: boolean = particleLife.isRunning
-        let smoothedDeltaTime = 0.016 // Initial value (1/60s)
+        let isAddingParticles: boolean = false // Flag to prevent multiple additions at once
+        let smoothedDeltaTime: number = 0.016 // Initial value (1/60s)
         let CANVAS_WIDTH: number = 0
         let CANVAS_HEIGHT: number = 0
         let SIM_WIDTH: number = 0
@@ -221,9 +222,17 @@ export default defineComponent({
             })
         })
         // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
         function handleResize() {
             CANVAS_WIDTH = canvasRef.value!.width = canvasRef.value!.clientWidth
             CANVAS_HEIGHT = canvasRef.value!.height = canvasRef.value!.clientHeight
+        }
+        function setSimSizeWhenWrapped() { // Set the grid size when the walls are wrapped
+            SIM_WIDTH = CELL_SIZE * Math.round(CANVAS_WIDTH / CELL_SIZE)
+            SIM_HEIGHT = CELL_SIZE * Math.round(SIM_HEIGHT / CELL_SIZE)
+        }
+        function centerView() {
+            cameraCenter = { x: SIM_WIDTH / 2, y: SIM_HEIGHT / 2 }
         }
         function handleMove() {
             if (isDragging) {
@@ -255,6 +264,8 @@ export default defineComponent({
             cameraCenter.y += worldBefore.y - worldAfter.y
             cameraChanged = true
         }
+        // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         const initWebGPU = async () => {
             const adapter = await navigator.gpu.requestAdapter()
@@ -293,7 +304,6 @@ export default defineComponent({
 
             initColors()
             initParticles()
-
             createBuffers()
             createPipelines()
             createBindGroups()
@@ -302,6 +312,12 @@ export default defineComponent({
 
             lastFrameTime = performance.now()
             animationFrameId = requestAnimationFrame(frame)
+        }
+        const regenerateLife = async () => {
+            cancelAnimationLoop()
+            destroyPipelinesAndBindGroups()
+            await destroyBuffers()
+            initLife()
         }
         const step = () => {
             if (useSpatialHash) createSpatialHashBindGroups()
@@ -329,16 +345,8 @@ export default defineComponent({
             // device.queue.onSubmittedWorkDone().then(() => executionTime.value = performance.now() - startExecutionTime) // Approximate execution time of the GPU commands
             animationFrameId = requestAnimationFrame(frame)
         }
-        const regenerateSimulation = () => {
-            particleLife.isRunning = false // Stop the simulation before regenerating
-            if (animationFrameId) {
-                cancelAnimationFrame(animationFrameId)
-                animationFrameId = null
-            }
-            destroyBuffers()
-            initLife()
-            particleLife.isRunning = true // Restart the simulation after regeneration
-        }
+        // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         const handleDeltaTime = (startExecutionTime: number) => {
             const deltaTime = Math.min((startExecutionTime - lastFrameTime) / 1000, 0.1) // Cap deltaTime to avoid spikes
@@ -376,7 +384,6 @@ export default defineComponent({
             computePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
             computePass.end()
         }
-
         const renderParticles = (encoder: GPUCommandEncoder) => {
             if (cameraChanged) {
                 device.queue.writeBuffer(cameraBuffer!, 0, new Float32Array([
@@ -404,48 +411,14 @@ export default defineComponent({
             renderPass.end()
         }
         // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
         const createBuffers = () => {
             updateSimOptionsBuffer() // Set simulation options based on the store state
             updateInteractionMatrixBuffer() // Set interaction matrices based on the store state
             updateSpatialHashBuffers() // Create spatial hash buffers
+            updateParticleDataBuffers() // Create buffers for particle data
 
-            // ----------------------------------------------------------------------------------------------
-            currentPositionBuffer = device.createBuffer({
-                size: positions.byteLength,
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-                mappedAtCreation: true
-            })
-            new Float32Array(currentPositionBuffer.getMappedRange()).set(positions)
-            currentPositionBuffer.unmap()
-
-            nextPositionBuffer = device.createBuffer({
-                size: positions.byteLength,
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.VERTEX,
-            })
-
-            velocityBuffer = device.createBuffer({
-                size: velocities.byteLength,
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-                mappedAtCreation: true
-            })
-            new Float32Array(velocityBuffer.getMappedRange()).set(velocities)
-            velocityBuffer.unmap()
-
-            const packedTypes = packTypes8Bits(types);
-            typeBufferPacked = device.createBuffer({
-                size: packedTypes.byteLength,
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-                mappedAtCreation: true
-            })
-            new Uint32Array(typeBufferPacked.getMappedRange()).set(packedTypes)
-            typeBufferPacked.unmap()
-            typeBuffer = device.createBuffer({
-                size: types.byteLength,
-                usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-                mappedAtCreation: true
-            })
-            new Uint32Array(typeBuffer.getMappedRange()).set(types)
-            typeBuffer.unmap()
             // ----------------------------------------------------------------------------------------------
             const paddedSize = Math.ceil(colors.byteLength / 16) * 16 // Ensure padded to 16 bytes
             colorBuffer = device.createBuffer({
@@ -480,6 +453,175 @@ export default defineComponent({
             })
             device.queue.writeBuffer(deltaTimeBuffer, 0, new Float32Array([smoothedDeltaTime]))
         }
+        const updateSimOptionsBuffer = () => {
+            const simOptionsData = new ArrayBuffer(48)
+            const simOptionsView = new DataView(simOptionsData)
+            simOptionsView.setUint32(0, isWallRepel ? 1 : 0, true)
+            simOptionsView.setUint32(4, isWallWrap ? 1 : 0, true)
+            simOptionsView.setFloat32(8, forceFactor, true)
+            simOptionsView.setFloat32(12, frictionFactor, true)
+            simOptionsView.setFloat32(16, repel, true)
+            simOptionsView.setFloat32(20, PARTICLE_SIZE, true)
+            simOptionsView.setFloat32(24, SIM_WIDTH, true)
+            simOptionsView.setFloat32(28, SIM_HEIGHT, true)
+            simOptionsView.setFloat32(32, CELL_SIZE, true)
+            simOptionsView.setUint32(36, SPATIAL_HASH_TABLE_SIZE, true)
+            simOptionsView.setUint32(40, NUM_PARTICLES, true)
+            simOptionsView.setUint32(44, NUM_TYPES, true)
+
+            if (!simOptionsBuffer) {
+                simOptionsBuffer = device.createBuffer({
+                    size: simOptionsData.byteLength,
+                    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+                })
+            }
+            device.queue.writeBuffer(simOptionsBuffer, 0, simOptionsData)
+        }
+        const updateInteractionMatrixBuffer = () => {
+            const stride = 4; // 4 octets par couple
+            const interactionData = new Uint8Array(NUM_TYPES * NUM_TYPES * stride);
+            for (let a = 0; a < NUM_TYPES; a++) {
+                for (let b = 0; b < NUM_TYPES; b++) {
+                    const index = (a * NUM_TYPES + b) * stride;
+                    interactionData[index] = Math.round((rulesMatrix[a][b] + 1) * 0.5 * 255); // rule u8
+                    interactionData[index + 1] = Math.round(minRadiusMatrix[a][b]); // minR u8
+                    const maxR = maxRadiusMatrix[a][b];
+                    interactionData[index + 2] = maxR & 0xFF; // maxR low byte
+                    interactionData[index + 3] = (maxR >> 8) & 0xFF; // maxR high byte
+                }
+            }
+
+            const paddedSize = Math.ceil(interactionData.byteLength / 16) * 16 // Ensure padded to 16 bytes
+            const paddedInteractionData = new Uint8Array(paddedSize)
+            paddedInteractionData.set(interactionData)
+
+            if (!interactionMatrixBuffer || interactionMatrixBuffer.size !== paddedSize) {
+                interactionMatrixBuffer = device.createBuffer({
+                    size: paddedSize,
+                    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+                })
+            }
+            device.queue.writeBuffer(interactionMatrixBuffer, 0, paddedInteractionData)
+        }
+        const updateSpatialHashBuffers = () => {
+            particleHashesBuffer = device.createBuffer({
+                size: NUM_PARTICLES * 4, // u32
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+            })
+            cellHeadsBuffer = device.createBuffer({
+                size: SPATIAL_HASH_TABLE_SIZE * 4, // u32
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+            })
+            particleNextIndicesBuffer = device.createBuffer({
+                size: NUM_PARTICLES * 4, // u32
+                usage: GPUBufferUsage.STORAGE,
+            })
+        }
+        const updateParticleDataBuffers = () => {
+            currentPositionBuffer = device.createBuffer({
+                size: positions.byteLength,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
+                mappedAtCreation: true
+            })
+            new Float32Array(currentPositionBuffer.getMappedRange()).set(positions)
+            currentPositionBuffer.unmap()
+            nextPositionBuffer = device.createBuffer({
+                size: positions.byteLength,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
+            })
+            velocityBuffer = device.createBuffer({
+                size: velocities.byteLength,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
+                mappedAtCreation: true
+            })
+            new Float32Array(velocityBuffer.getMappedRange()).set(velocities)
+            velocityBuffer.unmap()
+            const packedTypes = packTypes8Bits(types);
+            typeBufferPacked = device.createBuffer({
+                size: packedTypes.byteLength,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+                mappedAtCreation: true
+            })
+            new Uint32Array(typeBufferPacked.getMappedRange()).set(packedTypes)
+            typeBufferPacked.unmap()
+            typeBuffer = device.createBuffer({
+                size: types.byteLength,
+                usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
+                mappedAtCreation: true
+            })
+            new Uint32Array(typeBuffer.getMappedRange()).set(types)
+            typeBuffer.unmap()
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
+        const createBindGroups = () => {
+            createClearHashBindGroup()
+            createSpatialHashBindGroups()
+            createBruteForceBindGroup()
+            createRenderBindGroup()
+        }
+        const createClearHashBindGroup = () => {
+            clearHashBindGroup = device.createBindGroup({
+                layout: clearHashPipeline.getBindGroupLayout(0),
+                entries: [
+                    { binding: 0, resource: { buffer: cellHeadsBuffer! } },
+                    { binding: 1, resource: { buffer: simOptionsBuffer! } }
+                ]
+            })
+        }
+        const createSpatialHashBindGroups = () => {
+            buildHashBindGroup = device.createBindGroup({
+                layout: buildHashPipeline.getBindGroupLayout(0),
+                entries: [
+                    { binding: 0, resource: { buffer: currentPositionBuffer! } },
+                    { binding: 1, resource: { buffer: particleHashesBuffer! } },
+                    { binding: 2, resource: { buffer: cellHeadsBuffer! } },
+                    { binding: 3, resource: { buffer: particleNextIndicesBuffer! } },
+                    { binding: 4, resource: { buffer: simOptionsBuffer! } }
+                ]
+            })
+            spatialHashComputeBindGroup = device.createBindGroup({
+                layout: spatialHashComputePipeline.getBindGroupLayout(0),
+                entries: [
+                    { binding: 0, resource: { buffer: currentPositionBuffer! } },
+                    { binding: 1, resource: { buffer: nextPositionBuffer! } },
+                    { binding: 2, resource: { buffer: velocityBuffer! } },
+                    { binding: 3, resource: { buffer: typeBufferPacked! } },
+                    { binding: 4, resource: { buffer: interactionMatrixBuffer! } },
+                    { binding: 5, resource: { buffer: deltaTimeBuffer! } },
+                    { binding: 6, resource: { buffer: simOptionsBuffer! } },
+                    { binding: 7, resource: { buffer: cellHeadsBuffer! } },
+                    { binding: 8, resource: { buffer: particleNextIndicesBuffer! } }
+                ]
+            })
+        }
+        const createBruteForceBindGroup = () => {
+            bruteForceComputeBindGroup = device.createBindGroup({
+                layout: bruteForceComputePipeline.getBindGroupLayout(0),
+                entries: [
+                    { binding: 0, resource: { buffer: currentPositionBuffer! } },
+                    { binding: 1, resource: { buffer: nextPositionBuffer! } },
+                    { binding: 2, resource: { buffer: velocityBuffer! } },
+                    { binding: 3, resource: { buffer: typeBufferPacked! } },
+                    { binding: 4, resource: { buffer: interactionMatrixBuffer! } },
+                    { binding: 5, resource: { buffer: deltaTimeBuffer! } },
+                    { binding: 6, resource: { buffer: simOptionsBuffer! } },
+                ]
+            })
+        }
+        const createRenderBindGroup = () => {
+            renderBindGroup = device.createBindGroup({
+                layout: renderPipeline.getBindGroupLayout(0),
+                entries: [
+                    { binding: 0, resource: { buffer: colorBuffer! } },
+                    { binding: 1, resource: { buffer: cameraBuffer! } },
+                    { binding: 2, resource: { buffer: simOptionsBuffer! } }
+                ]
+            })
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         const createPipelines = () => {
             const clearHashShader = device.createShaderModule({ code: clearHashShaderCode })
@@ -552,138 +694,85 @@ export default defineComponent({
             })
         }
         // -------------------------------------------------------------------------------------------------------------
-        const createClearHashBindGroup = () => {
-            clearHashBindGroup = device.createBindGroup({
-                layout: clearHashPipeline.getBindGroupLayout(0),
-                entries: [
-                    { binding: 0, resource: { buffer: cellHeadsBuffer! } },
-                    { binding: 1, resource: { buffer: simOptionsBuffer! } }
-                ]
+        // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
+        const updateNumParticles = useDebounceFn(async (newCount: number) => {
+            if (isAddingParticles || newCount === NUM_PARTICLES) return
+            isAddingParticles = true
+
+            try {
+                cancelAnimationLoop()
+
+                const oldCount = NUM_PARTICLES
+                const oldPositions = await readBufferFromGPU(currentPositionBuffer!, oldCount * 2 * 4)
+                const oldVelocities = await readBufferFromGPU(velocityBuffer!, oldCount * 2 * 4)
+                const oldTypes = await readBufferFromGPU(typeBuffer!, oldCount * 4)
+
+                const newPositions = new Float32Array(newCount * 2)
+                const newVelocities = new Float32Array(newCount * 2)
+                const newTypes = new Uint32Array(newCount)
+
+                if (newCount > oldCount) {
+                    newPositions.set(new Float32Array(oldPositions))
+                    newVelocities.set(new Float32Array(oldVelocities))
+                    newTypes.set(new Uint32Array(oldTypes))
+                    for (let i = oldCount; i < newCount; i++) {
+                        newPositions[2 * i] = Math.random() * SIM_WIDTH
+                        newPositions[2 * i + 1] = Math.random() * SIM_HEIGHT
+                        newVelocities[2 * i] = 0
+                        newVelocities[2 * i + 1] = 0
+                        newTypes[i] = Math.floor(Math.random() * NUM_TYPES)
+                    }
+                } else {
+                    newPositions.set(new Float32Array(oldPositions).subarray(0, newCount * 2))
+                    newVelocities.set(new Float32Array(oldVelocities).subarray(0, newCount * 2))
+                    newTypes.set(new Uint32Array(oldTypes).subarray(0, newCount))
+                }
+
+                positions = newPositions
+                velocities = newVelocities
+                types = newTypes
+
+                NUM_PARTICLES = newCount
+                SPATIAL_HASH_TABLE_SIZE = Math.pow(2, Math.ceil(Math.log2(NUM_PARTICLES))) // Ensure SPATIAL_HASH_TABLE_SIZE is a power of 2
+
+                destroyPipelinesAndBindGroups()
+                await destroyBuffers()
+                createBuffers()
+                createPipelines()
+                createBindGroups()
+
+                if (!isRunning) {
+                    const encoder = device.createCommandEncoder()
+                    encoder.copyBufferToBuffer(
+                        currentPositionBuffer!, 0,
+                        nextPositionBuffer!, 0,
+                        positions.byteLength
+                    )
+                    device.queue.submit([encoder.finish()])
+                }
+                lastFrameTime = performance.now()
+                animationFrameId = requestAnimationFrame(frame)
+            } finally {
+                isAddingParticles = false
+                await updateNumParticles(particleLife.numParticles) // Reset the debounce function
+            }
+        }, 16, { maxWait: 33 })
+        async function readBufferFromGPU(buffer: GPUBuffer, size: number): Promise<ArrayBuffer> {
+            const readBuffer = device.createBuffer({
+                size,
+                usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
             })
-        }
-        const createSpatialHashBindGroups = () => {
-            buildHashBindGroup = device.createBindGroup({
-                layout: buildHashPipeline.getBindGroupLayout(0),
-                entries: [
-                    { binding: 0, resource: { buffer: currentPositionBuffer! } },
-                    { binding: 1, resource: { buffer: particleHashesBuffer! } },
-                    { binding: 2, resource: { buffer: cellHeadsBuffer! } },
-                    { binding: 3, resource: { buffer: particleNextIndicesBuffer! } },
-                    { binding: 4, resource: { buffer: simOptionsBuffer! } }
-                ]
-            })
-            spatialHashComputeBindGroup = device.createBindGroup({
-                layout: spatialHashComputePipeline.getBindGroupLayout(0),
-                entries: [
-                    { binding: 0, resource: { buffer: currentPositionBuffer! } },
-                    { binding: 1, resource: { buffer: nextPositionBuffer! } },
-                    { binding: 2, resource: { buffer: velocityBuffer! } },
-                    { binding: 3, resource: { buffer: typeBufferPacked! } },
-                    { binding: 4, resource: { buffer: interactionMatrixBuffer! } },
-                    { binding: 5, resource: { buffer: deltaTimeBuffer! } },
-                    { binding: 6, resource: { buffer: simOptionsBuffer! } },
-                    { binding: 7, resource: { buffer: cellHeadsBuffer! } },
-                    { binding: 8, resource: { buffer: particleNextIndicesBuffer! } }
-                ]
-            })
-        }
-        const createBruteForceBindGroup = () => {
-            bruteForceComputeBindGroup = device.createBindGroup({
-                layout: bruteForceComputePipeline.getBindGroupLayout(0),
-                entries: [
-                    { binding: 0, resource: { buffer: currentPositionBuffer! } },
-                    { binding: 1, resource: { buffer: nextPositionBuffer! } },
-                    { binding: 2, resource: { buffer: velocityBuffer! } },
-                    { binding: 3, resource: { buffer: typeBufferPacked! } },
-                    { binding: 4, resource: { buffer: interactionMatrixBuffer! } },
-                    { binding: 5, resource: { buffer: deltaTimeBuffer! } },
-                    { binding: 6, resource: { buffer: simOptionsBuffer! } },
-                ]
-            })
-        }
-        const createRenderBindGroup = () => {
-            renderBindGroup = device.createBindGroup({
-                layout: renderPipeline.getBindGroupLayout(0),
-                entries: [
-                    { binding: 0, resource: { buffer: colorBuffer! } },
-                    { binding: 1, resource: { buffer: cameraBuffer! } },
-                    { binding: 2, resource: { buffer: simOptionsBuffer! } }
-                ]
-            })
-        }
-        const createBindGroups = () => {
-            createClearHashBindGroup()
-            createSpatialHashBindGroups()
-            createBruteForceBindGroup()
-            createRenderBindGroup()
+            const encoder = device.createCommandEncoder()
+            encoder.copyBufferToBuffer(buffer, 0, readBuffer, 0, size)
+            device.queue.submit([encoder.finish()])
+            await readBuffer.mapAsync(GPUMapMode.READ)
+            const arrayBuffer = readBuffer.getMappedRange().slice(0)
+            readBuffer.unmap()
+            return arrayBuffer
         }
         // -------------------------------------------------------------------------------------------------------------
-        function updateSimOptionsBuffer() {
-            const simOptionsData = new ArrayBuffer(48)
-            const simOptionsView = new DataView(simOptionsData)
-            simOptionsView.setUint32(0, isWallRepel ? 1 : 0, true)
-            simOptionsView.setUint32(4, isWallWrap ? 1 : 0, true)
-            simOptionsView.setFloat32(8, forceFactor, true)
-            simOptionsView.setFloat32(12, frictionFactor, true)
-            simOptionsView.setFloat32(16, repel, true)
-            simOptionsView.setFloat32(20, PARTICLE_SIZE, true)
-            simOptionsView.setFloat32(24, SIM_WIDTH, true)
-            simOptionsView.setFloat32(28, SIM_HEIGHT, true)
-            simOptionsView.setFloat32(32, CELL_SIZE, true)
-            simOptionsView.setUint32(36, SPATIAL_HASH_TABLE_SIZE, true)
-            simOptionsView.setUint32(40, NUM_PARTICLES, true)
-            simOptionsView.setUint32(44, NUM_TYPES, true)
-
-            if (!simOptionsBuffer) {
-                simOptionsBuffer = device.createBuffer({
-                    size: simOptionsData.byteLength,
-                    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-                })
-            }
-
-            device.queue.writeBuffer(simOptionsBuffer, 0, simOptionsData)
-        }
-
-        function updateInteractionMatrixBuffer() {
-            const stride = 4; // 4 octets par couple
-            const interactionData = new Uint8Array(NUM_TYPES * NUM_TYPES * stride);
-            for (let a = 0; a < NUM_TYPES; a++) {
-                for (let b = 0; b < NUM_TYPES; b++) {
-                    const index = (a * NUM_TYPES + b) * stride;
-                    interactionData[index] = Math.round((rulesMatrix[a][b] + 1) * 0.5 * 255); // rule u8
-                    interactionData[index + 1] = Math.round(minRadiusMatrix[a][b]); // minR u8
-                    const maxR = maxRadiusMatrix[a][b];
-                    interactionData[index + 2] = maxR & 0xFF; // maxR low byte
-                    interactionData[index + 3] = (maxR >> 8) & 0xFF; // maxR high byte
-                }
-            }
-
-            const paddedSize = Math.ceil(interactionData.byteLength / 16) * 16 // Ensure padded to 16 bytes
-            const paddedInteractionData = new Uint8Array(paddedSize)
-            paddedInteractionData.set(interactionData)
-
-            if (!interactionMatrixBuffer || interactionMatrixBuffer.size !== paddedSize) {
-                interactionMatrixBuffer = device.createBuffer({
-                    size: paddedSize,
-                    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
-                })
-            }
-            device.queue.writeBuffer(interactionMatrixBuffer, 0, paddedInteractionData)
-        }
-        function updateSpatialHashBuffers() {
-            particleHashesBuffer = device.createBuffer({
-                size: NUM_PARTICLES * 4, // u32
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-            })
-            cellHeadsBuffer = device.createBuffer({
-                size: SPATIAL_HASH_TABLE_SIZE * 4, // u32
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-            })
-            particleNextIndicesBuffer = device.createBuffer({
-                size: NUM_PARTICLES * 4, // u32
-                usage: GPUBufferUsage.STORAGE,
-            })
-        }
+        // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         function initColors() {
             colors = new Float32Array(NUM_TYPES * 3)
@@ -757,23 +846,16 @@ export default defineComponent({
             // CELL_SIZE = currentMaxRadius
             return matrix
         }
-        function setSimSizeWhenWrapped() { // Set the grid size when the walls are wrapped
-            SIM_WIDTH = CELL_SIZE * Math.round(CANVAS_WIDTH / CELL_SIZE)
-            SIM_HEIGHT = CELL_SIZE * Math.round(SIM_HEIGHT / CELL_SIZE)
-        }
-        function centerView() {
-            cameraCenter = { x: SIM_WIDTH / 2, y: SIM_HEIGHT / 2 }
-        }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         function watchAndUpdate(effect: any, callback: any) {
             watch(effect, (value) => {
                 callback(value)
-                // if (!isRunning) simpleDrawParticles()
                 updateSimOptionsBuffer()
             })
         }
+        watch(() => particleLife.numParticles, (value: number) => updateNumParticles(value))
         watch(() => particleLife.isRunning, (value: boolean) => isRunning = value)
         watch(() => particleLife.useSpatialHash, (value: boolean) => useSpatialHash = value)
         watchAndUpdate(() => particleLife.particleSize, (value: number) => PARTICLE_SIZE = value)
@@ -799,7 +881,7 @@ export default defineComponent({
             }
         })
         // -------------------------------------------------------------------------------------------------------------
-        const destroyBuffers = () => {
+        const destroyBuffers = async () => {
             currentPositionBuffer?.destroy(); currentPositionBuffer = undefined;
             nextPositionBuffer?.destroy(); nextPositionBuffer = undefined;
             velocityBuffer?.destroy(); velocityBuffer = undefined;
@@ -814,20 +896,38 @@ export default defineComponent({
             particleHashesBuffer?.destroy(); particleHashesBuffer = undefined;
             cellHeadsBuffer?.destroy(); cellHeadsBuffer = undefined;
             particleNextIndicesBuffer?.destroy(); particleNextIndicesBuffer = undefined;
+            await nextTick() // Ensure GPU resources are cleaned up before creating new ones
         }
-        // -------------------------------------------------------------------------------------------------------------
-        onUnmounted(() => {
+        const destroyPipelinesAndBindGroups = () => {
+            renderPipeline = undefined as any;
+            clearHashPipeline = undefined as any;
+            buildHashPipeline = undefined as any;
+            bruteForceComputePipeline = undefined as any;
+            spatialHashComputePipeline = undefined as any;
+
+            renderBindGroup = undefined as any;
+            clearHashBindGroup = undefined as any;
+            buildHashBindGroup = undefined as any;
+            bruteForceComputeBindGroup = undefined as any;
+            spatialHashComputeBindGroup = undefined as any;
+        }
+        const cancelAnimationLoop = () => {
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId)
                 animationFrameId = null
             }
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        onUnmounted(() => {
+            cancelAnimationLoop()
+            destroyPipelinesAndBindGroups()
             destroyBuffers()
             // particleLife.$reset()
         })
 
         return {
             particleLife, canvasRef, fps, executionTime,
-            handleZoom, toggleFullscreen, isFullscreen, regenerateSimulation, step,
+            handleZoom, toggleFullscreen, isFullscreen, regenerateLife, step,
         }
     }
 });
