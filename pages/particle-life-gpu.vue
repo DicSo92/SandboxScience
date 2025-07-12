@@ -118,7 +118,7 @@ export default defineComponent({
         let animationFrameId: number | null = null
         let lastFrameTime: number = performance.now()
         let isRunning: boolean = particleLife.isRunning
-        let isAddingParticles: boolean = false // Flag to prevent multiple additions at once
+        let isUpdatingParticles: boolean = false // Flag to prevent multiple additions at once
         let smoothedDeltaTime: number = 0.016 // Initial value (1/60s)
         let CANVAS_WIDTH: number = 0
         let CANVAS_HEIGHT: number = 0
@@ -697,8 +697,8 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         const updateNumParticles = useDebounceFn(async (newCount: number) => {
-            if (isAddingParticles || newCount === NUM_PARTICLES) return
-            isAddingParticles = true
+            if (isUpdatingParticles || newCount === NUM_PARTICLES) return
+            isUpdatingParticles = true
 
             try {
                 cancelAnimationLoop()
@@ -754,10 +754,77 @@ export default defineComponent({
                 lastFrameTime = performance.now()
                 animationFrameId = requestAnimationFrame(frame)
             } finally {
-                isAddingParticles = false
+                isUpdatingParticles = false
                 await updateNumParticles(particleLife.numParticles) // Reset the debounce function
             }
         }, 16, { maxWait: 33 })
+        const updateNumTypes = async (newNumTypes: number) => {
+            if (isUpdatingParticles || newNumTypes === NUM_TYPES) return
+            isUpdatingParticles = true
+            try {
+                cancelAnimationLoop()
+
+                const currentPositions = await readBufferFromGPU(currentPositionBuffer!, NUM_PARTICLES * 2 * 4)
+                const currentVelocities = await readBufferFromGPU(velocityBuffer!, NUM_PARTICLES * 2 * 4)
+                const currentTypes = await readBufferFromGPU(typeBuffer!, NUM_PARTICLES * 4)
+                types = new Uint32Array(currentTypes)
+                positions = new Float32Array(currentPositions)
+                velocities = new Float32Array(currentVelocities)
+
+                if (newNumTypes < NUM_TYPES) {
+                    for (let i = 0; i < types.length; i++) {
+                        if (types[i] >= newNumTypes) {
+                            types[i] = Math.floor(Math.random() * newNumTypes)
+                        }
+                    }
+
+                    colors = colors.subarray(0, newNumTypes * 3)
+                } else if (newNumTypes > NUM_TYPES) {
+                    for (let i = 0; i < types.length; i++) {
+                        if (Math.random() < (newNumTypes - NUM_TYPES) / newNumTypes) {
+                            types[i] = NUM_TYPES + Math.floor(Math.random() * (newNumTypes - NUM_TYPES))
+                        }
+                    }
+
+                    const newColors = new Float32Array(newNumTypes * 3)
+                    newColors.set(colors)
+                    for (let i = NUM_TYPES; i < newNumTypes; i++) {
+                        newColors[i * 3] = Math.random()
+                        newColors[i * 3 + 1] = Math.random()
+                        newColors[i * 3 + 2] = Math.random()
+                    }
+                    colors = newColors
+                }
+                rulesMatrix = resizeMatrix(rulesMatrix, NUM_TYPES, newNumTypes, () => {
+                    return Number((Math.random() * 2 - 1).toFixed(4))
+                })
+                minRadiusMatrix = resizeMatrix(minRadiusMatrix, NUM_TYPES, newNumTypes, () => {
+                    return Math.floor(Math.random() * (particleLife.minRadiusRange[1] - particleLife.minRadiusRange[0] + 1) + particleLife.minRadiusRange[0])
+                })
+                let maxRandom = currentMaxRadius
+                maxRadiusMatrix = resizeMatrix(maxRadiusMatrix, NUM_TYPES, newNumTypes, () => {
+                    const val = Math.floor(Math.random() * (particleLife.maxRadiusRange[1] - particleLife.maxRadiusRange[0] + 1) + particleLife.maxRadiusRange[0])
+                    if (val > maxRandom) maxRandom = val
+                    return val
+                })
+                particleLife.currentMaxRadius = maxRandom
+
+                NUM_TYPES = newNumTypes
+
+                destroyPipelinesAndBindGroups()
+                await destroyBuffers()
+                createBuffers()
+                createPipelines()
+                createBindGroups()
+
+                lastFrameTime = performance.now()
+                animationFrameId = requestAnimationFrame(frame)
+            } finally {
+                isUpdatingParticles = false
+                await updateNumTypes(particleLife.numColors) // Reset the debounce function
+            }
+        }
+        // -------------------------------------------------------------------------------------------------------------
         async function readBufferFromGPU(buffer: GPUBuffer, size: number): Promise<ArrayBuffer> {
             const readBuffer = device.createBuffer({
                 size,
@@ -770,6 +837,21 @@ export default defineComponent({
             const arrayBuffer = readBuffer.getMappedRange().slice(0)
             readBuffer.unmap()
             return arrayBuffer
+        }
+        function resizeMatrix(matrix: number[][], oldNumTypes: number, newNumTypes: number, randomFn: () => number) {
+            const newMatrix: number[][] = []
+            for (let i = 0; i < newNumTypes; i++) {
+                const row: number[] = []
+                for (let j = 0; j < newNumTypes; j++) {
+                    if (i < oldNumTypes && j < oldNumTypes) {
+                        row.push(matrix[i][j])
+                    } else {
+                        row.push(randomFn())
+                    }
+                }
+                newMatrix.push(row)
+            }
+            return newMatrix
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -856,6 +938,7 @@ export default defineComponent({
             })
         }
         watch(() => particleLife.numParticles, (value: number) => updateNumParticles(value))
+        watch(() => particleLife.numColors, (value: number) => updateNumTypes(value))
         watch(() => particleLife.isRunning, (value: boolean) => isRunning = value)
         watch(() => particleLife.useSpatialHash, (value: boolean) => useSpatialHash = value)
         watchAndUpdate(() => particleLife.particleSize, (value: number) => PARTICLE_SIZE = value)
