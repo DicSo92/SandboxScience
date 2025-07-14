@@ -21,9 +21,8 @@
                             </RangeInput>
                             <RangeInput input label="Color Number"
                                         tooltip="Specify the number of particle colors. <br> Each color interacts with all others, with distinct forces and interaction ranges."
-                                        :min="1" :max="20" :step="1" v-model="particleLife.numColors" mt-2>
+                                        :min="1" :max="16" :step="1" v-model="particleLife.numColors" mt-2>
                             </RangeInput>
-
                             <div mb-2>
                                 <WallStateSelection :store="particleLife" />
                             </div>
@@ -42,6 +41,17 @@
                                         tooltip="Adjust the friction level. <br> Lowering it slows down particles, reducing chaotic movement and stabilizing the system."
                                         :min="0" :max="1" :step="0.01" v-model="particleLife.frictionFactor" mt-2>
                             </RangeInput>
+                        </Collapse>
+                        <Collapse label="Randomizer Settings" icon="i-game-icons-perspective-dice-six-faces-random" mt-2
+                                  tooltip="Adjust the parameters for randomizing particle attributes. <br> Configure the ranges for minimum and maximum interaction radii, and set the range for generating Z positions for particle spawning.">
+                            <RangeInputMinMax input label="Min. Radius"
+                                              tooltip="Set the range for generating minimum interaction radii. <br> This determines the range of possible values for the minimum distance at which particles begin to interact."
+                                              :min="0" :max="200" :step="1" v-model="particleLife.minRadiusRange">
+                            </RangeInputMinMax>
+                            <RangeInputMinMax input label="Max. Radius"
+                                              tooltip="Set the range for generating maximum interaction radii. <br> This determines the range of possible values for the maximum interaction distance between particles."
+                                              :min="particleLife.minRadiusRange[1]" :max="400" :step="1" v-model="particleLife.maxRadiusRange">
+                            </RangeInputMinMax>
                         </Collapse>
                         <Collapse label="Graphics Settings" icon="i-tabler-photo-cog" mt-2>
                             <RangeInput input label="Particle Size"
