@@ -65,10 +65,10 @@
                     @click="toggleBrushColor(null)">
             </button>
             <hr mt-1 border-gray-600>
-            <button v-for="(color, index) in particleLife.currentColors" :key="index"
+            <button v-for="(color, index) in colorDisplayArray" :key="index"
                     type="button" :name="`Color ${index + 1}`" :aria-label="`Color ${index + 1}`"
                     w-6 aspect-square rounded-full mt-1 :class="particleLife.brushes.includes(index) && 'border-3 border-gray-950 shadow-inner'"
-                    :style="{ backgroundColor: `hsl(${color}, 100%, 50%, 1)`}"
+                    :style="{ backgroundColor: color }"
                     @click="toggleBrushColor(index)">
             </button>
         </div>
@@ -80,8 +80,32 @@
 import { defineComponent } from 'vue'
 
 export default defineComponent({
+    props: {
+        store: {
+            type: Object,
+            required: true,
+        }
+    },
     setup(props, { emit }) {
-        const particleLife = useParticleLifeStore()
+        const particleLife = props.store
+
+        const colorDisplayArray = computed(() => {
+            const colors = particleLife.currentColors
+            if (!colors) return []
+            // WebGPU: Float32Array of RGB values
+            if (colors instanceof Float32Array) {
+                const result: string[] = []
+                for (let i = 0; i < colors.length; i += 4) {
+                    const r = Math.round(colors[i] * 255)
+                    const g = Math.round(colors[i + 1] * 255)
+                    const b = Math.round(colors[i + 2] * 255)
+                    result.push(`rgb(${r}, ${g}, ${b})`)
+                }
+                return result
+            }
+            // Normal Array of HSL values
+            return Array.from(colors).map(color => `hsl(${color}, 100%, 50%, 1)`)
+        })
 
         function toggleBrushType(brushType: number) {
             if (particleLife.isBrushActive && particleLife.brushType === brushType) {
@@ -105,7 +129,7 @@ export default defineComponent({
             }
         }
 
-        return { particleLife, toggleBrushType, toggleBrushColor }
+        return { particleLife, toggleBrushType, toggleBrushColor, colorDisplayArray }
     }
 })
 </script>

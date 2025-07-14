@@ -64,14 +64,7 @@
                 <div flex>Fps: <div ml-1 min-w-8>{{ fps }}</div></div>
                 <div flex ml-3>Process: <div ml-1 min-w-7>{{ Math.round(executionTime) }}</div></div>
             </div>
-            <div flex gap-2 mt-2>
-                <div
-                    v-for="(color, idx) in colorRgbStrings"
-                    :key="idx"
-                    :style="{ background: color, width: '32px', height: '32px', borderRadius: '6px', border: '1px solid #fff' }"
-                    :title="color"
-                ></div>
-            </div>
+            <BrushSettings :store="particleLife" pointer-events-auto mt-2 mr-1 />
         </div>
         <div fixed z-10 bottom-2 flex justify-center items-end class="faded-hover-effect left-1/2 transform -translate-x-1/2">
             <button type="button" name="Randomize" aria-label="Randomize" btn p2 rounded-full mx-1 flex items-center bg="#094F5D hover:#0B5F6F" @click="regenerateLife">
@@ -107,9 +100,10 @@ import bruteForceShaderCode from '~/assets/particle-life-gpu/shaders/compute_bru
 import spatialHashShaderCode from '~/assets/particle-life-gpu/shaders/compute_spatialHash.wgsl?raw';
 import vertexShaderCode from '~/assets/particle-life-gpu/shaders/render_vertex.wgsl?raw';
 import fragmentShaderCode from '~/assets/particle-life-gpu/shaders/render_fragment.wgsl?raw';
+import BrushSettings from "~/components/particle-life/BrushSettings.vue";
 export default defineComponent({
     name: 'ParticleLifeGpu',
-    components: {MatrixSettings, WallStateSelection},
+    components: {BrushSettings, MatrixSettings, WallStateSelection},
     setup() {
         definePageMeta({
             layout: 'life',
