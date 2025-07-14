@@ -5,7 +5,7 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
 
     const isRunning = ref<boolean>(true) // Is the simulation running
 
-    const currentColors = ref<number[]>([]) // Current colors for the particles
+    const currentColors = ref<Float32Array>() // Current colors for the particles
     const rulesMatrix = ref<number[][]>([]) // Rules matrix for each color
     const minRadiusMatrix = ref<number[][]>([]) // Min radius matrix for each color
     const maxRadiusMatrix = ref<number[][]>([]) // Max radius matrix for each color

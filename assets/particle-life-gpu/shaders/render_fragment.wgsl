@@ -1,10 +1,10 @@
-struct Colors { data: array<vec3f> };
+struct Colors { data: array<vec4f> };
 
 @group(0) @binding(0) var<storage, read> colors: Colors;
 
 @fragment
 fn main(@location(0) offset: vec2f, @location(1) @interpolate(flat) particleType: u32) -> @location(0) vec4f {
-    let color = colors.data[particleType];
+    let color = colors.data[particleType].xyz;
     if (length(offset) > 1.0) {
         discard;
     }

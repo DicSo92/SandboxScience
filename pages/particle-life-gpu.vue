@@ -64,6 +64,14 @@
                 <div flex>Fps: <div ml-1 min-w-8>{{ fps }}</div></div>
                 <div flex ml-3>Process: <div ml-1 min-w-7>{{ Math.round(executionTime) }}</div></div>
             </div>
+            <div flex gap-2 mt-2>
+                <div
+                    v-for="(color, idx) in colorRgbStrings"
+                    :key="idx"
+                    :style="{ background: color, width: '32px', height: '32px', borderRadius: '6px', border: '1px solid #fff' }"
+                    :title="color"
+                ></div>
+            </div>
         </div>
         <div fixed z-10 bottom-2 flex justify-center items-end class="faded-hover-effect left-1/2 transform -translate-x-1/2">
             <button type="button" name="Randomize" aria-label="Randomize" btn p2 rounded-full mx-1 flex items-center bg="#094F5D hover:#0B5F6F" @click="regenerateLife">
@@ -228,6 +236,7 @@ export default defineComponent({
             CANVAS_HEIGHT = canvasRef.value!.height = canvasRef.value!.clientHeight
         }
         function setSimSizeWhenWrapped() { // Set the grid size when the walls are wrapped
+            if (!useSpatialHash) return
             SIM_WIDTH = CELL_SIZE * Math.round(CANVAS_WIDTH / CELL_SIZE)
             SIM_HEIGHT = CELL_SIZE * Math.round(SIM_HEIGHT / CELL_SIZE)
         }
@@ -742,15 +751,8 @@ export default defineComponent({
                 createPipelines()
                 createBindGroups()
 
-                if (!isRunning) {
-                    const encoder = device.createCommandEncoder()
-                    encoder.copyBufferToBuffer(
-                        currentPositionBuffer!, 0,
-                        nextPositionBuffer!, 0,
-                        positions.byteLength
-                    )
-                    device.queue.submit([encoder.finish()])
-                }
+                if (!isRunning) syncPositionBuffers()
+
                 lastFrameTime = performance.now()
                 animationFrameId = requestAnimationFrame(frame)
             } finally {
@@ -777,36 +779,47 @@ export default defineComponent({
                             types[i] = Math.floor(Math.random() * newNumTypes)
                         }
                     }
-
-                    colors = colors.subarray(0, newNumTypes * 3)
                 } else if (newNumTypes > NUM_TYPES) {
                     for (let i = 0; i < types.length; i++) {
                         if (Math.random() < (newNumTypes - NUM_TYPES) / newNumTypes) {
                             types[i] = NUM_TYPES + Math.floor(Math.random() * (newNumTypes - NUM_TYPES))
                         }
                     }
-
-                    const newColors = new Float32Array(newNumTypes * 3)
-                    newColors.set(colors)
-                    for (let i = NUM_TYPES; i < newNumTypes; i++) {
-                        newColors[i * 3] = Math.random()
-                        newColors[i * 3 + 1] = Math.random()
-                        newColors[i * 3 + 2] = Math.random()
-                    }
-                    colors = newColors
                 }
+
+                const newColors = new Float32Array(newNumTypes * 4)
+                const oldColors = colors
+                for (let i = 0; i < newNumTypes; i++) {
+                    if (i < NUM_TYPES) {
+                        newColors[i * 4] = oldColors[i * 4] ?? Math.random()
+                        newColors[i * 4 + 1] = oldColors[i * 4 + 1] ?? Math.random()
+                        newColors[i * 4 + 2] = oldColors[i * 4 + 2] ?? Math.random()
+                        newColors[i * 4 + 3] = 1
+                    } else {
+                        newColors[i * 4] = Math.random()
+                        newColors[i * 4 + 1] = Math.random()
+                        newColors[i * 4 + 2] = Math.random()
+                        newColors[i * 4 + 3] = 1
+                    }
+                }
+                colors = newColors
+                particleLife.currentColors = colors // Ensure the store is updated with the new colors
+
                 rulesMatrix = resizeMatrix(rulesMatrix, NUM_TYPES, newNumTypes, () => {
                     return Number((Math.random() * 2 - 1).toFixed(4))
                 })
                 minRadiusMatrix = resizeMatrix(minRadiusMatrix, NUM_TYPES, newNumTypes, () => {
                     return Math.floor(Math.random() * (particleLife.minRadiusRange[1] - particleLife.minRadiusRange[0] + 1) + particleLife.minRadiusRange[0])
                 })
-                let maxRandom = currentMaxRadius
                 maxRadiusMatrix = resizeMatrix(maxRadiusMatrix, NUM_TYPES, newNumTypes, () => {
-                    const val = Math.floor(Math.random() * (particleLife.maxRadiusRange[1] - particleLife.maxRadiusRange[0] + 1) + particleLife.maxRadiusRange[0])
-                    if (val > maxRandom) maxRandom = val
-                    return val
+                    return Math.floor(Math.random() * (particleLife.maxRadiusRange[1] - particleLife.maxRadiusRange[0] + 1) + particleLife.maxRadiusRange[0])
                 })
+                let maxRandom = 0
+                for (let i = 0; i < newNumTypes; i++) {
+                    for (let j = 0; j < newNumTypes; j++) {
+                        if (maxRadiusMatrix[i][j] > maxRandom) maxRandom = maxRadiusMatrix[i][j]
+                    }
+                }
                 particleLife.currentMaxRadius = maxRandom
 
                 NUM_TYPES = newNumTypes
@@ -817,6 +830,8 @@ export default defineComponent({
                 createPipelines()
                 createBindGroups()
 
+                if (!isRunning) syncPositionBuffers()
+
                 lastFrameTime = performance.now()
                 animationFrameId = requestAnimationFrame(frame)
             } finally {
@@ -825,6 +840,15 @@ export default defineComponent({
             }
         }
         // -------------------------------------------------------------------------------------------------------------
+        const syncPositionBuffers = () => {
+            const encoder = device.createCommandEncoder()
+            encoder.copyBufferToBuffer(
+                currentPositionBuffer!, 0,
+                nextPositionBuffer!, 0,
+                positions.byteLength
+            )
+            device.queue.submit([encoder.finish()])
+        }
         async function readBufferFromGPU(buffer: GPUBuffer, size: number): Promise<ArrayBuffer> {
             const readBuffer = device.createBuffer({
                 size,
@@ -857,12 +881,14 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         function initColors() {
-            colors = new Float32Array(NUM_TYPES * 3)
+            colors = new Float32Array(NUM_TYPES * 4)
             for (let i = 0; i < NUM_TYPES; ++i) {
-                colors[i * 3] = Math.random()
-                colors[i * 3 + 1] = Math.random()
-                colors[i * 3 + 2] = Math.random()
+                colors[i * 4] = Math.random()
+                colors[i * 4 + 1] = Math.random()
+                colors[i * 4 + 2] = Math.random()
+                colors[i * 4 + 3] = 1 // padding alpha channel
             }
+            particleLife.currentColors = colors // Ensure the store is updated with the initial colors
         }
         function initParticles() {
             positions = new Float32Array(NUM_PARTICLES * 2)
@@ -928,6 +954,21 @@ export default defineComponent({
             // CELL_SIZE = currentMaxRadius
             return matrix
         }
+        // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
+        const colorRgbStrings = computed(() => {
+            const arr = particleLife.currentColors
+            if (!arr) return []
+            const result: string[] = []
+            for (let i = 0; i < arr.length; i += 4) {
+                const r = Math.round(arr[i] * 255)
+                const g = Math.round(arr[i + 1] * 255)
+                const b = Math.round(arr[i + 2] * 255)
+                result.push(`rgb(${r}, ${g}, ${b})`)
+            }
+            return result
+        })
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -1009,7 +1050,7 @@ export default defineComponent({
         })
 
         return {
-            particleLife, canvasRef, fps, executionTime,
+            particleLife, canvasRef, fps, executionTime, colorRgbStrings,
             handleZoom, toggleFullscreen, isFullscreen, regenerateLife, step,
         }
     }
