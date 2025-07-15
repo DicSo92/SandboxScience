@@ -227,6 +227,7 @@ export default defineComponent({
                 pointerY = e.y - canvasRef.value!.getBoundingClientRect().top
 
                 if (e.buttons > 0) { // if mouse is pressed
+                    if (particleLife.isLockedPointer) return // Prevent canvas dragging if the pointer is locked
                     isDragging = true
                     if (e.buttons === 1) { // if primary button is pressed (left click)
                         handleMove()
@@ -830,15 +831,8 @@ export default defineComponent({
                 setMaxRadiusMatrix(resizeMatrix(maxRadiusMatrix, NUM_TYPES, newNumTypes, () => {
                     return Math.floor(Math.random() * (particleLife.maxRadiusRange[1] - particleLife.maxRadiusRange[0] + 1) + particleLife.maxRadiusRange[0])
                 }))
-                let maxRandom = 0
-                for (let i = 0; i < newNumTypes; i++) {
-                    for (let j = 0; j < newNumTypes; j++) {
-                        if (maxRadiusMatrix[i][j] > maxRandom) maxRandom = maxRadiusMatrix[i][j]
-                    }
-                }
-                particleLife.currentMaxRadius = maxRandom
-
                 NUM_TYPES = newNumTypes
+                particleLife.currentMaxRadius = getCurrentMaxRadius()
 
                 destroyPipelinesAndBindGroups()
                 await destroyBuffers()
@@ -972,14 +966,30 @@ export default defineComponent({
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
-        const updateRulesMatrixValue = () => {
-
+        const updateRulesMatrixValue = (x: number, y: number, value: number) => {
+            particleLife.rulesMatrix[x][y] = value
+            rulesMatrix[x][y] = value
+            updateInteractionMatrixBuffer()
         }
-        const updateMinMatrixValue = () => {
-
+        const updateMinMatrixValue = (x: number, y: number, value: number) => {
+            particleLife.minRadiusMatrix[x][y] = value
+            minRadiusMatrix[x][y] = value
+            if (value > particleLife.maxRadiusMatrix[x][y]) {
+                particleLife.maxRadiusMatrix[x][y] = value
+                maxRadiusMatrix[x][y] = value
+                particleLife.currentMaxRadius = getCurrentMaxRadius()
+            }
+            updateInteractionMatrixBuffer()
         }
-        const updateMaxMatrixValue = () => {
-
+        const updateMaxMatrixValue = (x: number, y: number, value: number) => {
+            particleLife.maxRadiusMatrix[x][y] = value
+            maxRadiusMatrix[x][y] = value
+            particleLife.currentMaxRadius = getCurrentMaxRadius()
+            if (value < particleLife.minRadiusMatrix[x][y]) {
+                particleLife.minRadiusMatrix[x][y] = value
+                minRadiusMatrix[x][y] = value
+            }
+            updateInteractionMatrixBuffer()
         }
         const newRandomRulesMatrix = () => {
 
@@ -995,6 +1005,16 @@ export default defineComponent({
         function setMaxRadiusMatrix(newMaxRadius: number[][]) {
             maxRadiusMatrix = newMaxRadius
             particleLife.maxRadiusMatrix = maxRadiusMatrix
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        const getCurrentMaxRadius = () => {
+            let maxRandom = 0
+            for (let i = 0; i < NUM_TYPES; i++) {
+                for (let j = 0; j < NUM_TYPES; j++) {
+                    if (maxRadiusMatrix[i][j] > maxRandom) maxRandom = maxRadiusMatrix[i][j]
+                }
+            }
+            return maxRandom
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -1084,6 +1104,16 @@ export default defineComponent({
             }
         }
         // -------------------------------------------------------------------------------------------------------------
+        watch(() => particleLife.isLockedPointer, (value) => {
+            const sidebarLeftElement = document.getElementById('sidebarLeft')
+            if (sidebarLeftElement) {
+                if (value) {
+                    sidebarLeftElement.classList.add('force-hover-effect')
+                } else {
+                    sidebarLeftElement.classList.remove('force-hover-effect')
+                }
+            }
+        })
         onUnmounted(() => {
             cancelAnimationLoop()
             destroyPipelinesAndBindGroups()
