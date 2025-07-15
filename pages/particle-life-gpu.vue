@@ -14,6 +14,18 @@
                     </div>
                     <hr>
                     <div overflow-auto flex-1 mt-2 class="scrollableArea">
+                        <Collapse label="Matrix Settings" icon="i-tabler-grid-4x4"
+                                  tooltip="Modify matrix values by clicking on cells in the grid. <br>
+                                  Adjust individual cell values with the slider, or click and drag to change them directly. <br>
+                                  Use Ctrl + Click to select multiple cells for group adjustments. <br>
+                                  If no cells are selected, the slider will adjust all values.">
+                            <MatrixSettings :store="particleLife"
+                                            @updateRulesMatrix="updateRulesMatrixValue"
+                                            @randomRulesMatrix="newRandomRulesMatrix"
+                                            @updateMinMatrix="updateMinMatrixValue"
+                                            @updateMaxMatrix="updateMaxMatrixValue">
+                            </MatrixSettings>
+                        </Collapse>
                         <Collapse label="World Settings" icon="i-tabler-world-cog" opened mt-2>
                             <RangeInput input label="Particle Number"
                                         tooltip="Adjust the total number of particles. <br> More particles may reveal complex interactions but can increase computational demand."
@@ -294,12 +306,12 @@ export default defineComponent({
         const initLife = () => {
             handleResize()
 
-            rulesMatrix = makeRandomRulesMatrix()
-            minRadiusMatrix = makeRandomMinRadiusMatrix()
-            maxRadiusMatrix = makeRandomMaxRadiusMatrix()
-            // rulesMatrix = [[-0.2758, -0.9341, -0.7292, -0.2024, -0.4367, -0.4714, -0.8962],[0.3548, -0.4365, -0.5117, -0.3945, -0.7828, 0.7885, 0.4696],[-0.9114, -0.8742, -0.5724, 0.1277, 0.3471, 0.3468, -0.6377],[0.3619, 0.6267, -0.6251, -0.1823, -0.285, -0.7255, 0.4615],[-0.2717, 0.9975, -0.4783, -0.9001, -0.2176, -0.9916, -0.4428],[-0.133, -0.342, -0.5631, 0.1238, -0.2723, -0.7484, 0.8461],[0.571, -0.7669, 0.0851, 0.5078, 0.8143, -0.7627, 0.7893]]
-            // minRadiusMatrix = [[25, 39, 37, 31, 31, 40, 30],[33, 27, 37, 33, 40, 33, 40],[26, 31, 25, 30, 32, 34, 39],[33, 27, 33, 39, 34, 25, 38],[28, 32, 31, 30, 40, 37, 30],[39, 39, 38, 35, 25, 31, 40],[33, 36, 29, 35, 30, 25, 40]]
-            // maxRadiusMatrix = [[65, 72, 80, 66, 72, 67, 79],[69, 61, 75, 73, 69, 70, 73],[80, 69, 71, 74, 67, 62, 61],[73, 79, 70, 70, 70, 72, 79],[67, 65, 74, 76, 64, 77, 71],[61, 68, 72, 64, 69, 64, 79],[72, 68, 77, 74, 63, 70, 75]]
+            setRulesMatrix(makeRandomRulesMatrix())
+            setMinRadiusMatrix(makeRandomMinRadiusMatrix())
+            setMaxRadiusMatrix(makeRandomMaxRadiusMatrix())
+            // setRulesMatrix([[-0.2758, -0.9341, -0.7292, -0.2024, -0.4367, -0.4714, -0.8962],[0.3548, -0.4365, -0.5117, -0.3945, -0.7828, 0.7885, 0.4696],[-0.9114, -0.8742, -0.5724, 0.1277, 0.3471, 0.3468, -0.6377],[0.3619, 0.6267, -0.6251, -0.1823, -0.285, -0.7255, 0.4615],[-0.2717, 0.9975, -0.4783, -0.9001, -0.2176, -0.9916, -0.4428],[-0.133, -0.342, -0.5631, 0.1238, -0.2723, -0.7484, 0.8461],[0.571, -0.7669, 0.0851, 0.5078, 0.8143, -0.7627, 0.7893]])
+            // setMinRadiusMatrix([[25, 39, 37, 31, 31, 40, 30],[33, 27, 37, 33, 40, 33, 40],[26, 31, 25, 30, 32, 34, 39],[33, 27, 33, 39, 34, 25, 38],[28, 32, 31, 30, 40, 37, 30],[39, 39, 38, 35, 25, 31, 40],[33, 36, 29, 35, 30, 25, 40]])
+            // setMaxRadiusMatrix([[65, 72, 80, 66, 72, 67, 79],[69, 61, 75, 73, 69, 70, 73],[80, 69, 71, 74, 67, 62, 61],[73, 79, 70, 70, 70, 72, 79],[67, 65, 74, 76, 64, 77, 71],[61, 68, 72, 64, 69, 64, 79],[72, 68, 77, 74, 63, 70, 75]])
             // particleLife.currentMaxRadius = 80
 
             console.log("Rules Matrix:", rulesMatrix);
@@ -809,15 +821,15 @@ export default defineComponent({
                 colors = newColors
                 particleLife.currentColors = colors // Ensure the store is updated with the new colors
 
-                rulesMatrix = resizeMatrix(rulesMatrix, NUM_TYPES, newNumTypes, () => {
+                setRulesMatrix(resizeMatrix(rulesMatrix, NUM_TYPES, newNumTypes, () => {
                     return Number((Math.random() * 2 - 1).toFixed(4))
-                })
-                minRadiusMatrix = resizeMatrix(minRadiusMatrix, NUM_TYPES, newNumTypes, () => {
+                }))
+                setMinRadiusMatrix(resizeMatrix(minRadiusMatrix, NUM_TYPES, newNumTypes, () => {
                     return Math.floor(Math.random() * (particleLife.minRadiusRange[1] - particleLife.minRadiusRange[0] + 1) + particleLife.minRadiusRange[0])
-                })
-                maxRadiusMatrix = resizeMatrix(maxRadiusMatrix, NUM_TYPES, newNumTypes, () => {
+                }))
+                setMaxRadiusMatrix(resizeMatrix(maxRadiusMatrix, NUM_TYPES, newNumTypes, () => {
                     return Math.floor(Math.random() * (particleLife.maxRadiusRange[1] - particleLife.maxRadiusRange[0] + 1) + particleLife.maxRadiusRange[0])
-                })
+                }))
                 let maxRandom = 0
                 for (let i = 0; i < newNumTypes; i++) {
                     for (let j = 0; j < newNumTypes; j++) {
@@ -960,6 +972,32 @@ export default defineComponent({
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
+        const updateRulesMatrixValue = () => {
+
+        }
+        const updateMinMatrixValue = () => {
+
+        }
+        const updateMaxMatrixValue = () => {
+
+        }
+        const newRandomRulesMatrix = () => {
+
+        }
+        function setRulesMatrix(newRules: number[][]) {
+            rulesMatrix = newRules
+            particleLife.rulesMatrix = rulesMatrix
+        }
+        function setMinRadiusMatrix(newMinRadius: number[][]) {
+            minRadiusMatrix = newMinRadius
+            particleLife.minRadiusMatrix = minRadiusMatrix
+        }
+        function setMaxRadiusMatrix(newMaxRadius: number[][]) {
+            maxRadiusMatrix = newMaxRadius
+            particleLife.maxRadiusMatrix = maxRadiusMatrix
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         const colorRgbStrings = computed(() => {
             const arr = particleLife.currentColors
@@ -1056,6 +1094,7 @@ export default defineComponent({
         return {
             particleLife, canvasRef, fps, executionTime, colorRgbStrings,
             handleZoom, toggleFullscreen, isFullscreen, regenerateLife, step,
+            updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, newRandomRulesMatrix,
         }
     }
 });
@@ -1064,5 +1103,9 @@ export default defineComponent({
 <style scoped>
 canvas {
     background: black;
+}
+.scrollableArea {
+    scrollbar-color: #a5a5a5 transparent;
+    scrollbar-width: none;
 }
 </style>

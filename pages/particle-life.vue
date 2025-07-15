@@ -22,7 +22,7 @@
                                   Adjust individual cell values with the slider, or click and drag to change them directly. <br>
                                   Use Ctrl + Click to select multiple cells for group adjustments. <br>
                                   If no cells are selected, the slider will adjust all values.">
-                            <MatrixSettings
+                            <MatrixSettings :store="particleLife"
                                 @updateRulesMatrix="updateRulesMatrixValue"
                                 @randomRulesMatrix="newRandomRulesMatrix"
                                 @updateMinMatrix="updateMinMatrixValue"
