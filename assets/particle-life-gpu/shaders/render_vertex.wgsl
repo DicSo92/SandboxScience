@@ -19,8 +19,7 @@ struct SimOptions {
 };
 struct Camera {
     center: vec2f,
-    zoomFactor: f32,
-    pad: f32 // Padding to ensure the struct size is aligned to 16 bytes (required for uniform buffers)
+    scale: vec2f
 };
 
 @group(0) @binding(1) var<uniform> camera: Camera;
@@ -35,14 +34,10 @@ fn main(
     var out: VertexOutput;
 
     let worldPos = instancePos + localPos * options.particleSize;
-    let pos = (worldPos - camera.center) * camera.zoomFactor;
+    let relativePos = worldPos - camera.center;
+    let finalPos = relativePos * camera.scale;
 
-    out.position = vec4f(
-        (pos.x / options.simWidth) * 2.0,
-        -(pos.y / options.simHeight) * 2.0,
-        0.0, 1.0
-    );
-
+    out.position = vec4f(finalPos.x, -finalPos.y, 0.0, 1.0);
     out.offset = localPos;
     out.particleType = particleType;
 

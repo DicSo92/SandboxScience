@@ -164,14 +164,16 @@ export default defineComponent({
         let colors: Float32Array // Particle colors
 
         // Define the properties for dragging and zooming
-        let zoomFactor = 1.0
+        let zoomFactor: number = 1.0
         let cameraCenter = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 }
+        let cameraScaleX: number = 1.0 // Scale factor for X axis
+        let cameraScaleY: number = 1.0 // Scale factor for Y axis
         let isDragging: boolean = false // Flag to check if the mouse is being dragged
         let lastPointerX: number = 0 // For dragging
         let lastPointerY: number = 0 // For dragging
         let pointerX: number = 0 // Pointer X
         let pointerY: number = 0 // Pointer Y
-        let cameraChanged = true
+        let cameraChanged: boolean = true
 
         // Define the GPU device, pipelines, and bind groups
         let device: GPUDevice
@@ -251,11 +253,18 @@ export default defineComponent({
         function handleResize() {
             CANVAS_WIDTH = canvasRef.value!.width = canvasRef.value!.clientWidth
             CANVAS_HEIGHT = canvasRef.value!.height = canvasRef.value!.clientHeight
+            updateCameraScaleFactors()
+            cameraChanged = true
+        }
+        function updateCameraScaleFactors() {
+            cameraScaleY = zoomFactor * 2.0 / SIM_HEIGHT
+            cameraScaleX = cameraScaleY / (CANVAS_WIDTH / CANVAS_HEIGHT)
         }
         function setSimSizeWhenWrapped() { // Set the grid size when the walls are wrapped
             if (!useSpatialHash) return
             SIM_WIDTH = CELL_SIZE * Math.round(CANVAS_WIDTH / CELL_SIZE)
             SIM_HEIGHT = CELL_SIZE * Math.round(SIM_HEIGHT / CELL_SIZE)
+            updateCameraScaleFactors()
         }
         function centerView() {
             cameraCenter = { x: SIM_WIDTH / 2, y: SIM_HEIGHT / 2 }
@@ -264,30 +273,31 @@ export default defineComponent({
             if (isDragging) {
                 const dx = pointerX - lastPointerX
                 const dy = pointerY - lastPointerY
-                cameraCenter.x -= dx / zoomFactor
-                cameraCenter.y -= dy / zoomFactor
+                cameraCenter.x -= dx / (cameraScaleX * CANVAS_WIDTH * 0.5)
+                cameraCenter.y -= dy / (cameraScaleY * CANVAS_HEIGHT * 0.5)
                 lastPointerX = pointerX
                 lastPointerY = pointerY
                 cameraChanged = true
             }
         }
         function handleZoom(delta: number, x: number, y: number) {
-            const oldZoomFactor = zoomFactor
+            const mouseClipX = (x / CANVAS_WIDTH) * 2 - 1
+            const mouseClipY = (y / CANVAS_HEIGHT) * 2 - 1
+
+            const worldXBefore = cameraCenter.x + mouseClipX / cameraScaleX
+            const worldYBefore = cameraCenter.y + mouseClipY / cameraScaleY
+
             const zoomIntensity = 0.1
             const zoomDelta = delta * zoomIntensity
-            zoomFactor = Math.max(0.1, Math.min(3.2, zoomFactor + zoomDelta))
+            zoomFactor = Math.max(0.1, Math.min(8.0, zoomFactor * (1 + zoomDelta)))
 
-            const worldBefore = {
-                x: cameraCenter.x + (x - CANVAS_WIDTH / 2) * (SIM_WIDTH / CANVAS_WIDTH) / oldZoomFactor,
-                y: cameraCenter.y + (y - CANVAS_HEIGHT / 2) * (SIM_HEIGHT / CANVAS_HEIGHT) / oldZoomFactor
-            }
-            const worldAfter = {
-                x: cameraCenter.x + (x - CANVAS_WIDTH / 2) * (SIM_WIDTH / CANVAS_WIDTH) / zoomFactor,
-                y: cameraCenter.y + (y - CANVAS_HEIGHT / 2) * (SIM_HEIGHT / CANVAS_HEIGHT) / zoomFactor
-            }
-            // Adjust the camera center to keep the mouse cursor over the same point in world space
-            cameraCenter.x += worldBefore.x - worldAfter.x
-            cameraCenter.y += worldBefore.y - worldAfter.y
+            updateCameraScaleFactors()
+
+            const worldXAfter = cameraCenter.x + mouseClipX / cameraScaleX
+            const worldYAfter = cameraCenter.y + mouseClipY / cameraScaleY
+
+            cameraCenter.x += worldXBefore - worldXAfter
+            cameraCenter.y += worldYBefore - worldYAfter
             cameraChanged = true
         }
         // -------------------------------------------------------------------------------------------------------------
@@ -325,6 +335,7 @@ export default defineComponent({
 
             SIM_WIDTH = CANVAS_WIDTH
             SIM_HEIGHT = CANVAS_HEIGHT
+            updateCameraScaleFactors()
             if (isWallWrap) setSimSizeWhenWrapped()
             centerView()
 
@@ -413,7 +424,7 @@ export default defineComponent({
         const renderParticles = (encoder: GPUCommandEncoder) => {
             if (cameraChanged) {
                 device.queue.writeBuffer(cameraBuffer!, 0, new Float32Array([
-                    cameraCenter.x, cameraCenter.y, zoomFactor, 0
+                    cameraCenter.x, cameraCenter.y, cameraScaleX, cameraScaleY
                 ]))
                 cameraChanged = false
             }
@@ -464,7 +475,7 @@ export default defineComponent({
             new Float32Array(triangleVertexBuffer.getMappedRange()).set(quadVertices)
             triangleVertexBuffer.unmap()
 
-            const cameraData = new Float32Array([cameraCenter.x, cameraCenter.y, zoomFactor, 0]);
+            const cameraData = new Float32Array([cameraCenter.x, cameraCenter.y, cameraScaleX, cameraScaleY])
             cameraBuffer = device.createBuffer({
                 size: cameraData.byteLength,
                 usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
