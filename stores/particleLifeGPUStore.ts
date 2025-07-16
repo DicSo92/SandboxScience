@@ -10,8 +10,9 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
     const minRadiusMatrix = ref<number[][]>([]) // Min radius matrix for each color
     const maxRadiusMatrix = ref<number[][]>([]) // Max radius matrix for each color
 
-    const gridWidth = ref<number>(0) // Grid width
-    const gridHeight = ref<number>(0) // Grid height
+    const simWidth = ref<number>(0) // Grid width
+    const simHeight = ref<number>(0) // Grid height
+    const linkProportions = ref<boolean>(false) // Constraint x y sim proportions
 
     const numParticles = ref<number>(48000) // Number of particles
     const particleSize = ref<number>(1.3) // Size of the particles at zoomFactor = 1
@@ -52,7 +53,7 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
         sidebarLeftOpen, isLockedPointer,
         isRunning,
         rulesMatrix, minRadiusMatrix, maxRadiusMatrix, currentColors,
-        gridWidth, gridHeight,
+        simWidth, simHeight, linkProportions,
         numParticles, particleSize, numColors,
         is3D, isWallRepel, isWallWrap, screenMultiplierForGridSize,
         minRadiusRange, maxRadiusRange, currentMaxRadius,

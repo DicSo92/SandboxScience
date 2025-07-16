@@ -38,6 +38,17 @@
                             <div mb-2>
                                 <WallStateSelection :store="particleLife" />
                             </div>
+                            <div flex items-center>
+                                <p class="w-2/3 text-2sm mt-1">
+                                    Rectangle Size
+                                    <TooltipInfo container="#mainContainer" tooltip="Adjust the size of the rectangular area where particles are contained." />
+                                </p>
+                                <Input label="x" v-model="particleLife.simWidth" @change="updateSimWidth" mr-2 />
+                                <Input label="y" v-model="particleLife.simHeight" @change="updateSimHeight" mr-2 />
+                                <button type="button" btn rounded-full p2 flex items-center bg="zinc-900 hover:#212121" @click="particleLife.linkProportions = !particleLife.linkProportions">
+                                    <span :class="particleLife.linkProportions ? 'i-tabler-link' : 'i-tabler-unlink'" text-sm></span>
+                                </button>
+                            </div>
                             <ToggleSwitch inactive-label="BruteForce" label="SpatialHash" colorful-label v-model="particleLife.useSpatialHash" />
                         </Collapse>
                         <Collapse label="Force Settings" icon="i-tabler-atom" opened mt-2>
@@ -150,6 +161,8 @@ export default defineComponent({
         let SIM_HEIGHT: number = 0
         let CELL_SIZE: number = 0
         let SPATIAL_HASH_TABLE_SIZE: number = 0
+        let baseSimWidth: number = 0
+        let baseSimHeight: number = 0
 
         // Define color list and rules matrix for the particles
         let rulesMatrix: number[][] = [] // Rules matrix for each color
@@ -217,6 +230,8 @@ export default defineComponent({
 
         onMounted(async () => {
             await initWebGPU()
+            handleResize()
+            setSimSizeBasedOnScreen()
             initLife()
 
             useEventListener('resize', handleResize)
@@ -260,10 +275,15 @@ export default defineComponent({
             cameraScaleY = zoomFactor * 2.0 / SIM_HEIGHT
             cameraScaleX = cameraScaleY / (CANVAS_WIDTH / CANVAS_HEIGHT)
         }
+        function setSimSizeBasedOnScreen() {
+            particleLife.simWidth = SIM_WIDTH = baseSimWidth = CANVAS_WIDTH
+            particleLife.simHeight = SIM_HEIGHT = baseSimHeight = CANVAS_HEIGHT
+            updateCameraScaleFactors()
+        }
         function setSimSizeWhenWrapped() { // Set the grid size when the walls are wrapped
             if (!useSpatialHash) return
-            SIM_WIDTH = CELL_SIZE * Math.round(CANVAS_WIDTH / CELL_SIZE)
-            SIM_HEIGHT = CELL_SIZE * Math.round(SIM_HEIGHT / CELL_SIZE)
+            particleLife.simWidth = SIM_WIDTH = CELL_SIZE * Math.round(baseSimWidth / CELL_SIZE)
+            particleLife.simHeight = SIM_HEIGHT = CELL_SIZE * Math.round(baseSimHeight / CELL_SIZE)
             updateCameraScaleFactors()
         }
         function centerView() {
@@ -315,8 +335,6 @@ export default defineComponent({
             })
         }
         const initLife = () => {
-            handleResize()
-
             setRulesMatrix(makeRandomRulesMatrix())
             setMinRadiusMatrix(makeRandomMinRadiusMatrix())
             setMaxRadiusMatrix(makeRandomMaxRadiusMatrix())
@@ -333,8 +351,6 @@ export default defineComponent({
             CELL_SIZE = currentMaxRadius // Ensure CELL_SIZE is set before creating buffers
             SPATIAL_HASH_TABLE_SIZE = Math.pow(2, Math.ceil(Math.log2(NUM_PARTICLES))) // Ensure SPATIAL_HASH_TABLE_SIZE is a power of 2
 
-            SIM_WIDTH = CANVAS_WIDTH
-            SIM_HEIGHT = CANVAS_HEIGHT
             updateCameraScaleFactors()
             if (isWallWrap) setSimSizeWhenWrapped()
             centerView()
@@ -977,6 +993,20 @@ export default defineComponent({
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
+        const updateSimWidth = (newWidth: number | Event) => {
+            if (typeof(newWidth) !== 'number') return // Prevent input event like unfocus
+            if (particleLife.linkProportions) particleLife.simHeight = SIM_HEIGHT = baseSimHeight = Math.round(SIM_HEIGHT * (newWidth / SIM_WIDTH))
+            particleLife.simWidth = SIM_WIDTH = baseSimWidth = newWidth
+            if (isWallWrap) setSimSizeWhenWrapped()
+            regenerateLife()
+        }
+        const updateSimHeight = (newHeight: number | Event) => {
+            if (typeof(newHeight) !== 'number') return // Prevent input event like unfocus
+            if (particleLife.linkProportions) particleLife.simWidth = SIM_WIDTH = baseSimWidth = Math.round(SIM_WIDTH * (newHeight / SIM_HEIGHT))
+            particleLife.simHeight = SIM_HEIGHT = baseSimHeight = newHeight
+            if (isWallWrap) setSimSizeWhenWrapped()
+            regenerateLife()
+        }
         const updateRulesMatrixValue = (x: number, y: number, value: number) => {
             particleLife.rulesMatrix[x][y] = value
             rulesMatrix[x][y] = value
@@ -1062,9 +1092,7 @@ export default defineComponent({
         watchAndUpdate(() => particleLife.currentMaxRadius, (value: number) => {
             currentMaxRadius = value
             CELL_SIZE = currentMaxRadius
-            if (isWallWrap) {
-                setSimSizeWhenWrapped()
-            }
+            if (isWallWrap) setSimSizeWhenWrapped()
         })
         watchAndUpdate(() => particleLife.isWallRepel, (value: boolean) => {
             isWallRepel = value
@@ -1135,6 +1163,7 @@ export default defineComponent({
         return {
             particleLife, canvasRef, fps, executionTime, colorRgbStrings,
             handleZoom, toggleFullscreen, isFullscreen, regenerateLife, step,
+            updateSimWidth, updateSimHeight,
             updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, newRandomRulesMatrix,
         }
     }
