@@ -50,6 +50,7 @@
                                 </button>
                             </div>
                             <ToggleSwitch inactive-label="BruteForce" label="SpatialHash" colorful-label v-model="particleLife.useSpatialHash" />
+                            <ToggleSwitch label="Show Mirrors" colorful-label v-model="particleLife.isMirrorWrap" />
                         </Collapse>
                         <Collapse label="Force Settings" icon="i-tabler-atom" opened mt-2>
                             <RangeInput input label="Repel Force"
@@ -127,13 +128,16 @@
 import { defineComponent, onMounted, ref } from 'vue';
 import WallStateSelection from "~/components/particle-life/WallStateSelection.vue";
 import MatrixSettings from "~/components/particle-life/MatrixSettings.vue";
+import BrushSettings from "~/components/particle-life/BrushSettings.vue";
 import buildHashShaderCode from 'assets/particle-life-gpu/shaders/compute_buildHash.wgsl?raw';
 import clearHashShaderCode from 'assets/particle-life-gpu/shaders/compute_clearHash.wgsl?raw';
 import bruteForceShaderCode from '~/assets/particle-life-gpu/shaders/compute_bruteForce.wgsl?raw';
 import spatialHashShaderCode from '~/assets/particle-life-gpu/shaders/compute_spatialHash.wgsl?raw';
 import vertexShaderCode from '~/assets/particle-life-gpu/shaders/render_vertex.wgsl?raw';
 import fragmentShaderCode from '~/assets/particle-life-gpu/shaders/render_fragment.wgsl?raw';
-import BrushSettings from "~/components/particle-life/BrushSettings.vue";
+import mirrorVertexShaderCode from 'assets/particle-life-gpu/shaders/mirror_compositor_vertex.wgsl?raw';
+import mirrorFragmentShaderCode from 'assets/particle-life-gpu/shaders/mirror_compositor_fragment.wgsl?raw';
+import offscreenShaderCode from 'assets/particle-life-gpu/shaders/offscreen_render_vertex.wgsl?raw';
 export default defineComponent({
     name: 'ParticleLifeGpu',
     components: {BrushSettings, MatrixSettings, WallStateSelection},
@@ -217,6 +221,15 @@ export default defineComponent({
         let cellHeadsBuffer: GPUBuffer | undefined
         let particleNextIndicesBuffer: GPUBuffer | undefined
 
+        // Define the offscreen texture and its view for rendering mirrors
+        let offscreenTexture: GPUTexture | undefined
+        let offscreenTextureView: GPUTextureView
+        let offscreenSampler: GPUSampler
+        let renderMirrorPipeline: GPURenderPipeline
+        let renderMirrorBindGroup: GPUBindGroup
+        let renderOffscreenPipeline: GPURenderPipeline
+        let renderOffscreenBindGroup: GPUBindGroup
+
         // Define variables for the simulation
         let repel: number = particleLife.repel // Repel force between particles
         let forceFactor: number = particleLife.forceFactor // Decrease will increase the impact of the force on the velocity (the higher the value, the slower the particles will move) (can't be 0)
@@ -226,6 +239,7 @@ export default defineComponent({
         let NUM_TYPES: number = particleLife.numColors
         let isWallRepel: boolean = particleLife.isWallRepel // Enable walls X and Y for the particles
         let isWallWrap: boolean = particleLife.isWallWrap // Enable wrapping for the particles
+        let isMirrorWrap: boolean = particleLife.isMirrorWrap // Enable mirroring for the particles (only if isWallWrap is true)
         let useSpatialHash: boolean = particleLife.useSpatialHash // Use spatial hash or brute force
 
         onMounted(async () => {
@@ -279,12 +293,14 @@ export default defineComponent({
             particleLife.simWidth = SIM_WIDTH = baseSimWidth = CANVAS_WIDTH
             particleLife.simHeight = SIM_HEIGHT = baseSimHeight = CANVAS_HEIGHT
             updateCameraScaleFactors()
+            updateOffscreenMirrorResources()
         }
         function setSimSizeWhenWrapped() { // Set the grid size when the walls are wrapped
             if (!useSpatialHash) return
             particleLife.simWidth = SIM_WIDTH = CELL_SIZE * Math.round(baseSimWidth / CELL_SIZE)
             particleLife.simHeight = SIM_HEIGHT = CELL_SIZE * Math.round(baseSimHeight / CELL_SIZE)
             updateCameraScaleFactors()
+            updateOffscreenMirrorResources()
         }
         function centerView() {
             cameraCenter = { x: SIM_WIDTH / 2, y: SIM_HEIGHT / 2 }
@@ -445,23 +461,57 @@ export default defineComponent({
                 cameraChanged = false
             }
 
-            const renderPass = encoder.beginRenderPass({
-                colorAttachments: [
-                    {
+            if (isMirrorWrap) {
+                const renderOffscreenPass = encoder.beginRenderPass({
+                    colorAttachments: [{
+                        view: offscreenTextureView,
+                        loadOp: 'clear',
+                        clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+                        storeOp: 'store'
+                    }]
+                })
+                renderOffscreenPass.setPipeline(renderOffscreenPipeline)
+                renderOffscreenPass.setBindGroup(0, renderOffscreenBindGroup)
+                renderOffscreenPass.setVertexBuffer(0, triangleVertexBuffer!)
+                renderOffscreenPass.setVertexBuffer(1, nextPositionBuffer!)
+                renderOffscreenPass.setVertexBuffer(2, typeBuffer!)
+                renderOffscreenPass.draw(6, NUM_PARTICLES)
+                renderOffscreenPass.end()
+
+                const renderMirrorPass = encoder.beginRenderPass({
+                    colorAttachments: [{
                         view: ctx.getCurrentTexture().createView(),
                         loadOp: 'clear',
-                        storeOp: 'store',
-                        clearValue: { r: 0, g: 0, b: 0, a: 1 }
-                    }
-                ]
-            })
-            renderPass.setPipeline(renderPipeline)
-            renderPass.setBindGroup(0, renderBindGroup)
-            renderPass.setVertexBuffer(0, triangleVertexBuffer)
-            renderPass.setVertexBuffer(1, nextPositionBuffer)
-            renderPass.setVertexBuffer(2, typeBuffer)
-            renderPass.draw(6, NUM_PARTICLES)
-            renderPass.end()
+                        clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+                        storeOp: 'store'
+                    }]
+                })
+                renderMirrorPass.setPipeline(renderMirrorPipeline)
+                renderMirrorPass.setBindGroup(0, renderMirrorBindGroup)
+                renderMirrorPass.setVertexBuffer(0, triangleVertexBuffer!)
+                renderMirrorPass.draw(6, 5)
+                // renderMirrorPass.draw(6, 9)
+                // renderMirrorPass.draw(6, 1) // For infinite wrapping mirror
+                renderMirrorPass.end()
+            } else {
+                const renderPass = encoder.beginRenderPass({
+                    colorAttachments: [
+                        {
+                            view: ctx.getCurrentTexture().createView(),
+                            loadOp: 'clear',
+                            storeOp: 'store',
+                            clearValue: { r: 0, g: 0, b: 0, a: 1 }
+                        }
+                    ]
+                })
+                renderPass.setPipeline(renderPipeline)
+                renderPass.setBindGroup(0, renderBindGroup)
+                renderPass.setVertexBuffer(0, triangleVertexBuffer)
+                renderPass.setVertexBuffer(1, nextPositionBuffer)
+                renderPass.setVertexBuffer(2, typeBuffer)
+                renderPass.draw(6, NUM_PARTICLES)
+                renderPass.end()
+            }
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -613,6 +663,7 @@ export default defineComponent({
             createSpatialHashBindGroups()
             createBruteForceBindGroup()
             createRenderBindGroup()
+            updateOffscreenMirrorResources() // Will create offscreen texture and bind group if needed
         }
         const createClearHashBindGroup = () => {
             clearHashBindGroup = device.createBindGroup({
@@ -672,6 +723,24 @@ export default defineComponent({
                     { binding: 2, resource: { buffer: simOptionsBuffer! } }
                 ]
             })
+            renderOffscreenBindGroup = device.createBindGroup({
+                layout: renderOffscreenPipeline.getBindGroupLayout(0),
+                entries: [
+                    { binding: 0, resource: { buffer: colorBuffer! } },
+                    { binding: 2, resource: { buffer: simOptionsBuffer! } }
+                ]
+            })
+        }
+        const createRenderMirrorBindGroup = () => {
+            renderMirrorBindGroup = device.createBindGroup({
+                layout: renderMirrorPipeline.getBindGroupLayout(0),
+                entries: [
+                    { binding: 0, resource: offscreenTextureView },
+                    { binding: 1, resource: { buffer: cameraBuffer! } },
+                    { binding: 2, resource: { buffer: simOptionsBuffer! } },
+                    { binding: 3, resource: offscreenSampler },
+                ]
+            })
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -697,7 +766,7 @@ export default defineComponent({
                 layout: 'auto',
                 compute: { module: spatialHashShader, entryPoint: 'main' }
             })
-
+            // ---------------------------------------------------------------------------------------------------------
             const vertexShader = device.createShaderModule({ code: vertexShaderCode });
             const fragmentShader = device.createShaderModule({ code: fragmentShaderCode })
             renderPipeline = device.createRenderPipeline({
@@ -707,16 +776,16 @@ export default defineComponent({
                     entryPoint: 'main',
                     buffers: [
                         { // triangle
-                            arrayStride: 8,
+                            arrayStride: 2 * 4,
                             stepMode: 'vertex',
                             attributes: [{ shaderLocation: 0, format: 'float32x2', offset: 0 }]
                         },
                         { // positions
-                            arrayStride: 8,
+                            arrayStride: 2 * 4,
                             stepMode: 'instance',
                             attributes: [{ shaderLocation: 1, format: 'float32x2', offset: 0 }]
                         },
-                        {
+                        { // types
                             arrayStride: 4,
                             stepMode: 'instance',
                             attributes: [{ shaderLocation: 2, format: 'uint32', offset: 0 }]
@@ -745,10 +814,144 @@ export default defineComponent({
                 },
                 primitive: { topology: 'triangle-list' }
             })
+            // ---------------------------------------------------------------------------------------------------------
+            const offscreenShader = device.createShaderModule({ code: offscreenShaderCode })
+            renderOffscreenPipeline = device.createRenderPipeline({
+                layout: 'auto',
+                vertex: {
+                    module: offscreenShader,
+                    entryPoint: 'main',
+                    buffers: [
+                        { // triangle
+                            arrayStride: 2 * 4,
+                            stepMode: 'vertex',
+                            attributes: [{ shaderLocation: 0, format: 'float32x2', offset: 0 }]
+                        },
+                        { // positions
+                            arrayStride: 2 * 4,
+                            stepMode: 'instance',
+                            attributes: [{ shaderLocation: 1, format: 'float32x2', offset: 0 }]
+                        },
+                        { // types
+                            arrayStride: 4,
+                            stepMode: 'instance',
+                            attributes: [{ shaderLocation: 2, format: 'uint32', offset: 0 }]
+                        }
+                    ]
+                },
+                fragment: {
+                    module: fragmentShader,
+                    entryPoint: 'main',
+                    targets: [{
+                        format: navigator.gpu.getPreferredCanvasFormat(),
+                        blend: {
+                            color: {
+                                srcFactor: 'src-alpha',
+                                dstFactor: 'one-minus-src-alpha',
+                                operation: 'add'
+                            },
+                            alpha: {
+                                srcFactor: 'one',
+                                dstFactor: 'one-minus-src-alpha',
+                                operation: 'add'
+                            }
+                        },
+                        writeMask: GPUColorWrite.ALL
+                    }]
+                },
+                primitive: { topology: 'triangle-list' }
+            })
+            // ---------------------------------------------------------------------------------------------------------
+            const mirrorVertexShader = device.createShaderModule({ code: mirrorVertexShaderCode })
+            const mirrorFragmentShader = device.createShaderModule({ code: mirrorFragmentShaderCode })
+            renderMirrorPipeline = device.createRenderPipeline({
+                layout: 'auto',
+                vertex: {
+                    module: mirrorVertexShader,
+                    entryPoint: 'main',
+                    buffers: [
+                        { // triangle/quad vertex buffer
+                            arrayStride: 2 * 4,
+                            attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x2' }]
+                        }
+                    ]
+                },
+                fragment: {
+                    module: mirrorFragmentShader,
+                    entryPoint: 'main',
+                    targets: [{
+                        format: navigator.gpu.getPreferredCanvasFormat(),
+                        blend: {
+                            color: {
+                                srcFactor: 'src-alpha',
+                                dstFactor: 'one-minus-src-alpha',
+                                operation: 'add'
+                            },
+                            alpha: {
+                                srcFactor: 'one',
+                                dstFactor: 'one-minus-src-alpha',
+                                operation: 'add'
+                            }
+                        }
+                    }]
+                },
+                primitive: { topology: 'triangle-list' }
+            })
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
+        const updateOffscreenMirrorResources = () => {
+            if (offscreenTexture) {
+                offscreenTexture.destroy(); offscreenTexture = undefined;
+            }
+            if (!isMirrorWrap) return
+
+            const maxDimension = device.limits.maxTextureDimension2D
+            const aspectRatio = SIM_WIDTH / SIM_HEIGHT
+            const baseResolution2K = 2048
+
+            let desiredWidth = SIM_WIDTH * 3.5
+            let desiredHeight = SIM_HEIGHT * 3.5
+
+            if (desiredWidth > maxDimension || desiredHeight > maxDimension) {
+                if (aspectRatio > 1) {
+                    desiredWidth = maxDimension
+                    desiredHeight = Math.round(desiredWidth / aspectRatio)
+                } else {
+                    desiredHeight = maxDimension
+                    desiredWidth = Math.round(desiredHeight * aspectRatio)
+                }
+            }
+            if (desiredWidth < baseResolution2K || desiredHeight < baseResolution2K) {
+                if (aspectRatio > 1) {
+                    desiredWidth = Math.max(desiredWidth, baseResolution2K)
+                    desiredHeight = Math.round(desiredWidth / aspectRatio)
+                } else {
+                    desiredHeight = Math.max(desiredHeight, baseResolution2K)
+                    desiredWidth = Math.round(desiredHeight * aspectRatio)
+                }
+            }
+            const maxWidth = Math.min(desiredWidth, maxDimension)
+            const maxHeight = Math.min(desiredHeight, maxDimension)
+            offscreenTexture = device.createTexture({
+                size: [maxWidth, maxHeight],
+                format: navigator.gpu.getPreferredCanvasFormat(),
+                usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+            })
+            offscreenTextureView = offscreenTexture.createView()
+
+            if (!offscreenSampler) {
+                offscreenSampler = device.createSampler({
+                    magFilter: 'linear',
+                    minFilter: 'linear',
+                    addressModeU: 'repeat',
+                    addressModeV: 'repeat'
+                })
+            }
+
+            if (renderMirrorPipeline) createRenderMirrorBindGroup()
+        }
         const updateNumParticles = useDebounceFn(async (newCount: number) => {
             if (isUpdatingParticles || newCount === NUM_PARTICLES) return
             isUpdatingParticles = true
@@ -1100,10 +1303,16 @@ export default defineComponent({
         })
         watchAndUpdate(() => particleLife.isWallWrap, (value: boolean) => {
             isWallWrap = value
+            particleLife.isMirrorWrap = isWallWrap
             if (isWallWrap) {
                 particleLife.isWallRepel = false
                 setSimSizeWhenWrapped()
             }
+        })
+        watch(() => particleLife.isMirrorWrap, (value: boolean) => {
+            isMirrorWrap = value
+            if (!isWallWrap && isMirrorWrap) particleLife.isWallWrap = true
+            updateOffscreenMirrorResources()
         })
         // -------------------------------------------------------------------------------------------------------------
         const destroyBuffers = async () => {
@@ -1121,6 +1330,9 @@ export default defineComponent({
             particleHashesBuffer?.destroy(); particleHashesBuffer = undefined;
             cellHeadsBuffer?.destroy(); cellHeadsBuffer = undefined;
             particleNextIndicesBuffer?.destroy(); particleNextIndicesBuffer = undefined;
+            offscreenTexture?.destroy(); offscreenTexture = undefined;
+            offscreenTextureView = undefined as any;
+            offscreenSampler = undefined as any;
             await nextTick() // Ensure GPU resources are cleaned up before creating new ones
         }
         const destroyPipelinesAndBindGroups = () => {
@@ -1135,6 +1347,11 @@ export default defineComponent({
             buildHashBindGroup = undefined as any;
             bruteForceComputeBindGroup = undefined as any;
             spatialHashComputeBindGroup = undefined as any;
+
+            renderOffscreenPipeline = undefined as any;
+            renderOffscreenBindGroup = undefined as any;
+            renderMirrorPipeline = undefined as any;
+            renderMirrorBindGroup = undefined as any;
         }
         const cancelAnimationLoop = () => {
             if (animationFrameId) {

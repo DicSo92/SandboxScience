@@ -57,8 +57,8 @@ export default defineComponent({
             }
         })
 
-        watch(() => particleLife.isWallRepel, (value) => {
-            if (value) {
+        watch([() => particleLife.isWallRepel, () => particleLife.isWallWrap], () => {
+            if (particleLife.isWallRepel) {
                 currentValue.value = 'repel'
             } else if (particleLife.isWallWrap) {
                 currentValue.value = 'wrap'
