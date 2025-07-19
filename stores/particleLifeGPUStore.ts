@@ -22,6 +22,8 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
     const isWallRepel = ref<boolean>(false) // Enable walls X and Y for the particles
     const isWallWrap = ref<boolean>(true) // Enable wrapped particles
     const isMirrorWrap = ref<boolean>(true) // Enable mirrors for the particles (only works if isWallWrap is true)
+    const isInfiniteMirrorWrap = ref<boolean>(false) // Enable infinite mirrors for the particles (only works if isWallWrap is true)
+    const mirrorWrapCount = ref<number>(5) // Number of mirrors (5 or 9)
     const screenMultiplierForGridSize = ref<number>(3) // Multiplier for the grid size (1 means the grid will be the same size as the screen)
 
     // Define force properties
@@ -56,7 +58,7 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
         rulesMatrix, minRadiusMatrix, maxRadiusMatrix, currentColors,
         simWidth, simHeight, linkProportions,
         numParticles, particleSize, numColors,
-        is3D, isWallRepel, isWallWrap, isMirrorWrap, screenMultiplierForGridSize,
+        is3D, isWallRepel, isWallWrap, isMirrorWrap, isInfiniteMirrorWrap, mirrorWrapCount, screenMultiplierForGridSize,
         minRadiusRange, maxRadiusRange, currentMaxRadius,
         repel, forceFactor, frictionFactor, useSpatialHash,
         isBrushActive, brushes, brushRadius, brushIntensity, brushType, attractForce, repulseForce,

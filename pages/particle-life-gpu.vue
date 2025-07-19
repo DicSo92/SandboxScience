@@ -50,7 +50,12 @@
                                 </button>
                             </div>
                             <ToggleSwitch inactive-label="BruteForce" label="SpatialHash" colorful-label v-model="particleLife.useSpatialHash" />
-                            <ToggleSwitch label="Show Mirrors" colorful-label v-model="particleLife.isMirrorWrap" />
+                            <ToggleSwitch label="Show Edges Mirrors" colorful-label v-model="particleLife.isMirrorWrap" />
+                            <ToggleSwitch label="Show Infinite Mirrors" colorful-label v-model="particleLife.isInfiniteMirrorWrap" />
+                            <div flex>
+                                <SelectButton :id="5" label="Cross 5" v-model="particleLife.mirrorWrapCount" :disabled="!particleLife.isMirrorWrap" mr-2 />
+                                <SelectButton :id="9" label="3x3" v-model="particleLife.mirrorWrapCount" :disabled="!particleLife.isMirrorWrap" />
+                            </div>
                         </Collapse>
                         <Collapse label="Force Settings" icon="i-tabler-atom" opened mt-2>
                             <RangeInput input label="Repel Force"
@@ -135,9 +140,11 @@ import bruteForceShaderCode from '~/assets/particle-life-gpu/shaders/compute_bru
 import spatialHashShaderCode from '~/assets/particle-life-gpu/shaders/compute_spatialHash.wgsl?raw';
 import vertexShaderCode from '~/assets/particle-life-gpu/shaders/render_vertex.wgsl?raw';
 import fragmentShaderCode from '~/assets/particle-life-gpu/shaders/render_fragment.wgsl?raw';
+import offscreenShaderCode from 'assets/particle-life-gpu/shaders/offscreen_render_vertex.wgsl?raw';
 import mirrorVertexShaderCode from 'assets/particle-life-gpu/shaders/mirror_compositor_vertex.wgsl?raw';
 import mirrorFragmentShaderCode from 'assets/particle-life-gpu/shaders/mirror_compositor_fragment.wgsl?raw';
-import offscreenShaderCode from 'assets/particle-life-gpu/shaders/offscreen_render_vertex.wgsl?raw';
+import infiniteVertexShaderCode from 'assets/particle-life-gpu/shaders/infinite_compositor_vertex.wgsl?raw';
+import infiniteFragmentShaderCode from 'assets/particle-life-gpu/shaders/infinite_compositor_fragment.wgsl?raw';
 export default defineComponent({
     name: 'ParticleLifeGpu',
     components: {BrushSettings, MatrixSettings, WallStateSelection},
@@ -229,6 +236,8 @@ export default defineComponent({
         let renderMirrorBindGroup: GPUBindGroup
         let renderOffscreenPipeline: GPURenderPipeline
         let renderOffscreenBindGroup: GPUBindGroup
+        let renderInfinitePipeline: GPURenderPipeline
+        let renderInfiniteBindGroup: GPUBindGroup
 
         // Define variables for the simulation
         let repel: number = particleLife.repel // Repel force between particles
@@ -240,6 +249,8 @@ export default defineComponent({
         let isWallRepel: boolean = particleLife.isWallRepel // Enable walls X and Y for the particles
         let isWallWrap: boolean = particleLife.isWallWrap // Enable wrapping for the particles
         let isMirrorWrap: boolean = particleLife.isMirrorWrap // Enable mirroring for the particles (only if isWallWrap is true)
+        let isInfiniteMirrorWrap: boolean = particleLife.isInfiniteMirrorWrap // Enable infinite wrapping for the particles (only if isWallWrap is true)
+        let mirrorWrapCount: number = particleLife.mirrorWrapCount // Number of mirrors to render if isMirrorWrap is true (5 or 9)
         let useSpatialHash: boolean = particleLife.useSpatialHash // Use spatial hash or brute force
 
         onMounted(async () => {
@@ -461,7 +472,7 @@ export default defineComponent({
                 cameraChanged = false
             }
 
-            if (isMirrorWrap) {
+            if (isMirrorWrap || isInfiniteMirrorWrap) {
                 const renderOffscreenPass = encoder.beginRenderPass({
                     colorAttachments: [{
                         view: offscreenTextureView,
@@ -478,21 +489,35 @@ export default defineComponent({
                 renderOffscreenPass.draw(6, NUM_PARTICLES)
                 renderOffscreenPass.end()
 
-                const renderMirrorPass = encoder.beginRenderPass({
-                    colorAttachments: [{
-                        view: ctx.getCurrentTexture().createView(),
-                        loadOp: 'clear',
-                        clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
-                        storeOp: 'store'
-                    }]
-                })
-                renderMirrorPass.setPipeline(renderMirrorPipeline)
-                renderMirrorPass.setBindGroup(0, renderMirrorBindGroup)
-                renderMirrorPass.setVertexBuffer(0, triangleVertexBuffer!)
-                renderMirrorPass.draw(6, 5)
-                // renderMirrorPass.draw(6, 9)
-                // renderMirrorPass.draw(6, 1) // For infinite wrapping mirror
-                renderMirrorPass.end()
+                if (isInfiniteMirrorWrap) {
+                    const renderInfinitePass = encoder.beginRenderPass({
+                        colorAttachments: [{
+                            view: ctx.getCurrentTexture().createView(),
+                            loadOp: 'clear',
+                            clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+                            storeOp: 'store'
+                        }]
+                    })
+                    renderInfinitePass.setPipeline(renderInfinitePipeline)
+                    renderInfinitePass.setBindGroup(0, renderInfiniteBindGroup)
+                    renderInfinitePass.setVertexBuffer(0, triangleVertexBuffer!)
+                    renderInfinitePass.draw(6, 1)
+                    renderInfinitePass.end()
+                } else {
+                    const renderMirrorPass = encoder.beginRenderPass({
+                        colorAttachments: [{
+                            view: ctx.getCurrentTexture().createView(),
+                            loadOp: 'clear',
+                            clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+                            storeOp: 'store'
+                        }]
+                    })
+                    renderMirrorPass.setPipeline(renderMirrorPipeline)
+                    renderMirrorPass.setBindGroup(0, renderMirrorBindGroup)
+                    renderMirrorPass.setVertexBuffer(0, triangleVertexBuffer!)
+                    renderMirrorPass.draw(6, mirrorWrapCount)
+                    renderMirrorPass.end()
+                }
             } else {
                 const renderPass = encoder.beginRenderPass({
                     colorAttachments: [
@@ -742,6 +767,17 @@ export default defineComponent({
                 ]
             })
         }
+        const createRenderInfiniteBindGroup = () => {
+            renderInfiniteBindGroup = device.createBindGroup({
+                layout: renderInfinitePipeline.getBindGroupLayout(0),
+                entries: [
+                    { binding: 0, resource: offscreenTextureView },
+                    { binding: 1, resource: { buffer: cameraBuffer! } },
+                    { binding: 2, resource: { buffer: simOptionsBuffer! } },
+                    { binding: 3, resource: offscreenSampler },
+                ]
+            })
+        }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -843,7 +879,7 @@ export default defineComponent({
                     module: fragmentShader,
                     entryPoint: 'main',
                     targets: [{
-                        format: navigator.gpu.getPreferredCanvasFormat(),
+                        format: 'rgba8unorm',
                         blend: {
                             color: {
                                 srcFactor: 'src-alpha',
@@ -897,6 +933,42 @@ export default defineComponent({
                 },
                 primitive: { topology: 'triangle-list' }
             })
+            // ---------------------------------------------------------------------------------------------------------
+            const infiniteVertexShader = device.createShaderModule({ code: infiniteVertexShaderCode })
+            const infiniteFragmentShader = device.createShaderModule({ code: infiniteFragmentShaderCode })
+            renderInfinitePipeline = device.createRenderPipeline({
+                layout: 'auto',
+                vertex: {
+                    module: infiniteVertexShader,
+                    entryPoint: 'main',
+                    buffers: [
+                        { // triangle/quad vertex buffer
+                            arrayStride: 2 * 4,
+                            attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x2' }]
+                        }
+                    ]
+                },
+                fragment: {
+                    module: infiniteFragmentShader,
+                    entryPoint: 'main',
+                    targets: [{
+                        format: navigator.gpu.getPreferredCanvasFormat(),
+                        blend: {
+                            color: {
+                                srcFactor: 'src-alpha',
+                                dstFactor: 'one-minus-src-alpha',
+                                operation: 'add'
+                            },
+                            alpha: {
+                                srcFactor: 'one',
+                                dstFactor: 'one-minus-src-alpha',
+                                operation: 'add'
+                            }
+                        }
+                    }]
+                },
+                primitive: { topology: 'triangle-list' }
+            })
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -905,7 +977,7 @@ export default defineComponent({
             if (offscreenTexture) {
                 offscreenTexture.destroy(); offscreenTexture = undefined;
             }
-            if (!isMirrorWrap) return
+            if (!isMirrorWrap && !isInfiniteMirrorWrap) return
 
             const maxDimension = device.limits.maxTextureDimension2D
             const aspectRatio = SIM_WIDTH / SIM_HEIGHT
@@ -936,7 +1008,8 @@ export default defineComponent({
             const maxHeight = Math.min(desiredHeight, maxDimension)
             offscreenTexture = device.createTexture({
                 size: [maxWidth, maxHeight],
-                format: navigator.gpu.getPreferredCanvasFormat(),
+                // format: navigator.gpu.getPreferredCanvasFormat(),
+                format: 'rgba8unorm',
                 usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
             })
             offscreenTextureView = offscreenTexture.createView()
@@ -950,7 +1023,8 @@ export default defineComponent({
                 })
             }
 
-            if (renderMirrorPipeline) createRenderMirrorBindGroup()
+            if (isMirrorWrap && renderMirrorPipeline) createRenderMirrorBindGroup()
+            if (isInfiniteMirrorWrap && renderInfinitePipeline) createRenderInfiniteBindGroup()
         }
         const updateNumParticles = useDebounceFn(async (newCount: number) => {
             if (isUpdatingParticles || newCount === NUM_PARTICLES) return
@@ -1284,6 +1358,7 @@ export default defineComponent({
                 updateSimOptionsBuffer()
             })
         }
+        watch(() => particleLife.mirrorWrapCount, (value: number) => mirrorWrapCount = value)
         watch(() => particleLife.numParticles, (value: number) => updateNumParticles(value))
         watch(() => particleLife.numColors, (value: number) => updateNumTypes(value))
         watch(() => particleLife.isRunning, (value: boolean) => isRunning = value)
@@ -1297,22 +1372,65 @@ export default defineComponent({
             CELL_SIZE = currentMaxRadius
             if (isWallWrap) setSimSizeWhenWrapped()
         })
-        watchAndUpdate(() => particleLife.isWallRepel, (value: boolean) => {
-            isWallRepel = value
-            if (isWallRepel) particleLife.isWallWrap = false
-        })
-        watchAndUpdate(() => particleLife.isWallWrap, (value: boolean) => {
-            isWallWrap = value
-            particleLife.isMirrorWrap = isWallWrap
-            if (isWallWrap) {
+
+        let isUpdatingWallState = false
+        watch([
+            () => particleLife.isWallRepel,
+            () => particleLife.isWallWrap,
+            () => particleLife.isMirrorWrap,
+            () => particleLife.isInfiniteMirrorWrap
+        ], ([newRepel, newWrap, newMirror, newInfinite], [oldRepel, oldWrap, oldMirror, oldInfinite]) => {
+            if (isUpdatingWallState) return
+
+            let changedProp = ''
+            if (newRepel !== oldRepel) changedProp = 'isWallRepel'
+            else if (newWrap !== oldWrap) changedProp = 'isWallWrap'
+            else if (newMirror !== oldMirror) changedProp = 'isMirrorWrap'
+            else if (newInfinite !== oldInfinite) changedProp = 'isInfiniteMirrorWrap'
+
+            if (!changedProp) return
+
+            isUpdatingWallState = true
+
+            if (changedProp === 'isWallRepel' && newRepel) {
+                particleLife.isWallWrap = false
+                particleLife.isMirrorWrap = false
+                particleLife.isInfiniteMirrorWrap = false
+            } else if (changedProp === 'isWallWrap') {
+                if (newWrap) {
+                    particleLife.isWallRepel = false
+                    if (!newMirror && !newInfinite) particleLife.isMirrorWrap = true
+                } else {
+                    particleLife.isMirrorWrap = false
+                    particleLife.isInfiniteMirrorWrap = false
+                }
+            } else if (changedProp === 'isMirrorWrap' && newMirror) {
+                particleLife.isWallWrap = true
                 particleLife.isWallRepel = false
-                setSimSizeWhenWrapped()
+                particleLife.isInfiniteMirrorWrap = false
+            } else if (changedProp === 'isInfiniteMirrorWrap' && newInfinite) {
+                particleLife.isWallWrap = true
+                particleLife.isWallRepel = false
+                particleLife.isMirrorWrap = false
             }
-        })
-        watch(() => particleLife.isMirrorWrap, (value: boolean) => {
-            isMirrorWrap = value
-            if (!isWallWrap && isMirrorWrap) particleLife.isWallWrap = true
-            updateOffscreenMirrorResources()
+
+            isWallRepel = particleLife.isWallRepel
+            isWallWrap = particleLife.isWallWrap
+            isMirrorWrap = particleLife.isMirrorWrap
+            isInfiniteMirrorWrap = particleLife.isInfiniteMirrorWrap
+
+            if (!oldWrap && ((changedProp === 'isWallWrap' && newWrap) || (changedProp === 'isMirrorWrap' && newMirror) || (changedProp === 'isInfiniteMirrorWrap' && newInfinite))) {
+                setSimSizeWhenWrapped()
+            } else {
+                updateOffscreenMirrorResources()
+            }
+            if (changedProp === 'isWallWrap' || changedProp === 'isWallRepel' || (changedProp === 'isMirrorWrap' && newMirror && !oldWrap) || (changedProp === 'isInfiniteMirrorWrap' && newInfinite && !oldWrap)) {
+                updateSimOptionsBuffer()
+            }
+
+            nextTick(() => {
+                isUpdatingWallState = false
+            })
         })
         // -------------------------------------------------------------------------------------------------------------
         const destroyBuffers = async () => {
@@ -1352,6 +1470,8 @@ export default defineComponent({
             renderOffscreenBindGroup = undefined as any;
             renderMirrorPipeline = undefined as any;
             renderMirrorBindGroup = undefined as any;
+            renderInfinitePipeline = undefined as any;
+            renderInfiniteBindGroup = undefined as any;
         }
         const cancelAnimationLoop = () => {
             if (animationFrameId) {
