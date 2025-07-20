@@ -29,7 +29,7 @@
                         <Collapse label="World Settings" icon="i-tabler-world-cog" opened mt-2>
                             <RangeInput input label="Particle Number"
                                         tooltip="Adjust the total number of particles. <br> More particles may reveal complex interactions but can increase computational demand."
-                                        :min="16" :max="100000" :step="16" v-model="particleLife.numParticles">
+                                        :min="16" :max="1048576" :step="16" v-model="particleLife.numParticles">
                             </RangeInput>
                             <RangeInput input label="Color Number"
                                         tooltip="Specify the number of particle colors. <br> Each color interacts with all others, with distinct forces and interaction ranges."
@@ -145,6 +145,15 @@ import mirrorVertexShaderCode from 'assets/particle-life-gpu/shaders/mirror_comp
 import mirrorFragmentShaderCode from 'assets/particle-life-gpu/shaders/mirror_compositor_fragment.wgsl?raw';
 import infiniteVertexShaderCode from 'assets/particle-life-gpu/shaders/infinite_compositor_vertex.wgsl?raw';
 import infiniteFragmentShaderCode from 'assets/particle-life-gpu/shaders/infinite_compositor_fragment.wgsl?raw';
+
+import binFillSizeShaderCode from 'assets/particle-life-gpu/shaders/binFillSize.wgsl?raw';
+import binPrefixSumShaderCode from 'assets/particle-life-gpu/shaders/binPrefixSum.wgsl?raw';
+import particleSortShaderCode from 'assets/particle-life-gpu/shaders/particleSort.wgsl?raw';
+import particleComputeForcesShaderCode from 'assets/particle-life-gpu/shaders/particleComputeForces.wgsl?raw';
+import particleAdvanceShaderCode from 'assets/particle-life-gpu/shaders/particleAdvance.wgsl?raw';
+
+import vertexBinningShaderCode from 'assets/particle-life-gpu/shaders/render_vertex_binning.wgsl?raw';
+import fragmentBinningShaderCode from 'assets/particle-life-gpu/shaders/render_fragment_binning.wgsl?raw';
 export default defineComponent({
     name: 'ParticleLifeGpu',
     components: {BrushSettings, MatrixSettings, WallStateSelection},
@@ -252,6 +261,41 @@ export default defineComponent({
         let isInfiniteMirrorWrap: boolean = particleLife.isInfiniteMirrorWrap // Enable infinite wrapping for the particles (only if isWallWrap is true)
         let mirrorWrapCount: number = particleLife.mirrorWrapCount // Number of mirrors to render if isMirrorWrap is true (5 or 9)
         let useSpatialHash: boolean = particleLife.useSpatialHash // Use spatial hash or brute force
+
+        let binOffsetBuffer: GPUBuffer | undefined
+        let binOffsetTempBuffer: GPUBuffer | undefined
+        let particleBuffer: GPUBuffer | undefined
+        let particleTempBuffer: GPUBuffer | undefined
+        let binPrefixSumStepSizeBuffer: GPUBuffer | undefined
+
+        let binClearSizePipeline: GPUComputePipeline
+        let binFillSizePipeline: GPUComputePipeline
+        let binPrefixSumPipeline: GPUComputePipeline
+        let particleSortClearSizePipeline: GPUComputePipeline
+        let particleSortPipeline: GPUComputePipeline
+        let particleComputeForcesPipeline: GPUComputePipeline
+        let particleAdvancePipeline: GPUComputePipeline
+        let renderBinningPipeline: GPURenderPipeline
+
+        let particleBufferReadOnlyBindGroup: GPUBindGroup
+        let binFillSizeBindGroup: GPUBindGroup
+        let binPrefixSumBindGroup: GPUBindGroup[] = []
+        let particleSortBindGroup: GPUBindGroup
+        let particleComputeForcesBindGroup: GPUBindGroup
+        let particleBufferBindGroup: GPUBindGroup
+        let simOptionsBindGroup: GPUBindGroup
+        let deltaTimeBindGroup: GPUBindGroup
+        let cameraBindGroup: GPUBindGroup
+
+        let particleBufferBindGroupLayout: GPUBindGroupLayout
+        let binPrefixSumBindGroupLayout: GPUBindGroupLayout
+        let particleBufferReadOnlyBindGroupLayout: GPUBindGroupLayout
+        let binFillSizeBindGroupLayout: GPUBindGroupLayout
+        let particleSortBindGroupLayout: GPUBindGroupLayout
+        let particleComputeForcesBindGroupLayout: GPUBindGroupLayout
+        let simOptionsBindGroupLayout: GPUBindGroupLayout
+        let deltaTimeBindGroupLayout: GPUBindGroupLayout
+        let cameraBindGroupLayout: GPUBindGroupLayout
 
         onMounted(async () => {
             await initWebGPU()
@@ -414,14 +458,19 @@ export default defineComponent({
         const frame = () => {
             const startExecutionTime = performance.now()
 
-            if (isRunning) {
-                handleDeltaTime(startExecutionTime)
-                step()
-            } else {
-                const encoder = device.createCommandEncoder()
-                renderParticles(encoder)
-                device.queue.submit([encoder.finish()])
-            }
+            handleDeltaTime(startExecutionTime)
+            const encoder = device.createCommandEncoder()
+            computeBinning(encoder)
+            device.queue.submit([encoder.finish()])
+
+            // if (isRunning) {
+            //     handleDeltaTime(startExecutionTime)
+            //     step()
+            // } else {
+            //     const encoder = device.createCommandEncoder()
+            //     renderParticles(encoder)
+            //     device.queue.submit([encoder.finish()])
+            // }
             // device.queue.onSubmittedWorkDone().then(() => executionTime.value = performance.now() - startExecutionTime) // Approximate execution time of the GPU commands
             animationFrameId = requestAnimationFrame(frame)
         }
@@ -541,10 +590,366 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
+        let binCount = 0
+        let prefixSumIterations = 0
+        const computeBinning = (encoder: GPUCommandEncoder) => {
+            if (isRunning) {
+                encoder.copyBufferToBuffer(particleBuffer!, 0, particleTempBuffer!, 0, particleBuffer!.size)
+
+                const binningComputePass = encoder.beginComputePass()
+                binningComputePass.setBindGroup(0, particleBufferReadOnlyBindGroup)
+                binningComputePass.setBindGroup(1, simOptionsBindGroup)
+                binningComputePass.setBindGroup(2, binFillSizeBindGroup)
+                binningComputePass.setPipeline(binClearSizePipeline)
+                binningComputePass.dispatchWorkgroups(Math.ceil((binCount + 1) / 64))
+
+                binningComputePass.setPipeline(binFillSizePipeline)
+                binningComputePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
+
+                binningComputePass.setPipeline(binPrefixSumPipeline)
+                for (let i = 0; i < prefixSumIterations; ++i) {
+                    binningComputePass.setBindGroup(0, binPrefixSumBindGroup[i % 2], [i * 256])
+                    binningComputePass.dispatchWorkgroups(Math.ceil((binCount + 1) / 64))
+                }
+
+                binningComputePass.setBindGroup(0, particleSortBindGroup)
+                binningComputePass.setPipeline(particleSortClearSizePipeline)
+                binningComputePass.dispatchWorkgroups(Math.ceil((binCount + 1) / 64))
+
+                binningComputePass.setPipeline(particleSortPipeline)
+                binningComputePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
+                binningComputePass.end()
+
+                const forcesComputePass = encoder.beginComputePass()
+                forcesComputePass.setBindGroup(0, particleComputeForcesBindGroup)
+                forcesComputePass.setBindGroup(1, simOptionsBindGroup)
+                forcesComputePass.setPipeline(particleComputeForcesPipeline)
+                forcesComputePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
+                forcesComputePass.end()
+
+                const advanceComputePass = encoder.beginComputePass()
+                advanceComputePass.setBindGroup(0, particleBufferBindGroup)
+                advanceComputePass.setBindGroup(1, simOptionsBindGroup)
+                advanceComputePass.setBindGroup(2, deltaTimeBindGroup)
+                advanceComputePass.setPipeline(particleAdvancePipeline)
+                advanceComputePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
+                advanceComputePass.end()
+            }
+
+            if (cameraChanged) {
+                device.queue.writeBuffer(cameraBuffer!, 0, new Float32Array([
+                    cameraCenter.x,
+                    cameraCenter.y,
+                    cameraScaleX,
+                    cameraScaleY,
+                ]));
+                cameraChanged = false
+            }
+
+            const renderPass = encoder.beginRenderPass({
+                colorAttachments: [{
+                    view: ctx.getCurrentTexture().createView(),
+                    loadOp: 'clear',
+                    clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+                    storeOp: 'store',
+                }],
+            })
+            renderPass.setBindGroup(0, particleBufferReadOnlyBindGroup)
+            renderPass.setBindGroup(1, simOptionsBindGroup)
+            renderPass.setBindGroup(2, cameraBindGroup)
+            renderPass.setPipeline(renderBinningPipeline)
+            renderPass.draw(4, NUM_PARTICLES)
+            renderPass.end()
+        }
+        const updateBinningBuffers = () => {
+            const gridWidth = Math.ceil(SIM_WIDTH / CELL_SIZE)
+            const gridHeight = Math.ceil(SIM_HEIGHT / CELL_SIZE)
+            binCount = gridWidth * gridHeight
+            prefixSumIterations = Math.ceil(Math.ceil(Math.log2(binCount + 1)) / 2) * 2
+
+            const initialParticles = new Float32Array(NUM_PARTICLES * 5)
+            for (let i = 0; i < NUM_PARTICLES; ++i) {
+                initialParticles[5 * i + 0] = Math.random() * SIM_WIDTH
+                initialParticles[5 * i + 1] = Math.random() * SIM_HEIGHT
+                initialParticles[5 * i + 2] = 0
+                initialParticles[5 * i + 3] = 0
+                initialParticles[5 * i + 4] = Math.floor(Math.random() * NUM_TYPES)
+            }
+
+            particleBuffer = device.createBuffer({
+                size: NUM_PARTICLES * 20,
+                usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC | GPUBufferUsage.STORAGE,
+            })
+            device.queue.writeBuffer(particleBuffer, 0, initialParticles)
+
+            particleTempBuffer = device.createBuffer({
+                size: particleBuffer.size,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+            })
+
+            binOffsetBuffer = device.createBuffer({
+                size: (binCount + 1) * 4,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+            })
+            binOffsetTempBuffer = device.createBuffer({
+                size: (binCount + 1) * 4,
+                usage: GPUBufferUsage.STORAGE,
+            })
+
+            const binPrefixSumStepSize = new Uint32Array(prefixSumIterations * 64)
+            for (let i = 0; i < prefixSumIterations; ++i) {
+                binPrefixSumStepSize[i * 64] = Math.pow(2, i)
+            }
+            binPrefixSumStepSizeBuffer = device.createBuffer({
+                size: prefixSumIterations * 256,
+                usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.UNIFORM,
+            })
+            device.queue.writeBuffer(binPrefixSumStepSizeBuffer, 0, binPrefixSumStepSize);
+        }
+        const updateBinningPipelines = () => {
+            createBinningBindGroupLayouts()
+
+            const binFillSizeShader = device.createShaderModule({ code: binFillSizeShaderCode })
+            binClearSizePipeline = device.createComputePipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [
+                        particleBufferReadOnlyBindGroupLayout,
+                        simOptionsBindGroupLayout,
+                        binFillSizeBindGroupLayout,
+                    ],
+                }),
+                compute: { module: binFillSizeShader, entryPoint: 'clearBinSize' }
+            })
+            binFillSizePipeline = device.createComputePipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [
+                        particleBufferReadOnlyBindGroupLayout,
+                        simOptionsBindGroupLayout,
+                        binFillSizeBindGroupLayout,
+                    ],
+                }),
+                compute: { module: binFillSizeShader, entryPoint: 'fillBinSize' }
+            })
+
+            const binPrefixSumShader = device.createShaderModule({ code: binPrefixSumShaderCode })
+            binPrefixSumPipeline = device.createComputePipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [
+                        binPrefixSumBindGroupLayout,
+                    ],
+                }),
+                compute: { module: binPrefixSumShader, entryPoint: 'prefixSumStep' }
+            })
+
+            const particleSortShader = device.createShaderModule({ code: particleSortShaderCode })
+            particleSortClearSizePipeline = device.createComputePipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [
+                        particleSortBindGroupLayout,
+                        simOptionsBindGroupLayout,
+                    ],
+                }),
+                compute: { module: particleSortShader, entryPoint: 'clearBinSize' }
+            })
+            particleSortPipeline = device.createComputePipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [
+                        particleSortBindGroupLayout,
+                        simOptionsBindGroupLayout,
+                    ],
+                }),
+                compute: { module: particleSortShader, entryPoint: 'sortParticles' }
+            })
+
+            const particleComputeForcesShader = device.createShaderModule({ code: particleComputeForcesShaderCode })
+            particleComputeForcesPipeline = device.createComputePipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [
+                        particleComputeForcesBindGroupLayout,
+                        simOptionsBindGroupLayout,
+                    ],
+                }),
+                compute: { module: particleComputeForcesShader, entryPoint: 'computeForces' }
+            })
+
+            const particleAdvanceShader = device.createShaderModule({ code: particleAdvanceShaderCode })
+            particleAdvancePipeline = device.createComputePipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [
+                        particleBufferBindGroupLayout,
+                        simOptionsBindGroupLayout,
+                        deltaTimeBindGroupLayout,
+                    ],
+                }),
+                compute: { module: particleAdvanceShader, entryPoint: 'particleAdvance' }
+            })
+
+            const renderVertexBinningShader = device.createShaderModule({ code: vertexBinningShaderCode })
+            const renderFragmentBinningShader = device.createShaderModule({ code: fragmentBinningShaderCode })
+            renderBinningPipeline = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [
+                        particleBufferReadOnlyBindGroupLayout,
+                        simOptionsBindGroupLayout,
+                        cameraBindGroupLayout,
+                    ],
+                }),
+                vertex: {
+                    module: renderVertexBinningShader,
+                    entryPoint: 'main',
+                    buffers: []
+                },
+                fragment: {
+                    module: renderFragmentBinningShader,
+                    entryPoint: 'main',
+                    targets: [{ format: navigator.gpu.getPreferredCanvasFormat() }]
+                },
+                primitive: {
+                    topology: 'triangle-strip'
+                }
+            })
+        }
+        const updateBinningBindGroups = () => {
+            particleBufferBindGroup = device.createBindGroup({
+                layout: particleBufferBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: particleBuffer! } },
+                    { binding: 1, resource: { buffer: interactionMatrixBuffer! } },
+                ],
+            })
+            particleBufferReadOnlyBindGroup = device.createBindGroup({
+                layout: particleBufferReadOnlyBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: particleBuffer! } },
+                    { binding: 1, resource: { buffer: colorBuffer! } }
+                ],
+            })
+            binFillSizeBindGroup = device.createBindGroup({
+                layout: binFillSizeBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: binOffsetBuffer! } }
+                ],
+            })
+            binPrefixSumBindGroup[0] = device.createBindGroup({
+                layout: binPrefixSumBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: binOffsetBuffer! } },
+                    { binding: 1, resource: { buffer: binOffsetTempBuffer! } },
+                    { binding: 2, resource: { buffer: binPrefixSumStepSizeBuffer!, size: 4 } },
+                ],
+            })
+            binPrefixSumBindGroup[1] = device.createBindGroup({
+                layout: binPrefixSumBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: binOffsetTempBuffer! } },
+                    { binding: 1, resource: { buffer: binOffsetBuffer! } },
+                    { binding: 2, resource: { buffer: binPrefixSumStepSizeBuffer!, size: 4 } },
+                ],
+            })
+            particleSortBindGroup = device.createBindGroup({
+                layout: particleSortBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: particleBuffer! } },
+                    { binding: 1, resource: { buffer: particleTempBuffer! } },
+                    { binding: 2, resource: { buffer: binOffsetBuffer! } },
+                    { binding: 3, resource: { buffer: binOffsetTempBuffer! } },
+                ],
+            })
+            particleComputeForcesBindGroup = device.createBindGroup({
+                layout: particleComputeForcesBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: particleTempBuffer! } },
+                    { binding: 1, resource: { buffer: particleBuffer! } },
+                    { binding: 2, resource: { buffer: binOffsetBuffer! } },
+                    { binding: 3, resource: { buffer: interactionMatrixBuffer! } },
+                ],
+            })
+            simOptionsBindGroup = device.createBindGroup({
+                layout: simOptionsBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: simOptionsBuffer! } },
+                ],
+            })
+            deltaTimeBindGroup = device.createBindGroup({
+                layout: deltaTimeBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: deltaTimeBuffer! } },
+                ],
+            })
+            cameraBindGroup = device.createBindGroup({
+                layout: cameraBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: cameraBuffer! } },
+                ],
+            })
+        }
+        const createBinningBindGroupLayouts = () => {
+            particleBufferBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // particleBuffer
+                    { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // interactionMatrixBuffer
+                ],
+            })
+            particleBufferReadOnlyBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // particleBuffer
+                    { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } }, // colorBuffer
+                ],
+            })
+            binFillSizeBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // binOffsetBuffer
+                ],
+            })
+            binPrefixSumBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // binOffsetBuffer
+                    { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // binOffsetTempBuffer
+                    { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform', hasDynamicOffset: true } }, // binPrefixSumStepSizeBuffer
+                ],
+            })
+            particleSortBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // particleBuffer
+                    { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // particleTempBuffer
+                    { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // binOffsetBuffer
+                    { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // binOffsetTempBuffer
+                ],
+            })
+            particleComputeForcesBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // particleTempBuffer
+                    { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // particleBuffer
+                    { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // binOffsetBuffer
+                    { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // interactionMatrixBuffer
+                ],
+            })
+            simOptionsBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.COMPUTE | GPUShaderStage.VERTEX, buffer: { type: 'uniform' } },
+                ],
+            });
+            deltaTimeBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }, // deltaTimeBuffer
+                ],
+            })
+            cameraBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } }, // cameraBuffer
+                ],
+            })
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
         const createBuffers = () => {
             updateSimOptionsBuffer() // Set simulation options based on the store state
             updateInteractionMatrixBuffer() // Set interaction matrices based on the store state
             updateSpatialHashBuffers() // Create spatial hash buffers
+
+            updateBinningBuffers()
+
             updateParticleDataBuffers() // Create buffers for particle data
 
             // ----------------------------------------------------------------------------------------------
@@ -684,6 +1089,8 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         const createBindGroups = () => {
+            updateBinningBindGroups()
+
             createClearHashBindGroup()
             createSpatialHashBindGroups()
             createBruteForceBindGroup()
@@ -782,6 +1189,8 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         const createPipelines = () => {
+            updateBinningPipelines()
+
             const clearHashShader = device.createShaderModule({ code: clearHashShaderCode })
             clearHashPipeline = device.createComputePipeline({
                 layout: 'auto',
@@ -1451,6 +1860,13 @@ export default defineComponent({
             offscreenTexture?.destroy(); offscreenTexture = undefined;
             offscreenTextureView = undefined as any;
             offscreenSampler = undefined as any;
+
+            particleBuffer?.destroy(); particleBuffer = undefined;
+            particleTempBuffer?.destroy(); particleTempBuffer = undefined;
+            binOffsetBuffer?.destroy(); binOffsetBuffer = undefined;
+            binOffsetTempBuffer?.destroy(); binOffsetTempBuffer = undefined;
+            binPrefixSumStepSizeBuffer?.destroy(); binPrefixSumStepSizeBuffer = undefined;
+
             await nextTick() // Ensure GPU resources are cleaned up before creating new ones
         }
         const destroyPipelinesAndBindGroups = () => {
@@ -1472,6 +1888,26 @@ export default defineComponent({
             renderMirrorBindGroup = undefined as any;
             renderInfinitePipeline = undefined as any;
             renderInfiniteBindGroup = undefined as any;
+
+            binClearSizePipeline = undefined as any;
+            binFillSizePipeline = undefined as any;
+            binPrefixSumPipeline = undefined as any;
+            particleSortClearSizePipeline = undefined as any;
+            particleSortPipeline = undefined as any;
+            particleComputeForcesPipeline = undefined as any;
+            particleAdvancePipeline = undefined as any;
+            renderBinningPipeline = undefined as any;
+
+            particleBufferReadOnlyBindGroup = undefined as any;
+            binFillSizeBindGroup = undefined as any;
+            binPrefixSumBindGroup = [];
+            particleSortBindGroup = undefined as any;
+            particleComputeForcesBindGroup = undefined as any;
+            particleBufferBindGroup = undefined as any;
+            simOptionsBindGroup = undefined as any;
+            // renderBinningBindGroup = undefined as any;
+            deltaTimeBindGroup = undefined as any;
+            cameraBindGroup = undefined as any;
         }
         const cancelAnimationLoop = () => {
             if (animationFrameId) {
