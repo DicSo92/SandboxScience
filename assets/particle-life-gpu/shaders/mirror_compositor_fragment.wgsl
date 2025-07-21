@@ -1,5 +1,5 @@
-@group(0) @binding(0) var offscreenTexture: texture_2d<f32>;
-@group(0) @binding(3) var offscreenSampler: sampler;
+@group(2) @binding(0) var offscreenTexture: texture_2d<f32>;
+@group(2) @binding(1) var offscreenSampler: sampler;
 
 @fragment
 fn main(
@@ -19,14 +19,3 @@ fn main(
     // Select the color based on the instance index
     return select(mirrorInstanceColor, textureColor, instanceIndex == 0u);
 }
-
-
-// For infinite wrapping mirror
-//@group(0) @binding(0) var offscreenTexture: texture_2d<f32>;
-//@group(0) @binding(3) var offscreenSampler: sampler;
-//
-//@fragment
-//fn main(@location(0) texCoord: vec2f) -> @location(0) vec4f {
-//    // Repeat do all the texture sampling logic here
-//    return textureSample(offscreenTexture, offscreenSampler, texCoord);
-//}

@@ -14,7 +14,7 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
     const simHeight = ref<number>(0) // Grid height
     const linkProportions = ref<boolean>(false) // Constraint x y sim proportions
 
-    const numParticles = ref<number>(48000) // Number of particles
+    const numParticles = ref<number>(90000) // Number of particles
     const particleSize = ref<number>(1.3) // Size of the particles at zoomFactor = 1
     const numColors = ref<number>(7) // Number of colors to be used
 

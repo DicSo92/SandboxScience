@@ -12,33 +12,46 @@ struct SimOptions {
     numParticles: u32,
     numTypes: u32
 };
+struct Particle {
+    x : f32,
+    y : f32,
+    vx : f32,
+    vy : f32,
+    particleType : f32,
+}
 
 struct VertexOutput {
     @builtin(position) position: vec4f,
-    @location(0) offset: vec2f,
-    @location(1) @interpolate(flat) particleType: u32
+    @location(0) uv: vec2f,
+    @location(1) particleType: f32,
 };
 
-@group(0) @binding(2) var<uniform> options: SimOptions;
+const vert = array<vec2f, 3>(
+    vec2f(-1.0, -1.0),
+    vec2f( 3.0, -1.0),
+    vec2f(-1.0,  3.0)
+);
+
+@group(0) @binding(0) var<storage, read> particles: array<Particle>;
+@group(1) @binding(0) var<uniform> options: SimOptions;
 
 @vertex
 fn main(
-    @location(0) localPos: vec2f,     // triangleVertexBuffer
-    @location(1) instancePos: vec2f,  // nextPositionBuffer
-    @location(2) particleType: u32    // typeBuffer
+    @builtin(instance_index) instanceIndex: u32,
+    @builtin(vertex_index) vertexIndex: u32
 ) -> VertexOutput {
-    var out: VertexOutput;
+    let particle = particles[instanceIndex];
+    let vertex = vert[vertexIndex];
 
-    // Calculate the world position based on the instance position and local position
-    let worldPos = instancePos + localPos * options.particleSize;
+    let worldPos = vec2f(particle.x, particle.y) + vertex * options.particleSize;
 
     // Normalize the world position to the range [-1, 1]
     let normalizedPos = (worldPos / vec2f(options.simWidth, options.simHeight)) * 2.0 - 1.0;
 
     // Set the output position and attributes
-    out.position = vec4f(normalizedPos.x, -normalizedPos.y, 0.0, 1.0);
-    out.offset = localPos;
-    out.particleType = particleType;
-
-    return out;
+    var output: VertexOutput;
+    output.position = vec4f(normalizedPos.x, -normalizedPos.y, 0.0, 1.0);
+    output.uv = vertex;
+    output.particleType = particle.particleType;
+    return output;
 }

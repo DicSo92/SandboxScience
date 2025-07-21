@@ -23,12 +23,24 @@ struct VertexOutput {
     @location(0) texCoord: vec2f
 };
 
-@group(0) @binding(1) var<uniform> camera: Camera;
-@group(0) @binding(2) var<uniform> options: SimOptions;
+const QUAD_VERTICES = array<vec2f, 6>(
+    vec2f(-1.0, -1.0),
+    vec2f( 1.0, -1.0),
+    vec2f( 1.0,  1.0),
+    vec2f(-1.0, -1.0),
+    vec2f( 1.0,  1.0),
+    vec2f(-1.0,  1.0)
+);
+
+@group(0) @binding(0) var<uniform> camera: Camera;
+@group(1) @binding(0) var<uniform> options: SimOptions;
 
 @vertex
-fn main(@location(0) localPos: vec2f) -> VertexOutput {
+fn main(
+    @builtin(vertex_index) vertex_index: u32
+) -> VertexOutput {
     var out: VertexOutput;
+    let localPos = QUAD_VERTICES[vertex_index];
 
     out.position = vec4f(localPos.x, localPos.y, 0.0, 1.0);
     let worldPos = vec2f(

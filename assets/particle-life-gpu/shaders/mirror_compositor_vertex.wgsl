@@ -24,9 +24,6 @@ struct VertexOutput {
     @location(1) @interpolate(flat) instanceIndex: u32
 };
 
-@group(0) @binding(1) var<uniform> camera: Camera;
-@group(0) @binding(2) var<uniform> options: SimOptions;
-
 const offsets = array<vec2f, 9>(
     // Normal offsets for 5 instances
     vec2f(0.0, 0.0),   // Main texture
@@ -41,12 +38,26 @@ const offsets = array<vec2f, 9>(
     vec2f(1.0, -1.0)   // Bottom Right
 );
 
+const QUAD_VERTICES = array<vec2f, 6>(
+    vec2f(-1.0, -1.0),
+    vec2f( 1.0, -1.0),
+    vec2f( 1.0,  1.0),
+    vec2f(-1.0, -1.0),
+    vec2f( 1.0,  1.0),
+    vec2f(-1.0,  1.0)
+);
+
+@group(0) @binding(0) var<uniform> camera: Camera;
+@group(1) @binding(0) var<uniform> options: SimOptions;
+
 @vertex
 fn main(
     @builtin(instance_index) instanceIndex: u32,
-    @location(0) localPos: vec2f
+    @builtin(vertex_index) vertex_index: u32
 ) -> VertexOutput {
     var out: VertexOutput;
+
+    let localPos = QUAD_VERTICES[vertex_index];
 
     // Calculate the texture coordinates based on the local position
     out.texCoord = localPos * 0.5 + 0.5;
@@ -65,27 +76,3 @@ fn main(
 
     return out;
 }
-
-
-// For infinite wrapping mirror
-//struct VertexOutput {
-//    @builtin(position) position: vec4f,
-//    @location(0) texCoord: vec2f
-//};
-//
-//@group(0) @binding(1) var<uniform> camera: Camera;
-//@group(0) @binding(2) var<uniform> options: SimOptions;
-//
-//@vertex
-//fn main(@location(0) localPos: vec2f) -> VertexOutput {
-//    var out: VertexOutput;
-//
-//    out.position = vec4f(localPos.x, localPos.y, 0.0, 1.0);
-//    let worldPos = vec2f(
-//        camera.center.x + localPos.x / camera.scale.x,
-//        camera.center.y - localPos.y / camera.scale.y
-//    );
-//    out.texCoord = worldPos / vec2f(options.simWidth, options.simHeight);
-//
-//    return out;
-//}
