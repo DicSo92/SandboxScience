@@ -138,6 +138,7 @@ import BrushSettings from "~/components/particle-life/BrushSettings.vue";
 import binFillSizeShaderCode from 'assets/particle-life-gpu/shaders/binFillSize.wgsl?raw';
 import binPrefixSumShaderCode from 'assets/particle-life-gpu/shaders/binPrefixSum.wgsl?raw';
 import particleSortShaderCode from 'assets/particle-life-gpu/shaders/particleSort.wgsl?raw';
+import bruteForceShaderCode from 'assets/particle-life-gpu/shaders/compute_bruteForce.wgsl?raw';
 import particleComputeForcesShaderCode from 'assets/particle-life-gpu/shaders/particleComputeForces.wgsl?raw';
 import particleAdvanceShaderCode from 'assets/particle-life-gpu/shaders/particleAdvance.wgsl?raw';
 
@@ -219,7 +220,6 @@ export default defineComponent({
 
         // Define the GPU device, pipelines, and bind groups
         let device: GPUDevice
-        // let bruteForceComputePipeline: GPUComputePipeline
 
         // Define the buffers
         let currentPositionBuffer: GPUBuffer | undefined
@@ -255,6 +255,7 @@ export default defineComponent({
         let binPrefixSumPipeline: GPUComputePipeline
         let particleSortClearSizePipeline: GPUComputePipeline
         let particleSortPipeline: GPUComputePipeline
+        let bruteForceComputePipeline: GPUComputePipeline
         let particleComputeForcesPipeline: GPUComputePipeline
         let particleAdvancePipeline: GPUComputePipeline
 
@@ -262,6 +263,7 @@ export default defineComponent({
         let binFillSizeBindGroup: GPUBindGroup
         let binPrefixSumBindGroup: GPUBindGroup[] = []
         let particleSortBindGroup: GPUBindGroup
+        let bruteForceBindGroup: GPUBindGroup
         let particleComputeForcesBindGroup: GPUBindGroup
         let particleBufferBindGroup: GPUBindGroup
         let simOptionsBindGroup: GPUBindGroup
@@ -274,6 +276,7 @@ export default defineComponent({
         let particleBufferReadOnlyBindGroupLayout: GPUBindGroupLayout
         let binFillSizeBindGroupLayout: GPUBindGroupLayout
         let particleSortBindGroupLayout: GPUBindGroupLayout
+        let bruteForceBindGroupLayout: GPUBindGroupLayout
         let particleComputeForcesBindGroupLayout: GPUBindGroupLayout
         let simOptionsBindGroupLayout: GPUBindGroupLayout
         let deltaTimeBindGroupLayout: GPUBindGroupLayout
@@ -430,10 +433,23 @@ export default defineComponent({
             await destroyBuffers()
             initLife()
         }
+        // -------------------------------------------------------------------------------------------------------------
         const step = () => {
             const encoder = device.createCommandEncoder()
+
+            encoder.copyBufferToBuffer(particleBuffer!, 0, particleTempBuffer!, 0, particleBuffer!.size)
+
             if (useSpatialHash) computeBinning(encoder)
             else computeBruteForce(encoder)
+
+            const advanceComputePass = encoder.beginComputePass()
+            advanceComputePass.setBindGroup(0, particleBufferBindGroup)
+            advanceComputePass.setBindGroup(1, simOptionsBindGroup)
+            advanceComputePass.setBindGroup(2, deltaTimeBindGroup)
+            advanceComputePass.setPipeline(particleAdvancePipeline)
+            advanceComputePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
+            advanceComputePass.end()
+
             renderParticles(encoder)
             device.queue.submit([encoder.finish()])
         }
@@ -466,9 +482,50 @@ export default defineComponent({
                 device.queue.writeBuffer(deltaTimeBuffer!, 0, new Float32Array([smoothedDeltaTime]))
             }
         }
+        // -------------------------------------------------------------------------------------------------------------
         const computeBruteForce = (encoder: GPUCommandEncoder) => {
-            console.log("Computing forces using brute force method")
+            const computePass = encoder.beginComputePass()
+            computePass.setBindGroup(0, bruteForceBindGroup)
+            computePass.setBindGroup(1, simOptionsBindGroup)
+            computePass.setPipeline(bruteForceComputePipeline)
+            computePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
+            computePass.end()
         }
+        const computeBinning = (encoder: GPUCommandEncoder) => {
+            const binningComputePass = encoder.beginComputePass()
+            binningComputePass.setBindGroup(0, particleBufferReadOnlyBindGroup)
+            binningComputePass.setBindGroup(1, simOptionsBindGroup)
+            binningComputePass.setBindGroup(2, binFillSizeBindGroup)
+            binningComputePass.setPipeline(binClearSizePipeline)
+            binningComputePass.dispatchWorkgroups(Math.ceil((binCount + 1) / 64))
+
+            binningComputePass.setPipeline(binFillSizePipeline)
+            binningComputePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
+
+            binningComputePass.setPipeline(binPrefixSumPipeline)
+            for (let i = 0; i < prefixSumIterations; ++i) {
+                binningComputePass.setBindGroup(0, binPrefixSumBindGroup[i % 2], [i * 256])
+                binningComputePass.dispatchWorkgroups(Math.ceil((binCount + 1) / 64))
+            }
+
+            binningComputePass.setBindGroup(0, particleSortBindGroup)
+            binningComputePass.setPipeline(particleSortClearSizePipeline)
+            binningComputePass.dispatchWorkgroups(Math.ceil((binCount + 1) / 64))
+
+            binningComputePass.setPipeline(particleSortPipeline)
+            binningComputePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
+            binningComputePass.end()
+
+            const forcesComputePass = encoder.beginComputePass()
+            forcesComputePass.setBindGroup(0, particleComputeForcesBindGroup)
+            forcesComputePass.setBindGroup(1, simOptionsBindGroup)
+            forcesComputePass.setPipeline(particleComputeForcesPipeline)
+            forcesComputePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
+            forcesComputePass.end()
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
         const renderParticles = (encoder: GPUCommandEncoder) => {
             if (cameraChanged) {
                 device.queue.writeBuffer(cameraBuffer!, 0, new Float32Array([
@@ -543,51 +600,6 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
-        const computeBinning = (encoder: GPUCommandEncoder) => {
-            encoder.copyBufferToBuffer(particleBuffer!, 0, particleTempBuffer!, 0, particleBuffer!.size)
-
-            const binningComputePass = encoder.beginComputePass()
-            binningComputePass.setBindGroup(0, particleBufferReadOnlyBindGroup)
-            binningComputePass.setBindGroup(1, simOptionsBindGroup)
-            binningComputePass.setBindGroup(2, binFillSizeBindGroup)
-            binningComputePass.setPipeline(binClearSizePipeline)
-            binningComputePass.dispatchWorkgroups(Math.ceil((binCount + 1) / 64))
-
-            binningComputePass.setPipeline(binFillSizePipeline)
-            binningComputePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
-
-            binningComputePass.setPipeline(binPrefixSumPipeline)
-            for (let i = 0; i < prefixSumIterations; ++i) {
-                binningComputePass.setBindGroup(0, binPrefixSumBindGroup[i % 2], [i * 256])
-                binningComputePass.dispatchWorkgroups(Math.ceil((binCount + 1) / 64))
-            }
-
-            binningComputePass.setBindGroup(0, particleSortBindGroup)
-            binningComputePass.setPipeline(particleSortClearSizePipeline)
-            binningComputePass.dispatchWorkgroups(Math.ceil((binCount + 1) / 64))
-
-            binningComputePass.setPipeline(particleSortPipeline)
-            binningComputePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
-            binningComputePass.end()
-
-            const forcesComputePass = encoder.beginComputePass()
-            forcesComputePass.setBindGroup(0, particleComputeForcesBindGroup)
-            forcesComputePass.setBindGroup(1, simOptionsBindGroup)
-            forcesComputePass.setPipeline(particleComputeForcesPipeline)
-            forcesComputePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
-            forcesComputePass.end()
-
-            const advanceComputePass = encoder.beginComputePass()
-            advanceComputePass.setBindGroup(0, particleBufferBindGroup)
-            advanceComputePass.setBindGroup(1, simOptionsBindGroup)
-            advanceComputePass.setBindGroup(2, deltaTimeBindGroup)
-            advanceComputePass.setPipeline(particleAdvancePipeline)
-            advanceComputePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
-            advanceComputePass.end()
-        }
-        // -------------------------------------------------------------------------------------------------------------
-        // -------------------------------------------------------------------------------------------------------------
-        // -------------------------------------------------------------------------------------------------------------
         const createBuffers = () => {
             updateSimOptionsBuffer() // Set simulation options based on the store state
             updateInteractionMatrixBuffer() // Set interaction matrices based on the store state
@@ -625,7 +637,7 @@ export default defineComponent({
 
             const initialParticles = new Float32Array(NUM_PARTICLES * 5)
             for (let i = 0; i < NUM_PARTICLES; ++i) {
-                initialParticles[5 * i + 0] = Math.random() * SIM_WIDTH
+                initialParticles[5 * i] = Math.random() * SIM_WIDTH
                 initialParticles[5 * i + 1] = Math.random() * SIM_HEIGHT
                 initialParticles[5 * i + 2] = 0
                 initialParticles[5 * i + 3] = 0
@@ -773,6 +785,14 @@ export default defineComponent({
                     { binding: 3, resource: { buffer: interactionMatrixBuffer! } },
                 ],
             })
+            bruteForceBindGroup = device.createBindGroup({
+                layout: bruteForceBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: particleTempBuffer! } },
+                    { binding: 1, resource: { buffer: particleBuffer! } },
+                    { binding: 2, resource: { buffer: interactionMatrixBuffer! } },
+                ],
+            })
             simOptionsBindGroup = device.createBindGroup({
                 layout: simOptionsBindGroupLayout,
                 entries: [
@@ -847,6 +867,13 @@ export default defineComponent({
                     { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // interactionMatrixBuffer
                 ],
             })
+            bruteForceBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // particleTempBuffer
+                    { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // particleBuffer
+                    { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // interactionMatrixBuffer
+                ],
+            })
             simOptionsBindGroupLayout = device.createBindGroupLayout({
                 entries: [
                     { binding: 0, visibility: GPUShaderStage.COMPUTE | GPUShaderStage.VERTEX, buffer: { type: 'uniform' } },
@@ -877,11 +904,6 @@ export default defineComponent({
             createRenderPipelines()
         }
         const createComputePipelines = () => {
-            // const bruteForceShader = device.createShaderModule({ code: bruteForceShaderCode })
-            // bruteForceComputePipeline = device.createComputePipeline({
-            //     layout: 'auto',
-            //     compute: { module: bruteForceShader, entryPoint: 'main' }
-            // })
             const binFillSizeShader = device.createShaderModule({ code: binFillSizeShaderCode })
             binClearSizePipeline = device.createComputePipeline({
                 layout: device.createPipelineLayout({
@@ -940,6 +962,16 @@ export default defineComponent({
                     ],
                 }),
                 compute: { module: particleComputeForcesShader, entryPoint: 'computeForces' }
+            })
+            const bruteForceShader = device.createShaderModule({ code: bruteForceShaderCode })
+            bruteForceComputePipeline = device.createComputePipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [
+                        bruteForceBindGroupLayout,
+                        simOptionsBindGroupLayout,
+                    ],
+                }),
+                compute: { module: bruteForceShader, entryPoint: 'main' }
             })
             const particleAdvanceShader = device.createShaderModule({ code: particleAdvanceShaderCode })
             particleAdvancePipeline = device.createComputePipeline({
@@ -1535,8 +1567,6 @@ export default defineComponent({
             await nextTick() // Ensure GPU resources are cleaned up before creating new ones
         }
         const destroyPipelinesAndBindGroups = () => {
-            // bruteForceComputePipeline = undefined as any;
-
             renderOffscreenPipeline = undefined as any;
             renderMirrorPipeline = undefined as any;
             renderInfinitePipeline = undefined as any;
@@ -1547,6 +1577,7 @@ export default defineComponent({
             binPrefixSumPipeline = undefined as any;
             particleSortClearSizePipeline = undefined as any;
             particleSortPipeline = undefined as any;
+            bruteForceComputePipeline = undefined as any;
             particleComputeForcesPipeline = undefined as any;
             particleAdvancePipeline = undefined as any;
 
