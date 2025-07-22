@@ -33,7 +33,7 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
 
     // Define properties for randomizing radius matrix
     const minRadiusRange = ref<number[]>([25, 40]) // Range for the random minRadius of each color
-    const maxRadiusRange = ref<number[]>([60, 80]) // Range for the random maxRadius of each color
+    const maxRadiusRange = ref<number[]>([60, 61]) // Range for the random maxRadius of each color
 
     const currentMaxRadius = ref<number>(0) // Current max radius for the particles
 

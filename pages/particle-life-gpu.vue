@@ -169,6 +169,7 @@ export default defineComponent({
         let animationFrameId: number | null = null
         let lastFrameTime: number = performance.now()
         let isRunning: boolean = particleLife.isRunning
+        let isInitializing: boolean = true
         let isUpdatingParticles: boolean = false // Flag to prevent multiple additions at once
         let smoothedDeltaTime: number = 0.016 // Initial value (1/60s)
         let CANVAS_WIDTH: number = 0
@@ -338,8 +339,6 @@ export default defineComponent({
             particleLife.simWidth = SIM_WIDTH = baseSimWidth = CANVAS_WIDTH
             particleLife.simHeight = SIM_HEIGHT = baseSimHeight = CANVAS_HEIGHT
             updateCameraScaleFactors()
-            updateBinningParameters()
-            updateOffscreenMirrorResources()
         }
         function setSimSize() {
             if (useSpatialHash && isWallWrap) {
@@ -347,14 +346,29 @@ export default defineComponent({
                 particleLife.simHeight = SIM_HEIGHT = CELL_SIZE * Math.round(baseSimHeight / CELL_SIZE)
                 updateCameraScaleFactors()
             }
+
             updateBinningParameters()
             updateOffscreenMirrorResources()
         }
         const updateBinningParameters = () => {
+            const oldBinCount = binCount
+            const oldPrefixSumIterations = prefixSumIterations
+
             const gridWidth = Math.ceil(SIM_WIDTH / CELL_SIZE)
             const gridHeight = Math.ceil(SIM_HEIGHT / CELL_SIZE)
+            console.log(`Setting simulation size: ${SIM_WIDTH}x${SIM_HEIGHT}, CELL_SIZE=${CELL_SIZE}`)
+            console.log(`Grid Size: ${gridWidth}x${gridHeight}, Cell Size: ${CELL_SIZE}`)
             binCount = gridWidth * gridHeight
             prefixSumIterations = Math.ceil(Math.ceil(Math.log2(binCount + 1)) / 2) * 2
+
+            if (device && (oldBinCount !== binCount || oldPrefixSumIterations !== prefixSumIterations)) {
+                console.log(`Updating binning parameters: binCount=${binCount}, prefixSumIterations=${prefixSumIterations}`)
+                updateBinningBuffers()
+                if (!isInitializing) {
+                    updateBinningBindGroups()
+                    updateParticleBindGroups()
+                }
+            }
         }
         function centerView() {
             cameraCenter = { x: SIM_WIDTH / 2, y: SIM_HEIGHT / 2 }
@@ -405,6 +419,7 @@ export default defineComponent({
             })
         }
         const initLife = async () => {
+            isInitializing = true
             setRulesMatrix(makeRandomRulesMatrix())
             setMinRadiusMatrix(makeRandomMinRadiusMatrix())
             setMaxRadiusMatrix(makeRandomMaxRadiusMatrix())
@@ -418,7 +433,6 @@ export default defineComponent({
             console.log("Max Radius Matrix:", maxRadiusMatrix);
 
             await nextTick()
-            setSimSize()
             centerView()
 
             initColors()
@@ -428,13 +442,14 @@ export default defineComponent({
             createPipelines()
             createBindGroups()
 
+            isInitializing = false
             lastFrameTime = performance.now()
             animationFrameId = requestAnimationFrame(frame)
         }
         const regenerateLife = async () => {
             cancelAnimationLoop()
             destroyPipelinesAndBindGroups()
-            await destroyBuffers()
+            await destroyBuffers(true)
             await initLife()
         }
         // -------------------------------------------------------------------------------------------------------------
@@ -609,16 +624,8 @@ export default defineComponent({
             updateInteractionMatrixBuffer() // Set interaction matrices based on the store state
             updateParticleBuffers()
             updateBinningBuffers()
+            updateColorBuffer()
             // ----------------------------------------------------------------------------------------------
-            const paddedSize = Math.ceil(colors.byteLength / 16) * 16 // Ensure padded to 16 bytes
-            colorBuffer = device.createBuffer({
-                size: paddedSize,
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-                mappedAtCreation: true
-            })
-            new Float32Array(colorBuffer.getMappedRange()).set(colors)
-            colorBuffer.unmap()
-
             const cameraData = new Float32Array([cameraCenter.x, cameraCenter.y, cameraScaleX, cameraScaleY])
             cameraBuffer = device.createBuffer({
                 size: cameraData.byteLength,
@@ -635,6 +642,17 @@ export default defineComponent({
             })
             new Float32Array(deltaTimeBuffer.getMappedRange()).set([smoothedDeltaTime])
             deltaTimeBuffer.unmap()
+        }
+        const updateColorBuffer = () => {
+            if (colorBuffer) colorBuffer?.destroy(); colorBuffer = undefined;
+            const paddedSize = Math.ceil(colors.byteLength / 16) * 16 // Ensure padded to 16 bytes
+            colorBuffer = device.createBuffer({
+                size: paddedSize,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+                mappedAtCreation: true
+            })
+            new Float32Array(colorBuffer.getMappedRange()).set(colors)
+            colorBuffer.unmap()
         }
         const updateParticleBuffers = () => {
             if (particleBuffer) particleBuffer?.destroy(); particleBuffer = undefined;
@@ -743,9 +761,30 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         const createBindGroups = () => {
+            updateBinningBindGroups()
             updateParticleBindGroups()
             updateOffscreenTextureBindGroup()
             // ---------------------------------------------------------------------------------------------------------
+            simOptionsBindGroup = device.createBindGroup({
+                layout: simOptionsBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: simOptionsBuffer! } },
+                ],
+            })
+            deltaTimeBindGroup = device.createBindGroup({
+                layout: deltaTimeBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: deltaTimeBuffer! } },
+                ],
+            })
+            cameraBindGroup = device.createBindGroup({
+                layout: cameraBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: cameraBuffer! } },
+                ],
+            })
+        }
+        const updateBinningBindGroups = () => {
             binFillSizeBindGroup = device.createBindGroup({
                 layout: binFillSizeBindGroupLayout,
                 entries: [
@@ -766,25 +805,6 @@ export default defineComponent({
                     { binding: 0, resource: { buffer: binOffsetTempBuffer! } },
                     { binding: 1, resource: { buffer: binOffsetBuffer! } },
                     { binding: 2, resource: { buffer: binPrefixSumStepSizeBuffer!, size: 4 } },
-                ],
-            })
-            // ---------------------------------------------------------------------------------------------------------
-            simOptionsBindGroup = device.createBindGroup({
-                layout: simOptionsBindGroupLayout,
-                entries: [
-                    { binding: 0, resource: { buffer: simOptionsBuffer! } },
-                ],
-            })
-            deltaTimeBindGroup = device.createBindGroup({
-                layout: deltaTimeBindGroupLayout,
-                entries: [
-                    { binding: 0, resource: { buffer: deltaTimeBuffer! } },
-                ],
-            })
-            cameraBindGroup = device.createBindGroup({
-                layout: cameraBindGroupLayout,
-                entries: [
-                    { binding: 0, resource: { buffer: cameraBuffer! } },
                 ],
             })
         }
@@ -1218,23 +1238,21 @@ export default defineComponent({
             try {
                 cancelAnimationLoop()
 
-                const currentPositions = await readBufferFromGPU(currentPositionBuffer!, NUM_PARTICLES * 2 * 4)
-                const currentVelocities = await readBufferFromGPU(velocityBuffer!, NUM_PARTICLES * 2 * 4)
-                const currentTypes = await readBufferFromGPU(typeBuffer!, NUM_PARTICLES * 4)
-                types = new Uint32Array(currentTypes)
-                positions = new Float32Array(currentPositions)
-                velocities = new Float32Array(currentVelocities)
+                const particleDataBuffer = await readBufferFromGPU(particleBuffer!, NUM_PARTICLES * 5 * 4)
+                const particles = new Float32Array(particleDataBuffer)
 
                 if (newNumTypes < NUM_TYPES) {
-                    for (let i = 0; i < types.length; i++) {
-                        if (types[i] >= newNumTypes) {
-                            types[i] = Math.floor(Math.random() * newNumTypes)
+                    for (let i = 0; i < NUM_PARTICLES; i++) {
+                        const typeIndex = i * 5 + 4;
+                        if (particles[typeIndex] >= newNumTypes) {
+                            particles[typeIndex] = Math.floor(Math.random() * newNumTypes);
                         }
                     }
                 } else if (newNumTypes > NUM_TYPES) {
-                    for (let i = 0; i < types.length; i++) {
+                    for (let i = 0; i < NUM_PARTICLES; i++) {
                         if (Math.random() < (newNumTypes - NUM_TYPES) / newNumTypes) {
-                            types[i] = NUM_TYPES + Math.floor(Math.random() * (newNumTypes - NUM_TYPES))
+                            const typeIndex = i * 5 + 4;
+                            particles[typeIndex] = NUM_TYPES + Math.floor(Math.random() * (newNumTypes - NUM_TYPES));
                         }
                     }
                 }
@@ -1257,27 +1275,34 @@ export default defineComponent({
                 colors = newColors
                 particleLife.currentColors = colors // Ensure the store is updated with the new colors
 
-                setRulesMatrix(resizeMatrix(rulesMatrix, NUM_TYPES, newNumTypes, () => {
+                const oldNumTypes = NUM_TYPES;
+                NUM_TYPES = newNumTypes;
+
+                setRulesMatrix(resizeMatrix(rulesMatrix, oldNumTypes, newNumTypes, () => {
                     return Number((Math.random() * 2 - 1).toFixed(4))
                 }))
-                setMinRadiusMatrix(resizeMatrix(minRadiusMatrix, NUM_TYPES, newNumTypes, () => {
+                setMinRadiusMatrix(resizeMatrix(minRadiusMatrix, oldNumTypes, newNumTypes, () => {
                     return Math.floor(Math.random() * (particleLife.minRadiusRange[1] - particleLife.minRadiusRange[0] + 1) + particleLife.minRadiusRange[0])
                 }))
-                setMaxRadiusMatrix(resizeMatrix(maxRadiusMatrix, NUM_TYPES, newNumTypes, () => {
+                setMaxRadiusMatrix(resizeMatrix(maxRadiusMatrix, oldNumTypes, newNumTypes, () => {
                     return Math.floor(Math.random() * (particleLife.maxRadiusRange[1] - particleLife.maxRadiusRange[0] + 1) + particleLife.maxRadiusRange[0])
                 }))
-                NUM_TYPES = newNumTypes
-                particleLife.currentMaxRadius = getCurrentMaxRadius()
 
-                destroyPipelinesAndBindGroups()
-                await destroyBuffers()
-                createBuffers()
-                createPipelines()
-                updateOffscreenMirrorResources() // Will create offscreen texture and bind group if needed
-                createBindGroups()
+                device.queue.writeBuffer(particleBuffer!, 0, particles)
+                updateInteractionMatrixBuffer()
+                updateSimOptionsBuffer()
 
-                if (!isRunning) syncPositionBuffers()
+                const paddedSize = Math.ceil(colors.byteLength / 16) * 16
+                if (!colorBuffer || colorBuffer.size !== paddedSize) {
+                    updateColorBuffer()
+                    updateParticleBindGroups()
+                } else {
+                    const paddedColors = new Float32Array(paddedSize / 4)
+                    paddedColors.set(colors)
+                    device.queue.writeBuffer(colorBuffer!, 0, paddedColors)
+                }
 
+                await nextTick()
                 lastFrameTime = performance.now()
                 animationFrameId = requestAnimationFrame(frame)
             } finally {
@@ -1286,15 +1311,6 @@ export default defineComponent({
             }
         }
         // -------------------------------------------------------------------------------------------------------------
-        const syncPositionBuffers = () => {
-            const encoder = device.createCommandEncoder()
-            encoder.copyBufferToBuffer(
-                currentPositionBuffer!, 0,
-                nextPositionBuffer!, 0,
-                positions.byteLength
-            )
-            device.queue.submit([encoder.finish()])
-        }
         async function readBufferFromGPU(buffer: GPUBuffer, size: number): Promise<ArrayBuffer> {
             const readBuffer = device.createBuffer({
                 size,
@@ -1372,20 +1388,13 @@ export default defineComponent({
             let matrix: number[][] = []
             const min: number = particleLife.maxRadiusRange[0]
             const max: number = particleLife.maxRadiusRange[1]
-            let maxRandom: number = min
             for (let i = 0; i < NUM_TYPES; i++) {
                 matrix.push([])
                 for (let j = 0; j < NUM_TYPES; j++) {
                     const random = Math.floor(Math.random() * (max - min + 1) + min)
                     matrix[i].push(random)
-                    if (random > maxRandom) {
-                        maxRandom = random
-                    }
                 }
             }
-            particleLife.currentMaxRadius = maxRandom
-            // currentMaxRadius = particleLife.currentMaxRadius
-            // CELL_SIZE = currentMaxRadius
             return matrix
         }
         // -------------------------------------------------------------------------------------------------------------
@@ -1415,14 +1424,14 @@ export default defineComponent({
             if (value > particleLife.maxRadiusMatrix[x][y]) {
                 particleLife.maxRadiusMatrix[x][y] = value
                 maxRadiusMatrix[x][y] = value
-                particleLife.currentMaxRadius = getCurrentMaxRadius()
+                setCurrentMaxRadius(getCurrentMaxRadius())
             }
             updateInteractionMatrixBuffer()
         }
         const updateMaxMatrixValue = (x: number, y: number, value: number) => {
             particleLife.maxRadiusMatrix[x][y] = value
             maxRadiusMatrix[x][y] = value
-            particleLife.currentMaxRadius = getCurrentMaxRadius()
+            setCurrentMaxRadius(getCurrentMaxRadius())
             if (value < particleLife.minRadiusMatrix[x][y]) {
                 particleLife.minRadiusMatrix[x][y] = value
                 minRadiusMatrix[x][y] = value
@@ -1443,6 +1452,7 @@ export default defineComponent({
         function setMaxRadiusMatrix(newMaxRadius: number[][]) {
             maxRadiusMatrix = newMaxRadius
             particleLife.maxRadiusMatrix = maxRadiusMatrix
+            setCurrentMaxRadius(getCurrentMaxRadius())
         }
         // -------------------------------------------------------------------------------------------------------------
         const getCurrentMaxRadius = () => {
@@ -1453,6 +1463,16 @@ export default defineComponent({
                 }
             }
             return maxRandom
+        }
+        const setCurrentMaxRadius = (value: number) => {
+            if (currentMaxRadius === value) return
+            currentMaxRadius = value
+            particleLife.currentMaxRadius = value
+            console.log('-----------CuMaxR---------------', currentMaxRadius)
+            CELL_SIZE = currentMaxRadius
+
+            setSimSize()
+            updateSimOptionsBuffer()
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -1487,11 +1507,6 @@ export default defineComponent({
         watchAndUpdate(() => particleLife.repel, (value: number) => repel = value)
         watchAndUpdate(() => particleLife.forceFactor, (value: number) => forceFactor = value)
         watchAndUpdate(() => particleLife.frictionFactor, (value: number) => frictionFactor = value)
-        watchAndUpdate(() => particleLife.currentMaxRadius, (value: number) => {
-            currentMaxRadius = value
-            CELL_SIZE = currentMaxRadius
-            setSimSize()
-        })
 
         let isUpdatingWallState = false
         watch([
@@ -1553,7 +1568,7 @@ export default defineComponent({
             })
         })
         // -------------------------------------------------------------------------------------------------------------
-        const destroyBuffers = async () => {
+        const destroyBuffers = async (keepTexture: boolean = false) => {
             currentPositionBuffer?.destroy(); currentPositionBuffer = undefined;
             nextPositionBuffer?.destroy(); nextPositionBuffer = undefined;
             velocityBuffer?.destroy(); velocityBuffer = undefined;
@@ -1567,10 +1582,11 @@ export default defineComponent({
             particleHashesBuffer?.destroy(); particleHashesBuffer = undefined;
             cellHeadsBuffer?.destroy(); cellHeadsBuffer = undefined;
             particleNextIndicesBuffer?.destroy(); particleNextIndicesBuffer = undefined;
-            offscreenTexture?.destroy(); offscreenTexture = undefined;
-            offscreenTextureView = undefined as any;
-            offscreenSampler = undefined as any;
-
+            if (!keepTexture) {
+                offscreenTexture?.destroy(); offscreenTexture = undefined;
+                offscreenTextureView = undefined as any;
+                offscreenSampler = undefined as any;
+            }
             particleBuffer?.destroy(); particleBuffer = undefined;
             particleTempBuffer?.destroy(); particleTempBuffer = undefined;
             binOffsetBuffer?.destroy(); binOffsetBuffer = undefined;
