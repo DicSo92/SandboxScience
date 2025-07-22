@@ -187,6 +187,7 @@ export default defineComponent({
         let currentMaxRadius: number = 0 // Max value between all colors max radius (for cell size)
 
         // Define the simulation properties
+        let initialParticles: Float32Array // Initial particle x, y, vx, vy, type
         let positions: Float32Array // Particle positions
         let velocities: Float32Array // Particle velocities
         let types: Uint32Array // Particle types (colors)
@@ -290,7 +291,7 @@ export default defineComponent({
             await initWebGPU()
             handleResize()
             setSimSizeBasedOnScreen()
-            initLife()
+            await initLife()
 
             useEventListener('resize', handleResize)
             useEventListener(canvasRef.value, ['mousedown'], (e) => {
@@ -337,14 +338,23 @@ export default defineComponent({
             particleLife.simWidth = SIM_WIDTH = baseSimWidth = CANVAS_WIDTH
             particleLife.simHeight = SIM_HEIGHT = baseSimHeight = CANVAS_HEIGHT
             updateCameraScaleFactors()
+            updateBinningParameters()
             updateOffscreenMirrorResources()
         }
-        function setSimSizeWhenWrapped() { // Set the grid size when the walls are wrapped
-            if (!useSpatialHash) return
-            particleLife.simWidth = SIM_WIDTH = CELL_SIZE * Math.round(baseSimWidth / CELL_SIZE)
-            particleLife.simHeight = SIM_HEIGHT = CELL_SIZE * Math.round(baseSimHeight / CELL_SIZE)
-            updateCameraScaleFactors()
+        function setSimSize() {
+            if (useSpatialHash && isWallWrap) {
+                particleLife.simWidth = SIM_WIDTH = CELL_SIZE * Math.round(baseSimWidth / CELL_SIZE)
+                particleLife.simHeight = SIM_HEIGHT = CELL_SIZE * Math.round(baseSimHeight / CELL_SIZE)
+                updateCameraScaleFactors()
+            }
+            updateBinningParameters()
             updateOffscreenMirrorResources()
+        }
+        const updateBinningParameters = () => {
+            const gridWidth = Math.ceil(SIM_WIDTH / CELL_SIZE)
+            const gridHeight = Math.ceil(SIM_HEIGHT / CELL_SIZE)
+            binCount = gridWidth * gridHeight
+            prefixSumIterations = Math.ceil(Math.ceil(Math.log2(binCount + 1)) / 2) * 2
         }
         function centerView() {
             cameraCenter = { x: SIM_WIDTH / 2, y: SIM_HEIGHT / 2 }
@@ -394,7 +404,7 @@ export default defineComponent({
                 alphaMode: 'opaque'
             })
         }
-        const initLife = () => {
+        const initLife = async () => {
             setRulesMatrix(makeRandomRulesMatrix())
             setMinRadiusMatrix(makeRandomMinRadiusMatrix())
             setMaxRadiusMatrix(makeRandomMaxRadiusMatrix())
@@ -407,12 +417,8 @@ export default defineComponent({
             console.log("Min Radius Matrix:", minRadiusMatrix);
             console.log("Max Radius Matrix:", maxRadiusMatrix);
 
-            currentMaxRadius = particleLife.currentMaxRadius // Ensure this is set before creating buffers
-            CELL_SIZE = currentMaxRadius // Ensure CELL_SIZE is set before creating buffers
-            SPATIAL_HASH_TABLE_SIZE = Math.pow(2, Math.ceil(Math.log2(NUM_PARTICLES))) // Ensure SPATIAL_HASH_TABLE_SIZE is a power of 2
-
-            updateCameraScaleFactors()
-            if (isWallWrap) setSimSizeWhenWrapped()
+            await nextTick()
+            setSimSize()
             centerView()
 
             initColors()
@@ -422,8 +428,6 @@ export default defineComponent({
             createPipelines()
             createBindGroups()
 
-            if (!isRunning) step() // Run a step if not running to initialize the simulation
-
             lastFrameTime = performance.now()
             animationFrameId = requestAnimationFrame(frame)
         }
@@ -431,7 +435,7 @@ export default defineComponent({
             cancelAnimationLoop()
             destroyPipelinesAndBindGroups()
             await destroyBuffers()
-            initLife()
+            await initLife()
         }
         // -------------------------------------------------------------------------------------------------------------
         const step = () => {
@@ -603,6 +607,7 @@ export default defineComponent({
         const createBuffers = () => {
             updateSimOptionsBuffer() // Set simulation options based on the store state
             updateInteractionMatrixBuffer() // Set interaction matrices based on the store state
+            updateParticleBuffers()
             updateBinningBuffers()
             // ----------------------------------------------------------------------------------------------
             const paddedSize = Math.ceil(colors.byteLength / 16) * 16 // Ensure padded to 16 bytes
@@ -626,34 +631,32 @@ export default defineComponent({
             deltaTimeBuffer = device.createBuffer({
                 size: 4,
                 usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+                mappedAtCreation: true
             })
-            device.queue.writeBuffer(deltaTimeBuffer, 0, new Float32Array([smoothedDeltaTime]))
+            new Float32Array(deltaTimeBuffer.getMappedRange()).set([smoothedDeltaTime])
+            deltaTimeBuffer.unmap()
         }
-        const updateBinningBuffers = () => {
-            const gridWidth = Math.ceil(SIM_WIDTH / CELL_SIZE)
-            const gridHeight = Math.ceil(SIM_HEIGHT / CELL_SIZE)
-            binCount = gridWidth * gridHeight
-            prefixSumIterations = Math.ceil(Math.ceil(Math.log2(binCount + 1)) / 2) * 2
-
-            const initialParticles = new Float32Array(NUM_PARTICLES * 5)
-            for (let i = 0; i < NUM_PARTICLES; ++i) {
-                initialParticles[5 * i] = Math.random() * SIM_WIDTH
-                initialParticles[5 * i + 1] = Math.random() * SIM_HEIGHT
-                initialParticles[5 * i + 2] = 0
-                initialParticles[5 * i + 3] = 0
-                initialParticles[5 * i + 4] = Math.floor(Math.random() * NUM_TYPES)
-            }
+        const updateParticleBuffers = () => {
+            if (particleBuffer) particleBuffer?.destroy(); particleBuffer = undefined;
+            if (particleTempBuffer) particleTempBuffer?.destroy(); particleTempBuffer = undefined;
 
             particleBuffer = device.createBuffer({
                 size: NUM_PARTICLES * 20,
                 usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC | GPUBufferUsage.STORAGE,
+                mappedAtCreation: true,
             })
-            device.queue.writeBuffer(particleBuffer, 0, initialParticles)
+            new Float32Array(particleBuffer.getMappedRange()).set(initialParticles)
+            particleBuffer.unmap()
 
             particleTempBuffer = device.createBuffer({
                 size: particleBuffer.size,
                 usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
             })
+        }
+        const updateBinningBuffers = () => {
+            if (binOffsetBuffer) binOffsetBuffer.destroy(); binOffsetBuffer = undefined;
+            if (binOffsetTempBuffer) binOffsetTempBuffer.destroy(); binOffsetTempBuffer = undefined;
+            if (binPrefixSumStepSizeBuffer) binPrefixSumStepSizeBuffer.destroy(); binPrefixSumStepSizeBuffer = undefined;
 
             binOffsetBuffer = device.createBuffer({
                 size: (binCount + 1) * 4,
@@ -671,8 +674,10 @@ export default defineComponent({
             binPrefixSumStepSizeBuffer = device.createBuffer({
                 size: prefixSumIterations * 256,
                 usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.UNIFORM,
+                mappedAtCreation: true
             })
-            device.queue.writeBuffer(binPrefixSumStepSizeBuffer, 0, binPrefixSumStepSize);
+            new Uint32Array(binPrefixSumStepSizeBuffer.getMappedRange()).set(binPrefixSumStepSize)
+            binPrefixSumStepSizeBuffer.unmap()
         }
         // -------------------------------------------------------------------------------------------------------------
         const updateSimOptionsBuffer = () => {
@@ -694,10 +699,14 @@ export default defineComponent({
             if (!simOptionsBuffer) {
                 simOptionsBuffer = device.createBuffer({
                     size: simOptionsData.byteLength,
-                    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+                    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+                    mappedAtCreation: true,
                 })
+                new Uint8Array(simOptionsBuffer.getMappedRange()).set(new Uint8Array(simOptionsData))
+                simOptionsBuffer.unmap()
+            } else {
+                device.queue.writeBuffer(simOptionsBuffer, 0, simOptionsData)
             }
-            device.queue.writeBuffer(simOptionsBuffer, 0, simOptionsData)
         }
         const updateInteractionMatrixBuffer = () => {
             const stride = 4; // 4 octets par couple
@@ -718,33 +727,25 @@ export default defineComponent({
             paddedInteractionData.set(interactionData)
 
             if (!interactionMatrixBuffer || interactionMatrixBuffer.size !== paddedSize) {
+                if (interactionMatrixBuffer) interactionMatrixBuffer.destroy(); interactionMatrixBuffer = undefined;
                 interactionMatrixBuffer = device.createBuffer({
                     size: paddedSize,
-                    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+                    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+                    mappedAtCreation: true
                 })
+                new Uint8Array(interactionMatrixBuffer.getMappedRange()).set(paddedInteractionData)
+                interactionMatrixBuffer.unmap()
+            } else {
+                device.queue.writeBuffer(interactionMatrixBuffer, 0, paddedInteractionData)
             }
-            device.queue.writeBuffer(interactionMatrixBuffer, 0, paddedInteractionData)
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         const createBindGroups = () => {
+            updateParticleBindGroups()
             updateOffscreenTextureBindGroup()
             // ---------------------------------------------------------------------------------------------------------
-            particleBufferBindGroup = device.createBindGroup({
-                layout: particleBufferBindGroupLayout,
-                entries: [
-                    { binding: 0, resource: { buffer: particleBuffer! } },
-                    { binding: 1, resource: { buffer: interactionMatrixBuffer! } },
-                ],
-            })
-            particleBufferReadOnlyBindGroup = device.createBindGroup({
-                layout: particleBufferReadOnlyBindGroupLayout,
-                entries: [
-                    { binding: 0, resource: { buffer: particleBuffer! } },
-                    { binding: 1, resource: { buffer: colorBuffer! } }
-                ],
-            })
             binFillSizeBindGroup = device.createBindGroup({
                 layout: binFillSizeBindGroupLayout,
                 entries: [
@@ -765,6 +766,47 @@ export default defineComponent({
                     { binding: 0, resource: { buffer: binOffsetTempBuffer! } },
                     { binding: 1, resource: { buffer: binOffsetBuffer! } },
                     { binding: 2, resource: { buffer: binPrefixSumStepSizeBuffer!, size: 4 } },
+                ],
+            })
+            // ---------------------------------------------------------------------------------------------------------
+            simOptionsBindGroup = device.createBindGroup({
+                layout: simOptionsBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: simOptionsBuffer! } },
+                ],
+            })
+            deltaTimeBindGroup = device.createBindGroup({
+                layout: deltaTimeBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: deltaTimeBuffer! } },
+                ],
+            })
+            cameraBindGroup = device.createBindGroup({
+                layout: cameraBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: cameraBuffer! } },
+                ],
+            })
+        }
+        const updateParticleBindGroups = () => {
+            particleBufferBindGroup = undefined as any;
+            particleBufferReadOnlyBindGroup = undefined as any;
+            particleSortBindGroup = undefined as any;
+            particleComputeForcesBindGroup = undefined as any;
+            bruteForceBindGroup = undefined as any;
+
+            particleBufferBindGroup = device.createBindGroup({
+                layout: particleBufferBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: particleBuffer! } },
+                    { binding: 1, resource: { buffer: interactionMatrixBuffer! } },
+                ],
+            })
+            particleBufferReadOnlyBindGroup = device.createBindGroup({
+                layout: particleBufferReadOnlyBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: particleBuffer! } },
+                    { binding: 1, resource: { buffer: colorBuffer! } }
                 ],
             })
             particleSortBindGroup = device.createBindGroup({
@@ -791,24 +833,6 @@ export default defineComponent({
                     { binding: 0, resource: { buffer: particleTempBuffer! } },
                     { binding: 1, resource: { buffer: particleBuffer! } },
                     { binding: 2, resource: { buffer: interactionMatrixBuffer! } },
-                ],
-            })
-            simOptionsBindGroup = device.createBindGroup({
-                layout: simOptionsBindGroupLayout,
-                entries: [
-                    { binding: 0, resource: { buffer: simOptionsBuffer! } },
-                ],
-            })
-            deltaTimeBindGroup = device.createBindGroup({
-                layout: deltaTimeBindGroupLayout,
-                entries: [
-                    { binding: 0, resource: { buffer: deltaTimeBuffer! } },
-                ],
-            })
-            cameraBindGroup = device.createBindGroup({
-                layout: cameraBindGroupLayout,
-                entries: [
-                    { binding: 0, resource: { buffer: cameraBuffer! } },
                 ],
             })
         }
@@ -1148,46 +1172,38 @@ export default defineComponent({
                 cancelAnimationLoop()
 
                 const oldCount = NUM_PARTICLES
-                const oldPositions = await readBufferFromGPU(currentPositionBuffer!, oldCount * 2 * 4)
-                const oldVelocities = await readBufferFromGPU(velocityBuffer!, oldCount * 2 * 4)
-                const oldTypes = await readBufferFromGPU(typeBuffer!, oldCount * 4)
+                const oldParticlesData = await readBufferFromGPU(particleBuffer!, oldCount * 5 * 4)
+                const oldParticles = new Float32Array(oldParticlesData)
+                initialParticles = new Float32Array(newCount * 5)
 
-                const newPositions = new Float32Array(newCount * 2)
-                const newVelocities = new Float32Array(newCount * 2)
-                const newTypes = new Uint32Array(newCount)
-
-                if (newCount > oldCount) {
-                    newPositions.set(new Float32Array(oldPositions))
-                    newVelocities.set(new Float32Array(oldVelocities))
-                    newTypes.set(new Uint32Array(oldTypes))
+                if (newCount > oldCount) { // If increasing the number of particles
+                    initialParticles.set(oldParticles)
                     for (let i = oldCount; i < newCount; i++) {
-                        newPositions[2 * i] = Math.random() * SIM_WIDTH
-                        newPositions[2 * i + 1] = Math.random() * SIM_HEIGHT
-                        newVelocities[2 * i] = 0
-                        newVelocities[2 * i + 1] = 0
-                        newTypes[i] = Math.floor(Math.random() * NUM_TYPES)
+                        const baseIndex = i * 5
+                        initialParticles[baseIndex] = Math.random() * SIM_WIDTH      // x
+                        initialParticles[baseIndex + 1] = Math.random() * SIM_HEIGHT // y
+                        initialParticles[baseIndex + 4] = Math.floor(Math.random() * NUM_TYPES) // type
                     }
-                } else {
-                    newPositions.set(new Float32Array(oldPositions).subarray(0, newCount * 2))
-                    newVelocities.set(new Float32Array(oldVelocities).subarray(0, newCount * 2))
-                    newTypes.set(new Uint32Array(oldTypes).subarray(0, newCount))
+                } else { // If decreasing the number of particles
+                    initialParticles.set(oldParticles.subarray(0, newCount * 5))
+                    for (let i = newCount; i < oldCount; i++) {
+                        const j = Math.floor(Math.random() * (i + 1))
+                        if (j < newCount) {
+                            const oldStartIndex = i * 5
+                            const newIndex = j * 5
+                            initialParticles[newIndex] = oldParticles[oldStartIndex]         // x
+                            initialParticles[newIndex + 1] = oldParticles[oldStartIndex + 1] // y
+                            initialParticles[newIndex + 2] = oldParticles[oldStartIndex + 2] // vx
+                            initialParticles[newIndex + 3] = oldParticles[oldStartIndex + 3] // vy
+                            initialParticles[newIndex + 4] = oldParticles[oldStartIndex + 4] // type
+                        }
+                    }
                 }
 
-                positions = newPositions
-                velocities = newVelocities
-                types = newTypes
-
                 NUM_PARTICLES = newCount
-                SPATIAL_HASH_TABLE_SIZE = Math.pow(2, Math.ceil(Math.log2(NUM_PARTICLES))) // Ensure SPATIAL_HASH_TABLE_SIZE is a power of 2
-
-                destroyPipelinesAndBindGroups()
-                await destroyBuffers()
-                createBuffers()
-                createPipelines()
-                updateOffscreenMirrorResources() // Will create offscreen texture and bind group if needed
-                createBindGroups()
-
-                if (!isRunning) syncPositionBuffers()
+                updateParticleBuffers() // Destroy and recreate particle buffers
+                updateParticleBindGroups() // Recreate bind groups that depend on particle buffers
+                updateSimOptionsBuffer() // Update simulation options buffer
 
                 lastFrameTime = performance.now()
                 animationFrameId = requestAnimationFrame(frame)
@@ -1195,7 +1211,7 @@ export default defineComponent({
                 isUpdatingParticles = false
                 await updateNumParticles(particleLife.numParticles) // Reset the debounce function
             }
-        }, 16, { maxWait: 33 })
+        }, 16, { maxWait: 64 })
         const updateNumTypes = async (newNumTypes: number) => {
             if (isUpdatingParticles || newNumTypes === NUM_TYPES) return
             isUpdatingParticles = true
@@ -1321,15 +1337,12 @@ export default defineComponent({
             particleLife.currentColors = colors // Ensure the store is updated with the initial colors
         }
         function initParticles() {
-            positions = new Float32Array(NUM_PARTICLES * 2)
-            velocities = new Float32Array(NUM_PARTICLES * 2)
-            types = new Uint32Array(NUM_PARTICLES)
-            for (let i = 0; i < NUM_PARTICLES; i++) {
-                positions[2 * i] = Math.random() * SIM_WIDTH
-                positions[2 * i + 1] = Math.random() * SIM_HEIGHT
-                velocities[2 * i] = 0
-                velocities[2 * i + 1] = 0
-                types[i] = Math.floor(Math.random() * NUM_TYPES)
+            initialParticles = new Float32Array(NUM_PARTICLES * 5)
+            for (let i = 0; i < NUM_PARTICLES; ++i) {
+                const baseIndex = i * 5
+                initialParticles[baseIndex] = Math.random() * SIM_WIDTH
+                initialParticles[baseIndex + 1] = Math.random() * SIM_HEIGHT
+                initialParticles[baseIndex + 4] = Math.floor(Math.random() * NUM_TYPES)
             }
         }
         function makeRandomRulesMatrix() {
@@ -1381,14 +1394,14 @@ export default defineComponent({
             if (typeof(newWidth) !== 'number') return // Prevent input event like unfocus
             if (particleLife.linkProportions) particleLife.simHeight = SIM_HEIGHT = baseSimHeight = Math.round(SIM_HEIGHT * (newWidth / SIM_WIDTH))
             particleLife.simWidth = SIM_WIDTH = baseSimWidth = newWidth
-            if (isWallWrap) setSimSizeWhenWrapped()
+            setSimSize()
             regenerateLife()
         }
         const updateSimHeight = (newHeight: number | Event) => {
             if (typeof(newHeight) !== 'number') return // Prevent input event like unfocus
             if (particleLife.linkProportions) particleLife.simWidth = SIM_WIDTH = baseSimWidth = Math.round(SIM_WIDTH * (newHeight / SIM_HEIGHT))
             particleLife.simHeight = SIM_HEIGHT = baseSimHeight = newHeight
-            if (isWallWrap) setSimSizeWhenWrapped()
+            setSimSize()
             regenerateLife()
         }
         const updateRulesMatrixValue = (x: number, y: number, value: number) => {
@@ -1477,7 +1490,7 @@ export default defineComponent({
         watchAndUpdate(() => particleLife.currentMaxRadius, (value: number) => {
             currentMaxRadius = value
             CELL_SIZE = currentMaxRadius
-            if (isWallWrap) setSimSizeWhenWrapped()
+            setSimSize()
         })
 
         let isUpdatingWallState = false
@@ -1527,7 +1540,7 @@ export default defineComponent({
             isInfiniteMirrorWrap = particleLife.isInfiniteMirrorWrap
 
             if (!oldWrap && ((changedProp === 'isWallWrap' && newWrap) || (changedProp === 'isMirrorWrap' && newMirror) || (changedProp === 'isInfiniteMirrorWrap' && newInfinite))) {
-                setSimSizeWhenWrapped()
+                setSimSize()
             } else {
                 updateOffscreenMirrorResources()
             }
@@ -1583,6 +1596,11 @@ export default defineComponent({
 
             particleBufferReadOnlyBindGroup = undefined as any;
             binFillSizeBindGroup = undefined as any;
+            if (binPrefixSumBindGroup) {
+                for (let i = 0; i < binPrefixSumBindGroup.length; i++) {
+                    binPrefixSumBindGroup[i] = undefined as any;
+                }
+            }
             binPrefixSumBindGroup = [];
             particleSortBindGroup = undefined as any;
             particleComputeForcesBindGroup = undefined as any;

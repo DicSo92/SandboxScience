@@ -14,7 +14,7 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
     const simHeight = ref<number>(0) // Grid height
     const linkProportions = ref<boolean>(false) // Constraint x y sim proportions
 
-    const numParticles = ref<number>(36000) // Number of particles
+    const numParticles = ref<number>(64000) // Number of particles
     const particleSize = ref<number>(1.3) // Size of the particles at zoomFactor = 1
     const numColors = ref<number>(7) // Number of colors to be used
 
@@ -37,7 +37,7 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
 
     const currentMaxRadius = ref<number>(0) // Current max radius for the particles
 
-    const useSpatialHash = ref<boolean>(false) // Use spatial hash for collision detection or brute force
+    const useSpatialHash = ref<boolean>(true) // Use spatial hash for collision detection or brute force
 
     const isBrushActive = ref<boolean>(false) // Is the brush active
     const brushes = ref<number[]>([]) // Brush particles
