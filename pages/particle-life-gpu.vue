@@ -177,9 +177,12 @@ export default defineComponent({
         let SIM_WIDTH: number = 0
         let SIM_HEIGHT: number = 0
         let CELL_SIZE: number = 0
-        let SPATIAL_HASH_TABLE_SIZE: number = 0
         let baseSimWidth: number = 0
         let baseSimHeight: number = 0
+        let GRID_WIDTH: number = 0
+        let GRID_HEIGHT: number = 0
+        let binCount: number = 0
+        let prefixSumIterations: number = 0
 
         // Define color list and rules matrix for the particles
         let rulesMatrix: number[][] = [] // Rules matrix for each color
@@ -285,9 +288,6 @@ export default defineComponent({
         let cameraBindGroupLayout: GPUBindGroupLayout
         let offscreenTextureBindGroupLayout: GPUBindGroupLayout
 
-        let binCount: number = 0
-        let prefixSumIterations: number = 0
-
         onMounted(async () => {
             await initWebGPU()
             handleResize()
@@ -346,7 +346,6 @@ export default defineComponent({
                 particleLife.simHeight = SIM_HEIGHT = CELL_SIZE * Math.round(baseSimHeight / CELL_SIZE)
                 updateCameraScaleFactors()
             }
-
             updateBinningParameters()
             updateOffscreenMirrorResources()
         }
@@ -354,15 +353,12 @@ export default defineComponent({
             const oldBinCount = binCount
             const oldPrefixSumIterations = prefixSumIterations
 
-            const gridWidth = Math.ceil(SIM_WIDTH / CELL_SIZE)
-            const gridHeight = Math.ceil(SIM_HEIGHT / CELL_SIZE)
-            console.log(`Setting simulation size: ${SIM_WIDTH}x${SIM_HEIGHT}, CELL_SIZE=${CELL_SIZE}`)
-            console.log(`Grid Size: ${gridWidth}x${gridHeight}, Cell Size: ${CELL_SIZE}`)
-            binCount = gridWidth * gridHeight
+            GRID_WIDTH = Math.ceil(SIM_WIDTH / CELL_SIZE)
+            GRID_HEIGHT = Math.ceil(SIM_HEIGHT / CELL_SIZE)
+            binCount = GRID_WIDTH * GRID_HEIGHT
             prefixSumIterations = Math.ceil(Math.ceil(Math.log2(binCount + 1)) / 2) * 2
 
             if (device && (oldBinCount !== binCount || oldPrefixSumIterations !== prefixSumIterations)) {
-                console.log(`Updating binning parameters: binCount=${binCount}, prefixSumIterations=${prefixSumIterations}`)
                 updateBinningBuffers()
                 if (!isInitializing) {
                     updateBinningBindGroups()
@@ -699,20 +695,21 @@ export default defineComponent({
         }
         // -------------------------------------------------------------------------------------------------------------
         const updateSimOptionsBuffer = () => {
-            const simOptionsData = new ArrayBuffer(48)
+            const simOptionsData = new ArrayBuffer(52)
             const simOptionsView = new DataView(simOptionsData)
-            simOptionsView.setUint32(0, isWallRepel ? 1 : 0, true)
-            simOptionsView.setUint32(4, isWallWrap ? 1 : 0, true)
-            simOptionsView.setFloat32(8, forceFactor, true)
-            simOptionsView.setFloat32(12, frictionFactor, true)
-            simOptionsView.setFloat32(16, repel, true)
-            simOptionsView.setFloat32(20, PARTICLE_SIZE, true)
-            simOptionsView.setFloat32(24, SIM_WIDTH, true)
-            simOptionsView.setFloat32(28, SIM_HEIGHT, true)
-            simOptionsView.setFloat32(32, CELL_SIZE, true)
-            simOptionsView.setUint32(36, SPATIAL_HASH_TABLE_SIZE, true)
-            simOptionsView.setUint32(40, NUM_PARTICLES, true)
-            simOptionsView.setUint32(44, NUM_TYPES, true)
+            simOptionsView.setFloat32(0, SIM_WIDTH, true)
+            simOptionsView.setFloat32(4, SIM_HEIGHT, true)
+            simOptionsView.setUint32(8, GRID_WIDTH, true)
+            simOptionsView.setUint32(12, GRID_HEIGHT, true)
+            simOptionsView.setFloat32(16, CELL_SIZE, true)
+            simOptionsView.setUint32(20, NUM_PARTICLES, true)
+            simOptionsView.setUint32(24, NUM_TYPES, true)
+            simOptionsView.setFloat32(28, PARTICLE_SIZE, true)
+            simOptionsView.setUint32(32, isWallRepel ? 1 : 0, true)
+            simOptionsView.setUint32(36, isWallWrap ? 1 : 0, true)
+            simOptionsView.setFloat32(40, forceFactor, true)
+            simOptionsView.setFloat32(44, frictionFactor, true)
+            simOptionsView.setFloat32(48, repel, true)
 
             if (!simOptionsBuffer) {
                 simOptionsBuffer = device.createBuffer({
@@ -1468,7 +1465,6 @@ export default defineComponent({
             if (currentMaxRadius === value) return
             currentMaxRadius = value
             particleLife.currentMaxRadius = value
-            console.log('-----------CuMaxR---------------', currentMaxRadius)
             CELL_SIZE = currentMaxRadius
 
             setSimSize()

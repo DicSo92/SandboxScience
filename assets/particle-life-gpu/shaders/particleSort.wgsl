@@ -1,16 +1,17 @@
 struct SimOptions {
-  isWallRepel: u32,
-  isWallWrap: u32,
-  forceFactor: f32,
-  frictionFactor: f32,
-  repel: f32,
-  particleSize: f32,
-  simWidth: f32,
-  simHeight: f32,
-  cellSize: f32,
-  hashTableSize: u32,
-  numParticles: u32,
-  numTypes: u32,
+    simWidth: f32,
+    simHeight: f32,
+    gridWidth: u32,
+    gridHeight: u32,
+    cellSize: f32,
+    numParticles: u32,
+    numTypes: u32,
+    particleSize: f32,
+    isWallRepel: u32,
+    isWallWrap: u32,
+    forceFactor: f32,
+    frictionFactor: f32,
+    repel: f32,
 };
 struct Particle {
     x : f32,
@@ -26,13 +27,10 @@ struct BinInfo {
 }
 
 fn getBinInfo(position: vec2f, options: SimOptions) -> BinInfo {
-    let gridSize = vec2i(
-        i32(ceil(options.simWidth / options.cellSize)),
-        i32(ceil(options.simHeight / options.cellSize)),
-    );
+    let gridSize = vec2i(i32(options.gridWidth), i32(options.gridHeight));
     let binId = vec2i(
-        clamp(i32(floor(position.x / options.cellSize)), 0, i32(gridSize.x) - 1),
-        clamp(i32(floor(position.y / options.cellSize)), 0, i32(gridSize.y) - 1)
+        clamp(i32(floor(position.x / options.cellSize)), 0, gridSize.x - 1),
+        clamp(i32(floor(position.y / options.cellSize)), 0, gridSize.y - 1)
     );
     let binIndex = binId.y * gridSize.x + binId.x;
     return BinInfo(gridSize, binId, binIndex);

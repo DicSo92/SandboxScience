@@ -2,18 +2,19 @@ struct Particles { data: array<vec2<f32>> };
 struct Types { data: array<u32> };
 struct InteractionMatrix { data: array<u32> };
 struct SimOptions {
+    simWidth: f32,
+    simHeight: f32,
+    gridWidth: u32,
+    gridHeight: u32,
+    cellSize: f32,
+    numParticles: u32,
+    numTypes: u32,
+    particleSize: f32,
     isWallRepel: u32,
     isWallWrap: u32,
     forceFactor: f32,
     frictionFactor: f32,
     repel: f32,
-    particleSize: f32,
-    simWidth: f32,
-    simHeight: f32,
-    cellSize: f32,
-    spatialHashTableSize: u32,
-    numParticles: u32,
-    numTypes: u32
 };
 struct Particle {
     x : f32,
