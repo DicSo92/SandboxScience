@@ -12,6 +12,10 @@ struct SimOptions {
     forceFactor: f32,
     frictionFactor: f32,
     repel: f32,
+    extendedGridWidth: u32,
+    extendedGridHeight: u32,
+    gridOffsetX: u32,
+    gridOffsetY: u32,
 };
 struct Particle {
     x : f32,
@@ -27,10 +31,19 @@ struct BinInfo {
 }
 
 fn getBinInfo(position: vec2f, options: SimOptions) -> BinInfo {
-    let gridSize = vec2i(i32(options.gridWidth), i32(options.gridHeight));
+    var gridSize: vec2i;
+    var adjustedPosition = position;
+
+    if (options.isWallWrap == 0u && options.isWallRepel == 0u) {
+        gridSize = vec2i(i32(options.extendedGridWidth), i32(options.extendedGridHeight));
+        adjustedPosition = position + vec2f(f32(options.gridOffsetX) * options.cellSize, f32(options.gridOffsetY) * options.cellSize);
+    } else {
+        gridSize = vec2i(i32(options.gridWidth), i32(options.gridHeight));
+    }
+
     let binId = vec2i(
-        clamp(i32(floor(position.x / options.cellSize)), 0, gridSize.x - 1),
-        clamp(i32(floor(position.y / options.cellSize)), 0, gridSize.y - 1)
+        clamp(i32(floor(adjustedPosition.x / options.cellSize)), 0, gridSize.x - 1),
+        clamp(i32(floor(adjustedPosition.y / options.cellSize)), 0, gridSize.y - 1)
     );
     let binIndex = binId.y * gridSize.x + binId.x;
     return BinInfo(gridSize, binId, binIndex);

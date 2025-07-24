@@ -13,6 +13,10 @@ struct SimOptions {
     forceFactor: f32,
     frictionFactor: f32,
     repel: f32,
+    extendedGridWidth: u32,
+    extendedGridHeight: u32,
+    gridOffsetX: u32,
+    gridOffsetY: u32,
 };
 struct Particle {
     x : f32,
@@ -28,10 +32,19 @@ struct BinInfo {
 }
 
 fn getBinInfo(position: vec2f, options: SimOptions) -> BinInfo {
-    let gridSize = vec2i(i32(options.gridWidth), i32(options.gridHeight));
+    var gridSize: vec2i;
+    var adjustedPosition = position;
+
+    if (options.isWallWrap == 0u && options.isWallRepel == 0u) {
+        gridSize = vec2i(i32(options.extendedGridWidth), i32(options.extendedGridHeight));
+        adjustedPosition = position + vec2f(f32(options.gridOffsetX) * options.cellSize, f32(options.gridOffsetY) * options.cellSize);
+    } else {
+        gridSize = vec2i(i32(options.gridWidth), i32(options.gridHeight));
+    }
+
     let binId = vec2i(
-        clamp(i32(floor(position.x / options.cellSize)), 0, gridSize.x - 1),
-        clamp(i32(floor(position.y / options.cellSize)), 0, gridSize.y - 1)
+        clamp(i32(floor(adjustedPosition.x / options.cellSize)), 0, gridSize.x - 1),
+        clamp(i32(floor(adjustedPosition.y / options.cellSize)), 0, gridSize.y - 1)
     );
     let binIndex = binId.y * gridSize.x + binId.x;
     return BinInfo(gridSize, binId, binIndex);
@@ -81,9 +94,16 @@ fn computeForces(@builtin(global_invocation_id) id : vec3u) {
 
     for (var binX = binXMin; binX <= binXMax; binX += 1) {
         for (var binY = binYMin; binY <= binYMax; binY += 1) {
-            var realBinX = (binX + binInfo.gridSize.x) % binInfo.gridSize.x;
-            var realBinY = (binY + binInfo.gridSize.y) % binInfo.gridSize.y;
-
+            var realBinX = binX;
+            var realBinY = binY;
+            if (options.isWallWrap == 1u) {
+//                realBinX = (binX + binInfo.gridSize.x) % binInfo.gridSize.x;
+//                realBinY = (binY + binInfo.gridSize.y) % binInfo.gridSize.y;
+                if (binX < 0) { realBinX = binX + binInfo.gridSize.x; }
+                else if (binX >= binInfo.gridSize.x) { realBinX = binX - binInfo.gridSize.x; }
+                if (binY < 0) { realBinY = binY + binInfo.gridSize.y; }
+                else if (binY >= binInfo.gridSize.y) { realBinY = binY - binInfo.gridSize.y; }
+            }
             let binIndex = realBinY * binInfo.gridSize.x + realBinX;
             let binStart = binOffset[binIndex];
             let binEnd = binOffset[binIndex + 1];

@@ -171,6 +171,7 @@ export default defineComponent({
         let isRunning: boolean = particleLife.isRunning
         let isInitializing: boolean = true
         let isUpdatingParticles: boolean = false // Flag to prevent multiple additions at once
+
         let smoothedDeltaTime: number = 0.016 // Initial value (1/60s)
         let CANVAS_WIDTH: number = 0
         let CANVAS_HEIGHT: number = 0
@@ -183,6 +184,13 @@ export default defineComponent({
         let GRID_HEIGHT: number = 0
         let binCount: number = 0
         let prefixSumIterations: number = 0
+
+        let EXTENDED_GRID_WIDTH: number = 0
+        let EXTENDED_GRID_HEIGHT: number = 0
+        let GRID_OFFSET_X: number = 0
+        let GRID_OFFSET_Y: number = 0
+        let EXTENDED_SIM_WIDTH: number = 0
+        let EXTENDED_SIM_HEIGHT: number = 0
 
         // Define color list and rules matrix for the particles
         let rulesMatrix: number[][] = [] // Rules matrix for each color
@@ -225,7 +233,6 @@ export default defineComponent({
 
         // Define the GPU device, pipelines, and bind groups
         let device: GPUDevice
-
         // Define the buffers
         let currentPositionBuffer: GPUBuffer | undefined
         let nextPositionBuffer: GPUBuffer | undefined
@@ -353,9 +360,30 @@ export default defineComponent({
             const oldBinCount = binCount
             const oldPrefixSumIterations = prefixSumIterations
 
-            GRID_WIDTH = Math.ceil(SIM_WIDTH / CELL_SIZE)
-            GRID_HEIGHT = Math.ceil(SIM_HEIGHT / CELL_SIZE)
-            binCount = GRID_WIDTH * GRID_HEIGHT
+            if (!isWallWrap && !isWallRepel) {
+                const requestedFactor = 4
+                const maxWorkgroups = device.limits.maxComputeWorkgroupsPerDimension
+                const maxBinCount = maxWorkgroups * 64
+                const baseBinCount = Math.ceil(SIM_WIDTH / CELL_SIZE) * Math.ceil(SIM_HEIGHT / CELL_SIZE)
+                const maxPossibleFactor = Math.sqrt(maxBinCount / baseBinCount)
+                const safeFactor = Math.min(requestedFactor, maxPossibleFactor * 0.9)
+                const extensionX = (SIM_WIDTH * safeFactor - SIM_WIDTH) / 2
+                const extensionY = (SIM_HEIGHT * safeFactor - SIM_HEIGHT) / 2
+
+                EXTENDED_SIM_WIDTH = SIM_WIDTH + (extensionX * 2)
+                EXTENDED_SIM_HEIGHT = SIM_HEIGHT + (extensionY * 2)
+                EXTENDED_GRID_WIDTH = Math.ceil(EXTENDED_SIM_WIDTH / CELL_SIZE)
+                EXTENDED_GRID_HEIGHT = Math.ceil(EXTENDED_SIM_HEIGHT / CELL_SIZE)
+                GRID_OFFSET_X = Math.ceil(extensionX / CELL_SIZE)
+                GRID_OFFSET_Y = Math.ceil(extensionY / CELL_SIZE)
+                GRID_WIDTH = Math.ceil(SIM_WIDTH / CELL_SIZE)
+                GRID_HEIGHT = Math.ceil(SIM_HEIGHT / CELL_SIZE)
+                binCount = EXTENDED_GRID_WIDTH * EXTENDED_GRID_HEIGHT
+            } else {
+                GRID_WIDTH = Math.ceil(SIM_WIDTH / CELL_SIZE)
+                GRID_HEIGHT = Math.ceil(SIM_HEIGHT / CELL_SIZE)
+                binCount = GRID_WIDTH * GRID_HEIGHT
+            }
             prefixSumIterations = Math.ceil(Math.ceil(Math.log2(binCount + 1)) / 2) * 2
 
             if (device && (oldBinCount !== binCount || oldPrefixSumIterations !== prefixSumIterations)) {
@@ -695,7 +723,7 @@ export default defineComponent({
         }
         // -------------------------------------------------------------------------------------------------------------
         const updateSimOptionsBuffer = () => {
-            const simOptionsData = new ArrayBuffer(52)
+            const simOptionsData = new ArrayBuffer(68)
             const simOptionsView = new DataView(simOptionsData)
             simOptionsView.setFloat32(0, SIM_WIDTH, true)
             simOptionsView.setFloat32(4, SIM_HEIGHT, true)
@@ -710,6 +738,11 @@ export default defineComponent({
             simOptionsView.setFloat32(40, forceFactor, true)
             simOptionsView.setFloat32(44, frictionFactor, true)
             simOptionsView.setFloat32(48, repel, true)
+            // Extended grid parameters for spatial hashing no walls
+            simOptionsView.setUint32(52, EXTENDED_GRID_WIDTH, true)
+            simOptionsView.setUint32(56, EXTENDED_GRID_HEIGHT, true)
+            simOptionsView.setUint32(60, GRID_OFFSET_X, true)
+            simOptionsView.setUint32(64, GRID_OFFSET_Y, true)
 
             if (!simOptionsBuffer) {
                 simOptionsBuffer = device.createBuffer({
@@ -1550,11 +1583,7 @@ export default defineComponent({
             isMirrorWrap = particleLife.isMirrorWrap
             isInfiniteMirrorWrap = particleLife.isInfiniteMirrorWrap
 
-            if (!oldWrap && ((changedProp === 'isWallWrap' && newWrap) || (changedProp === 'isMirrorWrap' && newMirror) || (changedProp === 'isInfiniteMirrorWrap' && newInfinite))) {
-                setSimSize()
-            } else {
-                updateOffscreenMirrorResources()
-            }
+            setSimSize()
             if (changedProp === 'isWallWrap' || changedProp === 'isWallRepel' || (changedProp === 'isMirrorWrap' && newMirror && !oldWrap) || (changedProp === 'isInfiniteMirrorWrap' && newInfinite && !oldWrap)) {
                 updateSimOptionsBuffer()
             }

@@ -15,6 +15,10 @@ struct SimOptions {
     forceFactor: f32,
     frictionFactor: f32,
     repel: f32,
+    extendedGridWidth: u32,
+    extendedGridHeight: u32,
+    gridOffsetX: u32,
+    gridOffsetY: u32,
 };
 struct Particle {
     x : f32,
