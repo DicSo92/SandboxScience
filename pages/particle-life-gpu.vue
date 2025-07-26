@@ -87,6 +87,23 @@
                                         tooltip="Controls the overall size of the particles in the simulation, allowing you to make them larger or smaller depending on your preference. This setting does not impact performance."
                                         :min="1" :max="20" :step="1" v-model="particleLife.particleSize" mt-2>
                             </RangeInput>
+                            <ToggleSwitch label="Particle Glowing" colorful-label v-model="particleLife.isParticleGlow" />
+                            <RangeInput input label="Glow Size"
+                                        tooltip="Adjust the size of the glow effect around particles."
+                                        :min="1" :max="32" :step="0.1" v-model="particleLife.glowSize" mt-2>
+                            </RangeInput>
+                            <RangeInput input label="Glow Intensity"
+                                        tooltip="Adjust the intensity of the glow effect around particles."
+                                        :min="0.0001" :max="0.01" :step="0.0001" v-model="particleLife.glowIntensity" mt-2>
+                            </RangeInput>
+                            <RangeInput input label="Glow Steepness"
+                                        tooltip="Adjust the steepness of the glow effect around particles. <br> Higher values create a sharper transition between glowing and non-glowing areas."
+                                        :min="1" :max="12" :step="0.1" v-model="particleLife.glowSteepness" mt-2>
+                            </RangeInput>
+                            <RangeInput input label="Particle Opacity"
+                                        tooltip="Adjust the opacity of the particles in the simulation. <br> This setting allows you to control how transparent or opaque the particles appear."
+                                        :min="0" :max="1" :step="0.01" v-model="particleLife.particleOpacity" mt-2>
+                            </RangeInput>
                         </Collapse>
                     </div>
                     <div absolute bottom-2 right-0 z-100 class="-mr-px">
@@ -150,6 +167,9 @@ import infiniteFragmentShaderCode from 'assets/particle-life-gpu/shaders/infinit
 import mirrorVertexShaderCode from 'assets/particle-life-gpu/shaders/mirror_compositor_vertex.wgsl?raw';
 import mirrorFragmentShaderCode from 'assets/particle-life-gpu/shaders/mirror_compositor_fragment.wgsl?raw';
 
+import particleRenderGlowShaderCode from 'assets/particle-life-gpu/shaders/particle_render_glow.wgsl?raw';
+import composeHdrShaderCode from 'assets/particle-life-gpu/shaders/compose_hdr.wgsl?raw';
+
 export default defineComponent({
     name: 'ParticleLifeGpu',
     components: {BrushSettings, MatrixSettings, WallStateSelection},
@@ -200,9 +220,6 @@ export default defineComponent({
 
         // Define the simulation properties
         let initialParticles: Float32Array // Initial particle x, y, vx, vy, type
-        let positions: Float32Array // Particle positions
-        let velocities: Float32Array // Particle velocities
-        let types: Uint32Array // Particle types (colors)
         let colors: Float32Array // Particle colors
 
         // Define the properties for dragging and zooming
@@ -224,6 +241,7 @@ export default defineComponent({
         let NUM_PARTICLES: number = particleLife.numParticles
         let PARTICLE_SIZE: number = particleLife.particleSize
         let NUM_TYPES: number = particleLife.numColors
+        let isParticleGlow: boolean = particleLife.isParticleGlow // Enable glow effect for the particles
         let isWallRepel: boolean = particleLife.isWallRepel // Enable walls X and Y for the particles
         let isWallWrap: boolean = particleLife.isWallWrap // Enable wrapping for the particles
         let isMirrorWrap: boolean = particleLife.isMirrorWrap // Enable mirroring for the particles (only if isWallWrap is true)
@@ -295,6 +313,24 @@ export default defineComponent({
         let cameraBindGroupLayout: GPUBindGroupLayout
         let offscreenTextureBindGroupLayout: GPUBindGroupLayout
 
+        let hdrTexture: GPUTexture | undefined
+        let hdrTextureView: GPUTextureView
+
+        let particleRenderGlowPipeline: GPURenderPipeline
+        let renderHdrPipeline: GPURenderPipeline
+        let composeHdrPipeline: GPURenderPipeline
+        let composeHdrBindGroup: GPUBindGroup
+        let composeHdrBindGroupLayout: GPUBindGroupLayout
+
+        let glowOptionsBuffer: GPUBuffer | undefined
+        let glowOptionsBindGroup: GPUBindGroup
+        let glowOptionsBindGroupLayout: GPUBindGroupLayout
+
+        let glowSize: number = particleLife.glowSize
+        let glowIntensity: number = particleLife.glowIntensity
+        let glowSteepness: number = particleLife.glowSteepness
+        let particleOpacity: number = particleLife.particleOpacity
+
         onMounted(async () => {
             await initWebGPU()
             handleResize()
@@ -336,6 +372,7 @@ export default defineComponent({
             CANVAS_WIDTH = canvasRef.value!.width = canvasRef.value!.clientWidth
             CANVAS_HEIGHT = canvasRef.value!.height = canvasRef.value!.clientHeight
             updateCameraScaleFactors()
+            updateHdrTexture()
             cameraChanged = true
         }
         function updateCameraScaleFactors() {
@@ -417,7 +454,7 @@ export default defineComponent({
 
             const zoomIntensity = 0.1
             const zoomDelta = delta * zoomIntensity
-            zoomFactor = Math.max(0.1, Math.min(8.0, zoomFactor * (1 + zoomDelta)))
+            zoomFactor = Math.max(0.07, Math.min(1000.0, zoomFactor * (1 + zoomDelta)))
 
             updateCameraScaleFactors()
 
@@ -624,20 +661,56 @@ export default defineComponent({
                     renderMirrorPass.end()
                 }
             } else {
-                const renderPass = encoder.beginRenderPass({
-                    colorAttachments: [{
-                        view: ctx.getCurrentTexture().createView(),
-                        loadOp: 'clear',
-                        clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
-                        storeOp: 'store',
-                    }],
-                })
-                renderPass.setBindGroup(0, particleBufferReadOnlyBindGroup)
-                renderPass.setBindGroup(1, simOptionsBindGroup)
-                renderPass.setBindGroup(2, cameraBindGroup)
-                renderPass.setPipeline(renderPipeline)
-                renderPass.draw(3, NUM_PARTICLES)
-                renderPass.end()
+                if (isParticleGlow) {
+                    const hdrRenderPass = encoder.beginRenderPass({
+                        colorAttachments: [{
+                            view: hdrTextureView,
+                            clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+                            loadOp: 'clear',
+                            storeOp: 'store',
+                        }],
+                    })
+                    hdrRenderPass.setPipeline(particleRenderGlowPipeline)
+                    hdrRenderPass.setBindGroup(0, particleBufferReadOnlyBindGroup)
+                    hdrRenderPass.setBindGroup(1, simOptionsBindGroup)
+                    hdrRenderPass.setBindGroup(2, cameraBindGroup)
+                    hdrRenderPass.setBindGroup(3, glowOptionsBindGroup)
+                    hdrRenderPass.draw(6, NUM_PARTICLES)
+                    hdrRenderPass.setPipeline(renderHdrPipeline)
+                    hdrRenderPass.setBindGroup(0, particleBufferReadOnlyBindGroup)
+                    hdrRenderPass.setBindGroup(1, simOptionsBindGroup)
+                    hdrRenderPass.setBindGroup(2, cameraBindGroup)
+                    hdrRenderPass.setBindGroup(3, glowOptionsBindGroup)
+                    hdrRenderPass.draw(6, NUM_PARTICLES)
+                    hdrRenderPass.end()
+
+                    const composePass = encoder.beginRenderPass({
+                        colorAttachments: [{
+                            view: ctx.getCurrentTexture().createView(),
+                            loadOp: 'clear',
+                            storeOp: 'store',
+                        }],
+                    })
+                    composePass.setPipeline(composeHdrPipeline)
+                    composePass.setBindGroup(0, composeHdrBindGroup)
+                    composePass.draw(3)
+                    composePass.end()
+                } else {
+                    const renderPass = encoder.beginRenderPass({
+                        colorAttachments: [{
+                            view: ctx.getCurrentTexture().createView(),
+                            loadOp: 'clear',
+                            clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+                            storeOp: 'store',
+                        }],
+                    })
+                    renderPass.setPipeline(renderPipeline)
+                    renderPass.setBindGroup(0, particleBufferReadOnlyBindGroup)
+                    renderPass.setBindGroup(1, simOptionsBindGroup)
+                    renderPass.setBindGroup(2, cameraBindGroup)
+                    renderPass.draw(3, NUM_PARTICLES)
+                    renderPass.end()
+                }
             }
         }
         // -------------------------------------------------------------------------------------------------------------
@@ -649,6 +722,7 @@ export default defineComponent({
             updateParticleBuffers()
             updateBinningBuffers()
             updateColorBuffer()
+            updateGlowOptionsBuffer()
             // ----------------------------------------------------------------------------------------------
             const cameraData = new Float32Array([cameraCenter.x, cameraCenter.y, cameraScaleX, cameraScaleY])
             cameraBuffer = device.createBuffer({
@@ -722,6 +796,26 @@ export default defineComponent({
             binPrefixSumStepSizeBuffer.unmap()
         }
         // -------------------------------------------------------------------------------------------------------------
+        const updateGlowOptionsBuffer = () => {
+            const glowOptionsData = new ArrayBuffer(16)
+            const glowOptionsView = new DataView(glowOptionsData)
+            glowOptionsView.setFloat32(0, glowSize, true)
+            glowOptionsView.setFloat32(4, glowIntensity, true)
+            glowOptionsView.setFloat32(8, glowSteepness, true)
+            glowOptionsView.setFloat32(12, particleOpacity, true)
+
+            if (!glowOptionsBuffer) {
+                glowOptionsBuffer = device.createBuffer({
+                    size: glowOptionsData.byteLength,
+                    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+                    mappedAtCreation: true,
+                })
+                new Uint8Array(glowOptionsBuffer.getMappedRange()).set(new Uint8Array(glowOptionsData))
+                glowOptionsBuffer.unmap()
+            } else {
+                device.queue.writeBuffer(glowOptionsBuffer, 0, glowOptionsData)
+            }
+        }
         const updateSimOptionsBuffer = () => {
             const simOptionsData = new ArrayBuffer(68)
             const simOptionsView = new DataView(simOptionsData)
@@ -794,6 +888,7 @@ export default defineComponent({
             updateBinningBindGroups()
             updateParticleBindGroups()
             updateOffscreenTextureBindGroup()
+            updateComposeHdrBindGroup()
             // ---------------------------------------------------------------------------------------------------------
             simOptionsBindGroup = device.createBindGroup({
                 layout: simOptionsBindGroupLayout,
@@ -811,6 +906,12 @@ export default defineComponent({
                 layout: cameraBindGroupLayout,
                 entries: [
                     { binding: 0, resource: { buffer: cameraBuffer! } },
+                ],
+            })
+            glowOptionsBindGroup = device.createBindGroup({
+                layout: glowOptionsBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: glowOptionsBuffer! } },
                 ],
             })
         }
@@ -897,6 +998,14 @@ export default defineComponent({
                 })
             }
         }
+        const updateComposeHdrBindGroup = () => {
+            composeHdrBindGroup = device.createBindGroup({
+                layout: composeHdrBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: hdrTextureView }
+                ],
+            })
+        }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -910,7 +1019,7 @@ export default defineComponent({
             particleBufferReadOnlyBindGroupLayout = device.createBindGroupLayout({
                 entries: [
                     { binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // particleBuffer
-                    { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } }, // colorBuffer
+                    { binding: 1, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } }, // colorBuffer
                 ],
             })
             binFillSizeBindGroupLayout = device.createBindGroupLayout({
@@ -969,6 +1078,16 @@ export default defineComponent({
                     { binding: 1, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } }, // offscreenSampler
                 ],
             })
+            composeHdrBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'unfilterable-float' } }, // Texture for HDR rendering
+                ],
+            })
+            glowOptionsBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } }, // glowOptionsBuffer
+                ],
+            })
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -976,6 +1095,7 @@ export default defineComponent({
         const createPipelines = () => {
             createComputePipelines()
             createRenderPipelines()
+            createHdrGlowPipelines()
         }
         const createComputePipelines = () => {
             const binFillSizeShader = device.createShaderModule({ code: binFillSizeShaderCode })
@@ -1158,9 +1278,90 @@ export default defineComponent({
                 }
             })
         }
+        const createHdrGlowPipelines = () => {
+            const particleRenderGlowShader = device.createShaderModule({ code: particleRenderGlowShaderCode });
+            particleRenderGlowPipeline = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, glowOptionsBindGroupLayout]
+                }),
+                vertex: {
+                    module: particleRenderGlowShader,
+                    entryPoint: 'vertexGlow',
+                },
+                fragment: {
+                    module: particleRenderGlowShader,
+                    entryPoint: 'fragmentGlow',
+                    targets: [{
+                        format: 'rgba16float',
+                        blend: {
+                            color: { operation: 'add', srcFactor: 'one', dstFactor: 'one' },
+                            alpha: { operation: 'add', srcFactor: 'one', dstFactor: 'one' },
+                        },
+                    }],
+                },
+                primitive: {
+                    topology: 'triangle-list',
+                },
+            })
+            renderHdrPipeline = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, glowOptionsBindGroupLayout]
+                }),
+                vertex: {
+                    module: particleRenderGlowShader,
+                    entryPoint: 'vertexCircle',
+                },
+                fragment: {
+                    module: particleRenderGlowShader,
+                    entryPoint: 'fragmentCircle',
+                    targets: [{
+                        format: 'rgba16float',
+                        blend: {
+                            color: { operation: 'add', srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha' },
+                            alpha: { operation: 'add', srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
+                        },
+                    }],
+                },
+                primitive: {
+                    topology: 'triangle-list',
+                },
+            })
+            const composeShader = device.createShaderModule({ code: composeHdrShaderCode });
+            composeHdrPipeline = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [composeHdrBindGroupLayout]
+                }),
+                vertex: {
+                    module: composeShader,
+                    entryPoint: 'vertexMain',
+                },
+                fragment: {
+                    module: composeShader,
+                    entryPoint: 'fragmentMain',
+                    targets: [{ format: navigator.gpu.getPreferredCanvasFormat() }],
+                },
+                primitive: {
+                    topology: 'triangle-list',
+                },
+            })
+        }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
+        const updateHdrTexture = () => {
+            if (hdrTexture) hdrTexture.destroy(); hdrTexture = undefined;
+
+            hdrTexture = device.createTexture({
+                size: [CANVAS_WIDTH, CANVAS_HEIGHT],
+                format: 'rgba16float',
+                usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+            })
+            hdrTextureView = hdrTexture.createView()
+
+            if (composeHdrPipeline) {
+                updateComposeHdrBindGroup()
+            }
+        }
         const updateOffscreenMirrorResources = () => {
             if (offscreenTexture) {
                 offscreenTexture.destroy(); offscreenTexture = undefined;
@@ -1521,10 +1722,16 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
-        function watchAndUpdate(effect: any, callback: any) {
+        function watchAndUpdateSimOptions(effect: any, callback: any) {
             watch(effect, (value) => {
                 callback(value)
                 updateSimOptionsBuffer()
+            })
+        }
+        function watchAndUpdateGlowOptions(effect: any, callback: any) {
+            watch(effect, (value) => {
+                callback(value)
+                updateGlowOptionsBuffer()
             })
         }
         watch(() => particleLife.mirrorWrapCount, (value: number) => mirrorWrapCount = value)
@@ -1532,10 +1739,16 @@ export default defineComponent({
         watch(() => particleLife.numColors, (value: number) => updateNumTypes(value))
         watch(() => particleLife.isRunning, (value: boolean) => isRunning = value)
         watch(() => particleLife.useSpatialHash, (value: boolean) => useSpatialHash = value)
-        watchAndUpdate(() => particleLife.particleSize, (value: number) => PARTICLE_SIZE = value)
-        watchAndUpdate(() => particleLife.repel, (value: number) => repel = value)
-        watchAndUpdate(() => particleLife.forceFactor, (value: number) => forceFactor = value)
-        watchAndUpdate(() => particleLife.frictionFactor, (value: number) => frictionFactor = value)
+        watch(() => particleLife.isParticleGlow, (value: boolean) => isParticleGlow = value)
+        watchAndUpdateGlowOptions(() => particleLife.glowSize, (value: number) => glowSize = value)
+        watchAndUpdateGlowOptions(() => particleLife.glowIntensity, (value: number) => glowIntensity = value)
+        watchAndUpdateGlowOptions(() => particleLife.glowSteepness, (value: number) => glowSteepness = value)
+        watchAndUpdateGlowOptions(() => particleLife.particleOpacity, (value: number) => particleOpacity = value)
+
+        watchAndUpdateSimOptions(() => particleLife.particleSize, (value: number) => PARTICLE_SIZE = value)
+        watchAndUpdateSimOptions(() => particleLife.repel, (value: number) => repel = value)
+        watchAndUpdateSimOptions(() => particleLife.forceFactor, (value: number) => forceFactor = value)
+        watchAndUpdateSimOptions(() => particleLife.frictionFactor, (value: number) => frictionFactor = value)
 
         let isUpdatingWallState = false
         watch([

@@ -19,9 +19,10 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
     const numColors = ref<number>(7) // Number of colors to be used
 
     const is3D = ref<boolean>(false) // Enable 3D Algorithm
+    const isParticleGlow = ref<boolean>(true) // Enable particle glow
     const isWallRepel = ref<boolean>(false) // Enable walls X and Y for the particles
-    const isWallWrap = ref<boolean>(true) // Enable wrapped particles
-    const isMirrorWrap = ref<boolean>(true) // Enable mirrors for the particles (only works if isWallWrap is true)
+    const isWallWrap = ref<boolean>(false) // Enable wrapped particles
+    const isMirrorWrap = ref<boolean>(false) // Enable mirrors for the particles (only works if isWallWrap is true)
     const isInfiniteMirrorWrap = ref<boolean>(false) // Enable infinite mirrors for the particles (only works if isWallWrap is true)
     const mirrorWrapCount = ref<number>(5) // Number of mirrors (5 or 9)
     const screenMultiplierForGridSize = ref<number>(3) // Multiplier for the grid size (1 means the grid will be the same size as the screen)
@@ -47,6 +48,11 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
     const attractForce = ref<number>(10) // Attract force for the brush
     const repulseForce = ref<number>(10) // Repulse force for the brush
 
+    const glowSize = ref<number>(12.0) // Size of the glow effect
+    const glowIntensity = ref<number>(0.005) // Intensity of the glow effect
+    const glowSteepness = ref<number>(3.0) // Steepness of the glow effect
+    const particleOpacity = ref<number>(0.7) // Opacity of the hdr particles
+
     function $reset() {
         sidebarLeftOpen.value = false
         currentMaxRadius.value = 0 // Prevent watcher from not triggering when page is reloaded (!important)
@@ -58,10 +64,11 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
         rulesMatrix, minRadiusMatrix, maxRadiusMatrix, currentColors,
         simWidth, simHeight, linkProportions,
         numParticles, particleSize, numColors,
-        is3D, isWallRepel, isWallWrap, isMirrorWrap, isInfiniteMirrorWrap, mirrorWrapCount, screenMultiplierForGridSize,
+        is3D, isParticleGlow, isWallRepel, isWallWrap, isMirrorWrap, isInfiniteMirrorWrap, mirrorWrapCount, screenMultiplierForGridSize,
         minRadiusRange, maxRadiusRange, currentMaxRadius,
         repel, forceFactor, frictionFactor, useSpatialHash,
         isBrushActive, brushes, brushRadius, brushIntensity, brushType, attractForce, repulseForce,
+        glowSize, glowIntensity, glowSteepness, particleOpacity,
         $reset
     }
 })
