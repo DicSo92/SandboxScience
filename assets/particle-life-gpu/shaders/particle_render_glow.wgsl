@@ -48,20 +48,12 @@ struct VertexOutput {
     @location(0) offset: vec2<f32>,
     @location(1) color: vec4<f32>,
 }
-
-const offsets = array<vec2<f32>, 6>(
+const offsets = array<vec2<f32>, 4>(
     vec2<f32>(-1.0, -1.0),
     vec2<f32>( 1.0, -1.0),
     vec2<f32>(-1.0,  1.0),
-    vec2<f32>(-1.0,  1.0),
-    vec2<f32>( 1.0, -1.0),
-    vec2<f32>( 1.0,  1.0),
+    vec2<f32>( 1.0,  1.0)
 );
-
-const glowSize = 12.0;
-const glowIntensity = 0.005;
-const glowSteepness = 3.0;
-const particleOpacity = 0.7;
 
 fn srgb_to_linear(color: vec3f) -> vec3f {
     let cutoff = vec3f(0.04045);
@@ -96,16 +88,25 @@ fn vertexCircle(@builtin(instance_index) instanceIndex: u32, @builtin(vertex_ind
 @fragment
 fn fragmentGlow(in: VertexOutput) -> @location(0) vec4<f32> {
     let dist_sq = dot(in.offset, in.offset);
+    if (dist_sq > 1.0) { discard; }
+
     let falloff = saturate(1.0 - dist_sq);
+//    let falloff = 1.0 - dist_sq; // Alternative falloff calculation (less steep, more uniform, but less glow effect) (faster)
+
     let alpha = pow(falloff, glowOptions.glowSteepness) * glowOptions.glowIntensity;
-    if (alpha == 0) { discard; }
+//    let alpha = falloff * falloff * glowOptions.glowIntensity; // Alternative falloff calculation
+
+    if (alpha < 0.001) { discard; }
     return vec4<f32>(in.color.rgb * alpha, alpha);
 }
 @fragment
 fn fragmentCircle(in: VertexOutput) -> @location(0) vec4<f32> {
     let dist = length(in.offset);
     if (dist > 1.0) { discard; }
+
+//    let linear_color = in.color.rgb; // Use original color for circle rendering (no gamma correction)
     let linear_color = pow(in.color.rgb, vec3<f32>(2.2)); // Convert color to linear space for proper blending
-//    let linear_color = srgb_to_linear(in.color.rgb); // Convert color to linear space for proper blending (precise)
+//    let linear_color = srgb_to_linear(in.color.rgb); // Convert color to linear space for proper blending (precise / slower)
+
     return vec4<f32>(linear_color, in.color.a * glowOptions.particleOpacity);
 }

@@ -675,13 +675,13 @@ export default defineComponent({
                     hdrRenderPass.setBindGroup(1, simOptionsBindGroup)
                     hdrRenderPass.setBindGroup(2, cameraBindGroup)
                     hdrRenderPass.setBindGroup(3, glowOptionsBindGroup)
-                    hdrRenderPass.draw(6, NUM_PARTICLES)
+                    hdrRenderPass.draw(4, NUM_PARTICLES)
                     hdrRenderPass.setPipeline(renderHdrPipeline)
                     hdrRenderPass.setBindGroup(0, particleBufferReadOnlyBindGroup)
                     hdrRenderPass.setBindGroup(1, simOptionsBindGroup)
                     hdrRenderPass.setBindGroup(2, cameraBindGroup)
                     hdrRenderPass.setBindGroup(3, glowOptionsBindGroup)
-                    hdrRenderPass.draw(6, NUM_PARTICLES)
+                    hdrRenderPass.draw(4, NUM_PARTICLES)
                     hdrRenderPass.end()
 
                     const composePass = encoder.beginRenderPass({
@@ -1300,7 +1300,7 @@ export default defineComponent({
                     }],
                 },
                 primitive: {
-                    topology: 'triangle-list',
+                    topology: 'triangle-strip',
                 },
             })
             renderHdrPipeline = device.createRenderPipeline({
@@ -1323,7 +1323,7 @@ export default defineComponent({
                     }],
                 },
                 primitive: {
-                    topology: 'triangle-list',
+                    topology: 'triangle-strip',
                 },
             })
             const composeShader = device.createShaderModule({ code: composeHdrShaderCode });
@@ -1355,6 +1355,8 @@ export default defineComponent({
                 size: [CANVAS_WIDTH, CANVAS_HEIGHT],
                 format: 'rgba16float',
                 usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+                mipLevelCount: 1, // No mipmaps for HDR = -33% performance hit
+                sampleCount: 1, // No multisampling (MSAA) for HDR = -75% memory and compute hit
             })
             hdrTextureView = hdrTexture.createView()
 
