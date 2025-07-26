@@ -162,11 +162,7 @@ import particleAdvanceShaderCode from 'assets/particle-life-gpu/shaders/particle
 import vertexShaderCode from 'assets/particle-life-gpu/shaders/render_vertex.wgsl?raw';
 import fragmentShaderCode from 'assets/particle-life-gpu/shaders/render_fragment.wgsl?raw';
 import offscreenShaderCode from 'assets/particle-life-gpu/shaders/offscreen_render_vertex.wgsl?raw';
-import infiniteVertexShaderCode from 'assets/particle-life-gpu/shaders/infinite_compositor_vertex.wgsl?raw';
-import infiniteFragmentShaderCode from 'assets/particle-life-gpu/shaders/infinite_compositor_fragment.wgsl?raw';
-import mirrorVertexShaderCode from 'assets/particle-life-gpu/shaders/mirror_compositor_vertex.wgsl?raw';
-import mirrorFragmentShaderCode from 'assets/particle-life-gpu/shaders/mirror_compositor_fragment.wgsl?raw';
-
+import mirrorCompositorShaderCode from 'assets/particle-life-gpu/shaders/mirror_compositor.wgsl?raw';
 import particleRenderGlowShaderCode from 'assets/particle-life-gpu/shaders/particle_render_glow.wgsl?raw';
 import composeHdrShaderCode from 'assets/particle-life-gpu/shaders/compose_hdr.wgsl?raw';
 
@@ -523,10 +519,10 @@ export default defineComponent({
             else computeBruteForce(encoder)
 
             const advanceComputePass = encoder.beginComputePass()
+            advanceComputePass.setPipeline(particleAdvancePipeline)
             advanceComputePass.setBindGroup(0, particleBufferBindGroup)
             advanceComputePass.setBindGroup(1, simOptionsBindGroup)
             advanceComputePass.setBindGroup(2, deltaTimeBindGroup)
-            advanceComputePass.setPipeline(particleAdvancePipeline)
             advanceComputePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
             advanceComputePass.end()
 
@@ -565,18 +561,18 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         const computeBruteForce = (encoder: GPUCommandEncoder) => {
             const computePass = encoder.beginComputePass()
+            computePass.setPipeline(bruteForceComputePipeline)
             computePass.setBindGroup(0, bruteForceBindGroup)
             computePass.setBindGroup(1, simOptionsBindGroup)
-            computePass.setPipeline(bruteForceComputePipeline)
             computePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
             computePass.end()
         }
         const computeBinning = (encoder: GPUCommandEncoder) => {
             const binningComputePass = encoder.beginComputePass()
+            binningComputePass.setPipeline(binClearSizePipeline)
             binningComputePass.setBindGroup(0, particleBufferReadOnlyBindGroup)
             binningComputePass.setBindGroup(1, simOptionsBindGroup)
             binningComputePass.setBindGroup(2, binFillSizeBindGroup)
-            binningComputePass.setPipeline(binClearSizePipeline)
             binningComputePass.dispatchWorkgroups(Math.ceil((binCount + 1) / 64))
 
             binningComputePass.setPipeline(binFillSizePipeline)
@@ -588,8 +584,8 @@ export default defineComponent({
                 binningComputePass.dispatchWorkgroups(Math.ceil((binCount + 1) / 64))
             }
 
-            binningComputePass.setBindGroup(0, particleSortBindGroup)
             binningComputePass.setPipeline(particleSortClearSizePipeline)
+            binningComputePass.setBindGroup(0, particleSortBindGroup)
             binningComputePass.dispatchWorkgroups(Math.ceil((binCount + 1) / 64))
 
             binningComputePass.setPipeline(particleSortPipeline)
@@ -597,9 +593,9 @@ export default defineComponent({
             binningComputePass.end()
 
             const forcesComputePass = encoder.beginComputePass()
+            forcesComputePass.setPipeline(particleComputeForcesPipeline)
             forcesComputePass.setBindGroup(0, particleComputeForcesBindGroup)
             forcesComputePass.setBindGroup(1, simOptionsBindGroup)
-            forcesComputePass.setPipeline(particleComputeForcesPipeline)
             forcesComputePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
             forcesComputePass.end()
         }
@@ -623,9 +619,9 @@ export default defineComponent({
                         storeOp: 'store',
                     }],
                 })
+                renderOffscreenPass.setPipeline(renderOffscreenPipeline)
                 renderOffscreenPass.setBindGroup(0, particleBufferReadOnlyBindGroup)
                 renderOffscreenPass.setBindGroup(1, simOptionsBindGroup)
-                renderOffscreenPass.setPipeline(renderOffscreenPipeline)
                 renderOffscreenPass.draw(3, NUM_PARTICLES)
                 renderOffscreenPass.end()
 
@@ -638,10 +634,10 @@ export default defineComponent({
                             storeOp: 'store'
                         }]
                     })
+                    renderInfinitePass.setPipeline(renderInfinitePipeline)
                     renderInfinitePass.setBindGroup(0, cameraBindGroup)
                     renderInfinitePass.setBindGroup(1, simOptionsBindGroup)
                     renderInfinitePass.setBindGroup(2, offscreenTextureBindGroup)
-                    renderInfinitePass.setPipeline(renderInfinitePipeline)
                     renderInfinitePass.draw(6, 1)
                     renderInfinitePass.end()
                 } else {
@@ -653,10 +649,10 @@ export default defineComponent({
                             storeOp: 'store'
                         }]
                     })
+                    renderMirrorPass.setPipeline(renderMirrorPipeline)
                     renderMirrorPass.setBindGroup(0, cameraBindGroup)
                     renderMirrorPass.setBindGroup(1, simOptionsBindGroup)
                     renderMirrorPass.setBindGroup(2, offscreenTextureBindGroup)
-                    renderMirrorPass.setPipeline(renderMirrorPipeline)
                     renderMirrorPass.draw(6, mirrorWrapCount)
                     renderMirrorPass.end()
                 }
@@ -1228,8 +1224,7 @@ export default defineComponent({
                 }
             })
             // ---------------------------------------------------------------------------------------------------------
-            const mirrorVertexShader = device.createShaderModule({ code: mirrorVertexShaderCode })
-            const mirrorFragmentShader = device.createShaderModule({ code: mirrorFragmentShaderCode })
+            const mirrorCompositorShader = device.createShaderModule({ code: mirrorCompositorShaderCode })
             renderMirrorPipeline = device.createRenderPipeline({
                 layout: device.createPipelineLayout({
                     bindGroupLayouts: [
@@ -1239,13 +1234,13 @@ export default defineComponent({
                     ],
                 }),
                 vertex: {
-                    module: mirrorVertexShader,
-                    entryPoint: 'main',
+                    module: mirrorCompositorShader,
+                    entryPoint: 'vertexMirror',
                     buffers: []
                 },
                 fragment: {
-                    module: mirrorFragmentShader,
-                    entryPoint: 'main',
+                    module: mirrorCompositorShader,
+                    entryPoint: 'fragmentMirror',
                     targets: [{
                         format: navigator.gpu.getPreferredCanvasFormat(),
                     }]
@@ -1253,8 +1248,6 @@ export default defineComponent({
                 primitive: { topology: 'triangle-list' }
             })
             // ---------------------------------------------------------------------------------------------------------
-            const infiniteVertexShader = device.createShaderModule({ code: infiniteVertexShaderCode })
-            const infiniteFragmentShader = device.createShaderModule({ code: infiniteFragmentShaderCode })
             renderInfinitePipeline = device.createRenderPipeline({
                 layout: device.createPipelineLayout({
                     bindGroupLayouts: [
@@ -1264,13 +1257,13 @@ export default defineComponent({
                     ],
                 }),
                 vertex: {
-                    module: infiniteVertexShader,
-                    entryPoint: 'main',
+                    module: mirrorCompositorShader,
+                    entryPoint: 'vertexInfinite',
                     buffers: []
                 },
                 fragment: {
-                    module: infiniteFragmentShader,
-                    entryPoint: 'main',
+                    module: mirrorCompositorShader,
+                    entryPoint: 'fragmentInfinite',
                     targets: [{ format: navigator.gpu.getPreferredCanvasFormat() }]
                 },
                 primitive: {
