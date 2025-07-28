@@ -96,7 +96,7 @@ fn fragmentMain(in: VertexOutput) -> @location(0) vec4<f32> {
 //    color = pow(color, vec3f(1.0 / 2.2)); // Gamma correction (faster)
     color = pow(color, vec3f(0.45454545)); // Gamma correction (1/2.2) (even faster)
 
-//    color = dither(color, noise); // Dithering for banding reduction
-    color = fastDither(color, noise); // Fast dithering for banding reduction
+    color = dither(color, noise); // Dithering for banding reduction
+//    color = fastDither(color, noise); // Fast dithering for banding reduction
     return vec4f(color, 1.0);
 }

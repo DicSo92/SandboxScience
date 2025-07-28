@@ -638,7 +638,7 @@ export default defineComponent({
                     renderInfinitePass.setBindGroup(0, cameraBindGroup)
                     renderInfinitePass.setBindGroup(1, simOptionsBindGroup)
                     renderInfinitePass.setBindGroup(2, offscreenTextureBindGroup)
-                    renderInfinitePass.draw(6, 1)
+                    renderInfinitePass.draw(3, 1)
                     renderInfinitePass.end()
                 } else {
                     const renderMirrorPass = encoder.beginRenderPass({
@@ -653,7 +653,7 @@ export default defineComponent({
                     renderMirrorPass.setBindGroup(0, cameraBindGroup)
                     renderMirrorPass.setBindGroup(1, simOptionsBindGroup)
                     renderMirrorPass.setBindGroup(2, offscreenTextureBindGroup)
-                    renderMirrorPass.draw(6, mirrorWrapCount)
+                    renderMirrorPass.draw(4, mirrorWrapCount)
                     renderMirrorPass.end()
                 }
             } else {
@@ -1245,7 +1245,7 @@ export default defineComponent({
                         format: navigator.gpu.getPreferredCanvasFormat(),
                     }]
                 },
-                primitive: { topology: 'triangle-list' }
+                primitive: { topology: 'triangle-strip' }
             })
             // ---------------------------------------------------------------------------------------------------------
             renderInfinitePipeline = device.createRenderPipeline({

@@ -36,13 +36,16 @@ const mirrorOffsets = array<vec2f, 9>(
     vec2f(1.0, -1.0)   // Bottom Right
 );
 
-const QUAD_VERTICES = array<vec2f, 6>(
-    vec2f(-1.0, -1.0),
-    vec2f( 1.0, -1.0),
-    vec2f( 1.0,  1.0),
-    vec2f(-1.0, -1.0),
-    vec2f( 1.0,  1.0),
-    vec2f(-1.0,  1.0)
+const QUAD_VERTICES = array<vec2f, 4>(
+    vec2f(0.0, 1.0),
+    vec2f(1.0, 1.0),
+    vec2f(0.0, 0.0),
+    vec2f(1.0, 0.0)
+);
+const TRIANGLE_VERTICES = array<vec2f, 3>(
+    vec2<f32>(-1.0, -1.0),
+    vec2<f32>( 3.0, -1.0),
+    vec2<f32>(-1.0,  3.0)
 );
 
 struct VertexOutput {
@@ -65,25 +68,20 @@ fn vertexMirror(
     @builtin(instance_index) instanceIndex: u32,
     @builtin(vertex_index) vertex_index: u32
 ) -> VertexMirrorOutput {
-    var out: VertexMirrorOutput;
-
     let localPos = QUAD_VERTICES[vertex_index];
-
-    // Calculate the texture coordinates based on the local position
-    out.texCoord = localPos * 0.5 + 0.5;
 
     // Calculate the offset based on the instance index
     let offset = mirrorOffsets[instanceIndex];
-    let offsetTexCoord = out.texCoord + offset;
+    let offsetTexCoord = localPos + offset;
 
     // Calculate the world position based on the offset texture coordinates
     let worldPos = offsetTexCoord * vec2f(options.simWidth, options.simHeight);
     let finalPos = (worldPos - camera.center) * camera.scale;
 
-    // Set the output position and instance index
+    var out: VertexMirrorOutput;
     out.position = vec4f(finalPos.x, -finalPos.y, 0.0, 1.0);
+    out.texCoord = localPos;
     out.instanceIndex = instanceIndex;
-
     return out;
 }
 
@@ -92,7 +90,7 @@ fn vertexInfinite(
     @builtin(vertex_index) vertex_index: u32
 ) -> VertexOutput {
     var out: VertexOutput;
-    let localPos = QUAD_VERTICES[vertex_index];
+    let localPos = TRIANGLE_VERTICES[vertex_index];
 
     out.position = vec4f(localPos.x, localPos.y, 0.0, 1.0);
     let worldPos = vec2f(
@@ -111,9 +109,8 @@ fn fragmentMirror(
 ) -> @location(0) vec4f {
     let textureColor = textureSample(offscreenTexture, offscreenSampler, texCoord);
 
-    // Convert to grayscale and apply a fade effect
-    let grayscale = dot(textureColor.rgb, vec3f(0.299, 0.587, 0.114));
-    let grayscaleColorFade = vec4f(vec3f(grayscale), textureColor.a * 0.65);
+    let grayscale = dot(textureColor.rgb, vec3f(0.299, 0.587, 0.114)); // Standard grayscale conversion
+    let grayscaleColorFade = vec4f(vec3f(grayscale), textureColor.a * 0.65); // Apply fade to alpha
 
     // Select the color for the mirror instance based on alpha value
     // If the alpha is too low, return transparent black

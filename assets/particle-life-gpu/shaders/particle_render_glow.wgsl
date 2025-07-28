@@ -48,7 +48,8 @@ struct VertexOutput {
     @location(0) offset: vec2<f32>,
     @location(1) color: vec4<f32>,
 }
-const offsets = array<vec2<f32>, 4>(
+
+const QUAD_VERTICES = array<vec2<f32>, 4>(
     vec2<f32>(-1.0, -1.0),
     vec2<f32>( 1.0, -1.0),
     vec2<f32>(-1.0,  1.0),
@@ -64,7 +65,7 @@ fn srgb_to_linear(color: vec3f) -> vec3f {
 
 fn vertex_main(instanceIndex: u32, vertexIndex: u32, size: f32) -> VertexOutput {
     let particle = particles[instanceIndex];
-    let worldPos = vec2f(particle.x, particle.y) + offsets[vertexIndex] * size;
+    let worldPos = vec2f(particle.x, particle.y) + QUAD_VERTICES[vertexIndex] * size;
     let clipPos = vec4<f32>(
         (worldPos.x - camera.centerX) * camera.scaleX,
         (worldPos.y - camera.centerY) * -camera.scaleY,
@@ -72,7 +73,7 @@ fn vertex_main(instanceIndex: u32, vertexIndex: u32, size: f32) -> VertexOutput 
     );
     var output: VertexOutput;
     output.position = clipPos;
-    output.offset = offsets[vertexIndex];
+    output.offset = QUAD_VERTICES[vertexIndex];
     output.color = colors[u32(particle.particleType)];
     return output;
 }
