@@ -52,9 +52,10 @@
                             <ToggleSwitch inactive-label="BruteForce" label="SpatialHash" colorful-label v-model="particleLife.useSpatialHash" />
                             <ToggleSwitch label="Show Edges Mirrors" colorful-label v-model="particleLife.isMirrorWrap" />
                             <ToggleSwitch label="Show Infinite Mirrors" colorful-label v-model="particleLife.isInfiniteMirrorWrap" />
+                            <ToggleSwitch label="Show Edges Mirrors Direct" colorful-label v-model="particleLife.isMirrorWrapDirect" />
                             <div flex>
-                                <SelectButton :id="5" label="Cross 5" v-model="particleLife.mirrorWrapCount" :disabled="!particleLife.isMirrorWrap" mr-2 />
-                                <SelectButton :id="9" label="3x3" v-model="particleLife.mirrorWrapCount" :disabled="!particleLife.isMirrorWrap" />
+                                <SelectButton :id="5" label="Cross 5" v-model="particleLife.mirrorWrapCount" :disabled="!particleLife.isMirrorWrap && !particleLife.isMirrorWrapDirect" mr-2 />
+                                <SelectButton :id="9" label="3x3" v-model="particleLife.mirrorWrapCount" :disabled="!particleLife.isMirrorWrap && !particleLife.isMirrorWrapDirect" />
                             </div>
                         </Collapse>
                         <Collapse label="Force Settings" icon="i-tabler-atom" opened mt-2>
@@ -165,6 +166,8 @@ import offscreenShaderCode from 'assets/particle-life-gpu/shaders/offscreen_rend
 import mirrorCompositorShaderCode from 'assets/particle-life-gpu/shaders/mirror_compositor.wgsl?raw';
 import particleRenderGlowShaderCode from 'assets/particle-life-gpu/shaders/particle_render_glow.wgsl?raw';
 import composeHdrShaderCode from 'assets/particle-life-gpu/shaders/compose_hdr.wgsl?raw';
+
+import renderMirrorShaderCode from 'assets/particle-life-gpu/shaders/render_mirror.wgsl?raw';
 
 export default defineComponent({
     name: 'ParticleLifeGpu',
@@ -326,6 +329,9 @@ export default defineComponent({
         let glowIntensity: number = particleLife.glowIntensity
         let glowSteepness: number = particleLife.glowSteepness
         let particleOpacity: number = particleLife.particleOpacity
+
+        let renderMirrorDirectPipeline: GPURenderPipeline;
+        let isMirrorWrapDirect: boolean = particleLife.isMirrorWrapDirect; // Use direct rendering for mirrors instead of compositing
 
         onMounted(async () => {
             await initWebGPU()
@@ -656,6 +662,21 @@ export default defineComponent({
                     renderMirrorPass.draw(4, mirrorWrapCount)
                     renderMirrorPass.end()
                 }
+            } else if (isMirrorWrapDirect) {
+                const renderPass = encoder.beginRenderPass({
+                    colorAttachments: [{
+                        view: ctx.getCurrentTexture().createView(),
+                        loadOp: 'clear',
+                        storeOp: 'store',
+                        clearValue: { r: 0, g: 0, b: 0, a: 1 }
+                    }]
+                })
+                renderPass.setPipeline(renderMirrorDirectPipeline);
+                renderPass.setBindGroup(0, particleBufferReadOnlyBindGroup);
+                renderPass.setBindGroup(1, simOptionsBindGroup);
+                renderPass.setBindGroup(2, cameraBindGroup);
+                renderPass.draw(4, NUM_PARTICLES * mirrorWrapCount);
+                renderPass.end();
             } else {
                 if (isParticleGlow) {
                     const hdrRenderPass = encoder.beginRenderPass({
@@ -813,7 +834,7 @@ export default defineComponent({
             }
         }
         const updateSimOptionsBuffer = () => {
-            const simOptionsData = new ArrayBuffer(68)
+            const simOptionsData = new ArrayBuffer(72)
             const simOptionsView = new DataView(simOptionsData)
             simOptionsView.setFloat32(0, SIM_WIDTH, true)
             simOptionsView.setFloat32(4, SIM_HEIGHT, true)
@@ -833,6 +854,7 @@ export default defineComponent({
             simOptionsView.setUint32(56, EXTENDED_GRID_HEIGHT, true)
             simOptionsView.setUint32(60, GRID_OFFSET_X, true)
             simOptionsView.setUint32(64, GRID_OFFSET_Y, true)
+            simOptionsView.setUint32(68, mirrorWrapCount, true)
 
             if (!simOptionsBuffer) {
                 simOptionsBuffer = device.createBuffer({
@@ -1200,6 +1222,36 @@ export default defineComponent({
                     topology: 'triangle-list'
                 }
             })
+            // ---------------------------------------------------------------------------------------------------------
+            const mirrorDirectShader = device.createShaderModule({ code: renderMirrorShaderCode });
+            renderMirrorDirectPipeline = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [
+                        particleBufferReadOnlyBindGroupLayout,
+                        simOptionsBindGroupLayout,
+                        cameraBindGroupLayout,
+                    ],
+                }),
+                vertex: {
+                    module: mirrorDirectShader,
+                    entryPoint: 'mirrorVertex',
+                    buffers: []
+                },
+                fragment: {
+                    module: mirrorDirectShader,
+                    entryPoint: 'mirrorFragment',
+                    targets: [{
+                        format: navigator.gpu.getPreferredCanvasFormat(),
+                        blend: {
+                            color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha', operation: 'add' },
+                            alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' }
+                        }
+                    }]
+                },
+                primitive: {
+                    topology: 'triangle-strip'
+                }
+            });
             // ---------------------------------------------------------------------------------------------------------
             const offscreenVertexShader = device.createShaderModule({ code: offscreenShaderCode })
             renderOffscreenPipeline = device.createRenderPipeline({
@@ -1729,7 +1781,7 @@ export default defineComponent({
                 updateGlowOptionsBuffer()
             })
         }
-        watch(() => particleLife.mirrorWrapCount, (value: number) => mirrorWrapCount = value)
+        watchAndUpdateSimOptions(() => particleLife.mirrorWrapCount, (value: number) => mirrorWrapCount = value)
         watch(() => particleLife.numParticles, (value: number) => updateNumParticles(value))
         watch(() => particleLife.numColors, (value: number) => updateNumTypes(value))
         watch(() => particleLife.isRunning, (value: boolean) => isRunning = value)
@@ -1750,8 +1802,9 @@ export default defineComponent({
             () => particleLife.isWallRepel,
             () => particleLife.isWallWrap,
             () => particleLife.isMirrorWrap,
-            () => particleLife.isInfiniteMirrorWrap
-        ], ([newRepel, newWrap, newMirror, newInfinite], [oldRepel, oldWrap, oldMirror, oldInfinite]) => {
+            () => particleLife.isInfiniteMirrorWrap,
+            () => particleLife.isMirrorWrapDirect
+        ], ([newRepel, newWrap, newMirror, newInfinite, newMirrorDirect], [oldRepel, oldWrap, oldMirror, oldInfinite, oldMirrorDirect]) => {
             if (isUpdatingWallState) return
 
             let changedProp = ''
@@ -1759,6 +1812,7 @@ export default defineComponent({
             else if (newWrap !== oldWrap) changedProp = 'isWallWrap'
             else if (newMirror !== oldMirror) changedProp = 'isMirrorWrap'
             else if (newInfinite !== oldInfinite) changedProp = 'isInfiniteMirrorWrap'
+            else if (newMirrorDirect !== oldMirrorDirect) changedProp = 'isMirrorWrapDirect'
 
             if (!changedProp) return
 
@@ -1768,6 +1822,7 @@ export default defineComponent({
                 particleLife.isWallWrap = false
                 particleLife.isMirrorWrap = false
                 particleLife.isInfiniteMirrorWrap = false
+                particleLife.isMirrorWrapDirect = false
             } else if (changedProp === 'isWallWrap') {
                 if (newWrap) {
                     particleLife.isWallRepel = false
@@ -1775,21 +1830,30 @@ export default defineComponent({
                 } else {
                     particleLife.isMirrorWrap = false
                     particleLife.isInfiniteMirrorWrap = false
+                    particleLife.isMirrorWrapDirect = false
                 }
             } else if (changedProp === 'isMirrorWrap' && newMirror) {
                 particleLife.isWallWrap = true
                 particleLife.isWallRepel = false
                 particleLife.isInfiniteMirrorWrap = false
+                particleLife.isMirrorWrapDirect = false
             } else if (changedProp === 'isInfiniteMirrorWrap' && newInfinite) {
                 particleLife.isWallWrap = true
                 particleLife.isWallRepel = false
                 particleLife.isMirrorWrap = false
+                particleLife.isMirrorWrapDirect = false
+            } else if (changedProp === 'isMirrorWrapDirect' && newMirrorDirect) {
+                particleLife.isWallWrap = true
+                particleLife.isWallRepel = false
+                particleLife.isMirrorWrap = false
+                particleLife.isInfiniteMirrorWrap = false
             }
 
             isWallRepel = particleLife.isWallRepel
             isWallWrap = particleLife.isWallWrap
             isMirrorWrap = particleLife.isMirrorWrap
             isInfiniteMirrorWrap = particleLife.isInfiniteMirrorWrap
+            isMirrorWrapDirect = particleLife.isMirrorWrapDirect
 
             setSimSize()
             if (changedProp === 'isWallWrap' || changedProp === 'isWallRepel' || (changedProp === 'isMirrorWrap' && newMirror && !oldWrap) || (changedProp === 'isInfiniteMirrorWrap' && newInfinite && !oldWrap)) {
