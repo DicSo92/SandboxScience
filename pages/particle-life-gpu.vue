@@ -1871,27 +1871,36 @@ export default defineComponent({
             cameraBuffer?.destroy(); cameraBuffer = undefined;
             interactionMatrixBuffer?.destroy(); interactionMatrixBuffer = undefined;
             simOptionsBuffer?.destroy(); simOptionsBuffer = undefined;
+            glowOptionsBuffer?.destroy(); glowOptionsBuffer = undefined;
             particleHashesBuffer?.destroy(); particleHashesBuffer = undefined;
             cellHeadsBuffer?.destroy(); cellHeadsBuffer = undefined;
             particleNextIndicesBuffer?.destroy(); particleNextIndicesBuffer = undefined;
-            if (!keepTexture) {
-                offscreenTexture?.destroy(); offscreenTexture = undefined;
-                offscreenTextureView = undefined as any;
-                offscreenSampler = undefined as any;
-            }
             particleBuffer?.destroy(); particleBuffer = undefined;
             particleTempBuffer?.destroy(); particleTempBuffer = undefined;
             binOffsetBuffer?.destroy(); binOffsetBuffer = undefined;
             binOffsetTempBuffer?.destroy(); binOffsetTempBuffer = undefined;
             binPrefixSumStepSizeBuffer?.destroy(); binPrefixSumStepSizeBuffer = undefined;
 
+            if (!keepTexture) {
+                offscreenTexture?.destroy(); offscreenTexture = undefined;
+                offscreenTextureView = undefined as any;
+                offscreenSampler = undefined as any;
+                hdrTexture?.destroy(); hdrTexture = undefined;
+                hdrTextureView = undefined as any;
+            }
+
             await nextTick() // Ensure GPU resources are cleaned up before creating new ones
         }
         const destroyPipelinesAndBindGroups = () => {
-            renderOffscreenPipeline = undefined as any;
-            renderMirrorPipeline = undefined as any;
-            renderInfinitePipeline = undefined as any;
             renderPipeline = undefined as any;
+            renderOffscreenPipeline = undefined as any;
+            renderInfinitePipeline = undefined as any;
+            renderMirrorPipeline = undefined as any;
+            renderGlowPipeline = undefined as any;
+            renderCirclePipeline = undefined as any;
+            renderMirrorGlowPipeline = undefined as any;
+            renderMirrorCirclePipeline = undefined as any;
+            composeHdrPipeline = undefined as any;
 
             binClearSizePipeline = undefined as any;
             binFillSizePipeline = undefined as any;
@@ -1911,11 +1920,15 @@ export default defineComponent({
             }
             binPrefixSumBindGroup = [];
             particleSortBindGroup = undefined as any;
+            bruteForceBindGroup = undefined as any;
             particleComputeForcesBindGroup = undefined as any;
             particleBufferBindGroup = undefined as any;
             simOptionsBindGroup = undefined as any;
             deltaTimeBindGroup = undefined as any;
             cameraBindGroup = undefined as any;
+            offscreenTextureBindGroup = undefined as any;
+            composeHdrBindGroup = undefined as any;
+            glowOptionsBindGroup = undefined as any;
         }
         const cancelAnimationLoop = () => {
             if (animationFrameId) {
