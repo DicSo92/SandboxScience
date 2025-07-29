@@ -53,8 +53,6 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
     const glowSteepness = ref<number>(3.0) // Steepness of the glow effect
     const particleOpacity = ref<number>(0.7) // Opacity of the hdr particles
 
-    const isMirrorWrapDirect = ref<boolean>(false)
-
     function $reset() {
         sidebarLeftOpen.value = false
         currentMaxRadius.value = 0 // Prevent watcher from not triggering when page is reloaded (!important)
@@ -70,7 +68,7 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
         minRadiusRange, maxRadiusRange, currentMaxRadius,
         repel, forceFactor, frictionFactor, useSpatialHash,
         isBrushActive, brushes, brushRadius, brushIntensity, brushType, attractForce, repulseForce,
-        glowSize, glowIntensity, glowSteepness, particleOpacity, isMirrorWrapDirect,
+        glowSize, glowIntensity, glowSteepness, particleOpacity,
         $reset
     }
 })
