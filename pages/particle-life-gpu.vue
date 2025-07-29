@@ -153,20 +153,20 @@ import WallStateSelection from "~/components/particle-life/WallStateSelection.vu
 import MatrixSettings from "~/components/particle-life/MatrixSettings.vue";
 import BrushSettings from "~/components/particle-life/BrushSettings.vue";
 
-import binFillSizeShaderCode from 'assets/particle-life-gpu/shaders/binFillSize.wgsl?raw';
-import binPrefixSumShaderCode from 'assets/particle-life-gpu/shaders/binPrefixSum.wgsl?raw';
-import particleSortShaderCode from 'assets/particle-life-gpu/shaders/particleSort.wgsl?raw';
-import bruteForceShaderCode from 'assets/particle-life-gpu/shaders/compute_bruteForce.wgsl?raw';
-import particleComputeForcesShaderCode from 'assets/particle-life-gpu/shaders/particleComputeForces.wgsl?raw';
-import particleAdvanceShaderCode from 'assets/particle-life-gpu/shaders/particleAdvance.wgsl?raw';
+import binFillSizeShaderCode from 'assets/particle-life-gpu/shaders/compute/binFillSize.wgsl?raw';
+import binPrefixSumShaderCode from 'assets/particle-life-gpu/shaders/compute/binPrefixSum.wgsl?raw';
+import particleSortShaderCode from 'assets/particle-life-gpu/shaders/compute/particleSort.wgsl?raw';
+import bruteForceShaderCode from 'assets/particle-life-gpu/shaders/compute/compute_bruteForce.wgsl?raw';
+import particleComputeForcesShaderCode from 'assets/particle-life-gpu/shaders/compute/particleComputeForces.wgsl?raw';
+import particleAdvanceShaderCode from 'assets/particle-life-gpu/shaders/compute/particleAdvance.wgsl?raw';
 
-import renderShaderCode from 'assets/particle-life-gpu/shaders/render_normal.wgsl?raw';
-import offscreenShaderCode from 'assets/particle-life-gpu/shaders/offscreen_render_vertex.wgsl?raw';
-import mirrorCompositorShaderCode from 'assets/particle-life-gpu/shaders/mirror_compositor.wgsl?raw';
-import particleRenderGlowShaderCode from 'assets/particle-life-gpu/shaders/particle_render_glow.wgsl?raw';
-import composeHdrShaderCode from 'assets/particle-life-gpu/shaders/compose_hdr.wgsl?raw';
+import renderShaderCode from 'assets/particle-life-gpu/shaders/render/render_normal.wgsl?raw';
+import offscreenShaderCode from 'assets/particle-life-gpu/shaders/render/offscreen_render_vertex.wgsl?raw';
+import mirrorCompositorShaderCode from 'assets/particle-life-gpu/shaders/compose/mirror_compositor.wgsl?raw';
+import particleRenderGlowShaderCode from 'assets/particle-life-gpu/shaders/render/particle_render_glow.wgsl?raw';
+import composeHdrShaderCode from 'assets/particle-life-gpu/shaders/compose/compose_hdr.wgsl?raw';
 
-import renderMirrorShaderCode from 'assets/particle-life-gpu/shaders/render_mirror.wgsl?raw';
+import renderMirrorShaderCode from 'assets/particle-life-gpu/shaders/render/render_mirror.wgsl?raw';
 
 export default defineComponent({
     name: 'ParticleLifeGpu',
