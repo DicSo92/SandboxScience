@@ -59,10 +59,10 @@ fn vertexMain(
     let color = colors[u32(particle.particleType)];
 
     let worldPos = vec2f(particle.x, particle.y) + offset * options.particleSize;
-    let clipPos = vec2f(
-        (worldPos.x - camera.centerX) * camera.scaleX,
-        (worldPos.y - camera.centerY) * -camera.scaleY
-    );
+
+    let cameraPos = vec2f(camera.centerX, camera.centerY);
+    let cameraScale = vec2f(camera.scaleX, -camera.scaleY);
+    let clipPos = (worldPos - cameraPos) * cameraScale;
 
     return VertexOutput(
         vec4f(clipPos, 0.0, 1.0),

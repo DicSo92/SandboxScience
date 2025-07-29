@@ -1,10 +1,3 @@
-@group(0) @binding(0) var hdrTexture: texture_2d<f32>;
-
-struct VertexOutput {
-    @builtin(position) position: vec4<f32>,
-    @location(0) textureCoords: vec2<f32>,
-}
-
 const offsets = array<vec2<f32>, 3>(
     vec2<f32>(-1.0, -1.0),
     vec2<f32>( 3.0, -1.0),
@@ -70,13 +63,16 @@ fn linear_to_srgb(color: vec3f) -> vec3f { // Convert linear RGB to sRGB precise
     return max(1.055 * linear_sqrt - 0.055, color * 12.92);
 }
 
+@group(0) @binding(0) var hdrTexture: texture_2d<f32>;
+
+struct VertexOutput {
+    @builtin(position) position: vec4<f32>,
+}
+
 @vertex
-fn vertexMain(@builtin(vertex_index) id: u32) -> VertexOutput {
-    let pos = offsets[id];
-    var output: VertexOutput;
-    output.position = vec4<f32>(pos, 0.0, 1.0);
-    output.textureCoords = pos * 0.5 + 0.5;
-    return output;
+fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
+    let position = offsets[vertexIndex];
+    return VertexOutput(vec4<f32>(position, 0.0, 1.0));
 }
 @fragment
 fn fragmentMain(in: VertexOutput) -> @location(0) vec4<f32> {

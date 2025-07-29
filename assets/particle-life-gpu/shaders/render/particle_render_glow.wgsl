@@ -65,17 +65,20 @@ fn srgb_to_linear(color: vec3f) -> vec3f {
 
 fn vertex_main(instanceIndex: u32, vertexIndex: u32, size: f32) -> VertexOutput {
     let particle = particles[instanceIndex];
-    let worldPos = vec2f(particle.x, particle.y) + QUAD_VERTICES[vertexIndex] * size;
-    let clipPos = vec4<f32>(
-        (worldPos.x - camera.centerX) * camera.scaleX,
-        (worldPos.y - camera.centerY) * -camera.scaleY,
-        0.0, 1.0
+    let offset = QUAD_VERTICES[vertexIndex];
+    let color = colors[u32(particle.particleType)];
+
+    let worldPos = vec2f(particle.x, particle.y) + offset * size;
+
+    let cameraPos = vec2f(camera.centerX, camera.centerY);
+    let cameraScale = vec2f(camera.scaleX, -camera.scaleY);
+    let clipPos = (worldPos - cameraPos) * cameraScale;
+
+    return VertexOutput(
+        vec4f(clipPos, 0.0, 1.0),
+        offset,
+        color,
     );
-    var output: VertexOutput;
-    output.position = clipPos;
-    output.offset = QUAD_VERTICES[vertexIndex];
-    output.color = colors[u32(particle.particleType)];
-    return output;
 }
 @vertex
 fn vertexGlow(@builtin(instance_index) instanceIndex: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
@@ -97,7 +100,7 @@ fn fragmentGlow(in: VertexOutput) -> @location(0) vec4<f32> {
     let alpha = pow(falloff, glowOptions.glowSteepness) * glowOptions.glowIntensity;
 //    let alpha = falloff * falloff * glowOptions.glowIntensity; // Alternative falloff calculation
 
-    if (alpha < 0.001) { discard; }
+    if (alpha < 0.0001) { discard; }
     return vec4<f32>(in.color.rgb * alpha, alpha);
 }
 @fragment
