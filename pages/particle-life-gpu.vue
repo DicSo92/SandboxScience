@@ -332,6 +332,9 @@ export default defineComponent({
         let renderMirrorDirectPipeline: GPURenderPipeline;
         let isMirrorWrapDirect: boolean = particleLife.isMirrorWrapDirect; // Use direct rendering for mirrors instead of compositing
 
+        let renderMirrorGlowPipeline: GPURenderPipeline;
+        let renderMirrorCirclePipeline: GPURenderPipeline;
+
         onMounted(async () => {
             await initWebGPU()
             handleResize()
@@ -662,20 +665,57 @@ export default defineComponent({
                     renderMirrorPass.end()
                 }
             } else if (isMirrorWrapDirect) {
-                const renderPass = encoder.beginRenderPass({
-                    colorAttachments: [{
-                        view: ctx.getCurrentTexture().createView(),
-                        loadOp: 'clear',
-                        storeOp: 'store',
-                        clearValue: { r: 0, g: 0, b: 0, a: 1 }
-                    }]
-                })
-                renderPass.setPipeline(renderMirrorDirectPipeline);
-                renderPass.setBindGroup(0, particleBufferReadOnlyBindGroup);
-                renderPass.setBindGroup(1, simOptionsBindGroup);
-                renderPass.setBindGroup(2, cameraBindGroup);
-                renderPass.draw(4, NUM_PARTICLES * mirrorWrapCount);
-                renderPass.end();
+                if (isParticleGlow) {
+                    const hdrRenderPass = encoder.beginRenderPass({
+                        colorAttachments: [{
+                            view: hdrTextureView,
+                            clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+                            loadOp: 'clear',
+                            storeOp: 'store',
+                        }],
+                    })
+                    hdrRenderPass.setPipeline(renderMirrorGlowPipeline)
+                    hdrRenderPass.setBindGroup(0, particleBufferReadOnlyBindGroup)
+                    hdrRenderPass.setBindGroup(1, simOptionsBindGroup)
+                    hdrRenderPass.setBindGroup(2, cameraBindGroup)
+                    hdrRenderPass.setBindGroup(3, glowOptionsBindGroup)
+                    hdrRenderPass.draw(4, NUM_PARTICLES * mirrorWrapCount)
+                    hdrRenderPass.setPipeline(renderMirrorCirclePipeline)
+                    hdrRenderPass.setBindGroup(0, particleBufferReadOnlyBindGroup)
+                    hdrRenderPass.setBindGroup(1, simOptionsBindGroup)
+                    hdrRenderPass.setBindGroup(2, cameraBindGroup)
+                    hdrRenderPass.setBindGroup(3, glowOptionsBindGroup)
+                    hdrRenderPass.draw(4, NUM_PARTICLES * mirrorWrapCount)
+                    hdrRenderPass.end()
+
+                    const composePass = encoder.beginRenderPass({
+                        colorAttachments: [{
+                            view: ctx.getCurrentTexture().createView(),
+                            loadOp: 'clear',
+                            storeOp: 'store',
+                        }],
+                    })
+                    composePass.setPipeline(composeHdrPipeline)
+                    composePass.setBindGroup(0, composeHdrBindGroup)
+                    composePass.draw(3)
+                    composePass.end()
+                } else {
+                    const renderPass = encoder.beginRenderPass({
+                        colorAttachments: [{
+                            view: ctx.getCurrentTexture().createView(),
+                            loadOp: 'clear',
+                            storeOp: 'store',
+                            clearValue: { r: 0, g: 0, b: 0, a: 1 }
+                        }]
+                    })
+                    renderPass.setPipeline(renderMirrorDirectPipeline)
+                    renderPass.setBindGroup(0, particleBufferReadOnlyBindGroup)
+                    renderPass.setBindGroup(1, simOptionsBindGroup)
+                    renderPass.setBindGroup(2, cameraBindGroup)
+                    renderPass.setBindGroup(3, glowOptionsBindGroup)
+                    renderPass.draw(4, NUM_PARTICLES * mirrorWrapCount)
+                    renderPass.end()
+                }
             } else {
                 if (isParticleGlow) {
                     const hdrRenderPass = encoder.beginRenderPass({
@@ -1228,6 +1268,7 @@ export default defineComponent({
                         particleBufferReadOnlyBindGroupLayout,
                         simOptionsBindGroupLayout,
                         cameraBindGroupLayout,
+                        glowOptionsBindGroupLayout
                     ],
                 }),
                 vertex: {
@@ -1369,6 +1410,55 @@ export default defineComponent({
                     topology: 'triangle-strip',
                 },
             })
+            // ---------------------------------------------------------------------------------------------------------
+            const mirrorDirectShader = device.createShaderModule({ code: renderMirrorShaderCode });
+            renderMirrorGlowPipeline = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, glowOptionsBindGroupLayout]
+                }),
+                vertex: {
+                    module: mirrorDirectShader,
+                    entryPoint: 'mirrorVertexGlow',
+                },
+                fragment: {
+                    module: mirrorDirectShader,
+                    entryPoint: 'mirrorFragmentGlow',
+                    targets: [{
+                        format: 'rgba16float',
+                        blend: {
+                            color: { operation: 'add', srcFactor: 'one', dstFactor: 'one' },
+                            alpha: { operation: 'add', srcFactor: 'one', dstFactor: 'one' },
+                        },
+                    }],
+                },
+                primitive: {
+                    topology: 'triangle-strip',
+                },
+            })
+            renderMirrorCirclePipeline = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, glowOptionsBindGroupLayout]
+                }),
+                vertex: {
+                    module: mirrorDirectShader,
+                    entryPoint: 'mirrorVertexCircle',
+                },
+                fragment: {
+                    module: mirrorDirectShader,
+                    entryPoint: 'mirrorFragmentCircle',
+                    targets: [{
+                        format: 'rgba16float',
+                        blend: {
+                            color: { operation: 'add', srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha' },
+                            alpha: { operation: 'add', srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
+                        },
+                    }],
+                },
+                primitive: {
+                    topology: 'triangle-strip',
+                },
+            })
+            // ---------------------------------------------------------------------------------------------------------
             const composeShader = device.createShaderModule({ code: composeHdrShaderCode });
             composeHdrPipeline = device.createRenderPipeline({
                 layout: device.createPipelineLayout({
