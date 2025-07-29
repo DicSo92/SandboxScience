@@ -166,6 +166,7 @@ import renderGlowShaderCode from 'assets/particle-life-gpu/shaders/render/partic
 import composeHdrShaderCode from 'assets/particle-life-gpu/shaders/compose/compose_hdr.wgsl?raw';
 
 import renderMirrorShaderCode from 'assets/particle-life-gpu/shaders/render/render_mirror.wgsl?raw';
+import renderInfiniteShaderCode from 'assets/particle-life-gpu/shaders/render/render_infinite.wgsl?raw';
 
 export default defineComponent({
     name: 'ParticleLifeGpu',
@@ -230,6 +231,7 @@ export default defineComponent({
         let pointerX: number = 0 // Pointer X
         let pointerY: number = 0 // Pointer Y
         let cameraChanged: boolean = true
+        let infiniteTotalInstances: number = 0 // Total number of instances for infinite rendering
 
         // Define variables for the simulation
         let repel: number = particleLife.repel // Repel force between particles
@@ -267,6 +269,7 @@ export default defineComponent({
         let cellHeadsBuffer: GPUBuffer | undefined
         let particleNextIndicesBuffer: GPUBuffer | undefined
         let glowOptionsBuffer: GPUBuffer | undefined
+        let infiniteRenderOptionsBuffer: GPUBuffer | undefined
 
         let binOffsetBuffer: GPUBuffer | undefined
         let binOffsetTempBuffer: GPUBuffer | undefined
@@ -282,13 +285,14 @@ export default defineComponent({
 
         let renderPipeline: GPURenderPipeline
         let renderOffscreenPipeline: GPURenderPipeline
-        let renderInfinitePipeline: GPURenderPipeline
+        let composeInfinitePipeline: GPURenderPipeline
         let renderMirrorPipeline: GPURenderPipeline
         let renderGlowPipeline: GPURenderPipeline
         let renderCirclePipeline: GPURenderPipeline
         let renderMirrorGlowPipeline: GPURenderPipeline
         let renderMirrorCirclePipeline: GPURenderPipeline
         let composeHdrPipeline: GPURenderPipeline
+        let renderInfinitePipeline: GPURenderPipeline
 
         let binClearSizePipeline: GPUComputePipeline
         let binFillSizePipeline: GPUComputePipeline
@@ -312,6 +316,7 @@ export default defineComponent({
         let offscreenTextureBindGroup: GPUBindGroup
         let composeHdrBindGroup: GPUBindGroup
         let glowOptionsBindGroup: GPUBindGroup
+        let infiniteRenderOptionsBindGroup: GPUBindGroup
 
         let particleBufferBindGroupLayout: GPUBindGroupLayout
         let binPrefixSumBindGroupLayout: GPUBindGroupLayout
@@ -326,6 +331,7 @@ export default defineComponent({
         let offscreenTextureBindGroupLayout: GPUBindGroupLayout
         let composeHdrBindGroupLayout: GPUBindGroupLayout
         let glowOptionsBindGroupLayout: GPUBindGroupLayout
+        let infiniteRenderOptionsBindGroupLayout: GPUBindGroupLayout
 
         onMounted(async () => {
             await initWebGPU()
@@ -388,6 +394,7 @@ export default defineComponent({
             }
             updateBinningParameters()
             updateOffscreenMirrorResources()
+            if (isInfiniteMirrorWrap) updateInfiniteRenderOptions()
         }
         const updateBinningParameters = () => {
             const oldBinCount = binCount
@@ -602,30 +609,40 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
+        const updateInfiniteRenderOptions = () => {
+            const viewWidth = 2.0 / cameraScaleX;
+            const viewHeight = 2.0 / cameraScaleY;
+
+            const viewLeft = cameraCenter.x - viewWidth / 2;
+            const viewRight = cameraCenter.x + viewWidth / 2;
+            const viewTop = cameraCenter.y - viewHeight / 2;
+            const viewBottom = cameraCenter.y + viewHeight / 2;
+
+            const startX = Math.floor(viewLeft / SIM_WIDTH);
+            const endX = Math.ceil(viewRight / SIM_WIDTH);
+            const startY = Math.floor(viewTop / SIM_HEIGHT);
+            const endY = Math.ceil(viewBottom / SIM_HEIGHT);
+
+            const numCopiesX = endX - startX;
+            const numCopiesY = endY - startY;
+
+            infiniteTotalInstances = NUM_PARTICLES * numCopiesX * numCopiesY;
+
+            device.queue.writeBuffer(infiniteRenderOptionsBuffer!, 0, new Int32Array([startX, startY, numCopiesX, numCopiesY]));
+        }
         const renderParticles = (encoder: GPUCommandEncoder) => {
             if (cameraChanged) {
                 device.queue.writeBuffer(cameraBuffer!, 0, new Float32Array([
                     cameraCenter.x, cameraCenter.y, cameraScaleX, cameraScaleY
                 ]))
+                if (isInfiniteMirrorWrap) updateInfiniteRenderOptions()
                 cameraChanged = false
             }
 
             if (isInfiniteMirrorWrap) {
-                const renderOffscreenPass = encoder.beginRenderPass({
-                    colorAttachments: [{
-                        view: offscreenTextureView,
-                        loadOp: 'clear',
-                        clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
-                        storeOp: 'store',
-                    }],
-                })
-                renderOffscreenPass.setPipeline(renderOffscreenPipeline)
-                renderOffscreenPass.setBindGroup(0, particleBufferReadOnlyBindGroup)
-                renderOffscreenPass.setBindGroup(1, simOptionsBindGroup)
-                renderOffscreenPass.draw(4, NUM_PARTICLES)
-                renderOffscreenPass.end()
+                // renderInfiniteMirrorWithOffscreenTexture(encoder)
 
-                const renderInfinitePass = encoder.beginRenderPass({
+                const renderPass = encoder.beginRenderPass({
                     colorAttachments: [{
                         view: ctx.getCurrentTexture().createView(),
                         loadOp: 'clear',
@@ -633,12 +650,13 @@ export default defineComponent({
                         storeOp: 'store'
                     }]
                 })
-                renderInfinitePass.setPipeline(renderInfinitePipeline)
-                renderInfinitePass.setBindGroup(0, cameraBindGroup)
-                renderInfinitePass.setBindGroup(1, simOptionsBindGroup)
-                renderInfinitePass.setBindGroup(2, offscreenTextureBindGroup)
-                renderInfinitePass.draw(3, 1)
-                renderInfinitePass.end()
+                renderPass.setPipeline(renderInfinitePipeline)
+                renderPass.setBindGroup(0, particleBufferReadOnlyBindGroup)
+                renderPass.setBindGroup(1, simOptionsBindGroup)
+                renderPass.setBindGroup(2, cameraBindGroup)
+                renderPass.setBindGroup(3, infiniteRenderOptionsBindGroup)
+                renderPass.draw(4, infiniteTotalInstances)
+                renderPass.end()
             }
             else if (isParticleGlow) {
                 const hdrRenderPass = encoder.beginRenderPass({
@@ -713,6 +731,37 @@ export default defineComponent({
             }
         }
         // -------------------------------------------------------------------------------------------------------------
+        const renderInfiniteMirrorWithOffscreenTexture = (encoder: GPUCommandEncoder) => {
+            const renderOffscreenPass = encoder.beginRenderPass({
+                colorAttachments: [{
+                    view: offscreenTextureView,
+                    loadOp: 'clear',
+                    clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+                    storeOp: 'store',
+                }],
+            })
+            renderOffscreenPass.setPipeline(renderOffscreenPipeline)
+            renderOffscreenPass.setBindGroup(0, particleBufferReadOnlyBindGroup)
+            renderOffscreenPass.setBindGroup(1, simOptionsBindGroup)
+            renderOffscreenPass.draw(4, NUM_PARTICLES)
+            renderOffscreenPass.end()
+
+            const renderInfinitePass = encoder.beginRenderPass({
+                colorAttachments: [{
+                    view: ctx.getCurrentTexture().createView(),
+                    loadOp: 'clear',
+                    clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+                    storeOp: 'store'
+                }]
+            })
+            renderInfinitePass.setPipeline(composeInfinitePipeline)
+            renderInfinitePass.setBindGroup(0, cameraBindGroup)
+            renderInfinitePass.setBindGroup(1, simOptionsBindGroup)
+            renderInfinitePass.setBindGroup(2, offscreenTextureBindGroup)
+            renderInfinitePass.draw(3, 1)
+            renderInfinitePass.end()
+        }
+        // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         const createBuffers = () => {
@@ -739,6 +788,15 @@ export default defineComponent({
             })
             new Float32Array(deltaTimeBuffer.getMappedRange()).set([smoothedDeltaTime])
             deltaTimeBuffer.unmap()
+
+            const infiniteRenderOptionsData = new Int32Array(4) // startX, startY, numCopiesX, numCopiesY
+            infiniteRenderOptionsBuffer = device.createBuffer({
+                size: infiniteRenderOptionsData.byteLength,
+                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+                mappedAtCreation: true
+            })
+            new Int32Array(infiniteRenderOptionsBuffer.getMappedRange()).set(infiniteRenderOptionsData)
+            infiniteRenderOptionsBuffer.unmap()
         }
         const updateColorBuffer = () => {
             if (colorBuffer) colorBuffer?.destroy(); colorBuffer = undefined;
@@ -912,6 +970,12 @@ export default defineComponent({
                 layout: glowOptionsBindGroupLayout,
                 entries: [
                     { binding: 0, resource: { buffer: glowOptionsBuffer! } },
+                ],
+            })
+            infiniteRenderOptionsBindGroup = device.createBindGroup({
+                layout: infiniteRenderOptionsBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: infiniteRenderOptionsBuffer! } },
                 ],
             })
         }
@@ -1088,6 +1152,11 @@ export default defineComponent({
                     { binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } }, // glowOptionsBuffer
                 ],
             })
+            infiniteRenderOptionsBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } },
+                ],
+            })
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -1235,6 +1304,31 @@ export default defineComponent({
                 }
             });
             // ---------------------------------------------------------------------------------------------------------
+            const renderInfiniteShader = device.createShaderModule({ code: renderInfiniteShaderCode });
+            renderInfinitePipeline = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [
+                        particleBufferReadOnlyBindGroupLayout,
+                        simOptionsBindGroupLayout,
+                        cameraBindGroupLayout,
+                        infiniteRenderOptionsBindGroupLayout,
+                    ]
+                }),
+                vertex: {
+                    module: renderInfiniteShader,
+                    entryPoint: 'vertexMain',
+                },
+                fragment: {
+                    module: renderInfiniteShader,
+                    entryPoint: 'fragmentMain',
+                    targets: [{ format: navigator.gpu.getPreferredCanvasFormat() }]
+                },
+                primitive: {
+                    topology: 'triangle-strip',
+                    stripIndexFormat: 'uint32'
+                }
+            });
+            // ---------------------------------------------------------------------------------------------------------
             const offscreenVertexShader = device.createShaderModule({ code: offscreenShaderCode })
             renderOffscreenPipeline = device.createRenderPipeline({
                 layout: device.createPipelineLayout({
@@ -1259,7 +1353,7 @@ export default defineComponent({
             })
             // ---------------------------------------------------------------------------------------------------------
             const infiniteCompositorShader = device.createShaderModule({ code: infiniteCompositorShaderCode })
-            renderInfinitePipeline = device.createRenderPipeline({
+            composeInfinitePipeline = device.createRenderPipeline({
                 layout: device.createPipelineLayout({
                     bindGroupLayouts: [
                         cameraBindGroupLayout,
@@ -1467,7 +1561,7 @@ export default defineComponent({
                 })
             }
 
-            if (isInfiniteMirrorWrap && renderInfinitePipeline) updateOffscreenTextureBindGroup()
+            if (isInfiniteMirrorWrap && composeInfinitePipeline) updateOffscreenTextureBindGroup()
         }
         const updateNumParticles = useDebounceFn(async (newCount: number) => {
             if (isUpdatingParticles || newCount === NUM_PARTICLES) return
@@ -1894,7 +1988,7 @@ export default defineComponent({
         const destroyPipelinesAndBindGroups = () => {
             renderPipeline = undefined as any;
             renderOffscreenPipeline = undefined as any;
-            renderInfinitePipeline = undefined as any;
+            composeInfinitePipeline = undefined as any;
             renderMirrorPipeline = undefined as any;
             renderGlowPipeline = undefined as any;
             renderCirclePipeline = undefined as any;
