@@ -30,39 +30,50 @@ struct Camera {
     scaleX: f32,
     scaleY: f32,
 }
-struct VertexOutput {
-    @builtin(position) position: vec4f,
-    @location(0) uv: vec2f,
-    @location(1) particleType: f32,
-};
 
-const vert = array<vec2f, 3>(
-    vec2f(-1.0, -1.0),
-    vec2f( 3.0, -1.0),
-    vec2f(-1.0,  3.0)
+const QUAD_VERTICES = array<vec2<f32>, 4>(
+    vec2<f32>(-1.0, -1.0),
+    vec2<f32>( 1.0, -1.0),
+    vec2<f32>(-1.0,  1.0),
+    vec2<f32>( 1.0,  1.0)
 );
 
 @group(0) @binding(0) var<storage, read> particles: array<Particle>;
+@group(0) @binding(1) var<storage, read> colors: array<vec4<f32>>;
 @group(1) @binding(0) var<uniform> options: SimOptions;
 @group(2) @binding(0) var<uniform> camera: Camera;
 
+struct VertexOutput {
+    @builtin(position) position: vec4<f32>,
+    @location(0) offset: vec2<f32>,
+    @location(1) color: vec4<f32>,
+}
+
 @vertex
-fn main(
+fn vertexMain(
     @builtin(instance_index) instanceIndex: u32,
     @builtin(vertex_index) vertexIndex: u32
 ) -> VertexOutput {
     let particle = particles[instanceIndex];
-    let vertex = vert[vertexIndex];
+    let offset = QUAD_VERTICES[vertexIndex];
+    let color = colors[u32(particle.particleType)];
 
-    let worldPos = vec2f(particle.x, particle.y) + vertex * options.particleSize;
+    let worldPos = vec2f(particle.x, particle.y) + offset * options.particleSize;
     let clipPos = vec2f(
         (worldPos.x - camera.centerX) * camera.scaleX,
         (worldPos.y - camera.centerY) * -camera.scaleY
     );
 
-    var output: VertexOutput;
-    output.position = vec4f(clipPos, 0.0, 1.0);
-    output.uv = vertex;
-    output.particleType = particle.particleType;
-    return output;
+    return VertexOutput(
+        vec4f(clipPos, 0.0, 1.0),
+        offset,
+        color,
+    );
+}
+
+@fragment
+fn fragmentMain(in: VertexOutput) -> @location(0) vec4f {
+    let dist_sq = dot(in.offset, in.offset);
+    if (dist_sq > 1.0) { discard; }
+    return vec4f(in.color.rgb, in.color.a * 0.85);
 }

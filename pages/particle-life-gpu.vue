@@ -160,8 +160,7 @@ import bruteForceShaderCode from 'assets/particle-life-gpu/shaders/compute_brute
 import particleComputeForcesShaderCode from 'assets/particle-life-gpu/shaders/particleComputeForces.wgsl?raw';
 import particleAdvanceShaderCode from 'assets/particle-life-gpu/shaders/particleAdvance.wgsl?raw';
 
-import vertexShaderCode from 'assets/particle-life-gpu/shaders/render_vertex.wgsl?raw';
-import fragmentShaderCode from 'assets/particle-life-gpu/shaders/render_fragment.wgsl?raw';
+import renderShaderCode from 'assets/particle-life-gpu/shaders/render_normal.wgsl?raw';
 import offscreenShaderCode from 'assets/particle-life-gpu/shaders/offscreen_render_vertex.wgsl?raw';
 import mirrorCompositorShaderCode from 'assets/particle-life-gpu/shaders/mirror_compositor.wgsl?raw';
 import particleRenderGlowShaderCode from 'assets/particle-life-gpu/shaders/particle_render_glow.wgsl?raw';
@@ -628,7 +627,7 @@ export default defineComponent({
                 renderOffscreenPass.setPipeline(renderOffscreenPipeline)
                 renderOffscreenPass.setBindGroup(0, particleBufferReadOnlyBindGroup)
                 renderOffscreenPass.setBindGroup(1, simOptionsBindGroup)
-                renderOffscreenPass.draw(3, NUM_PARTICLES)
+                renderOffscreenPass.draw(4, NUM_PARTICLES)
                 renderOffscreenPass.end()
 
                 if (isInfiniteMirrorWrap) {
@@ -725,7 +724,7 @@ export default defineComponent({
                     renderPass.setBindGroup(0, particleBufferReadOnlyBindGroup)
                     renderPass.setBindGroup(1, simOptionsBindGroup)
                     renderPass.setBindGroup(2, cameraBindGroup)
-                    renderPass.draw(3, NUM_PARTICLES)
+                    renderPass.draw(4, NUM_PARTICLES)
                     renderPass.end()
                 }
             }
@@ -1198,8 +1197,7 @@ export default defineComponent({
             })
         }
         const createRenderPipelines = () => {
-            const renderVertexShader = device.createShaderModule({ code: vertexShaderCode })
-            const renderFragmentShader = device.createShaderModule({ code: fragmentShaderCode })
+            const renderShader = device.createShaderModule({ code: renderShaderCode })
             renderPipeline = device.createRenderPipeline({
                 layout: device.createPipelineLayout({
                     bindGroupLayouts: [
@@ -1209,17 +1207,17 @@ export default defineComponent({
                     ],
                 }),
                 vertex: {
-                    module: renderVertexShader,
-                    entryPoint: 'main',
+                    module: renderShader,
+                    entryPoint: 'vertexMain',
                     buffers: []
                 },
                 fragment: {
-                    module: renderFragmentShader,
-                    entryPoint: 'main',
+                    module: renderShader,
+                    entryPoint: 'fragmentMain',
                     targets: [{ format: navigator.gpu.getPreferredCanvasFormat() }]
                 },
                 primitive: {
-                    topology: 'triangle-list'
+                    topology: 'triangle-strip'
                 }
             })
             // ---------------------------------------------------------------------------------------------------------
@@ -1263,16 +1261,16 @@ export default defineComponent({
                 }),
                 vertex: {
                     module: offscreenVertexShader,
-                    entryPoint: 'main',
+                    entryPoint: 'vertexMain',
                     buffers: []
                 },
                 fragment: {
-                    module: renderFragmentShader,
-                    entryPoint: 'main',
+                    module: renderShader,
+                    entryPoint: 'fragmentMain',
                     targets: [{ format: 'rgba8unorm' }]
                 },
                 primitive: {
-                    topology: 'triangle-list'
+                    topology: 'triangle-strip'
                 }
             })
             // ---------------------------------------------------------------------------------------------------------
@@ -1856,7 +1854,7 @@ export default defineComponent({
             isMirrorWrapDirect = particleLife.isMirrorWrapDirect
 
             setSimSize()
-            if (changedProp === 'isWallWrap' || changedProp === 'isWallRepel' || (changedProp === 'isMirrorWrap' && newMirror && !oldWrap) || (changedProp === 'isInfiniteMirrorWrap' && newInfinite && !oldWrap)) {
+            if (changedProp === 'isWallWrap' || changedProp === 'isWallRepel' || (changedProp === 'isMirrorWrap' && newMirror && !oldWrap) || (changedProp === 'isInfiniteMirrorWrap' && newInfinite && !oldWrap) || (changedProp === 'isMirrorWrapDirect' && newMirrorDirect && !oldWrap)) {
                 updateSimOptionsBuffer()
             }
 
