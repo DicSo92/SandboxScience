@@ -78,24 +78,24 @@ fn vertex_main(instanceIndex: u32, vertexIndex: u32, size: f32) -> VertexOutput 
 //    let mirrorIndex = instanceIndex % options.mirrorWrapCount;
 //    let particleIndex = instanceIndex / options.mirrorWrapCount;
 
-    let vertId = vertexIndex & 3u; // Using bitwise AND for better performance instead of modulo 4u
-
-    let offset = QUAD_VERTICES[vertId];
-    let mirrorOffset = MIRROR_OFFSETS[mirrorIndex];
     let particle = particles[particleIndex];
     let color = colors[u32(particle.particleType)];
-
-    let simSize = vec2f(options.simWidth, options.simHeight);
     let particlePos = vec2f(particle.x, particle.y);
-    let worldPos = particlePos + (mirrorOffset * simSize) + (offset * size);
+    let mirrorOffset = MIRROR_OFFSETS[mirrorIndex];
+    let simSize = vec2f(options.simWidth, options.simHeight);
 
-    let cameraPos = vec2f(camera.centerX, camera.centerY);
+    let worldCenterPos = fma(mirrorOffset, simSize, particlePos);
     let cameraScale = vec2f(camera.scaleX, -camera.scaleY);
-    let clipPos = (worldPos - cameraPos) * cameraScale;
+    let cameraCenter = vec2f(camera.centerX, camera.centerY);
+    let transformedCenterPos = fma(worldCenterPos, cameraScale, -cameraCenter * cameraScale);
+
+    let quadOffset = QUAD_VERTICES[vertexIndex & 3u];
+    let vertexOffset = quadOffset * size * cameraScale;
+    let finalPos = transformedCenterPos + vertexOffset;
 
     return VertexOutput(
-        vec4f(clipPos, 0.0, 1.0),
-        offset,
+        vec4f(finalPos, 0.0, 1.0),
+        quadOffset,
         color,
         mirrorIndex
     );
@@ -117,14 +117,7 @@ fn mirrorFragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let particleOpacity = options.particleOpacity;
     let alpha = in.color.a * mix(particleOpacity, particleOpacity * 0.75, isMirror);
     return vec4f(finalColor, alpha);
-
-//    if (in.mirrorIndex != 0u) {
-//        let grayscale = dot(in.color.rgb, vec3f(0.299, 0.587, 0.114));
-//        return vec4f(vec3f(grayscale), in.color.a * 0.65);
-//    }
-//    return vec4f(in.color.rgb, in.color.a * 0.85);
 }
-
 
 @vertex
 fn mirrorVertexGlow(@builtin(instance_index) instanceIndex: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
@@ -134,7 +127,6 @@ fn mirrorVertexGlow(@builtin(instance_index) instanceIndex: u32, @builtin(vertex
 fn mirrorVertexCircle(@builtin(instance_index) instanceIndex: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
     return vertex_main(instanceIndex, vertexIndex, options.particleSize);
 }
-
 @fragment
 fn mirrorFragmentGlow(in: VertexOutput) -> @location(0) vec4<f32> {
     let dist_sq = dot(in.offset, in.offset);
