@@ -65,25 +65,28 @@ fn vertexMain(
     let copyInstanceIndex = instanceIndex / options.numParticles;
 
     let numCopiesX = u32(infiniteOptions.numCopies.x);
-    let copyX = copyInstanceIndex % numCopiesX;
     let copyY = copyInstanceIndex / numCopiesX;
+    let copyX = copyInstanceIndex - copyY * numCopiesX; // Faster than modulo (copyInstanceIndex % numCopiesX)
 
-    let worldOffsetX = f32(i32(copyX) + infiniteOptions.start.x) * options.simWidth;
-    let worldOffsetY = f32(i32(copyY) + infiniteOptions.start.y) * options.simHeight;
+    let particle = particles[particleIndex];
+    let color = colors[u32(particle.particleType)];
+    let worldPos = vec2<f32>(
+        fma(f32(i32(copyX) + infiniteOptions.start.x), options.simWidth, particle.x),
+        fma(f32(i32(copyY) + infiniteOptions.start.y), options.simHeight, particle.y)
+    );
 
-    let p = particles[particleIndex];
-    let particlePos = vec2<f32>(p.x + worldOffsetX, p.y + worldOffsetY);
-
-    let posFromCamera = particlePos - vec2<f32>(camera.centerX, camera.centerY);
-    let scaledPos = posFromCamera * vec2<f32>(camera.scaleX, -camera.scaleY);
+    let cameraScale = vec2<f32>(camera.scaleX, -camera.scaleY);
+    let cameraCenter = vec2<f32>(camera.centerX, camera.centerY);
+    let transformedCenterPos = fma(worldPos, cameraScale, -cameraCenter * cameraScale);
 
     let quadOffset = QUAD_VERTICES[vertexIndex];
-    let vertexOffset = quadOffset * options.particleSize * vec2<f32>(camera.scaleX, camera.scaleY);
+    let vertexOffset = quadOffset * options.particleSize * cameraScale;
+    let finalPos = transformedCenterPos + vertexOffset;
 
     return VertexOutput(
-        vec4<f32>(scaledPos + vertexOffset, 0.0, 1.0),
+        vec4<f32>(finalPos, 0.0, 1.0),
         quadOffset,
-        colors[u32(p.particleType)],
+        color
     );
 }
 

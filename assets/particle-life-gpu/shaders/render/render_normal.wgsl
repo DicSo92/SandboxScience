@@ -57,19 +57,21 @@ fn vertexMain(
     @builtin(vertex_index) vertexIndex: u32
 ) -> VertexOutput {
     let particle = particles[instanceIndex];
-    let offset = QUAD_VERTICES[vertexIndex];
     let color = colors[u32(particle.particleType)];
+    let particleCenterPos = vec2f(particle.x, particle.y);
 
-    let worldPos = vec2f(particle.x, particle.y) + offset * options.particleSize;
-
-    let cameraPos = vec2f(camera.centerX, camera.centerY);
     let cameraScale = vec2f(camera.scaleX, -camera.scaleY);
-    let clipPos = (worldPos - cameraPos) * cameraScale;
+    let cameraCenter = vec2f(camera.centerX, camera.centerY);
+    let transformedCenterPos = fma(particleCenterPos, cameraScale, -cameraCenter * cameraScale);
+
+    let quadOffset = QUAD_VERTICES[vertexIndex];
+    let vertexOffset = quadOffset * options.particleSize * cameraScale;
+    let finalPos = transformedCenterPos + vertexOffset;
 
     return VertexOutput(
-        vec4f(clipPos, 0.0, 1.0),
-        offset,
-        color,
+        vec4f(finalPos, 0.0, 1.0),
+        quadOffset,
+        color
     );
 }
 

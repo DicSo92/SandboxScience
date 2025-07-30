@@ -33,8 +33,8 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
     const frictionFactor = ref<number>(0.4) // Slow down the particles (0 to 1, where 1 is no friction)
 
     // Define properties for randomizing radius matrix
-    const minRadiusRange = ref<number[]>([25, 40]) // Range for the random minRadius of each color
-    const maxRadiusRange = ref<number[]>([60, 61]) // Range for the random maxRadius of each color
+    const minRadiusRange = ref<number[]>([10, 15]) // Range for the random minRadius of each color
+    const maxRadiusRange = ref<number[]>([25, 32]) // Range for the random maxRadius of each color
 
     const currentMaxRadius = ref<number>(0) // Current max radius for the particles
 
@@ -51,7 +51,7 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
     const glowSize = ref<number>(12.0) // Size of the glow effect
     const glowIntensity = ref<number>(0.005) // Intensity of the glow effect
     const glowSteepness = ref<number>(3.0) // Steepness of the glow effect
-    const particleOpacity = ref<number>(0.7) // Opacity of the hdr particles
+    const particleOpacity = ref<number>(0.85) // Opacity of the particles
 
     function $reset() {
         sidebarLeftOpen.value = false
