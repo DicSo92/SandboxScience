@@ -11,11 +11,17 @@ struct SimOptions {
     numParticles: u32,
     numTypes: u32,
     particleSize: f32,
+    particleOpacity: f32,
     isWallRepel: u32,
     isWallWrap: u32,
     forceFactor: f32,
     frictionFactor: f32,
     repel: f32,
+    extendedGridWidth: u32,
+    extendedGridHeight: u32,
+    gridOffsetX: u32,
+    gridOffsetY: u32,
+    mirrorWrapCount: u32,
 };
 
 const P1: i32 = 73856093;

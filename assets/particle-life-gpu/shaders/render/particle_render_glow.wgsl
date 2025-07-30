@@ -7,6 +7,7 @@ struct SimOptions {
     numParticles: u32,
     numTypes: u32,
     particleSize: f32,
+    particleOpacity: f32,
     isWallRepel: u32,
     isWallWrap: u32,
     forceFactor: f32,
@@ -16,7 +17,8 @@ struct SimOptions {
     extendedGridHeight: u32,
     gridOffsetX: u32,
     gridOffsetY: u32,
-}
+    mirrorWrapCount: u32,
+};
 struct Particle {
     x : f32,
     y : f32,
@@ -34,7 +36,6 @@ struct GlowOptions {
     glowSize: f32,
     glowIntensity: f32,
     glowSteepness: f32,
-    particleOpacity: f32,
 }
 
 @group(0) @binding(0) var<storage, read> particles: array<Particle>;
@@ -112,5 +113,5 @@ fn fragmentCircle(in: VertexOutput) -> @location(0) vec4<f32> {
     let linear_color = pow(in.color.rgb, vec3<f32>(2.2)); // Convert color to linear space for proper blending
 //    let linear_color = srgb_to_linear(in.color.rgb); // Convert color to linear space for proper blending (precise / slower)
 
-    return vec4<f32>(linear_color, in.color.a * glowOptions.particleOpacity);
+    return vec4<f32>(linear_color, in.color.a * options.particleOpacity);
 }

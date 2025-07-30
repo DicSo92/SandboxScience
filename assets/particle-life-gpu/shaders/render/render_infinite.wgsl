@@ -7,6 +7,7 @@ struct SimOptions {
     numParticles: u32,
     numTypes: u32,
     particleSize: f32,
+    particleOpacity: f32,
     isWallRepel: u32,
     isWallWrap: u32,
     forceFactor: f32,
@@ -89,9 +90,11 @@ fn vertexMain(
 @fragment
 fn fragmentMain(in: VertexOutput) -> @location(0) vec4f {
     let dist_sq = dot(in.offset, in.offset);
-//    if (dist_sq > 1.0) { discard; }
-//    return vec4f(in.color.rgb, in.color.a * 0.85);
-    let circle_alpha = smoothstep(1.0, 0.85, dist_sq) * in.color.a * 0.85;
-    if (circle_alpha < 0.01) { discard; }
-    return vec4f(in.color.rgb, circle_alpha);
+
+    if (dist_sq > 1.0) { discard; }
+    return vec4f(in.color.rgb, in.color.a * options.particleOpacity);
+
+//    let circle_alpha = smoothstep(1.0, options.particleOpacity, dist_sq) * in.color.a * options.particleOpacity;
+//    if (circle_alpha < 0.01) { discard; }
+//    return vec4f(in.color.rgb, circle_alpha);
 }

@@ -7,6 +7,7 @@ struct SimOptions {
     numParticles: u32,
     numTypes: u32,
     particleSize: f32,
+    particleOpacity: f32,
     isWallRepel: u32,
     isWallWrap: u32,
     forceFactor: f32,
@@ -16,6 +17,7 @@ struct SimOptions {
     extendedGridHeight: u32,
     gridOffsetX: u32,
     gridOffsetY: u32,
+    mirrorWrapCount: u32,
 };
 struct Particle {
     x : f32,
@@ -75,5 +77,5 @@ fn vertexMain(
 fn fragmentMain(in: VertexOutput) -> @location(0) vec4f {
     let dist_sq = dot(in.offset, in.offset);
     if (dist_sq > 1.0) { discard; }
-    return vec4f(in.color.rgb, in.color.a * 0.85);
+    return vec4f(in.color.rgb, in.color.a * options.particleOpacity);
 }

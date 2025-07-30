@@ -7,6 +7,7 @@ struct SimOptions {
     numParticles: u32,
     numTypes: u32,
     particleSize: f32,
+    particleOpacity: f32,
     isWallRepel: u32,
     isWallWrap: u32,
     forceFactor: f32,
@@ -35,7 +36,6 @@ struct GlowOptions {
     glowSize: f32,
     glowIntensity: f32,
     glowSteepness: f32,
-    particleOpacity: f32,
 };
 const QUAD_VERTICES = array<vec2<f32>, 4>(
     vec2<f32>(-1.0, -1.0),
@@ -56,7 +56,6 @@ const MIRROR_OFFSETS = array<vec2<f32>, 9>(
 );
 
 const GRAYSCALE_WEIGHTS: vec3<f32> = vec3<f32>(0.299, 0.587, 0.114);
-const PRIMARY_ALPHA: f32 = 0.85;
 
 @group(0) @binding(0) var<storage, read> particles: array<Particle>;
 @group(0) @binding(1) var<storage, read> colors: array<vec4<f32>>;
@@ -115,7 +114,7 @@ fn mirrorFragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let grayscale = dot(in.color.rgb, GRAYSCALE_WEIGHTS);
     let finalColor = mix(in.color.rgb, vec3f(grayscale), isMirror);
 
-    let particleOpacity = glowOptions.particleOpacity;
+    let particleOpacity = options.particleOpacity;
     let alpha = in.color.a * mix(particleOpacity, particleOpacity * 0.75, isMirror);
     return vec4f(finalColor, alpha);
 
@@ -163,7 +162,7 @@ fn mirrorFragmentCircle(in: VertexOutput) -> @location(0) vec4<f32> {
 
     let linear_color = pow(finalColor, vec3<f32>(2.2)); // Convert color to linear space for proper blending
 
-    let particleOpacity = glowOptions.particleOpacity;
+    let particleOpacity = options.particleOpacity;
     let alpha = in.color.a * mix(particleOpacity, particleOpacity * 0.75, isMirror);
     return vec4f(linear_color, alpha);
 }

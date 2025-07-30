@@ -85,20 +85,20 @@
                         <Collapse label="Graphics Settings" icon="i-tabler-photo-cog" mt-2>
                             <RangeInput input label="Particle Size"
                                         tooltip="Controls the overall size of the particles in the simulation, allowing you to make them larger or smaller depending on your preference. This setting does not impact performance."
-                                        :min="1" :max="20" :step="1" v-model="particleLife.particleSize" mt-2>
+                                        :min="0.1" :max="6" :step="0.1" v-model="particleLife.particleSize" mt-2>
                             </RangeInput>
                             <ToggleSwitch label="Particle Glowing" colorful-label v-model="particleLife.isParticleGlow" />
                             <RangeInput input label="Glow Size"
                                         tooltip="Adjust the size of the glow effect around particles."
-                                        :min="1" :max="32" :step="0.1" v-model="particleLife.glowSize" mt-2>
+                                        :min="0" :max="32" :step="0.1" v-model="particleLife.glowSize" mt-2>
                             </RangeInput>
                             <RangeInput input label="Glow Intensity"
                                         tooltip="Adjust the intensity of the glow effect around particles."
-                                        :min="0.0001" :max="0.01" :step="0.0001" v-model="particleLife.glowIntensity" mt-2>
+                                        :min="0" :max="0.01" :step="0.0001" v-model="particleLife.glowIntensity" mt-2>
                             </RangeInput>
                             <RangeInput input label="Glow Steepness"
                                         tooltip="Adjust the steepness of the glow effect around particles. <br> Higher values create a sharper transition between glowing and non-glowing areas."
-                                        :min="1" :max="12" :step="0.1" v-model="particleLife.glowSteepness" mt-2>
+                                        :min="0" :max="12" :step="1" v-model="particleLife.glowSteepness" mt-2>
                             </RangeInput>
                             <RangeInput input label="Particle Opacity"
                                         tooltip="Adjust the opacity of the particles in the simulation. <br> This setting allows you to control how transparent or opaque the particles appear."
@@ -378,7 +378,7 @@ export default defineComponent({
             cameraChanged = true
         }
         function updateCameraScaleFactors() {
-            cameraScaleY = zoomFactor * 2.0 / SIM_HEIGHT
+            cameraScaleY = zoomFactor * 2.0 / CANVAS_HEIGHT
             cameraScaleX = cameraScaleY / (CANVAS_WIDTH / CANVAS_HEIGHT)
         }
         function setSimSizeBasedOnScreen() {
@@ -390,16 +390,17 @@ export default defineComponent({
             if (useSpatialHash && isWallWrap) {
                 particleLife.simWidth = SIM_WIDTH = CELL_SIZE * Math.round(baseSimWidth / CELL_SIZE)
                 particleLife.simHeight = SIM_HEIGHT = CELL_SIZE * Math.round(baseSimHeight / CELL_SIZE)
-                updateCameraScaleFactors()
             }
+            updateCameraScaleFactors()
             updateBinningParameters()
             updateOffscreenMirrorResources()
-            if (isInfiniteMirrorWrap) updateInfiniteRenderOptions()
+            updateInfiniteRenderOptions()
         }
         const updateBinningParameters = () => {
             const oldBinCount = binCount
             const oldPrefixSumIterations = prefixSumIterations
 
+            // If no walls, set a larger grid size for better performance
             if (!isWallWrap && !isWallRepel) {
                 const requestedFactor = 4
                 const maxWorkgroups = device.limits.maxComputeWorkgroupsPerDimension
@@ -457,7 +458,7 @@ export default defineComponent({
 
             const zoomIntensity = 0.1
             const zoomDelta = delta * zoomIntensity
-            zoomFactor = Math.max(0.07, Math.min(1000.0, zoomFactor * (1 + zoomDelta)))
+            zoomFactor = Math.max(0.15, Math.min(1000.0, zoomFactor * (1 + zoomDelta)))
 
             updateCameraScaleFactors()
 
@@ -609,33 +610,12 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
-        const updateInfiniteRenderOptions = () => {
-            const viewWidth = 2.0 / cameraScaleX;
-            const viewHeight = 2.0 / cameraScaleY;
-
-            const viewLeft = cameraCenter.x - viewWidth / 2;
-            const viewRight = cameraCenter.x + viewWidth / 2;
-            const viewTop = cameraCenter.y - viewHeight / 2;
-            const viewBottom = cameraCenter.y + viewHeight / 2;
-
-            const startX = Math.floor(viewLeft / SIM_WIDTH);
-            const endX = Math.ceil(viewRight / SIM_WIDTH);
-            const startY = Math.floor(viewTop / SIM_HEIGHT);
-            const endY = Math.ceil(viewBottom / SIM_HEIGHT);
-
-            const numCopiesX = endX - startX;
-            const numCopiesY = endY - startY;
-
-            infiniteTotalInstances = NUM_PARTICLES * numCopiesX * numCopiesY;
-
-            device.queue.writeBuffer(infiniteRenderOptionsBuffer!, 0, new Int32Array([startX, startY, numCopiesX, numCopiesY]));
-        }
         const renderParticles = (encoder: GPUCommandEncoder) => {
             if (cameraChanged) {
                 device.queue.writeBuffer(cameraBuffer!, 0, new Float32Array([
                     cameraCenter.x, cameraCenter.y, cameraScaleX, cameraScaleY
                 ]))
-                if (isInfiniteMirrorWrap) updateInfiniteRenderOptions()
+                updateInfiniteRenderOptions()
                 cameraChanged = false
             }
 
@@ -797,6 +777,7 @@ export default defineComponent({
             })
             new Int32Array(infiniteRenderOptionsBuffer.getMappedRange()).set(infiniteRenderOptionsData)
             infiniteRenderOptionsBuffer.unmap()
+            updateInfiniteRenderOptions()
         }
         const updateColorBuffer = () => {
             if (colorBuffer) colorBuffer?.destroy(); colorBuffer = undefined;
@@ -853,13 +834,35 @@ export default defineComponent({
             binPrefixSumStepSizeBuffer.unmap()
         }
         // -------------------------------------------------------------------------------------------------------------
+        const updateInfiniteRenderOptions = () => {
+            if (!isInfiniteMirrorWrap) return
+
+            const viewWidth = 2.0 / cameraScaleX
+            const viewHeight = 2.0 / cameraScaleY
+
+            const viewLeft = cameraCenter.x - viewWidth / 2
+            const viewRight = cameraCenter.x + viewWidth / 2
+            const viewTop = cameraCenter.y - viewHeight / 2
+            const viewBottom = cameraCenter.y + viewHeight / 2
+
+            const startX = Math.floor(viewLeft / SIM_WIDTH)
+            const endX = Math.ceil(viewRight / SIM_WIDTH)
+            const startY = Math.floor(viewTop / SIM_HEIGHT)
+            const endY = Math.ceil(viewBottom / SIM_HEIGHT)
+
+            const numCopiesX = endX - startX
+            const numCopiesY = endY - startY
+
+            infiniteTotalInstances = NUM_PARTICLES * numCopiesX * numCopiesY
+
+            device.queue.writeBuffer(infiniteRenderOptionsBuffer!, 0, new Int32Array([startX, startY, numCopiesX, numCopiesY]))
+        }
         const updateGlowOptionsBuffer = () => {
-            const glowOptionsData = new ArrayBuffer(16)
+            const glowOptionsData = new ArrayBuffer(12)
             const glowOptionsView = new DataView(glowOptionsData)
             glowOptionsView.setFloat32(0, glowSize, true)
             glowOptionsView.setFloat32(4, glowIntensity, true)
             glowOptionsView.setFloat32(8, glowSteepness, true)
-            glowOptionsView.setFloat32(12, particleOpacity, true)
 
             if (!glowOptionsBuffer) {
                 glowOptionsBuffer = device.createBuffer({
@@ -874,7 +877,7 @@ export default defineComponent({
             }
         }
         const updateSimOptionsBuffer = () => {
-            const simOptionsData = new ArrayBuffer(72)
+            const simOptionsData = new ArrayBuffer(76)
             const simOptionsView = new DataView(simOptionsData)
             simOptionsView.setFloat32(0, SIM_WIDTH, true)
             simOptionsView.setFloat32(4, SIM_HEIGHT, true)
@@ -884,17 +887,18 @@ export default defineComponent({
             simOptionsView.setUint32(20, NUM_PARTICLES, true)
             simOptionsView.setUint32(24, NUM_TYPES, true)
             simOptionsView.setFloat32(28, PARTICLE_SIZE, true)
-            simOptionsView.setUint32(32, isWallRepel ? 1 : 0, true)
-            simOptionsView.setUint32(36, isWallWrap ? 1 : 0, true)
-            simOptionsView.setFloat32(40, forceFactor, true)
-            simOptionsView.setFloat32(44, frictionFactor, true)
-            simOptionsView.setFloat32(48, repel, true)
+            simOptionsView.setFloat32(32, particleOpacity, true)
+            simOptionsView.setUint32(36, isWallRepel ? 1 : 0, true)
+            simOptionsView.setUint32(40, isWallWrap ? 1 : 0, true)
+            simOptionsView.setFloat32(44, forceFactor, true)
+            simOptionsView.setFloat32(48, frictionFactor, true)
+            simOptionsView.setFloat32(52, repel, true)
             // Extended grid parameters for spatial hashing no walls
-            simOptionsView.setUint32(52, EXTENDED_GRID_WIDTH, true)
-            simOptionsView.setUint32(56, EXTENDED_GRID_HEIGHT, true)
-            simOptionsView.setUint32(60, GRID_OFFSET_X, true)
-            simOptionsView.setUint32(64, GRID_OFFSET_Y, true)
-            simOptionsView.setUint32(68, mirrorWrapCount, true)
+            simOptionsView.setUint32(56, EXTENDED_GRID_WIDTH, true)
+            simOptionsView.setUint32(60, EXTENDED_GRID_HEIGHT, true)
+            simOptionsView.setUint32(64, GRID_OFFSET_X, true)
+            simOptionsView.setUint32(68, GRID_OFFSET_Y, true)
+            simOptionsView.setUint32(72, mirrorWrapCount, true)
 
             if (!simOptionsBuffer) {
                 simOptionsBuffer = device.createBuffer({
@@ -1123,7 +1127,7 @@ export default defineComponent({
             })
             simOptionsBindGroupLayout = device.createBindGroupLayout({
                 entries: [
-                    { binding: 0, visibility: GPUShaderStage.COMPUTE | GPUShaderStage.VERTEX, buffer: { type: 'uniform' } },
+                    { binding: 0, visibility: GPUShaderStage.COMPUTE | GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
                 ],
             });
             deltaTimeBindGroupLayout = device.createBindGroupLayout({
@@ -1266,7 +1270,13 @@ export default defineComponent({
                 fragment: {
                     module: renderShader,
                     entryPoint: 'fragmentMain',
-                    targets: [{ format: navigator.gpu.getPreferredCanvasFormat() }]
+                    targets: [{
+                        format: navigator.gpu.getPreferredCanvasFormat(),
+                        blend: {
+                            color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha', operation: 'add' },
+                            alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' }
+                        }
+                    }]
                 },
                 primitive: {
                     topology: 'triangle-strip'
@@ -1321,7 +1331,13 @@ export default defineComponent({
                 fragment: {
                     module: renderInfiniteShader,
                     entryPoint: 'fragmentMain',
-                    targets: [{ format: navigator.gpu.getPreferredCanvasFormat() }]
+                    targets: [{
+                        format: navigator.gpu.getPreferredCanvasFormat(),
+                        blend: {
+                            color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha', operation: 'add' },
+                            alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' }
+                        }
+                    }]
                 },
                 primitive: {
                     topology: 'triangle-strip',
@@ -1603,6 +1619,7 @@ export default defineComponent({
                 updateParticleBuffers() // Destroy and recreate particle buffers
                 updateParticleBindGroups() // Recreate bind groups that depend on particle buffers
                 updateSimOptionsBuffer() // Update simulation options buffer
+                updateInfiniteRenderOptions() // Update infinite render options buffer
 
                 lastFrameTime = performance.now()
                 animationFrameId = requestAnimationFrame(frame)
@@ -1882,7 +1899,6 @@ export default defineComponent({
                 updateGlowOptionsBuffer()
             })
         }
-        watchAndUpdateSimOptions(() => particleLife.mirrorWrapCount, (value: number) => mirrorWrapCount = value)
         watch(() => particleLife.numParticles, (value: number) => updateNumParticles(value))
         watch(() => particleLife.numColors, (value: number) => updateNumTypes(value))
         watch(() => particleLife.isRunning, (value: boolean) => isRunning = value)
@@ -1891,8 +1907,9 @@ export default defineComponent({
         watchAndUpdateGlowOptions(() => particleLife.glowSize, (value: number) => glowSize = value)
         watchAndUpdateGlowOptions(() => particleLife.glowIntensity, (value: number) => glowIntensity = value)
         watchAndUpdateGlowOptions(() => particleLife.glowSteepness, (value: number) => glowSteepness = value)
-        watchAndUpdateGlowOptions(() => particleLife.particleOpacity, (value: number) => particleOpacity = value)
 
+        watchAndUpdateSimOptions(() => particleLife.particleOpacity, (value: number) => particleOpacity = value)
+        watchAndUpdateSimOptions(() => particleLife.mirrorWrapCount, (value: number) => mirrorWrapCount = value)
         watchAndUpdateSimOptions(() => particleLife.particleSize, (value: number) => PARTICLE_SIZE = value)
         watchAndUpdateSimOptions(() => particleLife.repel, (value: number) => repel = value)
         watchAndUpdateSimOptions(() => particleLife.forceFactor, (value: number) => forceFactor = value)
