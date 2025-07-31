@@ -100,11 +100,19 @@ fn vertex_main(instanceIndex: u32, vertexIndex: u32, size: f32) -> VertexOutput 
         mirrorIndex
     );
 }
-
 @vertex
 fn mirrorVertex(@builtin(vertex_index) vertexIndex: u32, @builtin(instance_index) instanceIndex: u32) -> VertexOutput {
     return vertex_main(instanceIndex, vertexIndex, options.particleSize);
 }
+@vertex
+fn mirrorVertexGlow(@builtin(instance_index) instanceIndex: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
+    return vertex_main(instanceIndex, vertexIndex, options.particleSize * glowOptions.glowSize);
+}
+@vertex
+fn mirrorVertexCircle(@builtin(instance_index) instanceIndex: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
+    return vertex_main(instanceIndex, vertexIndex, options.particleSize);
+}
+
 @fragment
 fn mirrorFragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let dist_sq = dot(in.offset, in.offset);
@@ -117,15 +125,6 @@ fn mirrorFragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let particleOpacity = options.particleOpacity;
     let alpha = in.color.a * mix(particleOpacity, particleOpacity * 0.75, isMirror);
     return vec4f(finalColor, alpha);
-}
-
-@vertex
-fn mirrorVertexGlow(@builtin(instance_index) instanceIndex: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
-    return vertex_main(instanceIndex, vertexIndex, options.particleSize * glowOptions.glowSize);
-}
-@vertex
-fn mirrorVertexCircle(@builtin(instance_index) instanceIndex: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
-    return vertex_main(instanceIndex, vertexIndex, options.particleSize);
 }
 @fragment
 fn mirrorFragmentGlow(in: VertexOutput) -> @location(0) vec4<f32> {

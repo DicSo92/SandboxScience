@@ -32,6 +32,11 @@ struct Camera {
     scaleX: f32,
     scaleY: f32,
 };
+struct GlowOptions {
+    glowSize: f32,
+    glowIntensity: f32,
+    glowSteepness: f32,
+};
 struct InfiniteRenderOptions {
     start: vec2<i32>,
     numCopies: vec2<i32>,
@@ -48,7 +53,8 @@ const QUAD_VERTICES = array<vec2<f32>, 4>(
 @group(0) @binding(1) var<storage, read> colors: array<vec4<f32>>;
 @group(1) @binding(0) var<uniform> options: SimOptions;
 @group(2) @binding(0) var<uniform> camera: Camera;
-@group(3) @binding(0) var<uniform> infiniteOptions: InfiniteRenderOptions;
+@group(3) @binding(0) var<uniform> glowOptions: GlowOptions;
+@group(3) @binding(1) var<uniform> infiniteOptions: InfiniteRenderOptions;
 
 struct VertexOutput {
     @builtin(position) position: vec4f,
@@ -56,11 +62,7 @@ struct VertexOutput {
     @location(1) color: vec4<f32>,
 };
 
-@vertex
-fn vertexMain(
-    @builtin(vertex_index) vertexIndex: u32,
-    @builtin(instance_index) instanceIndex: u32
-) -> VertexOutput {
+fn vertex_main(instanceIndex: u32, vertexIndex: u32, size: f32) -> VertexOutput {
     let particleIndex = instanceIndex % options.numParticles;
     let copyInstanceIndex = instanceIndex / options.numParticles;
 
@@ -71,8 +73,8 @@ fn vertexMain(
     let particle = particles[particleIndex];
     let color = colors[u32(particle.particleType)];
     let worldPos = vec2<f32>(
-        fma(f32(i32(copyX) + infiniteOptions.start.x), options.simWidth, particle.x),
-        fma(f32(i32(copyY) + infiniteOptions.start.y), options.simHeight, particle.y)
+       fma(f32(i32(copyX) + infiniteOptions.start.x), options.simWidth, particle.x),
+       fma(f32(i32(copyY) + infiniteOptions.start.y), options.simHeight, particle.y)
     );
 
     let cameraScale = vec2<f32>(camera.scaleX, -camera.scaleY);
@@ -80,24 +82,52 @@ fn vertexMain(
     let transformedCenterPos = fma(worldPos, cameraScale, -cameraCenter * cameraScale);
 
     let quadOffset = QUAD_VERTICES[vertexIndex];
-    let vertexOffset = quadOffset * options.particleSize * cameraScale;
+    let vertexOffset = quadOffset * size * cameraScale;
     let finalPos = transformedCenterPos + vertexOffset;
 
     return VertexOutput(
-        vec4<f32>(finalPos, 0.0, 1.0),
-        quadOffset,
-        color
+       vec4<f32>(finalPos, 0.0, 1.0),
+       quadOffset,
+       color
     );
+}
+@vertex
+fn infiniteVertex(@builtin(vertex_index) vertexIndex: u32, @builtin(instance_index) instanceIndex: u32) -> VertexOutput {
+    return vertex_main(instanceIndex, vertexIndex, options.particleSize);
+}
+@vertex
+fn infiniteVertexGlow(@builtin(instance_index) instanceIndex: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
+    return vertex_main(instanceIndex, vertexIndex, options.particleSize * glowOptions.glowSize);
+}
+@vertex
+fn infiniteVertexCircle(@builtin(instance_index) instanceIndex: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
+    return vertex_main(instanceIndex, vertexIndex, options.particleSize);
 }
 
 @fragment
-fn fragmentMain(in: VertexOutput) -> @location(0) vec4f {
+fn infiniteFragment(in: VertexOutput) -> @location(0) vec4f {
     let dist_sq = dot(in.offset, in.offset);
-
     if (dist_sq > 1.0) { discard; }
-    return vec4f(in.color.rgb, in.color.a * options.particleOpacity);
 
-//    let circle_alpha = smoothstep(1.0, options.particleOpacity, dist_sq) * in.color.a * options.particleOpacity;
-//    if (circle_alpha < 0.01) { discard; }
-//    return vec4f(in.color.rgb, circle_alpha);
+    return vec4f(in.color.rgb, in.color.a * options.particleOpacity);
+}
+@fragment
+fn infiniteFragmentGlow(in: VertexOutput) -> @location(0) vec4f {
+    let dist_sq = dot(in.offset, in.offset);
+    if (dist_sq > 1.0) { discard; }
+
+    let falloff = saturate(1.0 - dist_sq);
+    let alpha = pow(falloff, glowOptions.glowSteepness) * glowOptions.glowIntensity;
+
+    if (alpha < 0.0001) { discard; }
+    return vec4<f32>(in.color.rgb * alpha, alpha);
+}
+@fragment
+fn infiniteFragmentCircle(in: VertexOutput) -> @location(0) vec4f {
+    let dist_sq = dot(in.offset, in.offset);
+    if (dist_sq > 1.0) { discard; }
+
+    let linear_color = pow(in.color.rgb, vec3<f32>(2.2)); // Convert color to linear space for proper blending
+
+    return vec4f(linear_color, in.color.a * options.particleOpacity);
 }
