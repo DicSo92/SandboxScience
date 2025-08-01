@@ -33,7 +33,7 @@ struct Particle {
 
 @compute @workgroup_size(64)
 fn particleAdvance(@builtin(global_invocation_id) id : vec3u) {
-    if (id.x >= arrayLength(&particles)) { return; }
+    if (id.x >= options.numParticles) { return; }
 
     let width = options.simWidth;
     let height = options.simHeight;

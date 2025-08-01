@@ -66,10 +66,10 @@ fn clearBinSize(@builtin(global_invocation_id) id : vec3u) {
 
 @compute @workgroup_size(64)
 fn sortParticles(@builtin(global_invocation_id) id : vec3u) {
-    if (id.x >= arrayLength(&source)) { return; }
+    if (id.x >= options.numParticles) { return; }
 
     let particle = source[id.x];
     let binIndex = getBinInfo(vec2f(particle.x, particle.y), options).binIndex;
-    let newParticleIndex = binOffset[binIndex] + atomicAdd(&binSize[binIndex], 1);
+    let newParticleIndex = binOffset[binIndex] + atomicAdd(&binSize[binIndex], 1u);
     destination[newParticleIndex] = particle;
 }

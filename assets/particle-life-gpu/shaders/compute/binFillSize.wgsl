@@ -63,7 +63,7 @@ fn clearBinSize(@builtin(global_invocation_id) id : vec3u) {
 
 @compute @workgroup_size(64)
 fn fillBinSize(@builtin(global_invocation_id) id : vec3u) {
-    if (id.x >= arrayLength(&particles)) { return; }
+    if (id.x >= options.numParticles) { return; }
 
     let particle = particles[id.x];
     let binIndex = getBinInfo(vec2f(particle.x, particle.y), options).binIndex;
