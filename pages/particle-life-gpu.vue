@@ -114,7 +114,7 @@
                 </div>
             </template>
         </SidebarLeft>
-        <canvas ref="canvasRef" id="canvasRef" w-full h-full></canvas>
+        <canvas ref="canvasRef" id="canvasRef" @contextmenu.prevent w-full h-full cursor-crosshair></canvas>
         <div absolute top-0 right-0 flex flex-col items-end text-right pointer-events-none>
             <div flex items-center text-start text-xs pl-4 pr-1 bg-gray-800 rounded-bl-xl style="padding-bottom: 1px; opacity: 75%">
                 <div flex>Fps: <div ml-1 min-w-8>{{ fps }}</div></div>
@@ -158,6 +158,7 @@ import particleSortShaderCode from 'assets/particle-life-gpu/shaders/compute/par
 import bruteForceShaderCode from 'assets/particle-life-gpu/shaders/compute/compute_bruteForce.wgsl?raw';
 import particleComputeForcesShaderCode from 'assets/particle-life-gpu/shaders/compute/particleComputeForces.wgsl?raw';
 import particleAdvanceShaderCode from 'assets/particle-life-gpu/shaders/compute/particleAdvance.wgsl?raw';
+import particleAdvanceBrushShaderCode from 'assets/particle-life-gpu/shaders/compute/particleAdvance_brush.wgsl?raw';
 
 import renderShaderCode from 'assets/particle-life-gpu/shaders/render/render_normal.wgsl?raw';
 import offscreenShaderCode from 'assets/particle-life-gpu/shaders/render/offscreen_render_vertex.wgsl?raw';
@@ -230,6 +231,8 @@ export default defineComponent({
         let lastPointerY: number = 0 // For dragging
         let pointerX: number = 0 // Pointer X
         let pointerY: number = 0 // Pointer Y
+        let lastFramePointerX: number = 0
+        let lastFramePointerY: number = 0
         let cameraChanged: boolean = true
         let infiniteTotalInstances: number = 0 // Total number of instances for infinite rendering
 
@@ -253,6 +256,16 @@ export default defineComponent({
         let glowSteepness: number = particleLife.glowSteepness
         let particleOpacity: number = particleLife.particleOpacity
 
+        let isBrushActive: boolean = particleLife.isBrushActive
+        let isBrushDrawing: boolean = false
+        let brushType: number = particleLife.brushType // 0: Erase, 1: Draw, 2: Repulse, 3: Attract
+        let brushes: number[] = particleLife.brushes
+        let brushRadius: number = particleLife.brushRadius
+        let brushIntensity: number = particleLife.brushIntensity
+        let attractForce: number = -Math.abs(particleLife.attractForce)
+        let repulseForce: number = particleLife.repulseForce
+        let brushDirectionalForce: number = particleLife.brushDirectionalForce // Force applied in the direction of the brush movement
+
         // Define GPU resources
         let device: GPUDevice
         let currentPositionBuffer: GPUBuffer | undefined
@@ -270,6 +283,7 @@ export default defineComponent({
         let particleNextIndicesBuffer: GPUBuffer | undefined
         let glowOptionsBuffer: GPUBuffer | undefined
         let infiniteRenderOptionsBuffer: GPUBuffer | undefined
+        let brushOptionsBuffer: GPUBuffer | undefined
 
         let binOffsetBuffer: GPUBuffer | undefined
         let binOffsetTempBuffer: GPUBuffer | undefined
@@ -304,6 +318,7 @@ export default defineComponent({
         let bruteForceComputePipeline: GPUComputePipeline
         let particleComputeForcesPipeline: GPUComputePipeline
         let particleAdvancePipeline: GPUComputePipeline
+        let particleAdvanceBrushPipeline: GPUComputePipeline
 
         let particleBufferReadOnlyBindGroup: GPUBindGroup
         let binFillSizeBindGroup: GPUBindGroup
@@ -319,6 +334,7 @@ export default defineComponent({
         let composeHdrBindGroup: GPUBindGroup
         let glowOptionsBindGroup: GPUBindGroup
         let infiniteRenderOptionsBindGroup: GPUBindGroup
+        let brushOptionsBindGroup: GPUBindGroup
 
         let particleBufferBindGroupLayout: GPUBindGroupLayout
         let binPrefixSumBindGroupLayout: GPUBindGroupLayout
@@ -334,6 +350,7 @@ export default defineComponent({
         let composeHdrBindGroupLayout: GPUBindGroupLayout
         let glowOptionsBindGroupLayout: GPUBindGroupLayout
         let infiniteRenderOptionsBindGroupLayout: GPUBindGroupLayout
+        let brushOptionsBindGroupLayout: GPUBindGroupLayout
 
         onMounted(async () => {
             await initWebGPU()
@@ -345,6 +362,9 @@ export default defineComponent({
             useEventListener(canvasRef.value, ['mousedown'], (e) => {
                 lastPointerX = e.x - canvasRef.value!.getBoundingClientRect().left
                 lastPointerY = e.y - canvasRef.value!.getBoundingClientRect().top
+                if (e.buttons === 2 && isBrushActive) { // if secondary button is pressed (right click)
+                    isBrushDrawing = true
+                }
             })
             useEventListener(canvasRef.value, ['mousemove'], (e) => {
                 pointerX = e.x - canvasRef.value!.getBoundingClientRect().left
@@ -356,13 +376,22 @@ export default defineComponent({
                     if (e.buttons === 1) { // if primary button is pressed (left click)
                         handleMove()
                     }
+                    if (e.buttons === 2 && isBrushActive) { // if secondary button is pressed (right click)
+                        isBrushDrawing = true
+                    }
                 }
                 else if (e.buttons === 0) {
                     isDragging = false
+                    isBrushDrawing = false
                 }
             })
-
+            useEventListener(canvasRef.value, ['mouseup'], () => {
+                isDragging = false
+                isBrushDrawing = false
+            })
             useEventListener(canvasRef.value, 'wheel', (e) => {
+                pointerX = e.x - canvasRef.value!.getBoundingClientRect().left
+                pointerY = e.y - canvasRef.value!.getBoundingClientRect().top
                 if (e.deltaY < 0) { // Zoom in
                     handleZoom(1, pointerX, pointerY)
                 } else { // Zoom out
@@ -520,25 +549,8 @@ export default defineComponent({
             await initLife()
         }
         // -------------------------------------------------------------------------------------------------------------
-        const step = () => {
-            const encoder = device.createCommandEncoder()
-
-            encoder.copyBufferToBuffer(particleBuffer!, 0, particleTempBuffer!, 0, particleBuffer!.size)
-
-            if (useSpatialHash) computeBinning(encoder)
-            else computeBruteForce(encoder)
-
-            const advanceComputePass = encoder.beginComputePass()
-            advanceComputePass.setPipeline(particleAdvancePipeline)
-            advanceComputePass.setBindGroup(0, particleBufferBindGroup)
-            advanceComputePass.setBindGroup(1, simOptionsBindGroup)
-            advanceComputePass.setBindGroup(2, deltaTimeBindGroup)
-            advanceComputePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
-            advanceComputePass.end()
-
-            renderParticles(encoder)
-            device.queue.submit([encoder.finish()])
-        }
+        // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
         const frame = () => {
             const startExecutionTime = performance.now()
 
@@ -551,10 +563,10 @@ export default defineComponent({
                 device.queue.submit([encoder.finish()])
             }
             // device.queue.onSubmittedWorkDone().then(() => executionTime.value = performance.now() - startExecutionTime) // Approximate execution time of the GPU commands
+            lastFramePointerX = pointerX
+            lastFramePointerY = pointerY
             animationFrameId = requestAnimationFrame(frame)
         }
-        // -------------------------------------------------------------------------------------------------------------
-        // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         const handleDeltaTime = (startExecutionTime: number) => {
             const deltaTime = Math.min((startExecutionTime - lastFrameTime) / 1000, 0.1) // Cap deltaTime to avoid spikes
@@ -564,9 +576,22 @@ export default defineComponent({
 
             // Only update the delta time buffer if it has changed significantly
             if (Math.round(lastSmoothedDeltaTime * 1000) !== Math.round(smoothedDeltaTime * 1000)) {
-                // console.log(`Delta time changed: ${smoothedDeltaTime.toFixed(3)}`)
                 device.queue.writeBuffer(deltaTimeBuffer!, 0, new Float32Array([smoothedDeltaTime]))
             }
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        const step = () => {
+            const encoder = device.createCommandEncoder()
+
+            encoder.copyBufferToBuffer(particleBuffer!, 0, particleTempBuffer!, 0, particleBuffer!.size)
+
+            if (useSpatialHash) computeBinning(encoder)
+            else computeBruteForce(encoder)
+
+            computeAdvance(encoder)
+
+            renderParticles(encoder)
+            device.queue.submit([encoder.finish()])
         }
         // -------------------------------------------------------------------------------------------------------------
         const computeBruteForce = (encoder: GPUCommandEncoder) => {
@@ -608,6 +633,28 @@ export default defineComponent({
             forcesComputePass.setBindGroup(1, simOptionsBindGroup)
             forcesComputePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
             forcesComputePass.end()
+        }
+        const computeAdvance = (encoder: GPUCommandEncoder) => {
+            if (isBrushDrawing) {
+                updateBrushOptionsBuffer()
+
+                const advanceBrushComputePass = encoder.beginComputePass()
+                advanceBrushComputePass.setPipeline(particleAdvanceBrushPipeline)
+                advanceBrushComputePass.setBindGroup(0, particleBufferBindGroup)
+                advanceBrushComputePass.setBindGroup(1, simOptionsBindGroup)
+                advanceBrushComputePass.setBindGroup(2, deltaTimeBindGroup)
+                advanceBrushComputePass.setBindGroup(3, brushOptionsBindGroup)
+                advanceBrushComputePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
+                advanceBrushComputePass.end()
+            } else {
+                const advanceComputePass = encoder.beginComputePass()
+                advanceComputePass.setPipeline(particleAdvancePipeline)
+                advanceComputePass.setBindGroup(0, particleBufferBindGroup)
+                advanceComputePass.setBindGroup(1, simOptionsBindGroup)
+                advanceComputePass.setBindGroup(2, deltaTimeBindGroup)
+                advanceComputePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
+                advanceComputePass.end()
+            }
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -761,6 +808,7 @@ export default defineComponent({
             updateBinningBuffers()
             updateColorBuffer()
             updateGlowOptionsBuffer()
+            updateBrushOptionsBuffer()
             // ----------------------------------------------------------------------------------------------
             const cameraData = new Float32Array([cameraCenter.x, cameraCenter.y, cameraScaleX, cameraScaleY])
             cameraBuffer = device.createBuffer({
@@ -844,6 +892,36 @@ export default defineComponent({
             binPrefixSumStepSizeBuffer.unmap()
         }
         // -------------------------------------------------------------------------------------------------------------
+        const updateBrushOptionsBuffer = () => {
+            const brushX = cameraCenter.x + (pointerX / CANVAS_WIDTH * 2 - 1) / cameraScaleX
+            const brushY = cameraCenter.y + (pointerY / CANVAS_HEIGHT * 2 - 1) / cameraScaleY
+            const brushVx = (pointerX - lastFramePointerX) / (cameraScaleX * CANVAS_WIDTH * 0.5) / smoothedDeltaTime
+            const brushVy = (pointerY - lastFramePointerY) / (cameraScaleY * CANVAS_HEIGHT * 0.5) / smoothedDeltaTime
+
+            const brushForce = brushType === 2 ? repulseForce : attractForce
+
+            const brushOptionsData = new ArrayBuffer(28)
+            const brushOptionsView = new DataView(brushOptionsData)
+            brushOptionsView.setFloat32(0, brushX, true)
+            brushOptionsView.setFloat32(4, brushY, true)
+            brushOptionsView.setFloat32(8, brushVx, true)
+            brushOptionsView.setFloat32(12, brushVy, true)
+            brushOptionsView.setFloat32(16, brushRadius, true)
+            brushOptionsView.setFloat32(20, brushForce, true)
+            brushOptionsView.setFloat32(24, brushDirectionalForce, true)
+
+            if (!brushOptionsBuffer) {
+                brushOptionsBuffer = device.createBuffer({
+                    size: brushOptionsData.byteLength,
+                    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+                    mappedAtCreation: true,
+                })
+                new Uint8Array(brushOptionsBuffer.getMappedRange()).set(new Uint8Array(brushOptionsData))
+                brushOptionsBuffer.unmap()
+            } else {
+                device.queue.writeBuffer(brushOptionsBuffer, 0, brushOptionsData)
+            }
+        }
         const updateInfiniteRenderOptions = () => {
             if (!isInfiniteMirrorWrap) return
 
@@ -991,6 +1069,12 @@ export default defineComponent({
                 entries: [
                     { binding: 0, resource: { buffer: glowOptionsBuffer! } },
                     { binding: 1, resource: { buffer: infiniteRenderOptionsBuffer! } },
+                ],
+            })
+            brushOptionsBindGroup = device.createBindGroup({
+                layout: brushOptionsBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: brushOptionsBuffer! } },
                 ],
             })
         }
@@ -1173,6 +1257,11 @@ export default defineComponent({
                     { binding: 1, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } }, // infiniteRenderOptionsBuffer
                 ],
             })
+            brushOptionsBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }, // brushOptionsBuffer
+                ],
+            })
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -1262,6 +1351,18 @@ export default defineComponent({
                     ],
                 }),
                 compute: { module: particleAdvanceShader, entryPoint: 'particleAdvance' }
+            })
+            const particleAdvanceBrushShader = device.createShaderModule({ code: particleAdvanceBrushShaderCode })
+            particleAdvanceBrushPipeline = device.createComputePipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [
+                        particleBufferBindGroupLayout,
+                        simOptionsBindGroupLayout,
+                        deltaTimeBindGroupLayout,
+                        brushOptionsBindGroupLayout
+                    ],
+                }),
+                compute: { module: particleAdvanceBrushShader, entryPoint: 'particleAdvance' }
             })
         }
         const createRenderPipelines = () => {
@@ -1964,6 +2065,13 @@ export default defineComponent({
         watch(() => particleLife.isRunning, (value: boolean) => isRunning = value)
         watch(() => particleLife.useSpatialHash, (value: boolean) => useSpatialHash = value)
         watch(() => particleLife.isParticleGlow, (value: boolean) => isParticleGlow = value)
+        watch(() => particleLife.isBrushActive, (value: boolean) => isBrushActive = value)
+        watch(() => particleLife.brushType, (value: number) => brushType = value)
+        watch(() => particleLife.brushRadius, (value: number) => brushRadius = value)
+        watch(() => particleLife.repulseForce, (value: number) => repulseForce = value)
+        watch(() => particleLife.attractForce, (value: number) => attractForce = -value)
+        watch(() => particleLife.brushDirectionalForce, (value: number) => brushDirectionalForce = value)
+
         watchAndUpdateGlowOptions(() => particleLife.glowSize, (value: number) => glowSize = value)
         watchAndUpdateGlowOptions(() => particleLife.glowIntensity, (value: number) => glowIntensity = value)
         watchAndUpdateGlowOptions(() => particleLife.glowSteepness, (value: number) => glowSteepness = value)

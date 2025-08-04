@@ -42,11 +42,12 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
 
     const isBrushActive = ref<boolean>(false) // Is the brush active
     const brushes = ref<number[]>([]) // Brush particles
-    const brushRadius = ref<number>(300) // Brush radius
+    const brushRadius = ref<number>(220) // Brush radius
     const brushIntensity = ref<number>(10) // Brush intensity (number of particles)
     const brushType = ref<number>(1) // Brush type (0: Add, 1: Remove)
-    const attractForce = ref<number>(10) // Attract force for the brush
-    const repulseForce = ref<number>(10) // Repulse force for the brush
+    const attractForce = ref<number>(35) // Attract force for the brush
+    const repulseForce = ref<number>(30) // Repulse force for the brush
+    const brushDirectionalForce = ref<number>(40) // Directional force for the brush
 
     const glowSize = ref<number>(12.0) // Size of the glow effect
     const glowIntensity = ref<number>(0.005) // Intensity of the glow effect
@@ -67,7 +68,7 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
         is3D, isParticleGlow, isWallRepel, isWallWrap, isMirrorWrap, isInfiniteMirrorWrap, mirrorWrapCount, screenMultiplierForGridSize,
         minRadiusRange, maxRadiusRange, currentMaxRadius,
         repel, forceFactor, frictionFactor, useSpatialHash,
-        isBrushActive, brushes, brushRadius, brushIntensity, brushType, attractForce, repulseForce,
+        isBrushActive, brushes, brushRadius, brushIntensity, brushType, attractForce, repulseForce, brushDirectionalForce,
         glowSize, glowIntensity, glowSteepness, particleOpacity,
         $reset
     }
