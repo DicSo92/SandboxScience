@@ -20,6 +20,7 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
 
     const is3D = ref<boolean>(false) // Enable 3D Algorithm
     const isParticleGlow = ref<boolean>(true) // Enable particle glow
+    const isAdditiveBlending = ref<boolean>(true) // Enable additive blending for the particles
     const isWallRepel = ref<boolean>(false) // Enable walls X and Y for the particles
     const isWallWrap = ref<boolean>(false) // Enable wrapped particles
     const isMirrorWrap = ref<boolean>(false) // Enable mirrors for the particles (only works if isWallWrap is true)
@@ -50,7 +51,7 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
     const brushDirectionalForce = ref<number>(40) // Directional force for the brush
 
     const glowSize = ref<number>(12.0) // Size of the glow effect
-    const glowIntensity = ref<number>(0.005) // Intensity of the glow effect
+    const glowIntensity = ref<number>(0.1) // Intensity of the glow effect
     const glowSteepness = ref<number>(3.0) // Steepness of the glow effect
     const particleOpacity = ref<number>(0.85) // Opacity of the particles
 
@@ -65,7 +66,7 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
         rulesMatrix, minRadiusMatrix, maxRadiusMatrix, currentColors,
         simWidth, simHeight, linkProportions,
         numParticles, particleSize, numColors,
-        is3D, isParticleGlow, isWallRepel, isWallWrap, isMirrorWrap, isInfiniteMirrorWrap, mirrorWrapCount, screenMultiplierForGridSize,
+        is3D, isParticleGlow, isAdditiveBlending, isWallRepel, isWallWrap, isMirrorWrap, isInfiniteMirrorWrap, mirrorWrapCount, screenMultiplierForGridSize,
         minRadiusRange, maxRadiusRange, currentMaxRadius,
         repel, forceFactor, frictionFactor, useSpatialHash,
         isBrushActive, brushes, brushRadius, brushIntensity, brushType, attractForce, repulseForce, brushDirectionalForce,

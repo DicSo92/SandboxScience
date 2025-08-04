@@ -88,13 +88,14 @@
                                         :min="0.1" :max="6" :step="0.1" v-model="particleLife.particleSize" mt-2>
                             </RangeInput>
                             <ToggleSwitch label="Particle Glowing" colorful-label v-model="particleLife.isParticleGlow" />
+                            <ToggleSwitch label="Additive Blending" colorful-label v-model="particleLife.isAdditiveBlending" />
                             <RangeInput input label="Glow Size"
                                         tooltip="Adjust the size of the glow effect around particles."
                                         :min="0" :max="32" :step="0.1" v-model="particleLife.glowSize" mt-2>
                             </RangeInput>
                             <RangeInput input label="Glow Intensity"
                                         tooltip="Adjust the intensity of the glow effect around particles."
-                                        :min="0" :max="0.01" :step="0.0001" v-model="particleLife.glowIntensity" mt-2>
+                                        :min="0" :max="0.5" :step="0.005" v-model="particleLife.glowIntensity" mt-2>
                             </RangeInput>
                             <RangeInput input label="Glow Steepness"
                                         tooltip="Adjust the steepness of the glow effect around particles. <br> Higher values create a sharper transition between glowing and non-glowing areas."
@@ -244,6 +245,7 @@ export default defineComponent({
         let PARTICLE_SIZE: number = particleLife.particleSize
         let NUM_TYPES: number = particleLife.numColors
         let isParticleGlow: boolean = particleLife.isParticleGlow // Enable glow effect for the particles
+        let isAdditiveBlending = particleLife.isAdditiveBlending // Use additive blending for rendering particles
         let isWallRepel: boolean = particleLife.isWallRepel // Enable walls X and Y for the particles
         let isWallWrap: boolean = particleLife.isWallWrap // Enable wrapping for the particles
         let isMirrorWrap: boolean = particleLife.isMirrorWrap // Enable mirroring for the particles (only if isWallWrap is true)
@@ -309,6 +311,13 @@ export default defineComponent({
         let renderOffscreenPipeline: GPURenderPipeline
         let composeInfinitePipeline: GPURenderPipeline
         let composeHdrPipeline: GPURenderPipeline
+
+        let renderPipelineAdditive: GPURenderPipeline
+        let renderMirrorPipelineAdditive: GPURenderPipeline
+        let renderInfinitePipelineAdditive: GPURenderPipeline
+        let renderCirclePipelineAdditive: GPURenderPipeline
+        let renderMirrorCirclePipelineAdditive: GPURenderPipeline
+        let renderInfiniteCirclePipelineAdditive: GPURenderPipeline
 
         let binClearSizePipeline: GPUComputePipeline
         let binFillSizePipeline: GPUComputePipeline
@@ -551,7 +560,15 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
+        let pendingFrames: number = 0
         const frame = () => {
+            // Wait for the GPU to finish processing before starting a new frame (to avoid overloading the GPU)
+            // Produces flickering if the GPU is not fast enough
+            // if (pendingFrames > 3) {
+            //     animationFrameId = requestAnimationFrame(frame)
+            //     return
+            // }
+
             const startExecutionTime = performance.now()
 
             if (isRunning) {
@@ -565,6 +582,11 @@ export default defineComponent({
             // device.queue.onSubmittedWorkDone().then(() => executionTime.value = performance.now() - startExecutionTime) // Approximate execution time of the GPU commands
             lastFramePointerX = pointerX
             lastFramePointerY = pointerY
+
+            // // Wait for the GPU to finish processing before starting a new frame
+            // ++pendingFrames
+            // device.queue.onSubmittedWorkDone().then(() => { --pendingFrames })
+
             animationFrameId = requestAnimationFrame(frame)
         }
         // -------------------------------------------------------------------------------------------------------------
@@ -684,21 +706,21 @@ export default defineComponent({
                     hdrRenderPass.setBindGroup(3, glowOptionsBindGroup)
                     hdrRenderPass.setPipeline(renderMirrorGlowPipeline)
                     hdrRenderPass.draw(4, NUM_PARTICLES * mirrorWrapCount)
-                    hdrRenderPass.setPipeline(renderMirrorCirclePipeline)
+                    hdrRenderPass.setPipeline(isAdditiveBlending ? renderMirrorCirclePipelineAdditive : renderMirrorCirclePipeline)
                     hdrRenderPass.draw(4, NUM_PARTICLES * mirrorWrapCount)
                     hdrRenderPass.end()
                 } else if (isInfiniteMirrorWrap) {
                     hdrRenderPass.setBindGroup(3, infiniteRenderOptionsBindGroup)
                     hdrRenderPass.setPipeline(renderInfiniteGlowPipeline)
                     hdrRenderPass.draw(4, infiniteTotalInstances)
-                    hdrRenderPass.setPipeline(renderInfiniteCirclePipeline)
+                    hdrRenderPass.setPipeline(isAdditiveBlending ? renderInfiniteCirclePipelineAdditive : renderInfiniteCirclePipeline)
                     hdrRenderPass.draw(4, infiniteTotalInstances)
                     hdrRenderPass.end()
                 } else {
                     hdrRenderPass.setBindGroup(3, glowOptionsBindGroup)
                     hdrRenderPass.setPipeline(renderGlowPipeline)
                     hdrRenderPass.draw(4, NUM_PARTICLES)
-                    hdrRenderPass.setPipeline(renderCirclePipeline)
+                    hdrRenderPass.setPipeline(isAdditiveBlending ? renderCirclePipelineAdditive : renderCirclePipeline)
                     hdrRenderPass.draw(4, NUM_PARTICLES)
                     hdrRenderPass.end()
                 }
@@ -723,7 +745,7 @@ export default defineComponent({
                         clearValue: { r: 0, g: 0, b: 0, a: 1 }
                     }]
                 })
-                renderPass.setPipeline(renderMirrorPipeline)
+                renderPass.setPipeline(isAdditiveBlending ? renderMirrorPipelineAdditive : renderMirrorPipeline)
                 renderPass.setBindGroup(0, particleBufferReadOnlyBindGroup)
                 renderPass.setBindGroup(1, simOptionsBindGroup)
                 renderPass.setBindGroup(2, cameraBindGroup)
@@ -742,7 +764,7 @@ export default defineComponent({
                         storeOp: 'store'
                     }]
                 })
-                renderPass.setPipeline(renderInfinitePipeline)
+                renderPass.setPipeline(isAdditiveBlending ? renderInfinitePipelineAdditive : renderInfinitePipeline)
                 renderPass.setBindGroup(0, particleBufferReadOnlyBindGroup)
                 renderPass.setBindGroup(1, simOptionsBindGroup)
                 renderPass.setBindGroup(2, cameraBindGroup)
@@ -759,7 +781,7 @@ export default defineComponent({
                         storeOp: 'store',
                     }],
                 })
-                renderPass.setPipeline(renderPipeline)
+                renderPass.setPipeline(isAdditiveBlending ? renderPipelineAdditive : renderPipeline)
                 renderPass.setBindGroup(0, particleBufferReadOnlyBindGroup)
                 renderPass.setBindGroup(1, simOptionsBindGroup)
                 renderPass.setBindGroup(2, cameraBindGroup)
@@ -1365,6 +1387,14 @@ export default defineComponent({
                 compute: { module: particleAdvanceBrushShader, entryPoint: 'particleAdvance' }
             })
         }
+        const particleNormalBlending: GPUBlendState = {
+            color: { operation: 'add', srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha' },
+            alpha: { operation: 'add', srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
+        }
+        const particleAdditiveBlending: GPUBlendState = {
+            color: { operation: 'add', srcFactor: 'src-alpha', dstFactor: 'one' },
+            alpha: { operation: 'add', srcFactor: 'one', dstFactor: 'one' },
+        }
         const createRenderPipelines = () => {
             const renderShader = device.createShaderModule({ code: renderShaderCode })
             renderPipeline = device.createRenderPipeline({
@@ -1385,15 +1415,23 @@ export default defineComponent({
                     entryPoint: 'fragmentMain',
                     targets: [{
                         format: navigator.gpu.getPreferredCanvasFormat(),
-                        blend: {
-                            color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha', operation: 'add' },
-                            alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' }
-                        }
+                        blend: particleNormalBlending
                     }]
                 },
                 primitive: {
                     topology: 'triangle-strip'
                 }
+            })
+            renderPipelineAdditive = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout,],
+                }),
+                vertex: { module: renderShader, entryPoint: 'vertexMain', buffers: []},
+                fragment: { module: renderShader, entryPoint: 'fragmentMain', targets: [{
+                    format: navigator.gpu.getPreferredCanvasFormat(),
+                    blend: particleAdditiveBlending
+                }] },
+                primitive: { topology: 'triangle-strip' }
             })
             // ---------------------------------------------------------------------------------------------------------
             const renderMirrorShader = device.createShaderModule({ code: renderMirrorShaderCode });
@@ -1416,16 +1454,24 @@ export default defineComponent({
                     entryPoint: 'mirrorFragment',
                     targets: [{
                         format: navigator.gpu.getPreferredCanvasFormat(),
-                        blend: {
-                            color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha', operation: 'add' },
-                            alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' }
-                        }
+                        blend: particleNormalBlending
                     }]
                 },
                 primitive: {
                     topology: 'triangle-strip'
                 }
             });
+            renderMirrorPipelineAdditive = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, glowOptionsBindGroupLayout],
+                }),
+                vertex: { module: renderMirrorShader, entryPoint: 'mirrorVertex', buffers: [] },
+                fragment: { module: renderMirrorShader, entryPoint: 'mirrorFragment', targets: [{
+                    format: navigator.gpu.getPreferredCanvasFormat(),
+                    blend: particleAdditiveBlending
+                }] },
+                primitive: { topology: 'triangle-strip' }
+            })
             // ---------------------------------------------------------------------------------------------------------
             const renderInfiniteShader = device.createShaderModule({ code: renderInfiniteShaderCode });
             renderInfinitePipeline = device.createRenderPipeline({
@@ -1446,17 +1492,28 @@ export default defineComponent({
                     entryPoint: 'infiniteFragment',
                     targets: [{
                         format: navigator.gpu.getPreferredCanvasFormat(),
-                        blend: {
-                            color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha', operation: 'add' },
-                            alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' }
-                        }
+                        blend: particleNormalBlending
                     }]
                 },
                 primitive: {
                     topology: 'triangle-strip',
                     stripIndexFormat: 'uint32'
                 }
-            });
+            })
+            renderInfinitePipelineAdditive = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, infiniteRenderOptionsBindGroupLayout,]
+                }),
+                vertex: { module: renderInfiniteShader, entryPoint: 'infiniteVertex' },
+                fragment: { module: renderInfiniteShader, entryPoint: 'infiniteFragment', targets: [{
+                    format: navigator.gpu.getPreferredCanvasFormat(),
+                    blend: particleAdditiveBlending
+                }] },
+                primitive: {
+                    topology: 'triangle-strip',
+                    stripIndexFormat: 'uint32'
+                }
+            })
             // ---------------------------------------------------------------------------------------------------------
             const offscreenVertexShader = device.createShaderModule({ code: offscreenShaderCode })
             renderOffscreenPipeline = device.createRenderPipeline({
@@ -1506,7 +1563,12 @@ export default defineComponent({
             })
         }
         const createHdrGlowPipelines = () => {
-            const renderGlowShader = device.createShaderModule({ code: renderGlowShaderCode });
+            const glowBlendOptions: GPUBlendState = {
+                color: { operation: 'add', srcFactor: 'src-alpha', dstFactor: 'one' },
+                alpha: { operation: 'add', srcFactor: 'one', dstFactor: 'one' },
+            }
+
+            const renderGlowShader = device.createShaderModule({ code: renderGlowShaderCode })
             renderGlowPipeline = device.createRenderPipeline({
                 layout: device.createPipelineLayout({
                     bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, glowOptionsBindGroupLayout]
@@ -1520,10 +1582,7 @@ export default defineComponent({
                     entryPoint: 'fragmentGlow',
                     targets: [{
                         format: 'rgba16float',
-                        blend: {
-                            color: { operation: 'add', srcFactor: 'one', dstFactor: 'one' },
-                            alpha: { operation: 'add', srcFactor: 'one', dstFactor: 'one' },
-                        },
+                        blend: glowBlendOptions,
                     }],
                 },
                 primitive: {
@@ -1543,15 +1602,23 @@ export default defineComponent({
                     entryPoint: 'fragmentCircle',
                     targets: [{
                         format: 'rgba16float',
-                        blend: {
-                            color: { operation: 'add', srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha' },
-                            alpha: { operation: 'add', srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
-                        },
+                        blend: particleNormalBlending,
                     }],
                 },
                 primitive: {
                     topology: 'triangle-strip',
                 },
+            })
+            renderCirclePipelineAdditive = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, glowOptionsBindGroupLayout]
+                }),
+                vertex: { module: renderGlowShader, entryPoint: 'vertexCircle' },
+                fragment: { module: renderGlowShader, entryPoint: 'fragmentCircle', targets: [{
+                    format: 'rgba16float',
+                    blend: particleAdditiveBlending,
+                }] },
+                primitive: { topology: 'triangle-strip' },
             })
             // ---------------------------------------------------------------------------------------------------------
             const renderMirrorShader = device.createShaderModule({ code: renderMirrorShaderCode });
@@ -1568,10 +1635,7 @@ export default defineComponent({
                     entryPoint: 'mirrorFragmentGlow',
                     targets: [{
                         format: 'rgba16float',
-                        blend: {
-                            color: { operation: 'add', srcFactor: 'one', dstFactor: 'one' },
-                            alpha: { operation: 'add', srcFactor: 'one', dstFactor: 'one' },
-                        },
+                        blend: glowBlendOptions,
                     }],
                 },
                 primitive: {
@@ -1591,15 +1655,23 @@ export default defineComponent({
                     entryPoint: 'mirrorFragmentCircle',
                     targets: [{
                         format: 'rgba16float',
-                        blend: {
-                            color: { operation: 'add', srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha' },
-                            alpha: { operation: 'add', srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
-                        },
+                        blend: particleNormalBlending,
                     }],
                 },
                 primitive: {
                     topology: 'triangle-strip',
                 },
+            })
+            renderMirrorCirclePipelineAdditive = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, glowOptionsBindGroupLayout]
+                }),
+                vertex: { module: renderMirrorShader, entryPoint: 'mirrorVertexCircle' },
+                fragment: { module: renderMirrorShader, entryPoint: 'mirrorFragmentCircle', targets: [{
+                    format: 'rgba16float',
+                    blend: particleAdditiveBlending,
+                }] },
+                primitive: { topology: 'triangle-strip' },
             })
             // ---------------------------------------------------------------------------------------------------------
             const renderInfiniteShader = device.createShaderModule({ code: renderInfiniteShaderCode });
@@ -1616,10 +1688,7 @@ export default defineComponent({
                     entryPoint: 'infiniteFragmentGlow',
                     targets: [{
                         format: 'rgba16float',
-                        blend: {
-                            color: { operation: 'add', srcFactor: 'one', dstFactor: 'one' },
-                            alpha: { operation: 'add', srcFactor: 'one', dstFactor: 'one' },
-                        },
+                        blend: glowBlendOptions,
                     }],
                 },
                 primitive: {
@@ -1639,15 +1708,23 @@ export default defineComponent({
                     entryPoint: 'infiniteFragmentCircle',
                     targets: [{
                         format: 'rgba16float',
-                        blend: {
-                            color: { operation: 'add', srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha' },
-                            alpha: { operation: 'add', srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
-                        },
+                        blend: particleNormalBlending,
                     }],
                 },
                 primitive: {
                     topology: 'triangle-strip',
                 },
+            })
+            renderInfiniteCirclePipelineAdditive = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, infiniteRenderOptionsBindGroupLayout]
+                }),
+                vertex: { module: renderInfiniteShader, entryPoint: 'infiniteVertexCircle' },
+                fragment: { module: renderInfiniteShader, entryPoint: 'infiniteFragmentCircle', targets: [{
+                    format: 'rgba16float',
+                    blend: particleAdditiveBlending,
+                }] },
+                primitive: { topology: 'triangle-strip' },
             })
             // ---------------------------------------------------------------------------------------------------------
             const composeShader = device.createShaderModule({ code: composeHdrShaderCode });
@@ -2065,6 +2142,7 @@ export default defineComponent({
         watch(() => particleLife.isRunning, (value: boolean) => isRunning = value)
         watch(() => particleLife.useSpatialHash, (value: boolean) => useSpatialHash = value)
         watch(() => particleLife.isParticleGlow, (value: boolean) => isParticleGlow = value)
+        watch(() => particleLife.isAdditiveBlending, (value: boolean) => isAdditiveBlending = value)
         watch(() => particleLife.isBrushActive, (value: boolean) => isBrushActive = value)
         watch(() => particleLife.brushType, (value: number) => brushType = value)
         watch(() => particleLife.brushRadius, (value: number) => brushRadius = value)
@@ -2180,6 +2258,13 @@ export default defineComponent({
             renderMirrorGlowPipeline = undefined as any;
             renderMirrorCirclePipeline = undefined as any;
             composeHdrPipeline = undefined as any;
+
+            renderPipelineAdditive = undefined as any;
+            renderMirrorPipelineAdditive = undefined as any;
+            renderInfinitePipelineAdditive = undefined as any;
+            renderCirclePipelineAdditive = undefined as any;
+            renderMirrorCirclePipelineAdditive = undefined as any;
+            renderInfiniteCirclePipelineAdditive = undefined as any;
 
             binClearSizePipeline = undefined as any;
             binFillSizePipeline = undefined as any;
