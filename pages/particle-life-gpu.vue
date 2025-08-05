@@ -1399,34 +1399,20 @@ export default defineComponent({
             const renderShader = device.createShaderModule({ code: renderShaderCode })
             renderPipeline = device.createRenderPipeline({
                 layout: device.createPipelineLayout({
-                    bindGroupLayouts: [
-                        particleBufferReadOnlyBindGroupLayout,
-                        simOptionsBindGroupLayout,
-                        cameraBindGroupLayout,
-                    ],
+                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout],
                 }),
-                vertex: {
-                    module: renderShader,
-                    entryPoint: 'vertexMain',
-                    buffers: []
-                },
-                fragment: {
-                    module: renderShader,
-                    entryPoint: 'fragmentMain',
-                    targets: [{
-                        format: navigator.gpu.getPreferredCanvasFormat(),
-                        blend: particleNormalBlending
-                    }]
-                },
-                primitive: {
-                    topology: 'triangle-strip'
-                }
+                vertex: { module: renderShader, entryPoint: 'vertexMain' },
+                fragment: { module: renderShader, entryPoint: 'fragmentMain', targets: [{
+                    format: navigator.gpu.getPreferredCanvasFormat(),
+                    blend: particleNormalBlending
+                }] },
+                primitive: { topology: 'triangle-strip' }
             })
             renderPipelineAdditive = device.createRenderPipeline({
                 layout: device.createPipelineLayout({
                     bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout,],
                 }),
-                vertex: { module: renderShader, entryPoint: 'vertexMain', buffers: []},
+                vertex: { module: renderShader, entryPoint: 'vertexMain'},
                 fragment: { module: renderShader, entryPoint: 'fragmentMain', targets: [{
                     format: navigator.gpu.getPreferredCanvasFormat(),
                     blend: particleAdditiveBlending
@@ -1437,35 +1423,20 @@ export default defineComponent({
             const renderMirrorShader = device.createShaderModule({ code: renderMirrorShaderCode });
             renderMirrorPipeline = device.createRenderPipeline({
                 layout: device.createPipelineLayout({
-                    bindGroupLayouts: [
-                        particleBufferReadOnlyBindGroupLayout,
-                        simOptionsBindGroupLayout,
-                        cameraBindGroupLayout,
-                        glowOptionsBindGroupLayout
-                    ],
+                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, glowOptionsBindGroupLayout],
                 }),
-                vertex: {
-                    module: renderMirrorShader,
-                    entryPoint: 'mirrorVertex',
-                    buffers: []
-                },
-                fragment: {
-                    module: renderMirrorShader,
-                    entryPoint: 'mirrorFragment',
-                    targets: [{
-                        format: navigator.gpu.getPreferredCanvasFormat(),
-                        blend: particleNormalBlending
-                    }]
-                },
-                primitive: {
-                    topology: 'triangle-strip'
-                }
-            });
+                vertex: { module: renderMirrorShader, entryPoint: 'mirrorVertex' },
+                fragment: { module: renderMirrorShader, entryPoint: 'mirrorFragment', targets: [{
+                    format: navigator.gpu.getPreferredCanvasFormat(),
+                    blend: particleNormalBlending
+                }] },
+                primitive: { topology: 'triangle-strip' }
+            })
             renderMirrorPipelineAdditive = device.createRenderPipeline({
                 layout: device.createPipelineLayout({
                     bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, glowOptionsBindGroupLayout],
                 }),
-                vertex: { module: renderMirrorShader, entryPoint: 'mirrorVertex', buffers: [] },
+                vertex: { module: renderMirrorShader, entryPoint: 'mirrorVertex' },
                 fragment: { module: renderMirrorShader, entryPoint: 'mirrorFragment', targets: [{
                     format: navigator.gpu.getPreferredCanvasFormat(),
                     blend: particleAdditiveBlending
@@ -1476,29 +1447,14 @@ export default defineComponent({
             const renderInfiniteShader = device.createShaderModule({ code: renderInfiniteShaderCode });
             renderInfinitePipeline = device.createRenderPipeline({
                 layout: device.createPipelineLayout({
-                    bindGroupLayouts: [
-                        particleBufferReadOnlyBindGroupLayout,
-                        simOptionsBindGroupLayout,
-                        cameraBindGroupLayout,
-                        infiniteRenderOptionsBindGroupLayout,
-                    ]
+                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, infiniteRenderOptionsBindGroupLayout]
                 }),
-                vertex: {
-                    module: renderInfiniteShader,
-                    entryPoint: 'infiniteVertex',
-                },
-                fragment: {
-                    module: renderInfiniteShader,
-                    entryPoint: 'infiniteFragment',
-                    targets: [{
-                        format: navigator.gpu.getPreferredCanvasFormat(),
-                        blend: particleNormalBlending
-                    }]
-                },
-                primitive: {
-                    topology: 'triangle-strip',
-                    stripIndexFormat: 'uint32'
-                }
+                vertex: { module: renderInfiniteShader, entryPoint: 'infiniteVertex' },
+                fragment: { module: renderInfiniteShader, entryPoint: 'infiniteFragment', targets: [{
+                    format: navigator.gpu.getPreferredCanvasFormat(),
+                    blend: particleNormalBlending
+                }] },
+                primitive: { topology: 'triangle-strip', stripIndexFormat: 'uint32' }
             })
             renderInfinitePipelineAdditive = device.createRenderPipeline({
                 layout: device.createPipelineLayout({
@@ -1509,57 +1465,31 @@ export default defineComponent({
                     format: navigator.gpu.getPreferredCanvasFormat(),
                     blend: particleAdditiveBlending
                 }] },
-                primitive: {
-                    topology: 'triangle-strip',
-                    stripIndexFormat: 'uint32'
-                }
+                primitive: { topology: 'triangle-strip', stripIndexFormat: 'uint32' }
             })
             // ---------------------------------------------------------------------------------------------------------
             const offscreenVertexShader = device.createShaderModule({ code: offscreenShaderCode })
             renderOffscreenPipeline = device.createRenderPipeline({
                 layout: device.createPipelineLayout({
-                    bindGroupLayouts: [
-                        particleBufferReadOnlyBindGroupLayout,
-                        simOptionsBindGroupLayout,
-                    ],
+                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout,],
                 }),
-                vertex: {
-                    module: offscreenVertexShader,
-                    entryPoint: 'vertexMain',
-                    buffers: []
-                },
-                fragment: {
-                    module: renderShader,
-                    entryPoint: 'fragmentMain',
+                vertex: { module: offscreenVertexShader, entryPoint: 'vertexMain' },
+                fragment: { module: renderShader, entryPoint: 'fragmentMain',
                     targets: [{ format: 'rgba8unorm' }]
                 },
-                primitive: {
-                    topology: 'triangle-strip'
-                }
+                primitive: { topology: 'triangle-strip' }
             })
             // ---------------------------------------------------------------------------------------------------------
             const infiniteCompositorShader = device.createShaderModule({ code: infiniteCompositorShaderCode })
             composeInfinitePipeline = device.createRenderPipeline({
                 layout: device.createPipelineLayout({
-                    bindGroupLayouts: [
-                        cameraBindGroupLayout,
-                        simOptionsBindGroupLayout,
-                        offscreenTextureBindGroupLayout
-                    ],
+                    bindGroupLayouts: [cameraBindGroupLayout, simOptionsBindGroupLayout, offscreenTextureBindGroupLayout],
                 }),
-                vertex: {
-                    module: infiniteCompositorShader,
-                    entryPoint: 'vertexInfinite',
-                    buffers: []
-                },
-                fragment: {
-                    module: infiniteCompositorShader,
-                    entryPoint: 'fragmentInfinite',
+                vertex: { module: infiniteCompositorShader, entryPoint: 'vertexInfinite' },
+                fragment: { module: infiniteCompositorShader, entryPoint: 'fragmentInfinite',
                     targets: [{ format: navigator.gpu.getPreferredCanvasFormat() }]
                 },
-                primitive: {
-                    topology: 'triangle-list'
-                }
+                primitive: { topology: 'triangle-list' }
             })
         }
         const createHdrGlowPipelines = () => {
@@ -1567,47 +1497,29 @@ export default defineComponent({
                 color: { operation: 'add', srcFactor: 'src-alpha', dstFactor: 'one' },
                 alpha: { operation: 'add', srcFactor: 'one', dstFactor: 'one' },
             }
-
+            // ---------------------------------------------------------------------------------------------------------
             const renderGlowShader = device.createShaderModule({ code: renderGlowShaderCode })
             renderGlowPipeline = device.createRenderPipeline({
                 layout: device.createPipelineLayout({
                     bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, glowOptionsBindGroupLayout]
                 }),
-                vertex: {
-                    module: renderGlowShader,
-                    entryPoint: 'vertexGlow',
-                },
-                fragment: {
-                    module: renderGlowShader,
-                    entryPoint: 'fragmentGlow',
-                    targets: [{
-                        format: 'rgba16float',
-                        blend: glowBlendOptions,
-                    }],
-                },
-                primitive: {
-                    topology: 'triangle-strip',
-                },
+                vertex: { module: renderGlowShader, entryPoint: 'vertexGlow' },
+                fragment: { module: renderGlowShader, entryPoint: 'fragmentGlow', targets: [{
+                    format: 'rgba16float',
+                    blend: glowBlendOptions,
+                }] },
+                primitive: { topology: 'triangle-strip' },
             })
             renderCirclePipeline = device.createRenderPipeline({
                 layout: device.createPipelineLayout({
                     bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, glowOptionsBindGroupLayout]
                 }),
-                vertex: {
-                    module: renderGlowShader,
-                    entryPoint: 'vertexCircle',
-                },
-                fragment: {
-                    module: renderGlowShader,
-                    entryPoint: 'fragmentCircle',
-                    targets: [{
-                        format: 'rgba16float',
-                        blend: particleNormalBlending,
-                    }],
-                },
-                primitive: {
-                    topology: 'triangle-strip',
-                },
+                vertex: { module: renderGlowShader, entryPoint: 'vertexCircle' },
+                fragment: { module: renderGlowShader, entryPoint: 'fragmentCircle', targets: [{
+                    format: 'rgba16float',
+                    blend: particleNormalBlending,
+                }] },
+                primitive: { topology: 'triangle-strip' },
             })
             renderCirclePipelineAdditive = device.createRenderPipeline({
                 layout: device.createPipelineLayout({
@@ -1626,41 +1538,23 @@ export default defineComponent({
                 layout: device.createPipelineLayout({
                     bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, glowOptionsBindGroupLayout]
                 }),
-                vertex: {
-                    module: renderMirrorShader,
-                    entryPoint: 'mirrorVertexGlow',
-                },
-                fragment: {
-                    module: renderMirrorShader,
-                    entryPoint: 'mirrorFragmentGlow',
-                    targets: [{
-                        format: 'rgba16float',
-                        blend: glowBlendOptions,
-                    }],
-                },
-                primitive: {
-                    topology: 'triangle-strip',
-                },
+                vertex: { module: renderMirrorShader, entryPoint: 'mirrorVertexGlow' },
+                fragment: { module: renderMirrorShader, entryPoint: 'mirrorFragmentGlow', targets: [{
+                    format: 'rgba16float',
+                    blend: glowBlendOptions,
+                }] },
+                primitive: { topology: 'triangle-strip' },
             })
             renderMirrorCirclePipeline = device.createRenderPipeline({
                 layout: device.createPipelineLayout({
                     bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, glowOptionsBindGroupLayout]
                 }),
-                vertex: {
-                    module: renderMirrorShader,
-                    entryPoint: 'mirrorVertexCircle',
-                },
-                fragment: {
-                    module: renderMirrorShader,
-                    entryPoint: 'mirrorFragmentCircle',
-                    targets: [{
-                        format: 'rgba16float',
-                        blend: particleNormalBlending,
-                    }],
-                },
-                primitive: {
-                    topology: 'triangle-strip',
-                },
+                vertex: { module: renderMirrorShader, entryPoint: 'mirrorVertexCircle' },
+                fragment: { module: renderMirrorShader, entryPoint: 'mirrorFragmentCircle', targets: [{
+                    format: 'rgba16float',
+                    blend: particleNormalBlending,
+                }] },
+                primitive: { topology: 'triangle-strip' },
             })
             renderMirrorCirclePipelineAdditive = device.createRenderPipeline({
                 layout: device.createPipelineLayout({
@@ -1679,41 +1573,23 @@ export default defineComponent({
                 layout: device.createPipelineLayout({
                     bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, infiniteRenderOptionsBindGroupLayout]
                 }),
-                vertex: {
-                    module: renderInfiniteShader,
-                    entryPoint: 'infiniteVertexGlow',
-                },
-                fragment: {
-                    module: renderInfiniteShader,
-                    entryPoint: 'infiniteFragmentGlow',
-                    targets: [{
-                        format: 'rgba16float',
-                        blend: glowBlendOptions,
-                    }],
-                },
-                primitive: {
-                    topology: 'triangle-strip',
-                },
+                vertex: { module: renderInfiniteShader, entryPoint: 'infiniteVertexGlow' },
+                fragment: { module: renderInfiniteShader, entryPoint: 'infiniteFragmentGlow', targets: [{
+                    format: 'rgba16float',
+                    blend: glowBlendOptions,
+                }] },
+                primitive: { topology: 'triangle-strip' },
             })
             renderInfiniteCirclePipeline = device.createRenderPipeline({
                 layout: device.createPipelineLayout({
                     bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, infiniteRenderOptionsBindGroupLayout]
                 }),
-                vertex: {
-                    module: renderInfiniteShader,
-                    entryPoint: 'infiniteVertexCircle',
-                },
-                fragment: {
-                    module: renderInfiniteShader,
-                    entryPoint: 'infiniteFragmentCircle',
-                    targets: [{
-                        format: 'rgba16float',
-                        blend: particleNormalBlending,
-                    }],
-                },
-                primitive: {
-                    topology: 'triangle-strip',
-                },
+                vertex: { module: renderInfiniteShader, entryPoint: 'infiniteVertexCircle' },
+                fragment: { module: renderInfiniteShader, entryPoint: 'infiniteFragmentCircle', targets: [{
+                    format: 'rgba16float',
+                    blend: particleNormalBlending,
+                }] },
+                primitive: { topology: 'triangle-strip' },
             })
             renderInfiniteCirclePipelineAdditive = device.createRenderPipeline({
                 layout: device.createPipelineLayout({
@@ -1732,18 +1608,11 @@ export default defineComponent({
                 layout: device.createPipelineLayout({
                     bindGroupLayouts: [composeHdrBindGroupLayout]
                 }),
-                vertex: {
-                    module: composeShader,
-                    entryPoint: 'vertexMain',
+                vertex: { module: composeShader, entryPoint: 'vertexMain' },
+                fragment: { module: composeShader, entryPoint: 'fragmentMain',
+                    targets: [{ format: navigator.gpu.getPreferredCanvasFormat() }]
                 },
-                fragment: {
-                    module: composeShader,
-                    entryPoint: 'fragmentMain',
-                    targets: [{ format: navigator.gpu.getPreferredCanvasFormat() }],
-                },
-                primitive: {
-                    topology: 'triangle-list',
-                },
+                primitive: { topology: 'triangle-list' },
             })
         }
         // -------------------------------------------------------------------------------------------------------------
