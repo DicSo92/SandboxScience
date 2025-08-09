@@ -20,11 +20,12 @@
                 @click="toggleBrushType(2)">
             <span i-tabler-magnet text-sm></span>
         </button>
-        <div class="settings-btn">
+        <div class="settings-btn group">
             <button type="button" title="Brush Settings" aria-label="Brush Settings" btn w-8 aspect-square rounded-full p1 flex items-center justify-center bg="zinc-800 hover:zinc-700">
                 <span i-tabler-settings text-sm></span>
             </button>
-            <div absolute class="settings-panel pr-1 left-0 top-0 -translate-x-full">
+            <div class="settings-panel absolute pr-1 right-full top-0 transition-all duration-200 ease-in-out delay-300
+                opacity-0 invisible group-hover:opacity-100 group-hover:visible group-hover:translate-x-0 group-hover:transition-delay-0">
                 <div p-3 pl-4 bg-zinc-800 w-64 rounded-lg text-left>
                     <p underline mb-2>Brush Settings :</p>
                     <div text-gray-300>
@@ -43,13 +44,19 @@
                         <div flex items-center mb-2>
                             <p mr-2 class="w-1/4">Attract</p>
                             <div flex-1>
-                                <RangeInput input :min="1" :max="100" :step="1" v-model="particleLife.attractForce" />
+                                <RangeInput input :min="0" :max="100" :step="1" v-model="particleLife.attractForce" />
                             </div>
                         </div>
                         <div flex items-center>
                             <p mr-2 class="w-1/4">Repulse</p>
                             <div flex-1>
-                                <RangeInput input :min="1" :max="100" :step="1" v-model="particleLife.repulseForce" />
+                                <RangeInput input :min="0" :max="100" :step="1" v-model="particleLife.repulseForce" />
+                            </div>
+                        </div>
+                        <div flex items-center mt-2 v-if="particleLife.$id === 'particleLifeGPU'">
+                            <p mr-2 class="w-1/4">Velocity</p>
+                            <div flex-1>
+                                <RangeInput input :min="0" :max="100" :step="1" v-model="particleLife.brushDirectionalForce" />
                             </div>
                         </div>
                     </div>
@@ -65,10 +72,10 @@
                     @click="toggleBrushColor(null)">
             </button>
             <hr mt-1 border-gray-600>
-            <button v-for="(color, index) in particleLife.currentColors" :key="index"
+            <button v-for="(color, index) in colorDisplayArray" :key="index"
                     type="button" :name="`Color ${index + 1}`" :aria-label="`Color ${index + 1}`"
                     w-6 aspect-square rounded-full mt-1 :class="particleLife.brushes.includes(index) && 'border-3 border-gray-950 shadow-inner'"
-                    :style="{ backgroundColor: `hsl(${color}, 100%, 50%, 1)`}"
+                    :style="{ backgroundColor: color }"
                     @click="toggleBrushColor(index)">
             </button>
         </div>
@@ -80,8 +87,32 @@
 import { defineComponent } from 'vue'
 
 export default defineComponent({
+    props: {
+        store: {
+            type: Object,
+            required: true,
+        }
+    },
     setup(props, { emit }) {
-        const particleLife = useParticleLifeStore()
+        const particleLife = props.store
+
+        const colorDisplayArray = computed(() => {
+            const colors = particleLife.currentColors
+            if (!colors) return []
+            // WebGPU: Float32Array of RGB values
+            if (colors instanceof Float32Array) {
+                const result: string[] = []
+                for (let i = 0; i < colors.length; i += 4) {
+                    const r = Math.round(colors[i] * 255)
+                    const g = Math.round(colors[i + 1] * 255)
+                    const b = Math.round(colors[i + 2] * 255)
+                    result.push(`rgb(${r}, ${g}, ${b})`)
+                }
+                return result
+            }
+            // Normal Array of HSL values
+            return Array.from(colors).map(color => `hsl(${color}, 100%, 50%, 1)`)
+        })
 
         function toggleBrushType(brushType: number) {
             if (particleLife.isBrushActive && particleLife.brushType === brushType) {
@@ -105,7 +136,7 @@ export default defineComponent({
             }
         }
 
-        return { particleLife, toggleBrushType, toggleBrushColor }
+        return { particleLife, toggleBrushType, toggleBrushColor, colorDisplayArray }
     }
 })
 </script>
@@ -126,14 +157,8 @@ export default defineComponent({
 }
 .settings-btn {
     position: relative;
-    &:hover {
-        .settings-panel {
-            display: block;
-        }
-    }
 }
 .settings-panel {
-    display: none;
     z-index: 100;
 }
 </style>

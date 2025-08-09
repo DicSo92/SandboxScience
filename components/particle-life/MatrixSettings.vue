@@ -27,7 +27,7 @@
 
         <div mt-2>
             <div v-if="openTab === 1" class="p-2 rounded-lg shadow-md bg-zinc-700">
-                <RulesMatrix @update="(...args) => $emit('updateRulesMatrix', ...args)" />
+                <RulesMatrix :store="particleLife" @update="(...args) => $emit('updateRulesMatrix', ...args)" />
 <!--                <button type="button" btn p2 mt-2 flex items-center rounded-xl bg="zinc-800 hover:zinc-900" @click="$emit('randomRulesMatrix')">-->
 <!--                    <span i-game-icons-perspective-dice-six-faces-random text-lg></span>-->
 <!--                    <span class="ml-2 mr-1 text-sm">Randomize</span>-->
@@ -35,11 +35,11 @@
             </div>
 
             <div v-if="openTab === 2" class="p-2 rounded-lg shadow-md bg-zinc-700">
-                <MinMatrix @update="(...args) => $emit('updateMinMatrix', ...args)" />
+                <MinMatrix :store="particleLife" @update="(...args) => $emit('updateMinMatrix', ...args)" />
             </div>
 
             <div v-if="openTab === 3" class="p-2 rounded-lg shadow-md bg-zinc-700">
-                <MaxMatrix @update="(...args) => $emit('updateMaxMatrix', ...args)" />
+                <MaxMatrix :store="particleLife" @update="(...args) => $emit('updateMaxMatrix', ...args)" />
             </div>
         </div>
     </div>
@@ -52,8 +52,14 @@ import MinMatrix from "~/components/particle-life/MinMatrix.vue";
 import MaxMatrix from "~/components/particle-life/MaxMatrix.vue";
 export default defineComponent({
     components: { MaxMatrix, MinMatrix, RulesMatrix },
+    props: {
+        store: {
+            type: Object,
+            required: true,
+        }
+    },
     setup(props, { emit }) {
-        const particleLife = useParticleLifeStore()
+        const particleLife = props.store
 
         const openTab = ref<number>(1)
 

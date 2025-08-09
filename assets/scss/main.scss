@@ -6,10 +6,11 @@ body {
 }
 
 .faded-hover-effect {
-  transition: opacity 120ms ease-in-out;
+  transition: opacity 200ms ease-in-out 200ms;
   opacity: 40%;
   &:hover {
     opacity: 100%;
+    transition-delay: 0ms;
   }
 }
 .force-hover-effect {

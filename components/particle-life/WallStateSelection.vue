@@ -26,9 +26,15 @@
 <script lang="ts">
 import { defineComponent } from 'vue'
 export default defineComponent({
+    props: {
+        store: {
+            type: Object,
+            required: true,
+        }
+    },
     setup(props, { emit }) {
         const currentValue = ref()
-        const particleLife = useParticleLifeStore()
+        const particleLife = props.store
 
         onMounted(() => {
             if (particleLife.isWallRepel) {
@@ -51,8 +57,8 @@ export default defineComponent({
             }
         })
 
-        watch(() => particleLife.isWallRepel, (value) => {
-            if (value) {
+        watch([() => particleLife.isWallRepel, () => particleLife.isWallWrap], () => {
+            if (particleLife.isWallRepel) {
                 currentValue.value = 'repel'
             } else if (particleLife.isWallWrap) {
                 currentValue.value = 'wrap'
