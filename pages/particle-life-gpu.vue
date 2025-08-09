@@ -29,7 +29,7 @@
                         <Collapse label="World Settings" icon="i-tabler-world-cog" opened mt-2>
                             <RangeInput input label="Particle Number"
                                         tooltip="Adjust the total number of particles. <br> More particles may reveal complex interactions but can increase computational demand."
-                                        :min="16" :max="1048576" :step="16" v-model="particleLife.numParticles">
+                                        :min="16" :max="1048576" :step="16" v-model="particleLife.numParticles" @update:modelValue="updateNumParticles">
                             </RangeInput>
                             <RangeInput input label="Color Number"
                                         tooltip="Specify the number of particle colors. <br> Each color interacts with all others, with distinct forces and interaction ranges."
@@ -169,6 +169,9 @@ import composeHdrShaderCode from 'assets/particle-life-gpu/shaders/compose/compo
 
 import renderMirrorShaderCode from 'assets/particle-life-gpu/shaders/render/render_mirror.wgsl?raw';
 import renderInfiniteShaderCode from 'assets/particle-life-gpu/shaders/render/render_infinite.wgsl?raw';
+
+import particleEraseShaderCode from 'assets/particle-life-gpu/shaders/compute/particleErase.wgsl?raw';
+import particleCompactShaderCode from 'assets/particle-life-gpu/shaders/compute/particleCompact.wgsl?raw';
 
 export default defineComponent({
     name: 'ParticleLifeGpu',
@@ -361,6 +364,19 @@ export default defineComponent({
         let infiniteRenderOptionsBindGroupLayout: GPUBindGroupLayout
         let brushOptionsBindGroupLayout: GPUBindGroupLayout
 
+        let isBrushErasing: boolean = false
+
+        let particleErasePipeline: GPUComputePipeline;
+        let particleCompactPipeline: GPUComputePipeline;
+        let particleEraseBindGroupLayout: GPUBindGroupLayout;
+        let particleCompactBindGroupLayout: GPUBindGroupLayout;
+        let particleEraseBindGroup: GPUBindGroup;
+        let particleCompactBindGroup: GPUBindGroup;
+        let particleKeepFlagsBuffer: GPUBuffer | undefined;
+        let newParticleCountBuffer: GPUBuffer | undefined;
+        let newParticleCountReadBuffer: GPUBuffer | undefined;
+        let particleCompactBuffer: GPUBuffer | undefined;
+
         onMounted(async () => {
             await initWebGPU()
             handleResize()
@@ -372,7 +388,8 @@ export default defineComponent({
                 lastPointerX = e.x - canvasRef.value!.getBoundingClientRect().left
                 lastPointerY = e.y - canvasRef.value!.getBoundingClientRect().top
                 if (e.buttons === 2 && isBrushActive) { // if secondary button is pressed (right click)
-                    isBrushDrawing = true
+                    if (brushType === 0) isBrushErasing = true
+                    else isBrushDrawing = true
                 }
             })
             useEventListener(canvasRef.value, ['mousemove'], (e) => {
@@ -386,17 +403,20 @@ export default defineComponent({
                         handleMove()
                     }
                     if (e.buttons === 2 && isBrushActive) { // if secondary button is pressed (right click)
-                        isBrushDrawing = true
+                        if (brushType === 0) isBrushErasing = true
+                        else isBrushDrawing = true
                     }
                 }
                 else if (e.buttons === 0) {
                     isDragging = false
                     isBrushDrawing = false
+                    isBrushErasing = false
                 }
             })
             useEventListener(canvasRef.value, ['mouseup'], () => {
                 isDragging = false
                 isBrushDrawing = false
+                isBrushErasing = false
             })
             useEventListener(canvasRef.value, 'wheel', (e) => {
                 pointerX = e.x - canvasRef.value!.getBoundingClientRect().left
@@ -561,7 +581,7 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         let pendingFrames: number = 0
-        const frame = () => {
+        const frame = async () => {
             // Wait for the GPU to finish processing before starting a new frame (to avoid overloading the GPU)
             // Produces flickering if the GPU is not fast enough
             // if (pendingFrames > 3) {
@@ -569,8 +589,9 @@ export default defineComponent({
             //     return
             // }
 
-            const startExecutionTime = performance.now()
+            if (isBrushErasing) await eraseWithBrush()
 
+            const startExecutionTime = performance.now()
             if (isRunning) {
                 handleDeltaTime(startExecutionTime)
                 step()
@@ -826,7 +847,8 @@ export default defineComponent({
         const createBuffers = () => {
             updateSimOptionsBuffer() // Set simulation options based on the store state
             updateInteractionMatrixBuffer() // Set interaction matrices based on the store state
-            updateParticleBuffers()
+            updateParticleBuffers(true)
+            updateEraseCompactBuffers()
             updateBinningBuffers()
             updateColorBuffer()
             updateGlowOptionsBuffer()
@@ -858,6 +880,15 @@ export default defineComponent({
             new Int32Array(infiniteRenderOptionsBuffer.getMappedRange()).set(infiniteRenderOptionsData)
             infiniteRenderOptionsBuffer.unmap()
             updateInfiniteRenderOptions()
+
+            newParticleCountBuffer = device.createBuffer({
+                size: 4,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
+            })
+            newParticleCountReadBuffer = device.createBuffer({
+                size: 4,
+                usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+            })
         }
         const updateColorBuffer = () => {
             if (colorBuffer) colorBuffer?.destroy(); colorBuffer = undefined;
@@ -870,21 +901,34 @@ export default defineComponent({
             new Float32Array(colorBuffer.getMappedRange()).set(colors)
             colorBuffer.unmap()
         }
-        const updateParticleBuffers = () => {
+        const updateParticleBuffers = (hasInitialParticles: boolean = false) => {
             if (particleBuffer) particleBuffer?.destroy(); particleBuffer = undefined;
             if (particleTempBuffer) particleTempBuffer?.destroy(); particleTempBuffer = undefined;
 
             particleBuffer = device.createBuffer({
                 size: NUM_PARTICLES * 20,
                 usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC | GPUBufferUsage.STORAGE,
-                mappedAtCreation: true,
+                mappedAtCreation: hasInitialParticles,
             })
-            new Float32Array(particleBuffer.getMappedRange()).set(initialParticles)
-            particleBuffer.unmap()
-
+            if (hasInitialParticles) {
+                new Float32Array(particleBuffer.getMappedRange()).set(initialParticles)
+                particleBuffer.unmap()
+            }
             particleTempBuffer = device.createBuffer({
                 size: particleBuffer.size,
                 usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+            })
+        }
+        const updateEraseCompactBuffers = () => {
+            if (particleKeepFlagsBuffer) particleKeepFlagsBuffer.destroy(); particleKeepFlagsBuffer = undefined
+            if (particleCompactBuffer) particleCompactBuffer.destroy(); particleCompactBuffer = undefined
+            particleKeepFlagsBuffer = device.createBuffer({
+                size: NUM_PARTICLES * 4,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+            })
+            particleCompactBuffer = device.createBuffer({
+                size: NUM_PARTICLES * 5 * 4,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
             })
         }
         const updateBinningBuffers = () => {
@@ -1059,6 +1103,7 @@ export default defineComponent({
         const createBindGroups = () => {
             updateBinningBindGroups()
             updateParticleBindGroups()
+            updateEraseCompactBindGroups()
             updateOffscreenTextureBindGroup()
             updateComposeHdrBindGroup()
             // ---------------------------------------------------------------------------------------------------------
@@ -1169,6 +1214,27 @@ export default defineComponent({
                     { binding: 0, resource: { buffer: particleTempBuffer! } },
                     { binding: 1, resource: { buffer: particleBuffer! } },
                     { binding: 2, resource: { buffer: interactionMatrixBuffer! } },
+                ],
+            })
+        }
+        const updateEraseCompactBindGroups = () => {
+            particleEraseBindGroup = undefined as any;
+            particleCompactBindGroup = undefined as any;
+
+            particleEraseBindGroup = device.createBindGroup({
+                layout: particleEraseBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: particleBuffer! } },
+                    { binding: 1, resource: { buffer: particleKeepFlagsBuffer! } }
+                ],
+            })
+            particleCompactBindGroup = device.createBindGroup({
+                layout: particleCompactBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: particleBuffer! } },
+                    { binding: 1, resource: { buffer: particleCompactBuffer! } },
+                    { binding: 2, resource: { buffer: particleKeepFlagsBuffer! } },
+                    { binding: 3, resource: { buffer: newParticleCountBuffer! } },
                 ],
             })
         }
@@ -1284,6 +1350,20 @@ export default defineComponent({
                     { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }, // brushOptionsBuffer
                 ],
             })
+            particleEraseBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // particleBuffer
+                    { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }        // particleKeepFlagsBuffer
+                ]
+            })
+            particleCompactBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // oldParticleBuffer
+                    { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },         // newParticleBuffer
+                    { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // particleKeepFlags
+                    { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }          // newParticleCount
+                ]
+            })
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -1385,6 +1465,20 @@ export default defineComponent({
                     ],
                 }),
                 compute: { module: particleAdvanceBrushShader, entryPoint: 'particleAdvance' }
+            })
+            const particleEraseShader = device.createShaderModule({ code: particleEraseShaderCode })
+            particleErasePipeline = device.createComputePipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [particleEraseBindGroupLayout, simOptionsBindGroupLayout, brushOptionsBindGroupLayout,],
+                }),
+                compute: { module: particleEraseShader, entryPoint: 'markForErase' }
+            })
+            const particleCompactShader = device.createShaderModule({ code: particleCompactShaderCode })
+            particleCompactPipeline = device.createComputePipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [particleCompactBindGroupLayout, simOptionsBindGroupLayout]
+                }),
+                compute: { module: particleCompactShader, entryPoint: 'compactParticles',},
             })
         }
         const particleNormalBlending: GPUBlendState = {
@@ -1686,6 +1780,62 @@ export default defineComponent({
 
             if (isInfiniteMirrorWrap && composeInfinitePipeline) updateOffscreenTextureBindGroup()
         }
+        const eraseWithBrush = async () => {
+            if (isUpdatingParticles || !isBrushActive || brushType !== 0) return
+            isUpdatingParticles = true
+            await device.queue.onSubmittedWorkDone()
+
+            try {
+                updateBrushOptionsBuffer()
+
+                const encoder = device.createCommandEncoder({ label: 'Erase and Compact Encoder' })
+                encoder.clearBuffer(newParticleCountBuffer!, 0, 4)
+
+                const markPass = encoder.beginComputePass({ label: 'Mark Pass' })
+                markPass.setPipeline(particleErasePipeline)
+                markPass.setBindGroup(0, particleEraseBindGroup)
+                markPass.setBindGroup(1, simOptionsBindGroup)
+                markPass.setBindGroup(2, brushOptionsBindGroup)
+                markPass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
+                markPass.end()
+
+                const compactPass = encoder.beginComputePass({ label: 'Compact Pass' })
+                compactPass.setPipeline(particleCompactPipeline)
+                compactPass.setBindGroup(0, particleCompactBindGroup)
+                compactPass.setBindGroup(1, simOptionsBindGroup)
+                compactPass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
+                compactPass.end()
+
+                encoder.copyBufferToBuffer(newParticleCountBuffer!, 0, newParticleCountReadBuffer!, 0, 4)
+                device.queue.submit([encoder.finish()])
+                await device.queue.onSubmittedWorkDone()
+
+                await newParticleCountReadBuffer!.mapAsync(GPUMapMode.READ)
+                const newCount = new Uint32Array(newParticleCountReadBuffer!.getMappedRange())[0]
+                newParticleCountReadBuffer!.unmap()
+
+                if (newCount < NUM_PARTICLES) {
+                    NUM_PARTICLES = newCount
+                    particleLife.numParticles = newCount
+                    updateParticleBuffers()
+
+                    const copyEncoder = device.createCommandEncoder({ label: 'Copy Compacted Data' })
+                    copyEncoder.copyBufferToBuffer(particleCompactBuffer!, 0, particleBuffer!, 0, newCount * 5 * 4)
+                    device.queue.submit([copyEncoder.finish()])
+                    await device.queue.onSubmittedWorkDone()
+
+                    updateEraseCompactBuffers()
+                    updateSimOptionsBuffer()
+                    updateParticleBindGroups()
+                    updateEraseCompactBindGroups()
+                    updateInfiniteRenderOptions()
+                }
+            } catch (error) {
+                console.error("Error during erase and compact operation:", error)
+            } finally {
+                isUpdatingParticles = false
+            }
+        }
         const updateNumParticles = useDebounceFn(async (newCount: number) => {
             if (isUpdatingParticles || newCount === NUM_PARTICLES) return
             isUpdatingParticles = true
@@ -1723,8 +1873,10 @@ export default defineComponent({
                 }
 
                 NUM_PARTICLES = newCount
-                updateParticleBuffers() // Destroy and recreate particle buffers
+                updateParticleBuffers(true) // Destroy and recreate particle buffers
+                updateEraseCompactBuffers()
                 updateParticleBindGroups() // Recreate bind groups that depend on particle buffers
+                updateEraseCompactBindGroups()
                 updateSimOptionsBuffer() // Update simulation options buffer
                 updateInfiniteRenderOptions() // Update infinite render options buffer
 
@@ -2006,7 +2158,6 @@ export default defineComponent({
                 updateGlowOptionsBuffer()
             })
         }
-        watch(() => particleLife.numParticles, (value: number) => updateNumParticles(value))
         watch(() => particleLife.numColors, (value: number) => updateNumTypes(value))
         watch(() => particleLife.isRunning, (value: boolean) => isRunning = value)
         watch(() => particleLife.useSpatialHash, (value: boolean) => useSpatialHash = value)
@@ -2107,6 +2258,11 @@ export default defineComponent({
             binOffsetTempBuffer?.destroy(); binOffsetTempBuffer = undefined;
             binPrefixSumStepSizeBuffer?.destroy(); binPrefixSumStepSizeBuffer = undefined;
 
+            particleKeepFlagsBuffer?.destroy(); particleKeepFlagsBuffer = undefined;
+            newParticleCountBuffer?.destroy(); newParticleCountBuffer = undefined;
+            newParticleCountReadBuffer?.destroy(); newParticleCountReadBuffer = undefined;
+            particleCompactBuffer?.destroy(); particleCompactBuffer = undefined;
+
             if (!keepTexture) {
                 offscreenTexture?.destroy(); offscreenTexture = undefined;
                 offscreenTextureView = undefined as any;
@@ -2118,6 +2274,13 @@ export default defineComponent({
             await nextTick() // Ensure GPU resources are cleaned up before creating new ones
         }
         const destroyPipelinesAndBindGroups = () => {
+            particleErasePipeline = undefined as any;
+            particleCompactPipeline = undefined as any;
+            particleCompactBindGroup = undefined as any;
+            particleCompactBindGroupLayout = undefined as any;
+            particleEraseBindGroup = undefined as any;
+            particleEraseBindGroupLayout = undefined as any;
+
             renderPipeline = undefined as any;
             renderOffscreenPipeline = undefined as any;
             composeInfinitePipeline = undefined as any;
@@ -2190,7 +2353,7 @@ export default defineComponent({
         return {
             particleLife, canvasRef, fps, executionTime, colorRgbStrings,
             handleZoom, toggleFullscreen, isFullscreen, regenerateLife, step,
-            updateSimWidth, updateSimHeight,
+            updateSimWidth, updateSimHeight, updateNumParticles,
             updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, newRandomRulesMatrix,
         }
     }
