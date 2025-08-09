@@ -29,7 +29,7 @@
                         <Collapse label="World Settings" icon="i-tabler-world-cog" opened mt-2>
                             <RangeInput input label="Particle Number"
                                         tooltip="Adjust the total number of particles. <br> More particles may reveal complex interactions but can increase computational demand."
-                                        :min="16" :max="1048576" :step="16" v-model="particleLife.numParticles" @update:modelValue="updateNumParticles">
+                                        :min="16" :max="1048576" :step="16" v-model="particleLife.numParticles" @update:modelValue="setNewNumParticles">
                             </RangeInput>
                             <RangeInput input label="Color Number"
                                         tooltip="Specify the number of particle colors. <br> Each color interacts with all others, with distinct forces and interaction ranges."
@@ -195,6 +195,7 @@ export default defineComponent({
         let isRunning: boolean = particleLife.isRunning
         let isInitializing: boolean = true
         let isUpdatingParticles: boolean = false // Flag to prevent multiple additions at once
+        let isUpdateNumParticlesPending: boolean = false
 
         let smoothedDeltaTime: number = 0.016 // Initial value (1/60s)
         let CANVAS_WIDTH: number = 0
@@ -246,6 +247,7 @@ export default defineComponent({
         let forceFactor: number = particleLife.forceFactor // Decrease will increase the impact of the force on the velocity (the higher the value, the slower the particles will move) (can't be 0)
         let frictionFactor: number = particleLife.frictionFactor // Slow down the particles (0 to 1, where 1 is no friction)
         let NUM_PARTICLES: number = particleLife.numParticles
+        let NEW_NUM_PARTICLES: number = NUM_PARTICLES
         let PARTICLE_SIZE: number = particleLife.particleSize
         let NUM_TYPES: number = particleLife.numColors
         let isParticleGlow: boolean = particleLife.isParticleGlow // Enable glow effect for the particles
@@ -602,6 +604,7 @@ export default defineComponent({
 
             if (isBrushErasing) await eraseWithBrush()
             else if (isBrushDrawing) await drawWithBrush()
+            else if (isUpdateNumParticlesPending) await updateNumParticles(NEW_NUM_PARTICLES)
 
             const startExecutionTime = performance.now()
             if (isRunning) {
@@ -1951,13 +1954,16 @@ export default defineComponent({
                 isUpdatingParticles = false
             }
         }
-        const updateNumParticles = useDebounceFn(async (newCount: number) => {
+        const setNewNumParticles = (newCount: number) => {
+            NEW_NUM_PARTICLES = newCount
+            isUpdateNumParticlesPending = true
+        }
+        const updateNumParticles = async (newCount: number) => {
             if (isUpdatingParticles || newCount === NUM_PARTICLES) return
             isUpdatingParticles = true
+            await device.queue.onSubmittedWorkDone()
 
             try {
-                cancelAnimationLoop()
-
                 const oldCount = NUM_PARTICLES
                 const oldParticlesData = await readBufferFromGPU(particleBuffer!, oldCount * 5 * 4)
                 const oldParticles = new Float32Array(oldParticlesData)
@@ -1994,14 +2000,11 @@ export default defineComponent({
                 updateEraseCompactBindGroups()
                 updateSimOptionsBuffer() // Update simulation options buffer
                 updateInfiniteRenderOptions() // Update infinite render options buffer
-
-                lastFrameTime = performance.now()
-                animationFrameId = requestAnimationFrame(frame)
             } finally {
                 isUpdatingParticles = false
-                await updateNumParticles(particleLife.numParticles) // Reset the debounce function
+                isUpdateNumParticlesPending = NEW_NUM_PARTICLES !== NUM_PARTICLES
             }
-        }, 16, { maxWait: 64 })
+        }
         const updateNumTypes = async (newNumTypes: number) => {
             if (isUpdatingParticles || newNumTypes === NUM_TYPES) return
             isUpdatingParticles = true
@@ -2470,7 +2473,7 @@ export default defineComponent({
         return {
             particleLife, canvasRef, fps, executionTime, colorRgbStrings,
             handleZoom, toggleFullscreen, isFullscreen, regenerateLife, step,
-            updateSimWidth, updateSimHeight, updateNumParticles,
+            updateSimWidth, updateSimHeight, updateNumParticles, setNewNumParticles,
             updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, newRandomRulesMatrix,
         }
     }
