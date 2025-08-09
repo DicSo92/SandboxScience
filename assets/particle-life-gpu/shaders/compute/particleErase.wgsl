@@ -52,9 +52,15 @@ fn markForErase(@builtin(global_invocation_id) global_id: vec3<u32>) {
     if (index >= simOptions.numParticles) { return; }
 
     let particle = particleBuffer[index];
-    let dx = particle.x - brushOptions.brushX;
-    let dy = particle.y - brushOptions.brushY;
-    let distSq = dx * dx + dy * dy;
+    let width = simOptions.simWidth;
+    let height = simOptions.simHeight;
+
+    var distVec = vec2<f32>(particle.x, particle.y) - vec2<f32>(brushOptions.brushX, brushOptions.brushY);
+    if (simOptions.isWallWrap == 1u) {
+        distVec.x = distVec.x - width * round(distVec.x / width);
+        distVec.y = distVec.y - height * round(distVec.y / height);
+    }
+    let distSq = dot(distVec, distVec);
 
     let inRadius = distSq < brushOptions.brushRadius * brushOptions.brushRadius;
     var shouldErase = inRadius && (brushTypes.count == 0u);

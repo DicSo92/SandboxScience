@@ -63,18 +63,30 @@ fn particleAdvance(@builtin(global_invocation_id) id : vec3u) {
     }
     let distSq = dot(distVec, distVec);
     if (distSq < brush.brushRadius * brush.brushRadius && distSq > 0.0) {
-        let dist = sqrt(distSq);
-        let normalizedDist = dist / brush.brushRadius;
+        var shouldApplyForce = (brushTypes.count == 0u);
+        if (!shouldApplyForce) {
+            let particleType = u32(particle.particleType);
+            for (var i = 0u; i < brushTypes.count; i = i + 1u) {
+                if (particleType == brushTypes.types[i]) {
+                    shouldApplyForce = true;
+                    break;
+                }
+            }
+        }
+        if (shouldApplyForce) {
+            let dist = sqrt(distSq);
+            let normalizedDist = dist / brush.brushRadius;
 
-        let forceMagnitude = 1.0 - smoothstep(0.0, 1.0, normalizedDist);
+            let forceMagnitude = 1.0 - smoothstep(0.0, 1.0, normalizedDist);
 
-        let radialForce = brush.brushForce * forceMagnitude * BRUSH_FORCE_MULTIPLIER;
-        let radialDir = distVec / dist;
-        let directionalForce = forceMagnitude * brush.brushDirectionalForce * options.frictionFactor;
+            let radialForce = brush.brushForce * forceMagnitude * BRUSH_FORCE_MULTIPLIER;
+            let radialDir = distVec / dist;
+            let directionalForce = forceMagnitude * brush.brushDirectionalForce * options.frictionFactor;
 
-        let totalForce = (radialDir * radialForce) + (vec2<f32>(brush.brushVx, brush.brushVy) * directionalForce);
-        particle.vx += totalForce.x * deltaTime;
-        particle.vy += totalForce.y * deltaTime;
+            let totalForce = (radialDir * radialForce) + (vec2<f32>(brush.brushVx, brush.brushVy) * directionalForce);
+            particle.vx += totalForce.x * deltaTime;
+            particle.vy += totalForce.y * deltaTime;
+        }
     }
 
 //    // Vortex

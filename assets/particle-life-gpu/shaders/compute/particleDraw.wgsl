@@ -60,10 +60,16 @@ fn drawParticles(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let index = simOptions.numParticles + global_id.x;
 
     var seed = index + u32(brushOptions.brushX * 1000.0) + u32(brushOptions.brushY * 1000.0);
+
+    var brushPos = vec2<f32>(brushOptions.brushX, brushOptions.brushY);
+    if (simOptions.isWallWrap == 1u) {
+        let simSize = vec2<f32>(simOptions.simWidth, simOptions.simHeight);
+        brushPos = (fract(brushPos / simSize) * simSize);
+    }
     let angle = randomFloat(&seed) * 2.0 * 3.1415926535;
-    let radius = sqrt(randomFloat(&seed)) * brushOptions.brushRadius;
-    let posX = brushOptions.brushX + cos(angle) * radius;
-    let posY = brushOptions.brushY + sin(angle) * radius;
+    let radius = randomFloat(&seed) * brushOptions.brushRadius;
+    let posX = brushPos.x + cos(angle) * radius;
+    let posY = brushPos.y + sin(angle) * radius;
 
     var particleType: f32;
     if (brushTypes.count == 0u) {
