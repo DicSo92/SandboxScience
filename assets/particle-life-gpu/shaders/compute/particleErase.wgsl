@@ -49,14 +49,20 @@ struct BrushTypes {
 @compute @workgroup_size(64)
 fn markForErase(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let index = global_id.x;
-    if (index >= simOptions.numParticles) {
-        return;
-    }
+    if (index >= simOptions.numParticles) { return; }
 
     let particle = particleBuffer[index];
     let dx = particle.x - brushOptions.brushX;
     let dy = particle.y - brushOptions.brushY;
     let distSq = dx * dx + dy * dy;
 
-    particleKeepFlags[index] = select(1u, 0u, distSq < brushOptions.brushRadius * brushOptions.brushRadius);
+    let inRadius = distSq < brushOptions.brushRadius * brushOptions.brushRadius;
+    var shouldErase = inRadius && (brushTypes.count == 0u);
+    if (inRadius && brushTypes.count > 0u) {
+        let particleType = u32(particle.particleType);
+        for (var i = 0u; i < brushTypes.count; i = i + 1u) {
+            shouldErase = shouldErase || (particleType == brushTypes.types[i]);
+        }
+    }
+    particleKeepFlags[index] = select(1u, 0u, shouldErase);
 }
