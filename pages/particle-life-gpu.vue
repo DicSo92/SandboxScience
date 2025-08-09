@@ -172,6 +172,7 @@ import renderInfiniteShaderCode from 'assets/particle-life-gpu/shaders/render/re
 
 import particleEraseShaderCode from 'assets/particle-life-gpu/shaders/compute/particleErase.wgsl?raw';
 import particleCompactShaderCode from 'assets/particle-life-gpu/shaders/compute/particleCompact.wgsl?raw';
+import particleDrawShaderCode from 'assets/particle-life-gpu/shaders/compute/particleDraw.wgsl?raw';
 
 export default defineComponent({
     name: 'ParticleLifeGpu',
@@ -262,7 +263,9 @@ export default defineComponent({
         let particleOpacity: number = particleLife.particleOpacity
 
         let isBrushActive: boolean = particleLife.isBrushActive
+        let isBrushErasing: boolean = false
         let isBrushDrawing: boolean = false
+        let isApplyingBrushForce: boolean = false
         let brushType: number = particleLife.brushType // 0: Erase, 1: Draw, 2: Repulse, 3: Attract
         let brushes: number[] = particleLife.brushes
         let brushRadius: number = particleLife.brushRadius
@@ -364,8 +367,6 @@ export default defineComponent({
         let infiniteRenderOptionsBindGroupLayout: GPUBindGroupLayout
         let brushOptionsBindGroupLayout: GPUBindGroupLayout
 
-        let isBrushErasing: boolean = false
-
         let particleErasePipeline: GPUComputePipeline;
         let particleCompactPipeline: GPUComputePipeline;
         let particleEraseBindGroupLayout: GPUBindGroupLayout;
@@ -376,6 +377,10 @@ export default defineComponent({
         let newParticleCountBuffer: GPUBuffer | undefined;
         let newParticleCountReadBuffer: GPUBuffer | undefined;
         let particleCompactBuffer: GPUBuffer | undefined;
+
+        let particleDrawPipeline: GPUComputePipeline;
+        let particleDrawBindGroupLayout: GPUBindGroupLayout;
+        let particleDrawBindGroup: GPUBindGroup;
 
         onMounted(async () => {
             await initWebGPU()
@@ -389,7 +394,8 @@ export default defineComponent({
                 lastPointerY = e.y - canvasRef.value!.getBoundingClientRect().top
                 if (e.buttons === 2 && isBrushActive) { // if secondary button is pressed (right click)
                     if (brushType === 0) isBrushErasing = true
-                    else isBrushDrawing = true
+                    else if (brushType === 1) isBrushDrawing = true
+                    else isApplyingBrushForce = true
                 }
             })
             useEventListener(canvasRef.value, ['mousemove'], (e) => {
@@ -404,19 +410,22 @@ export default defineComponent({
                     }
                     if (e.buttons === 2 && isBrushActive) { // if secondary button is pressed (right click)
                         if (brushType === 0) isBrushErasing = true
-                        else isBrushDrawing = true
+                        else if (brushType === 1) isBrushDrawing = true
+                        else isApplyingBrushForce = true
                     }
                 }
                 else if (e.buttons === 0) {
                     isDragging = false
-                    isBrushDrawing = false
                     isBrushErasing = false
+                    isBrushDrawing = false
+                    isApplyingBrushForce = false
                 }
             })
             useEventListener(canvasRef.value, ['mouseup'], () => {
                 isDragging = false
-                isBrushDrawing = false
                 isBrushErasing = false
+                isBrushDrawing = false
+                isApplyingBrushForce = false
             })
             useEventListener(canvasRef.value, 'wheel', (e) => {
                 pointerX = e.x - canvasRef.value!.getBoundingClientRect().left
@@ -590,6 +599,7 @@ export default defineComponent({
             // }
 
             if (isBrushErasing) await eraseWithBrush()
+            else if (isBrushDrawing) await drawWithBrush()
 
             const startExecutionTime = performance.now()
             if (isRunning) {
@@ -678,7 +688,7 @@ export default defineComponent({
             forcesComputePass.end()
         }
         const computeAdvance = (encoder: GPUCommandEncoder) => {
-            if (isBrushDrawing) {
+            if (isApplyingBrushForce) {
                 updateBrushOptionsBuffer()
 
                 const advanceBrushComputePass = encoder.beginComputePass()
@@ -964,7 +974,7 @@ export default defineComponent({
             const brushVx = (pointerX - lastFramePointerX) / (cameraScaleX * CANVAS_WIDTH * 0.5) / smoothedDeltaTime
             const brushVy = (pointerY - lastFramePointerY) / (cameraScaleY * CANVAS_HEIGHT * 0.5) / smoothedDeltaTime
 
-            const brushForce = brushType === 2 ? repulseForce : attractForce
+            const brushForce = brushType === 1 ? brushIntensity : brushType === 2 ? repulseForce : attractForce
 
             const brushOptionsData = new ArrayBuffer(28)
             const brushOptionsView = new DataView(brushOptionsData)
@@ -1257,6 +1267,15 @@ export default defineComponent({
                 ],
             })
         }
+        const updateDrawBindGroup = () => {
+            particleDrawBindGroup = undefined as any
+            particleDrawBindGroup = device.createBindGroup({
+                layout: particleDrawBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: particleBuffer! } },
+                ],
+            })
+        }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -1363,6 +1382,11 @@ export default defineComponent({
                     { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // particleKeepFlags
                     { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }          // newParticleCount
                 ]
+            })
+            particleDrawBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // particleBuffer
+                ],
             })
         }
         // -------------------------------------------------------------------------------------------------------------
@@ -1478,7 +1502,14 @@ export default defineComponent({
                 layout: device.createPipelineLayout({
                     bindGroupLayouts: [particleCompactBindGroupLayout, simOptionsBindGroupLayout]
                 }),
-                compute: { module: particleCompactShader, entryPoint: 'compactParticles',},
+                compute: { module: particleCompactShader, entryPoint: 'compactParticles' },
+            })
+            const particleDrawShader = device.createShaderModule({ code: particleDrawShaderCode });
+            particleDrawPipeline = device.createComputePipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [particleDrawBindGroupLayout, simOptionsBindGroupLayout, brushOptionsBindGroupLayout]
+                }),
+                compute: { module: particleDrawShader, entryPoint: 'drawParticles' },
             })
         }
         const particleNormalBlending: GPUBlendState = {
@@ -1780,6 +1811,64 @@ export default defineComponent({
 
             if (isInfiniteMirrorWrap && composeInfinitePipeline) updateOffscreenTextureBindGroup()
         }
+        const drawWithBrush = async () => {
+            if (isUpdatingParticles || !isBrushActive || brushType !== 1) return
+            isUpdatingParticles = true
+            await device.queue.onSubmittedWorkDone()
+
+            try {
+                updateBrushOptionsBuffer()
+
+                const oldNumParticles = NUM_PARTICLES
+                const numParticlesToAdd = Math.floor(brushIntensity)
+                const newNumParticles = oldNumParticles + numParticlesToAdd
+
+                const newParticleBuffer = device.createBuffer({
+                    size: newNumParticles * 20,
+                    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+                })
+
+                const encoder = device.createCommandEncoder({ label: 'Draw Brush Encoder' })
+                encoder.copyBufferToBuffer(particleBuffer!, 0, newParticleBuffer, 0, oldNumParticles * 20)
+
+                const oldParticleBuffer = particleBuffer
+                particleBuffer = newParticleBuffer
+
+                updateDrawBindGroup()
+
+                const drawPass = encoder.beginComputePass({ label: 'Draw Pass' })
+                drawPass.setPipeline(particleDrawPipeline)
+                drawPass.setBindGroup(0, particleDrawBindGroup)
+                drawPass.setBindGroup(1, simOptionsBindGroup)
+                drawPass.setBindGroup(2, brushOptionsBindGroup)
+                drawPass.dispatchWorkgroups(Math.ceil(numParticlesToAdd / 64))
+                drawPass.end()
+
+                device.queue.submit([encoder.finish()])
+                await device.queue.onSubmittedWorkDone()
+
+                oldParticleBuffer?.destroy()
+
+                NUM_PARTICLES = newNumParticles
+                particleLife.numParticles = newNumParticles
+
+                if (particleTempBuffer) particleTempBuffer?.destroy(); particleTempBuffer = undefined;
+                particleTempBuffer = device.createBuffer({
+                    size: particleBuffer.size,
+                    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+                })
+
+                updateSimOptionsBuffer()
+                updateEraseCompactBuffers()
+                updateParticleBindGroups()
+                updateEraseCompactBindGroups()
+                updateInfiniteRenderOptions()
+            } catch (error) {
+                console.error("Error drawing with brush:", error)
+            } finally {
+                isUpdatingParticles = false
+            }
+        }
         const eraseWithBrush = async () => {
             if (isUpdatingParticles || !isBrushActive || brushType !== 0) return
             isUpdatingParticles = true
@@ -1824,8 +1913,8 @@ export default defineComponent({
                     device.queue.submit([copyEncoder.finish()])
                     await device.queue.onSubmittedWorkDone()
 
-                    updateEraseCompactBuffers()
                     updateSimOptionsBuffer()
+                    updateEraseCompactBuffers()
                     updateParticleBindGroups()
                     updateEraseCompactBindGroups()
                     updateInfiniteRenderOptions()
@@ -2166,6 +2255,7 @@ export default defineComponent({
         watch(() => particleLife.isBrushActive, (value: boolean) => isBrushActive = value)
         watch(() => particleLife.brushType, (value: number) => brushType = value)
         watch(() => particleLife.brushRadius, (value: number) => brushRadius = value)
+        watch(() => particleLife.brushIntensity, (value: number) => brushIntensity = value)
         watch(() => particleLife.repulseForce, (value: number) => repulseForce = value)
         watch(() => particleLife.attractForce, (value: number) => attractForce = -value)
         watch(() => particleLife.brushDirectionalForce, (value: number) => brushDirectionalForce = value)

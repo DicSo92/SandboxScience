@@ -44,7 +44,7 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
     const isBrushActive = ref<boolean>(false) // Is the brush active
     const brushes = ref<number[]>([]) // Brush particles
     const brushRadius = ref<number>(220) // Brush radius
-    const brushIntensity = ref<number>(10) // Brush intensity (number of particles)
+    const brushIntensity = ref<number>(160) // Brush intensity (number of particles)
     const brushType = ref<number>(1) // Brush type (0: Add, 1: Remove)
     const attractForce = ref<number>(35) // Attract force for the brush
     const repulseForce = ref<number>(30) // Repulse force for the brush
