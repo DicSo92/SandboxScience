@@ -46,8 +46,8 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
     const brushRadius = ref<number>(220) // Brush radius
     const brushIntensity = ref<number>(160) // Brush intensity (number of particles)
     const brushType = ref<number>(1) // Brush type (0: Add, 1: Remove)
-    const attractForce = ref<number>(35) // Attract force for the brush
-    const repulseForce = ref<number>(30) // Repulse force for the brush
+    const attractForce = ref<number>(50) // Attract force for the brush
+    const repulseForce = ref<number>(35) // Repulse force for the brush
     const brushDirectionalForce = ref<number>(40) // Directional force for the brush
 
     const glowSize = ref<number>(12.0) // Size of the glow effect

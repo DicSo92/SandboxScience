@@ -196,6 +196,7 @@ export default defineComponent({
         let isInitializing: boolean = true
         let isUpdatingParticles: boolean = false // Flag to prevent multiple additions at once
         let isUpdateNumParticlesPending: boolean = false
+        let isUpdateNumTypesPending: boolean = false
 
         let smoothedDeltaTime: number = 0.016 // Initial value (1/60s)
         let CANVAS_WIDTH: number = 0
@@ -250,6 +251,7 @@ export default defineComponent({
         let NEW_NUM_PARTICLES: number = NUM_PARTICLES
         let PARTICLE_SIZE: number = particleLife.particleSize
         let NUM_TYPES: number = particleLife.numColors
+        let NEW_NUM_TYPES: number = NUM_TYPES
         let isParticleGlow: boolean = particleLife.isParticleGlow // Enable glow effect for the particles
         let isAdditiveBlending = particleLife.isAdditiveBlending // Use additive blending for rendering particles
         let isWallRepel: boolean = particleLife.isWallRepel // Enable walls X and Y for the particles
@@ -605,6 +607,7 @@ export default defineComponent({
             if (isBrushErasing) await eraseWithBrush()
             else if (isBrushDrawing) await drawWithBrush()
             else if (isUpdateNumParticlesPending) await updateNumParticles(NEW_NUM_PARTICLES)
+            else if (isUpdateNumTypesPending) await updateNumTypes(NEW_NUM_TYPES)
 
             const startExecutionTime = performance.now()
             if (isRunning) {
@@ -1959,7 +1962,10 @@ export default defineComponent({
             isUpdateNumParticlesPending = true
         }
         const updateNumParticles = async (newCount: number) => {
-            if (isUpdatingParticles || newCount === NUM_PARTICLES) return
+            if (isUpdatingParticles || newCount === NUM_PARTICLES) {
+                isUpdateNumParticlesPending = false
+                return
+            }
             isUpdatingParticles = true
             await device.queue.onSubmittedWorkDone()
 
@@ -2006,11 +2012,14 @@ export default defineComponent({
             }
         }
         const updateNumTypes = async (newNumTypes: number) => {
-            if (isUpdatingParticles || newNumTypes === NUM_TYPES) return
+            if (isUpdatingParticles || newNumTypes === NUM_TYPES) {
+                isUpdateNumTypesPending = false
+                return
+            }
             isUpdatingParticles = true
-            try {
-                cancelAnimationLoop()
+            await device.queue.onSubmittedWorkDone()
 
+            try {
                 const particleDataBuffer = await readBufferFromGPU(particleBuffer!, NUM_PARTICLES * 5 * 4)
                 const particles = new Float32Array(particleDataBuffer)
 
@@ -2018,14 +2027,14 @@ export default defineComponent({
                     for (let i = 0; i < NUM_PARTICLES; i++) {
                         const typeIndex = i * 5 + 4;
                         if (particles[typeIndex] >= newNumTypes) {
-                            particles[typeIndex] = Math.floor(Math.random() * newNumTypes);
+                            particles[typeIndex] = Math.floor(Math.random() * newNumTypes)
                         }
                     }
                 } else if (newNumTypes > NUM_TYPES) {
                     for (let i = 0; i < NUM_PARTICLES; i++) {
                         if (Math.random() < (newNumTypes - NUM_TYPES) / newNumTypes) {
                             const typeIndex = i * 5 + 4;
-                            particles[typeIndex] = NUM_TYPES + Math.floor(Math.random() * (newNumTypes - NUM_TYPES));
+                            particles[typeIndex] = NUM_TYPES + Math.floor(Math.random() * (newNumTypes - NUM_TYPES))
                         }
                     }
                 }
@@ -2048,8 +2057,8 @@ export default defineComponent({
                 colors = newColors
                 particleLife.currentColors = colors // Ensure the store is updated with the new colors
 
-                const oldNumTypes = NUM_TYPES;
-                NUM_TYPES = newNumTypes;
+                const oldNumTypes = NUM_TYPES
+                NUM_TYPES = newNumTypes
 
                 setRulesMatrix(resizeMatrix(rulesMatrix, oldNumTypes, newNumTypes, () => {
                     return Number((Math.random() * 2 - 1).toFixed(4))
@@ -2074,13 +2083,9 @@ export default defineComponent({
                     paddedColors.set(colors)
                     device.queue.writeBuffer(colorBuffer!, 0, paddedColors)
                 }
-
-                await nextTick()
-                lastFrameTime = performance.now()
-                animationFrameId = requestAnimationFrame(frame)
             } finally {
                 isUpdatingParticles = false
-                await updateNumTypes(particleLife.numColors) // Reset the debounce function
+                isUpdateNumTypesPending = NEW_NUM_TYPES !== NUM_TYPES
             }
         }
         // -------------------------------------------------------------------------------------------------------------
@@ -2276,7 +2281,7 @@ export default defineComponent({
                 updateGlowOptionsBuffer()
             })
         }
-        watch(() => particleLife.numColors, (value: number) => updateNumTypes(value))
+        watch(() => particleLife.numColors, (value: number) => { NEW_NUM_TYPES = value; isUpdateNumTypesPending = true; })
         watch(() => particleLife.isRunning, (value: boolean) => isRunning = value)
         watch(() => particleLife.useSpatialHash, (value: boolean) => useSpatialHash = value)
         watch(() => particleLife.isParticleGlow, (value: boolean) => isParticleGlow = value)
