@@ -382,6 +382,8 @@ export default defineComponent({
         let particleDrawBindGroupLayout: GPUBindGroupLayout;
         let particleDrawBindGroup: GPUBindGroup;
 
+        let brushesBuffer: GPUBuffer | undefined;
+
         onMounted(async () => {
             await initWebGPU()
             handleResize()
@@ -863,6 +865,7 @@ export default defineComponent({
             updateColorBuffer()
             updateGlowOptionsBuffer()
             updateBrushOptionsBuffer()
+            updateBrushesBuffer()
             // ----------------------------------------------------------------------------------------------
             const cameraData = new Float32Array([cameraCenter.x, cameraCenter.y, cameraScaleX, cameraScaleY])
             cameraBuffer = device.createBuffer({
@@ -968,6 +971,23 @@ export default defineComponent({
             binPrefixSumStepSizeBuffer.unmap()
         }
         // -------------------------------------------------------------------------------------------------------------
+        const updateBrushesBuffer = () => {
+            if (brushesBuffer) brushesBuffer.destroy(); brushesBuffer = undefined;
+
+            const selectedTypes = new Uint32Array(brushes)
+            const bufferSize = 8 + selectedTypes.byteLength
+
+            brushesBuffer = device.createBuffer({
+                size: bufferSize,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+            })
+
+            device.queue.writeBuffer(brushesBuffer, 0, new Uint32Array([selectedTypes.length]))
+            if (selectedTypes.length > 0) {
+                device.queue.writeBuffer(brushesBuffer, 4, selectedTypes)
+            }
+            if (brushOptionsBindGroup) updateBrushOptionsBindGroup()
+        }
         const updateBrushOptionsBuffer = () => {
             const brushX = cameraCenter.x + (pointerX / CANVAS_WIDTH * 2 - 1) / cameraScaleX
             const brushY = cameraCenter.y + (pointerY / CANVAS_HEIGHT * 2 - 1) / cameraScaleY
@@ -1116,6 +1136,7 @@ export default defineComponent({
             updateEraseCompactBindGroups()
             updateOffscreenTextureBindGroup()
             updateComposeHdrBindGroup()
+            updateBrushOptionsBindGroup()
             // ---------------------------------------------------------------------------------------------------------
             simOptionsBindGroup = device.createBindGroup({
                 layout: simOptionsBindGroupLayout,
@@ -1148,10 +1169,14 @@ export default defineComponent({
                     { binding: 1, resource: { buffer: infiniteRenderOptionsBuffer! } },
                 ],
             })
+        }
+        const updateBrushOptionsBindGroup = () => {
+            brushOptionsBindGroup = undefined as any
             brushOptionsBindGroup = device.createBindGroup({
                 layout: brushOptionsBindGroupLayout,
                 entries: [
                     { binding: 0, resource: { buffer: brushOptionsBuffer! } },
+                    { binding: 1, resource: { buffer: brushesBuffer! } },
                 ],
             })
         }
@@ -1367,6 +1392,7 @@ export default defineComponent({
             brushOptionsBindGroupLayout = device.createBindGroupLayout({
                 entries: [
                     { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }, // brushOptionsBuffer
+                    { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // brushesBuffer
                 ],
             })
             particleEraseBindGroupLayout = device.createBindGroupLayout({
@@ -2254,6 +2280,7 @@ export default defineComponent({
         watch(() => particleLife.isAdditiveBlending, (value: boolean) => isAdditiveBlending = value)
         watch(() => particleLife.isBrushActive, (value: boolean) => isBrushActive = value)
         watch(() => particleLife.brushType, (value: number) => brushType = value)
+        watch(() => particleLife.brushes, (value: number[]) => { brushes = value; updateBrushesBuffer(); }, { deep: true })
         watch(() => particleLife.brushRadius, (value: number) => brushRadius = value)
         watch(() => particleLife.brushIntensity, (value: number) => brushIntensity = value)
         watch(() => particleLife.repulseForce, (value: number) => repulseForce = value)

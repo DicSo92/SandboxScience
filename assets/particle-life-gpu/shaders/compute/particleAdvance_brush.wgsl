@@ -35,6 +35,10 @@ struct BrushOptions {
     brushForce: f32,
     brushDirectionalForce: f32,
 }
+struct BrushTypes {
+    count: u32,
+    types: array<u32>,
+};
 
 const BRUSH_FORCE_MULTIPLIER = 500.0;
 const BRUSH_DIRECTIONAL_STRENGTH = 40.0;
@@ -43,6 +47,7 @@ const BRUSH_DIRECTIONAL_STRENGTH = 40.0;
 @group(1) @binding(0) var<uniform> options : SimOptions;
 @group(2) @binding(0) var<uniform> deltaTime: f32;
 @group(3) @binding(0) var<uniform> brush: BrushOptions;
+@group(3) @binding(1) var<storage, read> brushTypes: BrushTypes;
 
 @compute @workgroup_size(64)
 fn particleAdvance(@builtin(global_invocation_id) id : vec3u) {
