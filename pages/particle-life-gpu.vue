@@ -29,7 +29,7 @@
                         <Collapse label="World Settings" icon="i-tabler-world-cog" opened mt-2>
                             <RangeInput input label="Particle Number"
                                         tooltip="Adjust the total number of particles. <br> More particles may reveal complex interactions but can increase computational demand."
-                                        :min="16" :max="100000" :step="16" v-model="particleLife.numParticles">
+                                        :min="16" :max="1048576" :step="16" v-model="particleLife.numParticles" @update:modelValue="updateNumParticles">
                             </RangeInput>
                             <RangeInput input label="Color Number"
                                         tooltip="Specify the number of particle colors. <br> Each color interacts with all others, with distinct forces and interaction ranges."
@@ -85,7 +85,25 @@
                         <Collapse label="Graphics Settings" icon="i-tabler-photo-cog" mt-2>
                             <RangeInput input label="Particle Size"
                                         tooltip="Controls the overall size of the particles in the simulation, allowing you to make them larger or smaller depending on your preference. This setting does not impact performance."
-                                        :min="1" :max="20" :step="1" v-model="particleLife.particleSize" mt-2>
+                                        :min="0.1" :max="6" :step="0.1" v-model="particleLife.particleSize" mt-2>
+                            </RangeInput>
+                            <ToggleSwitch label="Particle Glowing" colorful-label v-model="particleLife.isParticleGlow" />
+                            <ToggleSwitch label="Additive Blending" colorful-label v-model="particleLife.isAdditiveBlending" />
+                            <RangeInput input label="Glow Size"
+                                        tooltip="Adjust the size of the glow effect around particles."
+                                        :min="0" :max="32" :step="0.1" v-model="particleLife.glowSize" mt-2>
+                            </RangeInput>
+                            <RangeInput input label="Glow Intensity"
+                                        tooltip="Adjust the intensity of the glow effect around particles."
+                                        :min="0" :max="0.5" :step="0.005" v-model="particleLife.glowIntensity" mt-2>
+                            </RangeInput>
+                            <RangeInput input label="Glow Steepness"
+                                        tooltip="Adjust the steepness of the glow effect around particles. <br> Higher values create a sharper transition between glowing and non-glowing areas."
+                                        :min="0" :max="12" :step="1" v-model="particleLife.glowSteepness" mt-2>
+                            </RangeInput>
+                            <RangeInput input label="Particle Opacity"
+                                        tooltip="Adjust the opacity of the particles in the simulation. <br> This setting allows you to control how transparent or opaque the particles appear."
+                                        :min="0" :max="1" :step="0.01" v-model="particleLife.particleOpacity" mt-2>
                             </RangeInput>
                         </Collapse>
                     </div>
@@ -97,7 +115,7 @@
                 </div>
             </template>
         </SidebarLeft>
-        <canvas ref="canvasRef" id="canvasRef" w-full h-full></canvas>
+        <canvas ref="canvasRef" id="canvasRef" @contextmenu.prevent w-full h-full cursor-crosshair></canvas>
         <div absolute top-0 right-0 flex flex-col items-end text-right pointer-events-none>
             <div flex items-center text-start text-xs pl-4 pr-1 bg-gray-800 rounded-bl-xl style="padding-bottom: 1px; opacity: 75%">
                 <div flex>Fps: <div ml-1 min-w-8>{{ fps }}</div></div>
@@ -134,17 +152,27 @@ import { defineComponent, onMounted, ref } from 'vue';
 import WallStateSelection from "~/components/particle-life/WallStateSelection.vue";
 import MatrixSettings from "~/components/particle-life/MatrixSettings.vue";
 import BrushSettings from "~/components/particle-life/BrushSettings.vue";
-import buildHashShaderCode from 'assets/particle-life-gpu/shaders/compute_buildHash.wgsl?raw';
-import clearHashShaderCode from 'assets/particle-life-gpu/shaders/compute_clearHash.wgsl?raw';
-import bruteForceShaderCode from '~/assets/particle-life-gpu/shaders/compute_bruteForce.wgsl?raw';
-import spatialHashShaderCode from '~/assets/particle-life-gpu/shaders/compute_spatialHash.wgsl?raw';
-import vertexShaderCode from '~/assets/particle-life-gpu/shaders/render_vertex.wgsl?raw';
-import fragmentShaderCode from '~/assets/particle-life-gpu/shaders/render_fragment.wgsl?raw';
-import offscreenShaderCode from 'assets/particle-life-gpu/shaders/offscreen_render_vertex.wgsl?raw';
-import mirrorVertexShaderCode from 'assets/particle-life-gpu/shaders/mirror_compositor_vertex.wgsl?raw';
-import mirrorFragmentShaderCode from 'assets/particle-life-gpu/shaders/mirror_compositor_fragment.wgsl?raw';
-import infiniteVertexShaderCode from 'assets/particle-life-gpu/shaders/infinite_compositor_vertex.wgsl?raw';
-import infiniteFragmentShaderCode from 'assets/particle-life-gpu/shaders/infinite_compositor_fragment.wgsl?raw';
+
+import binFillSizeShaderCode from 'assets/particle-life-gpu/shaders/compute/binFillSize.wgsl?raw';
+import binPrefixSumShaderCode from 'assets/particle-life-gpu/shaders/compute/binPrefixSum.wgsl?raw';
+import particleSortShaderCode from 'assets/particle-life-gpu/shaders/compute/particleSort.wgsl?raw';
+import bruteForceShaderCode from 'assets/particle-life-gpu/shaders/compute/compute_bruteForce.wgsl?raw';
+import particleComputeForcesShaderCode from 'assets/particle-life-gpu/shaders/compute/particleComputeForces.wgsl?raw';
+import particleAdvanceShaderCode from 'assets/particle-life-gpu/shaders/compute/particleAdvance.wgsl?raw';
+import particleAdvanceBrushShaderCode from 'assets/particle-life-gpu/shaders/compute/particleAdvance_brush.wgsl?raw';
+
+import renderShaderCode from 'assets/particle-life-gpu/shaders/render/render_normal.wgsl?raw';
+import offscreenShaderCode from 'assets/particle-life-gpu/shaders/render/offscreen_render_vertex.wgsl?raw';
+import infiniteCompositorShaderCode from 'assets/particle-life-gpu/shaders/compose/infinite_compositor.wgsl?raw';
+import renderGlowShaderCode from 'assets/particle-life-gpu/shaders/render/particle_render_glow.wgsl?raw';
+import composeHdrShaderCode from 'assets/particle-life-gpu/shaders/compose/compose_hdr.wgsl?raw';
+
+import renderMirrorShaderCode from 'assets/particle-life-gpu/shaders/render/render_mirror.wgsl?raw';
+import renderInfiniteShaderCode from 'assets/particle-life-gpu/shaders/render/render_infinite.wgsl?raw';
+
+import particleEraseShaderCode from 'assets/particle-life-gpu/shaders/compute/particleErase.wgsl?raw';
+import particleCompactShaderCode from 'assets/particle-life-gpu/shaders/compute/particleCompact.wgsl?raw';
+
 export default defineComponent({
     name: 'ParticleLifeGpu',
     components: {BrushSettings, MatrixSettings, WallStateSelection},
@@ -164,16 +192,28 @@ export default defineComponent({
         let animationFrameId: number | null = null
         let lastFrameTime: number = performance.now()
         let isRunning: boolean = particleLife.isRunning
+        let isInitializing: boolean = true
         let isUpdatingParticles: boolean = false // Flag to prevent multiple additions at once
+
         let smoothedDeltaTime: number = 0.016 // Initial value (1/60s)
         let CANVAS_WIDTH: number = 0
         let CANVAS_HEIGHT: number = 0
         let SIM_WIDTH: number = 0
         let SIM_HEIGHT: number = 0
         let CELL_SIZE: number = 0
-        let SPATIAL_HASH_TABLE_SIZE: number = 0
         let baseSimWidth: number = 0
         let baseSimHeight: number = 0
+        let GRID_WIDTH: number = 0
+        let GRID_HEIGHT: number = 0
+        let binCount: number = 0
+        let prefixSumIterations: number = 0
+
+        let EXTENDED_GRID_WIDTH: number = 0
+        let EXTENDED_GRID_HEIGHT: number = 0
+        let GRID_OFFSET_X: number = 0
+        let GRID_OFFSET_Y: number = 0
+        let EXTENDED_SIM_WIDTH: number = 0
+        let EXTENDED_SIM_HEIGHT: number = 0
 
         // Define color list and rules matrix for the particles
         let rulesMatrix: number[][] = [] // Rules matrix for each color
@@ -182,9 +222,7 @@ export default defineComponent({
         let currentMaxRadius: number = 0 // Max value between all colors max radius (for cell size)
 
         // Define the simulation properties
-        let positions: Float32Array // Particle positions
-        let velocities: Float32Array // Particle velocities
-        let types: Uint32Array // Particle types (colors)
+        let initialParticles: Float32Array // Initial particle x, y, vx, vy, type
         let colors: Float32Array // Particle colors
 
         // Define the properties for dragging and zooming
@@ -197,47 +235,10 @@ export default defineComponent({
         let lastPointerY: number = 0 // For dragging
         let pointerX: number = 0 // Pointer X
         let pointerY: number = 0 // Pointer Y
+        let lastFramePointerX: number = 0
+        let lastFramePointerY: number = 0
         let cameraChanged: boolean = true
-
-        // Define the GPU device, pipelines, and bind groups
-        let device: GPUDevice
-        let renderPipeline: GPURenderPipeline
-        let clearHashPipeline: GPUComputePipeline
-        let buildHashPipeline: GPUComputePipeline
-        let bruteForceComputePipeline: GPUComputePipeline
-        let spatialHashComputePipeline: GPUComputePipeline
-        let renderBindGroup: GPUBindGroup
-        let clearHashBindGroup: GPUBindGroup
-        let buildHashBindGroup: GPUBindGroup
-        let bruteForceComputeBindGroup: GPUBindGroup
-        let spatialHashComputeBindGroup: GPUBindGroup
-
-        // Define the buffers
-        let currentPositionBuffer: GPUBuffer | undefined
-        let nextPositionBuffer: GPUBuffer | undefined
-        let velocityBuffer: GPUBuffer | undefined
-        let typeBuffer: GPUBuffer | undefined
-        let typeBufferPacked: GPUBuffer | undefined // Packed type buffer for compute shader
-        let colorBuffer: GPUBuffer | undefined
-        let deltaTimeBuffer: GPUBuffer | undefined
-        let triangleVertexBuffer: GPUBuffer | undefined
-        let cameraBuffer: GPUBuffer | undefined
-        let interactionMatrixBuffer: GPUBuffer | undefined
-        let simOptionsBuffer: GPUBuffer | undefined
-        let particleHashesBuffer: GPUBuffer | undefined
-        let cellHeadsBuffer: GPUBuffer | undefined
-        let particleNextIndicesBuffer: GPUBuffer | undefined
-
-        // Define the offscreen texture and its view for rendering mirrors
-        let offscreenTexture: GPUTexture | undefined
-        let offscreenTextureView: GPUTextureView
-        let offscreenSampler: GPUSampler
-        let renderMirrorPipeline: GPURenderPipeline
-        let renderMirrorBindGroup: GPUBindGroup
-        let renderOffscreenPipeline: GPURenderPipeline
-        let renderOffscreenBindGroup: GPUBindGroup
-        let renderInfinitePipeline: GPURenderPipeline
-        let renderInfiniteBindGroup: GPUBindGroup
+        let infiniteTotalInstances: number = 0 // Total number of instances for infinite rendering
 
         // Define variables for the simulation
         let repel: number = particleLife.repel // Repel force between particles
@@ -246,6 +247,8 @@ export default defineComponent({
         let NUM_PARTICLES: number = particleLife.numParticles
         let PARTICLE_SIZE: number = particleLife.particleSize
         let NUM_TYPES: number = particleLife.numColors
+        let isParticleGlow: boolean = particleLife.isParticleGlow // Enable glow effect for the particles
+        let isAdditiveBlending = particleLife.isAdditiveBlending // Use additive blending for rendering particles
         let isWallRepel: boolean = particleLife.isWallRepel // Enable walls X and Y for the particles
         let isWallWrap: boolean = particleLife.isWallWrap // Enable wrapping for the particles
         let isMirrorWrap: boolean = particleLife.isMirrorWrap // Enable mirroring for the particles (only if isWallWrap is true)
@@ -253,16 +256,141 @@ export default defineComponent({
         let mirrorWrapCount: number = particleLife.mirrorWrapCount // Number of mirrors to render if isMirrorWrap is true (5 or 9)
         let useSpatialHash: boolean = particleLife.useSpatialHash // Use spatial hash or brute force
 
+        let glowSize: number = particleLife.glowSize
+        let glowIntensity: number = particleLife.glowIntensity
+        let glowSteepness: number = particleLife.glowSteepness
+        let particleOpacity: number = particleLife.particleOpacity
+
+        let isBrushActive: boolean = particleLife.isBrushActive
+        let isBrushDrawing: boolean = false
+        let brushType: number = particleLife.brushType // 0: Erase, 1: Draw, 2: Repulse, 3: Attract
+        let brushes: number[] = particleLife.brushes
+        let brushRadius: number = particleLife.brushRadius
+        let brushIntensity: number = particleLife.brushIntensity
+        let attractForce: number = -Math.abs(particleLife.attractForce)
+        let repulseForce: number = particleLife.repulseForce
+        let brushDirectionalForce: number = particleLife.brushDirectionalForce // Force applied in the direction of the brush movement
+
+        // Define GPU resources
+        let device: GPUDevice
+        let currentPositionBuffer: GPUBuffer | undefined
+        let nextPositionBuffer: GPUBuffer | undefined
+        let velocityBuffer: GPUBuffer | undefined
+        let typeBuffer: GPUBuffer | undefined
+        let typeBufferPacked: GPUBuffer | undefined // Packed type buffer for compute shader
+        let colorBuffer: GPUBuffer | undefined
+        let deltaTimeBuffer: GPUBuffer | undefined
+        let cameraBuffer: GPUBuffer | undefined
+        let interactionMatrixBuffer: GPUBuffer | undefined
+        let simOptionsBuffer: GPUBuffer | undefined
+        let particleHashesBuffer: GPUBuffer | undefined
+        let cellHeadsBuffer: GPUBuffer | undefined
+        let particleNextIndicesBuffer: GPUBuffer | undefined
+        let glowOptionsBuffer: GPUBuffer | undefined
+        let infiniteRenderOptionsBuffer: GPUBuffer | undefined
+        let brushOptionsBuffer: GPUBuffer | undefined
+
+        let binOffsetBuffer: GPUBuffer | undefined
+        let binOffsetTempBuffer: GPUBuffer | undefined
+        let particleBuffer: GPUBuffer | undefined
+        let particleTempBuffer: GPUBuffer | undefined
+        let binPrefixSumStepSizeBuffer: GPUBuffer | undefined
+
+        let offscreenTexture: GPUTexture | undefined
+        let offscreenTextureView: GPUTextureView
+        let offscreenSampler: GPUSampler
+        let hdrTexture: GPUTexture | undefined
+        let hdrTextureView: GPUTextureView
+
+        let renderPipeline: GPURenderPipeline
+        let renderGlowPipeline: GPURenderPipeline
+        let renderCirclePipeline: GPURenderPipeline
+        let renderMirrorPipeline: GPURenderPipeline
+        let renderMirrorGlowPipeline: GPURenderPipeline
+        let renderMirrorCirclePipeline: GPURenderPipeline
+        let renderInfinitePipeline: GPURenderPipeline
+        let renderInfiniteGlowPipeline: GPURenderPipeline
+        let renderInfiniteCirclePipeline: GPURenderPipeline
+        let renderOffscreenPipeline: GPURenderPipeline
+        let composeInfinitePipeline: GPURenderPipeline
+        let composeHdrPipeline: GPURenderPipeline
+
+        let renderPipelineAdditive: GPURenderPipeline
+        let renderMirrorPipelineAdditive: GPURenderPipeline
+        let renderInfinitePipelineAdditive: GPURenderPipeline
+        let renderCirclePipelineAdditive: GPURenderPipeline
+        let renderMirrorCirclePipelineAdditive: GPURenderPipeline
+        let renderInfiniteCirclePipelineAdditive: GPURenderPipeline
+
+        let binClearSizePipeline: GPUComputePipeline
+        let binFillSizePipeline: GPUComputePipeline
+        let binPrefixSumPipeline: GPUComputePipeline
+        let particleSortClearSizePipeline: GPUComputePipeline
+        let particleSortPipeline: GPUComputePipeline
+        let bruteForceComputePipeline: GPUComputePipeline
+        let particleComputeForcesPipeline: GPUComputePipeline
+        let particleAdvancePipeline: GPUComputePipeline
+        let particleAdvanceBrushPipeline: GPUComputePipeline
+
+        let particleBufferReadOnlyBindGroup: GPUBindGroup
+        let binFillSizeBindGroup: GPUBindGroup
+        let binPrefixSumBindGroup: GPUBindGroup[] = []
+        let particleSortBindGroup: GPUBindGroup
+        let bruteForceBindGroup: GPUBindGroup
+        let particleComputeForcesBindGroup: GPUBindGroup
+        let particleBufferBindGroup: GPUBindGroup
+        let simOptionsBindGroup: GPUBindGroup
+        let deltaTimeBindGroup: GPUBindGroup
+        let cameraBindGroup: GPUBindGroup
+        let offscreenTextureBindGroup: GPUBindGroup
+        let composeHdrBindGroup: GPUBindGroup
+        let glowOptionsBindGroup: GPUBindGroup
+        let infiniteRenderOptionsBindGroup: GPUBindGroup
+        let brushOptionsBindGroup: GPUBindGroup
+
+        let particleBufferBindGroupLayout: GPUBindGroupLayout
+        let binPrefixSumBindGroupLayout: GPUBindGroupLayout
+        let particleBufferReadOnlyBindGroupLayout: GPUBindGroupLayout
+        let binFillSizeBindGroupLayout: GPUBindGroupLayout
+        let particleSortBindGroupLayout: GPUBindGroupLayout
+        let bruteForceBindGroupLayout: GPUBindGroupLayout
+        let particleComputeForcesBindGroupLayout: GPUBindGroupLayout
+        let simOptionsBindGroupLayout: GPUBindGroupLayout
+        let deltaTimeBindGroupLayout: GPUBindGroupLayout
+        let cameraBindGroupLayout: GPUBindGroupLayout
+        let offscreenTextureBindGroupLayout: GPUBindGroupLayout
+        let composeHdrBindGroupLayout: GPUBindGroupLayout
+        let glowOptionsBindGroupLayout: GPUBindGroupLayout
+        let infiniteRenderOptionsBindGroupLayout: GPUBindGroupLayout
+        let brushOptionsBindGroupLayout: GPUBindGroupLayout
+
+        let isBrushErasing: boolean = false
+
+        let particleErasePipeline: GPUComputePipeline;
+        let particleCompactPipeline: GPUComputePipeline;
+        let particleEraseBindGroupLayout: GPUBindGroupLayout;
+        let particleCompactBindGroupLayout: GPUBindGroupLayout;
+        let particleEraseBindGroup: GPUBindGroup;
+        let particleCompactBindGroup: GPUBindGroup;
+        let particleKeepFlagsBuffer: GPUBuffer | undefined;
+        let newParticleCountBuffer: GPUBuffer | undefined;
+        let newParticleCountReadBuffer: GPUBuffer | undefined;
+        let particleCompactBuffer: GPUBuffer | undefined;
+
         onMounted(async () => {
             await initWebGPU()
             handleResize()
             setSimSizeBasedOnScreen()
-            initLife()
+            await initLife()
 
             useEventListener('resize', handleResize)
             useEventListener(canvasRef.value, ['mousedown'], (e) => {
                 lastPointerX = e.x - canvasRef.value!.getBoundingClientRect().left
                 lastPointerY = e.y - canvasRef.value!.getBoundingClientRect().top
+                if (e.buttons === 2 && isBrushActive) { // if secondary button is pressed (right click)
+                    if (brushType === 0) isBrushErasing = true
+                    else isBrushDrawing = true
+                }
             })
             useEventListener(canvasRef.value, ['mousemove'], (e) => {
                 pointerX = e.x - canvasRef.value!.getBoundingClientRect().left
@@ -274,13 +402,25 @@ export default defineComponent({
                     if (e.buttons === 1) { // if primary button is pressed (left click)
                         handleMove()
                     }
+                    if (e.buttons === 2 && isBrushActive) { // if secondary button is pressed (right click)
+                        if (brushType === 0) isBrushErasing = true
+                        else isBrushDrawing = true
+                    }
                 }
                 else if (e.buttons === 0) {
                     isDragging = false
+                    isBrushDrawing = false
+                    isBrushErasing = false
                 }
             })
-
+            useEventListener(canvasRef.value, ['mouseup'], () => {
+                isDragging = false
+                isBrushDrawing = false
+                isBrushErasing = false
+            })
             useEventListener(canvasRef.value, 'wheel', (e) => {
+                pointerX = e.x - canvasRef.value!.getBoundingClientRect().left
+                pointerY = e.y - canvasRef.value!.getBoundingClientRect().top
                 if (e.deltaY < 0) { // Zoom in
                     handleZoom(1, pointerX, pointerY)
                 } else { // Zoom out
@@ -294,24 +434,66 @@ export default defineComponent({
             CANVAS_WIDTH = canvasRef.value!.width = canvasRef.value!.clientWidth
             CANVAS_HEIGHT = canvasRef.value!.height = canvasRef.value!.clientHeight
             updateCameraScaleFactors()
+            updateHdrTexture()
             cameraChanged = true
         }
         function updateCameraScaleFactors() {
-            cameraScaleY = zoomFactor * 2.0 / SIM_HEIGHT
+            cameraScaleY = zoomFactor * 2.0 / CANVAS_HEIGHT
             cameraScaleX = cameraScaleY / (CANVAS_WIDTH / CANVAS_HEIGHT)
         }
         function setSimSizeBasedOnScreen() {
             particleLife.simWidth = SIM_WIDTH = baseSimWidth = CANVAS_WIDTH
             particleLife.simHeight = SIM_HEIGHT = baseSimHeight = CANVAS_HEIGHT
             updateCameraScaleFactors()
-            updateOffscreenMirrorResources()
         }
-        function setSimSizeWhenWrapped() { // Set the grid size when the walls are wrapped
-            if (!useSpatialHash) return
-            particleLife.simWidth = SIM_WIDTH = CELL_SIZE * Math.round(baseSimWidth / CELL_SIZE)
-            particleLife.simHeight = SIM_HEIGHT = CELL_SIZE * Math.round(baseSimHeight / CELL_SIZE)
+        function setSimSize() {
+            if (useSpatialHash && isWallWrap) {
+                particleLife.simWidth = SIM_WIDTH = CELL_SIZE * Math.round(baseSimWidth / CELL_SIZE)
+                particleLife.simHeight = SIM_HEIGHT = CELL_SIZE * Math.round(baseSimHeight / CELL_SIZE)
+            }
             updateCameraScaleFactors()
+            updateBinningParameters()
             updateOffscreenMirrorResources()
+            updateInfiniteRenderOptions()
+        }
+        const updateBinningParameters = () => {
+            const oldBinCount = binCount
+            const oldPrefixSumIterations = prefixSumIterations
+
+            // If no walls, set a larger grid size for better performance
+            if (!isWallWrap && !isWallRepel) {
+                const requestedFactor = 4
+                const maxWorkgroups = device.limits.maxComputeWorkgroupsPerDimension
+                const maxBinCount = maxWorkgroups * 64
+                const baseBinCount = Math.ceil(SIM_WIDTH / CELL_SIZE) * Math.ceil(SIM_HEIGHT / CELL_SIZE)
+                const maxPossibleFactor = Math.sqrt(maxBinCount / baseBinCount)
+                const safeFactor = Math.min(requestedFactor, maxPossibleFactor * 0.9)
+                const extensionX = (SIM_WIDTH * safeFactor - SIM_WIDTH) / 2
+                const extensionY = (SIM_HEIGHT * safeFactor - SIM_HEIGHT) / 2
+
+                EXTENDED_SIM_WIDTH = SIM_WIDTH + (extensionX * 2)
+                EXTENDED_SIM_HEIGHT = SIM_HEIGHT + (extensionY * 2)
+                EXTENDED_GRID_WIDTH = Math.ceil(EXTENDED_SIM_WIDTH / CELL_SIZE)
+                EXTENDED_GRID_HEIGHT = Math.ceil(EXTENDED_SIM_HEIGHT / CELL_SIZE)
+                GRID_OFFSET_X = Math.ceil(extensionX / CELL_SIZE)
+                GRID_OFFSET_Y = Math.ceil(extensionY / CELL_SIZE)
+                GRID_WIDTH = Math.ceil(SIM_WIDTH / CELL_SIZE)
+                GRID_HEIGHT = Math.ceil(SIM_HEIGHT / CELL_SIZE)
+                binCount = EXTENDED_GRID_WIDTH * EXTENDED_GRID_HEIGHT
+            } else {
+                GRID_WIDTH = Math.ceil(SIM_WIDTH / CELL_SIZE)
+                GRID_HEIGHT = Math.ceil(SIM_HEIGHT / CELL_SIZE)
+                binCount = GRID_WIDTH * GRID_HEIGHT
+            }
+            prefixSumIterations = Math.ceil(Math.ceil(Math.log2(binCount + 1)) / 2) * 2
+
+            if (device && (oldBinCount !== binCount || oldPrefixSumIterations !== prefixSumIterations)) {
+                updateBinningBuffers()
+                if (!isInitializing) {
+                    updateBinningBindGroups()
+                    updateParticleBindGroups()
+                }
+            }
         }
         function centerView() {
             cameraCenter = { x: SIM_WIDTH / 2, y: SIM_HEIGHT / 2 }
@@ -336,7 +518,7 @@ export default defineComponent({
 
             const zoomIntensity = 0.1
             const zoomDelta = delta * zoomIntensity
-            zoomFactor = Math.max(0.1, Math.min(8.0, zoomFactor * (1 + zoomDelta)))
+            zoomFactor = Math.max(0.15, Math.min(1000.0, zoomFactor * (1 + zoomDelta)))
 
             updateCameraScaleFactors()
 
@@ -361,7 +543,8 @@ export default defineComponent({
                 alphaMode: 'opaque'
             })
         }
-        const initLife = () => {
+        const initLife = async () => {
+            isInitializing = true
             setRulesMatrix(makeRandomRulesMatrix())
             setMinRadiusMatrix(makeRandomMinRadiusMatrix())
             setMaxRadiusMatrix(makeRandomMaxRadiusMatrix())
@@ -374,46 +557,41 @@ export default defineComponent({
             console.log("Min Radius Matrix:", minRadiusMatrix);
             console.log("Max Radius Matrix:", maxRadiusMatrix);
 
-            currentMaxRadius = particleLife.currentMaxRadius // Ensure this is set before creating buffers
-            CELL_SIZE = currentMaxRadius // Ensure CELL_SIZE is set before creating buffers
-            SPATIAL_HASH_TABLE_SIZE = Math.pow(2, Math.ceil(Math.log2(NUM_PARTICLES))) // Ensure SPATIAL_HASH_TABLE_SIZE is a power of 2
-
-            updateCameraScaleFactors()
-            if (isWallWrap) setSimSizeWhenWrapped()
+            await nextTick()
             centerView()
 
             initColors()
             initParticles()
             createBuffers()
+            createBindGroupLayouts()
             createPipelines()
             createBindGroups()
 
-            if (!isRunning) step() // Run a step if not running to initialize the simulation
-
+            isInitializing = false
             lastFrameTime = performance.now()
             animationFrameId = requestAnimationFrame(frame)
         }
         const regenerateLife = async () => {
             cancelAnimationLoop()
             destroyPipelinesAndBindGroups()
-            await destroyBuffers()
-            initLife()
+            await destroyBuffers(true)
+            await initLife()
         }
-        const step = () => {
-            if (useSpatialHash) createSpatialHashBindGroups()
-            else createBruteForceBindGroup()
+        // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
+        let pendingFrames: number = 0
+        const frame = async () => {
+            // Wait for the GPU to finish processing before starting a new frame (to avoid overloading the GPU)
+            // Produces flickering if the GPU is not fast enough
+            // if (pendingFrames > 3) {
+            //     animationFrameId = requestAnimationFrame(frame)
+            //     return
+            // }
 
-            const encoder = device.createCommandEncoder()
-            if (useSpatialHash) computeSpatialHash(encoder)
-            else computeBruteForce(encoder)
-            renderParticles(encoder)
-            device.queue.submit([encoder.finish()])
+            if (isBrushErasing) await eraseWithBrush()
 
-            ;[currentPositionBuffer, nextPositionBuffer] = [nextPositionBuffer, currentPositionBuffer] // Swap position buffers
-        }
-        const frame = () => {
             const startExecutionTime = performance.now()
-
             if (isRunning) {
                 handleDeltaTime(startExecutionTime)
                 step()
@@ -423,10 +601,15 @@ export default defineComponent({
                 device.queue.submit([encoder.finish()])
             }
             // device.queue.onSubmittedWorkDone().then(() => executionTime.value = performance.now() - startExecutionTime) // Approximate execution time of the GPU commands
+            lastFramePointerX = pointerX
+            lastFramePointerY = pointerY
+
+            // // Wait for the GPU to finish processing before starting a new frame
+            // ++pendingFrames
+            // device.queue.onSubmittedWorkDone().then(() => { --pendingFrames })
+
             animationFrameId = requestAnimationFrame(frame)
         }
-        // -------------------------------------------------------------------------------------------------------------
-        // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         const handleDeltaTime = (startExecutionTime: number) => {
             const deltaTime = Math.min((startExecutionTime - lastFrameTime) / 1000, 0.1) // Cap deltaTime to avoid spikes
@@ -436,107 +619,227 @@ export default defineComponent({
 
             // Only update the delta time buffer if it has changed significantly
             if (Math.round(lastSmoothedDeltaTime * 1000) !== Math.round(smoothedDeltaTime * 1000)) {
-                // console.log(`Delta time changed: ${smoothedDeltaTime.toFixed(3)}`)
                 device.queue.writeBuffer(deltaTimeBuffer!, 0, new Float32Array([smoothedDeltaTime]))
             }
         }
-        const computeSpatialHash = (encoder: GPUCommandEncoder) => {
-            const clearPass = encoder.beginComputePass()
-            clearPass.setPipeline(clearHashPipeline)
-            clearPass.setBindGroup(0, clearHashBindGroup)
-            clearPass.dispatchWorkgroups(Math.ceil(SPATIAL_HASH_TABLE_SIZE / 64))
-            clearPass.end()
-            const buildHashPass = encoder.beginComputePass()
-            buildHashPass.setPipeline(buildHashPipeline)
-            buildHashPass.setBindGroup(0, buildHashBindGroup)
-            buildHashPass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
-            buildHashPass.end()
-            const computePass = encoder.beginComputePass()
-            computePass.setPipeline(spatialHashComputePipeline)
-            computePass.setBindGroup(0, spatialHashComputeBindGroup)
-            computePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
-            computePass.end()
+        // -------------------------------------------------------------------------------------------------------------
+        const step = () => {
+            const encoder = device.createCommandEncoder()
+
+            encoder.copyBufferToBuffer(particleBuffer!, 0, particleTempBuffer!, 0, particleBuffer!.size)
+
+            if (useSpatialHash) computeBinning(encoder)
+            else computeBruteForce(encoder)
+
+            computeAdvance(encoder)
+
+            renderParticles(encoder)
+            device.queue.submit([encoder.finish()])
         }
+        // -------------------------------------------------------------------------------------------------------------
         const computeBruteForce = (encoder: GPUCommandEncoder) => {
             const computePass = encoder.beginComputePass()
             computePass.setPipeline(bruteForceComputePipeline)
-            computePass.setBindGroup(0, bruteForceComputeBindGroup)
+            computePass.setBindGroup(0, bruteForceBindGroup)
+            computePass.setBindGroup(1, simOptionsBindGroup)
             computePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
             computePass.end()
         }
+        const computeBinning = (encoder: GPUCommandEncoder) => {
+            const binningComputePass = encoder.beginComputePass()
+            binningComputePass.setPipeline(binClearSizePipeline)
+            binningComputePass.setBindGroup(0, particleBufferReadOnlyBindGroup)
+            binningComputePass.setBindGroup(1, simOptionsBindGroup)
+            binningComputePass.setBindGroup(2, binFillSizeBindGroup)
+            binningComputePass.dispatchWorkgroups(Math.ceil((binCount + 1) / 64))
+
+            binningComputePass.setPipeline(binFillSizePipeline)
+            binningComputePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
+
+            binningComputePass.setPipeline(binPrefixSumPipeline)
+            for (let i = 0; i < prefixSumIterations; ++i) {
+                binningComputePass.setBindGroup(0, binPrefixSumBindGroup[i % 2], [i * 256])
+                binningComputePass.dispatchWorkgroups(Math.ceil((binCount + 1) / 64))
+            }
+
+            binningComputePass.setPipeline(particleSortClearSizePipeline)
+            binningComputePass.setBindGroup(0, particleSortBindGroup)
+            binningComputePass.dispatchWorkgroups(Math.ceil((binCount + 1) / 64))
+
+            binningComputePass.setPipeline(particleSortPipeline)
+            binningComputePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
+            binningComputePass.end()
+
+            const forcesComputePass = encoder.beginComputePass()
+            forcesComputePass.setPipeline(particleComputeForcesPipeline)
+            forcesComputePass.setBindGroup(0, particleComputeForcesBindGroup)
+            forcesComputePass.setBindGroup(1, simOptionsBindGroup)
+            forcesComputePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
+            forcesComputePass.end()
+        }
+        const computeAdvance = (encoder: GPUCommandEncoder) => {
+            if (isBrushDrawing) {
+                updateBrushOptionsBuffer()
+
+                const advanceBrushComputePass = encoder.beginComputePass()
+                advanceBrushComputePass.setPipeline(particleAdvanceBrushPipeline)
+                advanceBrushComputePass.setBindGroup(0, particleBufferBindGroup)
+                advanceBrushComputePass.setBindGroup(1, simOptionsBindGroup)
+                advanceBrushComputePass.setBindGroup(2, deltaTimeBindGroup)
+                advanceBrushComputePass.setBindGroup(3, brushOptionsBindGroup)
+                advanceBrushComputePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
+                advanceBrushComputePass.end()
+            } else {
+                const advanceComputePass = encoder.beginComputePass()
+                advanceComputePass.setPipeline(particleAdvancePipeline)
+                advanceComputePass.setBindGroup(0, particleBufferBindGroup)
+                advanceComputePass.setBindGroup(1, simOptionsBindGroup)
+                advanceComputePass.setBindGroup(2, deltaTimeBindGroup)
+                advanceComputePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
+                advanceComputePass.end()
+            }
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
         const renderParticles = (encoder: GPUCommandEncoder) => {
             if (cameraChanged) {
                 device.queue.writeBuffer(cameraBuffer!, 0, new Float32Array([
                     cameraCenter.x, cameraCenter.y, cameraScaleX, cameraScaleY
                 ]))
+                updateInfiniteRenderOptions()
                 cameraChanged = false
             }
 
-            if (isMirrorWrap || isInfiniteMirrorWrap) {
-                const renderOffscreenPass = encoder.beginRenderPass({
+            if (isParticleGlow) {
+                const hdrRenderPass = encoder.beginRenderPass({
                     colorAttachments: [{
-                        view: offscreenTextureView,
+                        view: hdrTextureView,
+                        clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+                        loadOp: 'clear',
+                        storeOp: 'store',
+                    }],
+                })
+                hdrRenderPass.setBindGroup(0, particleBufferReadOnlyBindGroup)
+                hdrRenderPass.setBindGroup(1, simOptionsBindGroup)
+                hdrRenderPass.setBindGroup(2, cameraBindGroup)
+                if (isMirrorWrap) {
+                    hdrRenderPass.setBindGroup(3, glowOptionsBindGroup)
+                    hdrRenderPass.setPipeline(renderMirrorGlowPipeline)
+                    hdrRenderPass.draw(4, NUM_PARTICLES * mirrorWrapCount)
+                    hdrRenderPass.setPipeline(isAdditiveBlending ? renderMirrorCirclePipelineAdditive : renderMirrorCirclePipeline)
+                    hdrRenderPass.draw(4, NUM_PARTICLES * mirrorWrapCount)
+                    hdrRenderPass.end()
+                } else if (isInfiniteMirrorWrap) {
+                    hdrRenderPass.setBindGroup(3, infiniteRenderOptionsBindGroup)
+                    hdrRenderPass.setPipeline(renderInfiniteGlowPipeline)
+                    hdrRenderPass.draw(4, infiniteTotalInstances)
+                    hdrRenderPass.setPipeline(isAdditiveBlending ? renderInfiniteCirclePipelineAdditive : renderInfiniteCirclePipeline)
+                    hdrRenderPass.draw(4, infiniteTotalInstances)
+                    hdrRenderPass.end()
+                } else {
+                    hdrRenderPass.setBindGroup(3, glowOptionsBindGroup)
+                    hdrRenderPass.setPipeline(renderGlowPipeline)
+                    hdrRenderPass.draw(4, NUM_PARTICLES)
+                    hdrRenderPass.setPipeline(isAdditiveBlending ? renderCirclePipelineAdditive : renderCirclePipeline)
+                    hdrRenderPass.draw(4, NUM_PARTICLES)
+                    hdrRenderPass.end()
+                }
+                const composePass = encoder.beginRenderPass({
+                    colorAttachments: [{
+                        view: ctx.getCurrentTexture().createView(),
+                        loadOp: 'clear',
+                        storeOp: 'store',
+                    }],
+                })
+                composePass.setPipeline(composeHdrPipeline)
+                composePass.setBindGroup(0, composeHdrBindGroup)
+                composePass.draw(3)
+                composePass.end()
+            }
+            else if (isMirrorWrap) {
+                const renderPass = encoder.beginRenderPass({
+                    colorAttachments: [{
+                        view: ctx.getCurrentTexture().createView(),
+                        loadOp: 'clear',
+                        storeOp: 'store',
+                        clearValue: { r: 0, g: 0, b: 0, a: 1 }
+                    }]
+                })
+                renderPass.setPipeline(isAdditiveBlending ? renderMirrorPipelineAdditive : renderMirrorPipeline)
+                renderPass.setBindGroup(0, particleBufferReadOnlyBindGroup)
+                renderPass.setBindGroup(1, simOptionsBindGroup)
+                renderPass.setBindGroup(2, cameraBindGroup)
+                renderPass.setBindGroup(3, glowOptionsBindGroup)
+                renderPass.draw(4, NUM_PARTICLES * mirrorWrapCount)
+                renderPass.end()
+            }
+            else if (isInfiniteMirrorWrap) {
+                // renderInfiniteMirrorWithOffscreenTexture(encoder)
+
+                const renderPass = encoder.beginRenderPass({
+                    colorAttachments: [{
+                        view: ctx.getCurrentTexture().createView(),
                         loadOp: 'clear',
                         clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
                         storeOp: 'store'
                     }]
                 })
-                renderOffscreenPass.setPipeline(renderOffscreenPipeline)
-                renderOffscreenPass.setBindGroup(0, renderOffscreenBindGroup)
-                renderOffscreenPass.setVertexBuffer(0, triangleVertexBuffer!)
-                renderOffscreenPass.setVertexBuffer(1, nextPositionBuffer!)
-                renderOffscreenPass.setVertexBuffer(2, typeBuffer!)
-                renderOffscreenPass.draw(6, NUM_PARTICLES)
-                renderOffscreenPass.end()
-
-                if (isInfiniteMirrorWrap) {
-                    const renderInfinitePass = encoder.beginRenderPass({
-                        colorAttachments: [{
-                            view: ctx.getCurrentTexture().createView(),
-                            loadOp: 'clear',
-                            clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
-                            storeOp: 'store'
-                        }]
-                    })
-                    renderInfinitePass.setPipeline(renderInfinitePipeline)
-                    renderInfinitePass.setBindGroup(0, renderInfiniteBindGroup)
-                    renderInfinitePass.setVertexBuffer(0, triangleVertexBuffer!)
-                    renderInfinitePass.draw(6, 1)
-                    renderInfinitePass.end()
-                } else {
-                    const renderMirrorPass = encoder.beginRenderPass({
-                        colorAttachments: [{
-                            view: ctx.getCurrentTexture().createView(),
-                            loadOp: 'clear',
-                            clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
-                            storeOp: 'store'
-                        }]
-                    })
-                    renderMirrorPass.setPipeline(renderMirrorPipeline)
-                    renderMirrorPass.setBindGroup(0, renderMirrorBindGroup)
-                    renderMirrorPass.setVertexBuffer(0, triangleVertexBuffer!)
-                    renderMirrorPass.draw(6, mirrorWrapCount)
-                    renderMirrorPass.end()
-                }
-            } else {
-                const renderPass = encoder.beginRenderPass({
-                    colorAttachments: [
-                        {
-                            view: ctx.getCurrentTexture().createView(),
-                            loadOp: 'clear',
-                            storeOp: 'store',
-                            clearValue: { r: 0, g: 0, b: 0, a: 1 }
-                        }
-                    ]
-                })
-                renderPass.setPipeline(renderPipeline)
-                renderPass.setBindGroup(0, renderBindGroup)
-                renderPass.setVertexBuffer(0, triangleVertexBuffer)
-                renderPass.setVertexBuffer(1, nextPositionBuffer)
-                renderPass.setVertexBuffer(2, typeBuffer)
-                renderPass.draw(6, NUM_PARTICLES)
+                renderPass.setPipeline(isAdditiveBlending ? renderInfinitePipelineAdditive : renderInfinitePipeline)
+                renderPass.setBindGroup(0, particleBufferReadOnlyBindGroup)
+                renderPass.setBindGroup(1, simOptionsBindGroup)
+                renderPass.setBindGroup(2, cameraBindGroup)
+                renderPass.setBindGroup(3, infiniteRenderOptionsBindGroup)
+                renderPass.draw(4, infiniteTotalInstances)
                 renderPass.end()
             }
+            else {
+                const renderPass = encoder.beginRenderPass({
+                    colorAttachments: [{
+                        view: ctx.getCurrentTexture().createView(),
+                        loadOp: 'clear',
+                        clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+                        storeOp: 'store',
+                    }],
+                })
+                renderPass.setPipeline(isAdditiveBlending ? renderPipelineAdditive : renderPipeline)
+                renderPass.setBindGroup(0, particleBufferReadOnlyBindGroup)
+                renderPass.setBindGroup(1, simOptionsBindGroup)
+                renderPass.setBindGroup(2, cameraBindGroup)
+                renderPass.draw(4, NUM_PARTICLES)
+                renderPass.end()
+            }
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        const renderInfiniteMirrorWithOffscreenTexture = (encoder: GPUCommandEncoder) => {
+            const renderOffscreenPass = encoder.beginRenderPass({
+                colorAttachments: [{
+                    view: offscreenTextureView,
+                    loadOp: 'clear',
+                    clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+                    storeOp: 'store',
+                }],
+            })
+            renderOffscreenPass.setPipeline(renderOffscreenPipeline)
+            renderOffscreenPass.setBindGroup(0, particleBufferReadOnlyBindGroup)
+            renderOffscreenPass.setBindGroup(1, simOptionsBindGroup)
+            renderOffscreenPass.draw(4, NUM_PARTICLES)
+            renderOffscreenPass.end()
+
+            const renderInfinitePass = encoder.beginRenderPass({
+                colorAttachments: [{
+                    view: ctx.getCurrentTexture().createView(),
+                    loadOp: 'clear',
+                    clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+                    storeOp: 'store'
+                }]
+            })
+            renderInfinitePass.setPipeline(composeInfinitePipeline)
+            renderInfinitePass.setBindGroup(0, cameraBindGroup)
+            renderInfinitePass.setBindGroup(1, simOptionsBindGroup)
+            renderInfinitePass.setBindGroup(2, offscreenTextureBindGroup)
+            renderInfinitePass.draw(3, 1)
+            renderInfinitePass.end()
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -544,28 +847,13 @@ export default defineComponent({
         const createBuffers = () => {
             updateSimOptionsBuffer() // Set simulation options based on the store state
             updateInteractionMatrixBuffer() // Set interaction matrices based on the store state
-            updateSpatialHashBuffers() // Create spatial hash buffers
-            updateParticleDataBuffers() // Create buffers for particle data
-
+            updateParticleBuffers(true)
+            updateEraseCompactBuffers()
+            updateBinningBuffers()
+            updateColorBuffer()
+            updateGlowOptionsBuffer()
+            updateBrushOptionsBuffer()
             // ----------------------------------------------------------------------------------------------
-            const paddedSize = Math.ceil(colors.byteLength / 16) * 16 // Ensure padded to 16 bytes
-            colorBuffer = device.createBuffer({
-                size: paddedSize,
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-                mappedAtCreation: true
-            })
-            new Float32Array(colorBuffer.getMappedRange()).set(colors)
-            colorBuffer.unmap()
-
-            const quadVertices = new Float32Array([-1,-1, 1,-1, 1,1, -1,-1, 1,1, -1,1]);
-            triangleVertexBuffer = device.createBuffer({
-                size: quadVertices.byteLength,
-                usage: GPUBufferUsage.VERTEX,
-                mappedAtCreation: true
-            })
-            new Float32Array(triangleVertexBuffer.getMappedRange()).set(quadVertices)
-            triangleVertexBuffer.unmap()
-
             const cameraData = new Float32Array([cameraCenter.x, cameraCenter.y, cameraScaleX, cameraScaleY])
             cameraBuffer = device.createBuffer({
                 size: cameraData.byteLength,
@@ -578,32 +866,205 @@ export default defineComponent({
             deltaTimeBuffer = device.createBuffer({
                 size: 4,
                 usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+                mappedAtCreation: true
             })
-            device.queue.writeBuffer(deltaTimeBuffer, 0, new Float32Array([smoothedDeltaTime]))
+            new Float32Array(deltaTimeBuffer.getMappedRange()).set([smoothedDeltaTime])
+            deltaTimeBuffer.unmap()
+
+            const infiniteRenderOptionsData = new Int32Array(4) // startX, startY, numCopiesX, numCopiesY
+            infiniteRenderOptionsBuffer = device.createBuffer({
+                size: infiniteRenderOptionsData.byteLength,
+                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+                mappedAtCreation: true
+            })
+            new Int32Array(infiniteRenderOptionsBuffer.getMappedRange()).set(infiniteRenderOptionsData)
+            infiniteRenderOptionsBuffer.unmap()
+            updateInfiniteRenderOptions()
+
+            newParticleCountBuffer = device.createBuffer({
+                size: 4,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
+            })
+            newParticleCountReadBuffer = device.createBuffer({
+                size: 4,
+                usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+            })
+        }
+        const updateColorBuffer = () => {
+            if (colorBuffer) colorBuffer?.destroy(); colorBuffer = undefined;
+            const paddedSize = Math.ceil(colors.byteLength / 16) * 16 // Ensure padded to 16 bytes
+            colorBuffer = device.createBuffer({
+                size: paddedSize,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+                mappedAtCreation: true
+            })
+            new Float32Array(colorBuffer.getMappedRange()).set(colors)
+            colorBuffer.unmap()
+        }
+        const updateParticleBuffers = (hasInitialParticles: boolean = false) => {
+            if (particleBuffer) particleBuffer?.destroy(); particleBuffer = undefined;
+            if (particleTempBuffer) particleTempBuffer?.destroy(); particleTempBuffer = undefined;
+
+            particleBuffer = device.createBuffer({
+                size: NUM_PARTICLES * 20,
+                usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC | GPUBufferUsage.STORAGE,
+                mappedAtCreation: hasInitialParticles,
+            })
+            if (hasInitialParticles) {
+                new Float32Array(particleBuffer.getMappedRange()).set(initialParticles)
+                particleBuffer.unmap()
+            }
+            particleTempBuffer = device.createBuffer({
+                size: particleBuffer.size,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+            })
+        }
+        const updateEraseCompactBuffers = () => {
+            if (particleKeepFlagsBuffer) particleKeepFlagsBuffer.destroy(); particleKeepFlagsBuffer = undefined
+            if (particleCompactBuffer) particleCompactBuffer.destroy(); particleCompactBuffer = undefined
+            particleKeepFlagsBuffer = device.createBuffer({
+                size: NUM_PARTICLES * 4,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+            })
+            particleCompactBuffer = device.createBuffer({
+                size: NUM_PARTICLES * 5 * 4,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+            })
+        }
+        const updateBinningBuffers = () => {
+            if (binOffsetBuffer) binOffsetBuffer.destroy(); binOffsetBuffer = undefined;
+            if (binOffsetTempBuffer) binOffsetTempBuffer.destroy(); binOffsetTempBuffer = undefined;
+            if (binPrefixSumStepSizeBuffer) binPrefixSumStepSizeBuffer.destroy(); binPrefixSumStepSizeBuffer = undefined;
+
+            binOffsetBuffer = device.createBuffer({
+                size: (binCount + 1) * 4,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+            })
+            binOffsetTempBuffer = device.createBuffer({
+                size: (binCount + 1) * 4,
+                usage: GPUBufferUsage.STORAGE,
+            })
+
+            const binPrefixSumStepSize = new Uint32Array(prefixSumIterations * 64)
+            for (let i = 0; i < prefixSumIterations; ++i) {
+                binPrefixSumStepSize[i * 64] = Math.pow(2, i)
+            }
+            binPrefixSumStepSizeBuffer = device.createBuffer({
+                size: prefixSumIterations * 256,
+                usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.UNIFORM,
+                mappedAtCreation: true
+            })
+            new Uint32Array(binPrefixSumStepSizeBuffer.getMappedRange()).set(binPrefixSumStepSize)
+            binPrefixSumStepSizeBuffer.unmap()
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        const updateBrushOptionsBuffer = () => {
+            const brushX = cameraCenter.x + (pointerX / CANVAS_WIDTH * 2 - 1) / cameraScaleX
+            const brushY = cameraCenter.y + (pointerY / CANVAS_HEIGHT * 2 - 1) / cameraScaleY
+            const brushVx = (pointerX - lastFramePointerX) / (cameraScaleX * CANVAS_WIDTH * 0.5) / smoothedDeltaTime
+            const brushVy = (pointerY - lastFramePointerY) / (cameraScaleY * CANVAS_HEIGHT * 0.5) / smoothedDeltaTime
+
+            const brushForce = brushType === 2 ? repulseForce : attractForce
+
+            const brushOptionsData = new ArrayBuffer(28)
+            const brushOptionsView = new DataView(brushOptionsData)
+            brushOptionsView.setFloat32(0, brushX, true)
+            brushOptionsView.setFloat32(4, brushY, true)
+            brushOptionsView.setFloat32(8, brushVx, true)
+            brushOptionsView.setFloat32(12, brushVy, true)
+            brushOptionsView.setFloat32(16, brushRadius, true)
+            brushOptionsView.setFloat32(20, brushForce, true)
+            brushOptionsView.setFloat32(24, brushDirectionalForce, true)
+
+            if (!brushOptionsBuffer) {
+                brushOptionsBuffer = device.createBuffer({
+                    size: brushOptionsData.byteLength,
+                    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+                    mappedAtCreation: true,
+                })
+                new Uint8Array(brushOptionsBuffer.getMappedRange()).set(new Uint8Array(brushOptionsData))
+                brushOptionsBuffer.unmap()
+            } else {
+                device.queue.writeBuffer(brushOptionsBuffer, 0, brushOptionsData)
+            }
+        }
+        const updateInfiniteRenderOptions = () => {
+            if (!isInfiniteMirrorWrap) return
+
+            const viewWidth = 2.0 / cameraScaleX
+            const viewHeight = 2.0 / cameraScaleY
+
+            const viewLeft = cameraCenter.x - viewWidth / 2
+            const viewRight = cameraCenter.x + viewWidth / 2
+            const viewTop = cameraCenter.y - viewHeight / 2
+            const viewBottom = cameraCenter.y + viewHeight / 2
+
+            const startX = Math.floor(viewLeft / SIM_WIDTH)
+            const endX = Math.ceil(viewRight / SIM_WIDTH)
+            const startY = Math.floor(viewTop / SIM_HEIGHT)
+            const endY = Math.ceil(viewBottom / SIM_HEIGHT)
+
+            const numCopiesX = endX - startX
+            const numCopiesY = endY - startY
+
+            infiniteTotalInstances = NUM_PARTICLES * numCopiesX * numCopiesY
+
+            device.queue.writeBuffer(infiniteRenderOptionsBuffer!, 0, new Int32Array([startX, startY, numCopiesX, numCopiesY]))
+        }
+        const updateGlowOptionsBuffer = () => {
+            const glowOptionsData = new ArrayBuffer(12)
+            const glowOptionsView = new DataView(glowOptionsData)
+            glowOptionsView.setFloat32(0, glowSize, true)
+            glowOptionsView.setFloat32(4, glowIntensity, true)
+            glowOptionsView.setFloat32(8, glowSteepness, true)
+
+            if (!glowOptionsBuffer) {
+                glowOptionsBuffer = device.createBuffer({
+                    size: glowOptionsData.byteLength,
+                    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+                    mappedAtCreation: true,
+                })
+                new Uint8Array(glowOptionsBuffer.getMappedRange()).set(new Uint8Array(glowOptionsData))
+                glowOptionsBuffer.unmap()
+            } else {
+                device.queue.writeBuffer(glowOptionsBuffer, 0, glowOptionsData)
+            }
         }
         const updateSimOptionsBuffer = () => {
-            const simOptionsData = new ArrayBuffer(48)
+            const simOptionsData = new ArrayBuffer(76)
             const simOptionsView = new DataView(simOptionsData)
-            simOptionsView.setUint32(0, isWallRepel ? 1 : 0, true)
-            simOptionsView.setUint32(4, isWallWrap ? 1 : 0, true)
-            simOptionsView.setFloat32(8, forceFactor, true)
-            simOptionsView.setFloat32(12, frictionFactor, true)
-            simOptionsView.setFloat32(16, repel, true)
-            simOptionsView.setFloat32(20, PARTICLE_SIZE, true)
-            simOptionsView.setFloat32(24, SIM_WIDTH, true)
-            simOptionsView.setFloat32(28, SIM_HEIGHT, true)
-            simOptionsView.setFloat32(32, CELL_SIZE, true)
-            simOptionsView.setUint32(36, SPATIAL_HASH_TABLE_SIZE, true)
-            simOptionsView.setUint32(40, NUM_PARTICLES, true)
-            simOptionsView.setUint32(44, NUM_TYPES, true)
+            simOptionsView.setFloat32(0, SIM_WIDTH, true)
+            simOptionsView.setFloat32(4, SIM_HEIGHT, true)
+            simOptionsView.setUint32(8, GRID_WIDTH, true)
+            simOptionsView.setUint32(12, GRID_HEIGHT, true)
+            simOptionsView.setFloat32(16, CELL_SIZE, true)
+            simOptionsView.setUint32(20, NUM_PARTICLES, true)
+            simOptionsView.setUint32(24, NUM_TYPES, true)
+            simOptionsView.setFloat32(28, PARTICLE_SIZE, true)
+            simOptionsView.setFloat32(32, particleOpacity, true)
+            simOptionsView.setUint32(36, isWallRepel ? 1 : 0, true)
+            simOptionsView.setUint32(40, isWallWrap ? 1 : 0, true)
+            simOptionsView.setFloat32(44, forceFactor, true)
+            simOptionsView.setFloat32(48, frictionFactor, true)
+            simOptionsView.setFloat32(52, repel, true)
+            // Extended grid parameters for spatial hashing no walls
+            simOptionsView.setUint32(56, EXTENDED_GRID_WIDTH, true)
+            simOptionsView.setUint32(60, EXTENDED_GRID_HEIGHT, true)
+            simOptionsView.setUint32(64, GRID_OFFSET_X, true)
+            simOptionsView.setUint32(68, GRID_OFFSET_Y, true)
+            simOptionsView.setUint32(72, mirrorWrapCount, true)
 
             if (!simOptionsBuffer) {
                 simOptionsBuffer = device.createBuffer({
                     size: simOptionsData.byteLength,
-                    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+                    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+                    mappedAtCreation: true,
                 })
+                new Uint8Array(simOptionsBuffer.getMappedRange()).set(new Uint8Array(simOptionsData))
+                simOptionsBuffer.unmap()
+            } else {
+                device.queue.writeBuffer(simOptionsBuffer, 0, simOptionsData)
             }
-            device.queue.writeBuffer(simOptionsBuffer, 0, simOptionsData)
         }
         const updateInteractionMatrixBuffer = () => {
             const stride = 4; // 4 octets par couple
@@ -624,157 +1085,283 @@ export default defineComponent({
             paddedInteractionData.set(interactionData)
 
             if (!interactionMatrixBuffer || interactionMatrixBuffer.size !== paddedSize) {
+                if (interactionMatrixBuffer) interactionMatrixBuffer.destroy(); interactionMatrixBuffer = undefined;
                 interactionMatrixBuffer = device.createBuffer({
                     size: paddedSize,
-                    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+                    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+                    mappedAtCreation: true
                 })
+                new Uint8Array(interactionMatrixBuffer.getMappedRange()).set(paddedInteractionData)
+                interactionMatrixBuffer.unmap()
+            } else {
+                device.queue.writeBuffer(interactionMatrixBuffer, 0, paddedInteractionData)
             }
-            device.queue.writeBuffer(interactionMatrixBuffer, 0, paddedInteractionData)
-        }
-        const updateSpatialHashBuffers = () => {
-            particleHashesBuffer = device.createBuffer({
-                size: NUM_PARTICLES * 4, // u32
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-            })
-            cellHeadsBuffer = device.createBuffer({
-                size: SPATIAL_HASH_TABLE_SIZE * 4, // u32
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-            })
-            particleNextIndicesBuffer = device.createBuffer({
-                size: NUM_PARTICLES * 4, // u32
-                usage: GPUBufferUsage.STORAGE,
-            })
-        }
-        const updateParticleDataBuffers = () => {
-            currentPositionBuffer = device.createBuffer({
-                size: positions.byteLength,
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
-                mappedAtCreation: true
-            })
-            new Float32Array(currentPositionBuffer.getMappedRange()).set(positions)
-            currentPositionBuffer.unmap()
-            nextPositionBuffer = device.createBuffer({
-                size: positions.byteLength,
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
-            })
-            velocityBuffer = device.createBuffer({
-                size: velocities.byteLength,
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
-                mappedAtCreation: true
-            })
-            new Float32Array(velocityBuffer.getMappedRange()).set(velocities)
-            velocityBuffer.unmap()
-            const packedTypes = packTypes8Bits(types);
-            typeBufferPacked = device.createBuffer({
-                size: packedTypes.byteLength,
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-                mappedAtCreation: true
-            })
-            new Uint32Array(typeBufferPacked.getMappedRange()).set(packedTypes)
-            typeBufferPacked.unmap()
-            typeBuffer = device.createBuffer({
-                size: types.byteLength,
-                usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
-                mappedAtCreation: true
-            })
-            new Uint32Array(typeBuffer.getMappedRange()).set(types)
-            typeBuffer.unmap()
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         const createBindGroups = () => {
-            createClearHashBindGroup()
-            createSpatialHashBindGroups()
-            createBruteForceBindGroup()
-            createRenderBindGroup()
-            updateOffscreenMirrorResources() // Will create offscreen texture and bind group if needed
-        }
-        const createClearHashBindGroup = () => {
-            clearHashBindGroup = device.createBindGroup({
-                layout: clearHashPipeline.getBindGroupLayout(0),
+            updateBinningBindGroups()
+            updateParticleBindGroups()
+            updateEraseCompactBindGroups()
+            updateOffscreenTextureBindGroup()
+            updateComposeHdrBindGroup()
+            // ---------------------------------------------------------------------------------------------------------
+            simOptionsBindGroup = device.createBindGroup({
+                layout: simOptionsBindGroupLayout,
                 entries: [
-                    { binding: 0, resource: { buffer: cellHeadsBuffer! } },
-                    { binding: 1, resource: { buffer: simOptionsBuffer! } }
-                ]
+                    { binding: 0, resource: { buffer: simOptionsBuffer! } },
+                ],
+            })
+            deltaTimeBindGroup = device.createBindGroup({
+                layout: deltaTimeBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: deltaTimeBuffer! } },
+                ],
+            })
+            cameraBindGroup = device.createBindGroup({
+                layout: cameraBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: cameraBuffer! } },
+                ],
+            })
+            glowOptionsBindGroup = device.createBindGroup({
+                layout: glowOptionsBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: glowOptionsBuffer! } },
+                ],
+            })
+            infiniteRenderOptionsBindGroup = device.createBindGroup({
+                layout: infiniteRenderOptionsBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: glowOptionsBuffer! } },
+                    { binding: 1, resource: { buffer: infiniteRenderOptionsBuffer! } },
+                ],
+            })
+            brushOptionsBindGroup = device.createBindGroup({
+                layout: brushOptionsBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: brushOptionsBuffer! } },
+                ],
             })
         }
-        const createSpatialHashBindGroups = () => {
-            buildHashBindGroup = device.createBindGroup({
-                layout: buildHashPipeline.getBindGroupLayout(0),
+        const updateBinningBindGroups = () => {
+            binFillSizeBindGroup = device.createBindGroup({
+                layout: binFillSizeBindGroupLayout,
                 entries: [
-                    { binding: 0, resource: { buffer: currentPositionBuffer! } },
-                    { binding: 1, resource: { buffer: particleHashesBuffer! } },
-                    { binding: 2, resource: { buffer: cellHeadsBuffer! } },
-                    { binding: 3, resource: { buffer: particleNextIndicesBuffer! } },
-                    { binding: 4, resource: { buffer: simOptionsBuffer! } }
-                ]
+                    { binding: 0, resource: { buffer: binOffsetBuffer! } }
+                ],
             })
-            spatialHashComputeBindGroup = device.createBindGroup({
-                layout: spatialHashComputePipeline.getBindGroupLayout(0),
+            binPrefixSumBindGroup[0] = device.createBindGroup({
+                layout: binPrefixSumBindGroupLayout,
                 entries: [
-                    { binding: 0, resource: { buffer: currentPositionBuffer! } },
-                    { binding: 1, resource: { buffer: nextPositionBuffer! } },
-                    { binding: 2, resource: { buffer: velocityBuffer! } },
-                    { binding: 3, resource: { buffer: typeBufferPacked! } },
-                    { binding: 4, resource: { buffer: interactionMatrixBuffer! } },
-                    { binding: 5, resource: { buffer: deltaTimeBuffer! } },
-                    { binding: 6, resource: { buffer: simOptionsBuffer! } },
-                    { binding: 7, resource: { buffer: cellHeadsBuffer! } },
-                    { binding: 8, resource: { buffer: particleNextIndicesBuffer! } }
-                ]
+                    { binding: 0, resource: { buffer: binOffsetBuffer! } },
+                    { binding: 1, resource: { buffer: binOffsetTempBuffer! } },
+                    { binding: 2, resource: { buffer: binPrefixSumStepSizeBuffer!, size: 4 } },
+                ],
+            })
+            binPrefixSumBindGroup[1] = device.createBindGroup({
+                layout: binPrefixSumBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: binOffsetTempBuffer! } },
+                    { binding: 1, resource: { buffer: binOffsetBuffer! } },
+                    { binding: 2, resource: { buffer: binPrefixSumStepSizeBuffer!, size: 4 } },
+                ],
             })
         }
-        const createBruteForceBindGroup = () => {
-            bruteForceComputeBindGroup = device.createBindGroup({
-                layout: bruteForceComputePipeline.getBindGroupLayout(0),
+        const updateParticleBindGroups = () => {
+            particleBufferBindGroup = undefined as any;
+            particleBufferReadOnlyBindGroup = undefined as any;
+            particleSortBindGroup = undefined as any;
+            particleComputeForcesBindGroup = undefined as any;
+            bruteForceBindGroup = undefined as any;
+
+            particleBufferBindGroup = device.createBindGroup({
+                layout: particleBufferBindGroupLayout,
                 entries: [
-                    { binding: 0, resource: { buffer: currentPositionBuffer! } },
-                    { binding: 1, resource: { buffer: nextPositionBuffer! } },
-                    { binding: 2, resource: { buffer: velocityBuffer! } },
-                    { binding: 3, resource: { buffer: typeBufferPacked! } },
-                    { binding: 4, resource: { buffer: interactionMatrixBuffer! } },
-                    { binding: 5, resource: { buffer: deltaTimeBuffer! } },
-                    { binding: 6, resource: { buffer: simOptionsBuffer! } },
-                ]
+                    { binding: 0, resource: { buffer: particleBuffer! } },
+                    { binding: 1, resource: { buffer: interactionMatrixBuffer! } },
+                ],
+            })
+            particleBufferReadOnlyBindGroup = device.createBindGroup({
+                layout: particleBufferReadOnlyBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: particleBuffer! } },
+                    { binding: 1, resource: { buffer: colorBuffer! } }
+                ],
+            })
+            particleSortBindGroup = device.createBindGroup({
+                layout: particleSortBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: particleBuffer! } },
+                    { binding: 1, resource: { buffer: particleTempBuffer! } },
+                    { binding: 2, resource: { buffer: binOffsetBuffer! } },
+                    { binding: 3, resource: { buffer: binOffsetTempBuffer! } },
+                ],
+            })
+            particleComputeForcesBindGroup = device.createBindGroup({
+                layout: particleComputeForcesBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: particleTempBuffer! } },
+                    { binding: 1, resource: { buffer: particleBuffer! } },
+                    { binding: 2, resource: { buffer: binOffsetBuffer! } },
+                    { binding: 3, resource: { buffer: interactionMatrixBuffer! } },
+                ],
+            })
+            bruteForceBindGroup = device.createBindGroup({
+                layout: bruteForceBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: particleTempBuffer! } },
+                    { binding: 1, resource: { buffer: particleBuffer! } },
+                    { binding: 2, resource: { buffer: interactionMatrixBuffer! } },
+                ],
             })
         }
-        const createRenderBindGroup = () => {
-            renderBindGroup = device.createBindGroup({
-                layout: renderPipeline.getBindGroupLayout(0),
+        const updateEraseCompactBindGroups = () => {
+            particleEraseBindGroup = undefined as any;
+            particleCompactBindGroup = undefined as any;
+
+            particleEraseBindGroup = device.createBindGroup({
+                layout: particleEraseBindGroupLayout,
                 entries: [
-                    { binding: 0, resource: { buffer: colorBuffer! } },
-                    { binding: 1, resource: { buffer: cameraBuffer! } },
-                    { binding: 2, resource: { buffer: simOptionsBuffer! } }
-                ]
+                    { binding: 0, resource: { buffer: particleBuffer! } },
+                    { binding: 1, resource: { buffer: particleKeepFlagsBuffer! } }
+                ],
             })
-            renderOffscreenBindGroup = device.createBindGroup({
-                layout: renderOffscreenPipeline.getBindGroupLayout(0),
+            particleCompactBindGroup = device.createBindGroup({
+                layout: particleCompactBindGroupLayout,
                 entries: [
-                    { binding: 0, resource: { buffer: colorBuffer! } },
-                    { binding: 2, resource: { buffer: simOptionsBuffer! } }
-                ]
-            })
-        }
-        const createRenderMirrorBindGroup = () => {
-            renderMirrorBindGroup = device.createBindGroup({
-                layout: renderMirrorPipeline.getBindGroupLayout(0),
-                entries: [
-                    { binding: 0, resource: offscreenTextureView },
-                    { binding: 1, resource: { buffer: cameraBuffer! } },
-                    { binding: 2, resource: { buffer: simOptionsBuffer! } },
-                    { binding: 3, resource: offscreenSampler },
-                ]
+                    { binding: 0, resource: { buffer: particleBuffer! } },
+                    { binding: 1, resource: { buffer: particleCompactBuffer! } },
+                    { binding: 2, resource: { buffer: particleKeepFlagsBuffer! } },
+                    { binding: 3, resource: { buffer: newParticleCountBuffer! } },
+                ],
             })
         }
-        const createRenderInfiniteBindGroup = () => {
-            renderInfiniteBindGroup = device.createBindGroup({
-                layout: renderInfinitePipeline.getBindGroupLayout(0),
+        const updateOffscreenTextureBindGroup = () => {
+            if (offscreenTextureView && offscreenSampler) {
+                offscreenTextureBindGroup = device.createBindGroup({
+                    layout: offscreenTextureBindGroupLayout,
+                    entries: [
+                        { binding: 0, resource: offscreenTextureView },
+                        { binding: 1, resource: offscreenSampler }
+                    ]
+                })
+            }
+        }
+        const updateComposeHdrBindGroup = () => {
+            composeHdrBindGroup = device.createBindGroup({
+                layout: composeHdrBindGroupLayout,
                 entries: [
-                    { binding: 0, resource: offscreenTextureView },
-                    { binding: 1, resource: { buffer: cameraBuffer! } },
-                    { binding: 2, resource: { buffer: simOptionsBuffer! } },
-                    { binding: 3, resource: offscreenSampler },
+                    { binding: 0, resource: hdrTextureView }
+                ],
+            })
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
+        const createBindGroupLayouts = () => {
+            particleBufferBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // particleBuffer
+                    { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // interactionMatrixBuffer
+                ],
+            })
+            particleBufferReadOnlyBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // particleBuffer
+                    { binding: 1, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } }, // colorBuffer
+                ],
+            })
+            binFillSizeBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // binOffsetBuffer
+                ],
+            })
+            binPrefixSumBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // binOffsetBuffer
+                    { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // binOffsetTempBuffer
+                    { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform', hasDynamicOffset: true } }, // binPrefixSumStepSizeBuffer
+                ],
+            })
+            particleSortBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // particleBuffer
+                    { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // particleTempBuffer
+                    { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // binOffsetBuffer
+                    { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // binOffsetTempBuffer
+                ],
+            })
+            particleComputeForcesBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // particleTempBuffer
+                    { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // particleBuffer
+                    { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // binOffsetBuffer
+                    { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // interactionMatrixBuffer
+                ],
+            })
+            bruteForceBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // particleTempBuffer
+                    { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // particleBuffer
+                    { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // interactionMatrixBuffer
+                ],
+            })
+            simOptionsBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.COMPUTE | GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
+                ],
+            });
+            deltaTimeBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }, // deltaTimeBuffer
+                ],
+            })
+            cameraBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } }, // cameraBuffer
+                ],
+            })
+            offscreenTextureBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.FRAGMENT, texture: { viewDimension: '2d' } }, // offscreenTextureView
+                    { binding: 1, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } }, // offscreenSampler
+                ],
+            })
+            composeHdrBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'unfilterable-float' } }, // Texture for HDR rendering
+                ],
+            })
+            glowOptionsBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } }, // glowOptionsBuffer
+                ],
+            })
+            infiniteRenderOptionsBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } }, // glowOptionsBuffer
+                    { binding: 1, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } }, // infiniteRenderOptionsBuffer
+                ],
+            })
+            brushOptionsBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } }, // brushOptionsBuffer
+                ],
+            })
+            particleEraseBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // particleBuffer
+                    { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }        // particleKeepFlagsBuffer
+                ]
+            })
+            particleCompactBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // oldParticleBuffer
+                    { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },         // newParticleBuffer
+                    { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // particleKeepFlags
+                    { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }          // newParticleCount
                 ]
             })
         }
@@ -782,202 +1369,370 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         const createPipelines = () => {
-            const clearHashShader = device.createShaderModule({ code: clearHashShaderCode })
-            clearHashPipeline = device.createComputePipeline({
-                layout: 'auto',
-                compute: { module: clearHashShader, entryPoint: 'main' }
+            createComputePipelines()
+            createRenderPipelines()
+            createHdrGlowPipelines()
+        }
+        const createComputePipelines = () => {
+            const binFillSizeShader = device.createShaderModule({ code: binFillSizeShaderCode })
+            binClearSizePipeline = device.createComputePipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [
+                        particleBufferReadOnlyBindGroupLayout,
+                        simOptionsBindGroupLayout,
+                        binFillSizeBindGroupLayout,
+                    ],
+                }),
+                compute: { module: binFillSizeShader, entryPoint: 'clearBinSize' }
             })
-            const buildHashShader = device.createShaderModule({ code: buildHashShaderCode })
-            buildHashPipeline = device.createComputePipeline({
-                layout: 'auto',
-                compute: { module: buildHashShader, entryPoint: 'main' }
+            binFillSizePipeline = device.createComputePipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [
+                        particleBufferReadOnlyBindGroupLayout,
+                        simOptionsBindGroupLayout,
+                        binFillSizeBindGroupLayout,
+                    ],
+                }),
+                compute: { module: binFillSizeShader, entryPoint: 'fillBinSize' }
+            })
+            const binPrefixSumShader = device.createShaderModule({ code: binPrefixSumShaderCode })
+            binPrefixSumPipeline = device.createComputePipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [
+                        binPrefixSumBindGroupLayout,
+                    ],
+                }),
+                compute: { module: binPrefixSumShader, entryPoint: 'prefixSumStep' }
+            })
+            const particleSortShader = device.createShaderModule({ code: particleSortShaderCode })
+            particleSortClearSizePipeline = device.createComputePipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [
+                        particleSortBindGroupLayout,
+                        simOptionsBindGroupLayout,
+                    ],
+                }),
+                compute: { module: particleSortShader, entryPoint: 'clearBinSize' }
+            })
+            particleSortPipeline = device.createComputePipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [
+                        particleSortBindGroupLayout,
+                        simOptionsBindGroupLayout,
+                    ],
+                }),
+                compute: { module: particleSortShader, entryPoint: 'sortParticles' }
+            })
+            const particleComputeForcesShader = device.createShaderModule({ code: particleComputeForcesShaderCode })
+            particleComputeForcesPipeline = device.createComputePipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [
+                        particleComputeForcesBindGroupLayout,
+                        simOptionsBindGroupLayout,
+                    ],
+                }),
+                compute: { module: particleComputeForcesShader, entryPoint: 'computeForces' }
             })
             const bruteForceShader = device.createShaderModule({ code: bruteForceShaderCode })
             bruteForceComputePipeline = device.createComputePipeline({
-                layout: 'auto',
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [
+                        bruteForceBindGroupLayout,
+                        simOptionsBindGroupLayout,
+                    ],
+                }),
                 compute: { module: bruteForceShader, entryPoint: 'main' }
             })
-            const spatialHashShader = device.createShaderModule({ code: spatialHashShaderCode })
-            spatialHashComputePipeline = device.createComputePipeline({
-                layout: 'auto',
-                compute: { module: spatialHashShader, entryPoint: 'main' }
+            const particleAdvanceShader = device.createShaderModule({ code: particleAdvanceShaderCode })
+            particleAdvancePipeline = device.createComputePipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [
+                        particleBufferBindGroupLayout,
+                        simOptionsBindGroupLayout,
+                        deltaTimeBindGroupLayout,
+                    ],
+                }),
+                compute: { module: particleAdvanceShader, entryPoint: 'particleAdvance' }
             })
-            // ---------------------------------------------------------------------------------------------------------
-            const vertexShader = device.createShaderModule({ code: vertexShaderCode });
-            const fragmentShader = device.createShaderModule({ code: fragmentShaderCode })
+            const particleAdvanceBrushShader = device.createShaderModule({ code: particleAdvanceBrushShaderCode })
+            particleAdvanceBrushPipeline = device.createComputePipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [
+                        particleBufferBindGroupLayout,
+                        simOptionsBindGroupLayout,
+                        deltaTimeBindGroupLayout,
+                        brushOptionsBindGroupLayout
+                    ],
+                }),
+                compute: { module: particleAdvanceBrushShader, entryPoint: 'particleAdvance' }
+            })
+            const particleEraseShader = device.createShaderModule({ code: particleEraseShaderCode })
+            particleErasePipeline = device.createComputePipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [particleEraseBindGroupLayout, simOptionsBindGroupLayout, brushOptionsBindGroupLayout,],
+                }),
+                compute: { module: particleEraseShader, entryPoint: 'markForErase' }
+            })
+            const particleCompactShader = device.createShaderModule({ code: particleCompactShaderCode })
+            particleCompactPipeline = device.createComputePipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [particleCompactBindGroupLayout, simOptionsBindGroupLayout]
+                }),
+                compute: { module: particleCompactShader, entryPoint: 'compactParticles',},
+            })
+        }
+        const particleNormalBlending: GPUBlendState = {
+            color: { operation: 'add', srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha' },
+            alpha: { operation: 'add', srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
+        }
+        const particleAdditiveBlending: GPUBlendState = {
+            color: { operation: 'add', srcFactor: 'src-alpha', dstFactor: 'one' },
+            alpha: { operation: 'add', srcFactor: 'one', dstFactor: 'one' },
+        }
+        const createRenderPipelines = () => {
+            const renderShader = device.createShaderModule({ code: renderShaderCode })
             renderPipeline = device.createRenderPipeline({
-                layout: 'auto',
-                vertex: {
-                    module: vertexShader,
-                    entryPoint: 'main',
-                    buffers: [
-                        { // triangle
-                            arrayStride: 2 * 4,
-                            stepMode: 'vertex',
-                            attributes: [{ shaderLocation: 0, format: 'float32x2', offset: 0 }]
-                        },
-                        { // positions
-                            arrayStride: 2 * 4,
-                            stepMode: 'instance',
-                            attributes: [{ shaderLocation: 1, format: 'float32x2', offset: 0 }]
-                        },
-                        { // types
-                            arrayStride: 4,
-                            stepMode: 'instance',
-                            attributes: [{ shaderLocation: 2, format: 'uint32', offset: 0 }]
-                        }
-                    ]
-                },
-                fragment: {
-                    module: fragmentShader,
-                    entryPoint: 'main',
-                    targets: [{
-                        format: navigator.gpu.getPreferredCanvasFormat(),
-                        blend: {
-                            color: {
-                                srcFactor: 'src-alpha',
-                                dstFactor: 'one-minus-src-alpha',
-                                operation: 'add'
-                            },
-                            alpha: {
-                                srcFactor: 'one',
-                                dstFactor: 'one-minus-src-alpha',
-                                operation: 'add'
-                            }
-                        },
-                        writeMask: GPUColorWrite.ALL
-                    }]
-                },
-                primitive: { topology: 'triangle-list' }
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout],
+                }),
+                vertex: { module: renderShader, entryPoint: 'vertexMain' },
+                fragment: { module: renderShader, entryPoint: 'fragmentMain', targets: [{
+                    format: navigator.gpu.getPreferredCanvasFormat(),
+                    blend: particleNormalBlending
+                }] },
+                primitive: { topology: 'triangle-strip' }
+            })
+            renderPipelineAdditive = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout,],
+                }),
+                vertex: { module: renderShader, entryPoint: 'vertexMain'},
+                fragment: { module: renderShader, entryPoint: 'fragmentMain', targets: [{
+                    format: navigator.gpu.getPreferredCanvasFormat(),
+                    blend: particleAdditiveBlending
+                }] },
+                primitive: { topology: 'triangle-strip' }
             })
             // ---------------------------------------------------------------------------------------------------------
-            const offscreenShader = device.createShaderModule({ code: offscreenShaderCode })
-            renderOffscreenPipeline = device.createRenderPipeline({
-                layout: 'auto',
-                vertex: {
-                    module: offscreenShader,
-                    entryPoint: 'main',
-                    buffers: [
-                        { // triangle
-                            arrayStride: 2 * 4,
-                            stepMode: 'vertex',
-                            attributes: [{ shaderLocation: 0, format: 'float32x2', offset: 0 }]
-                        },
-                        { // positions
-                            arrayStride: 2 * 4,
-                            stepMode: 'instance',
-                            attributes: [{ shaderLocation: 1, format: 'float32x2', offset: 0 }]
-                        },
-                        { // types
-                            arrayStride: 4,
-                            stepMode: 'instance',
-                            attributes: [{ shaderLocation: 2, format: 'uint32', offset: 0 }]
-                        }
-                    ]
-                },
-                fragment: {
-                    module: fragmentShader,
-                    entryPoint: 'main',
-                    targets: [{
-                        format: 'rgba8unorm',
-                        blend: {
-                            color: {
-                                srcFactor: 'src-alpha',
-                                dstFactor: 'one-minus-src-alpha',
-                                operation: 'add'
-                            },
-                            alpha: {
-                                srcFactor: 'one',
-                                dstFactor: 'one-minus-src-alpha',
-                                operation: 'add'
-                            }
-                        },
-                        writeMask: GPUColorWrite.ALL
-                    }]
-                },
-                primitive: { topology: 'triangle-list' }
-            })
-            // ---------------------------------------------------------------------------------------------------------
-            const mirrorVertexShader = device.createShaderModule({ code: mirrorVertexShaderCode })
-            const mirrorFragmentShader = device.createShaderModule({ code: mirrorFragmentShaderCode })
+            const renderMirrorShader = device.createShaderModule({ code: renderMirrorShaderCode });
             renderMirrorPipeline = device.createRenderPipeline({
-                layout: 'auto',
-                vertex: {
-                    module: mirrorVertexShader,
-                    entryPoint: 'main',
-                    buffers: [
-                        { // triangle/quad vertex buffer
-                            arrayStride: 2 * 4,
-                            attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x2' }]
-                        }
-                    ]
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, glowOptionsBindGroupLayout],
+                }),
+                vertex: { module: renderMirrorShader, entryPoint: 'mirrorVertex' },
+                fragment: { module: renderMirrorShader, entryPoint: 'mirrorFragment', targets: [{
+                    format: navigator.gpu.getPreferredCanvasFormat(),
+                    blend: particleNormalBlending
+                }] },
+                primitive: { topology: 'triangle-strip' }
+            })
+            renderMirrorPipelineAdditive = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, glowOptionsBindGroupLayout],
+                }),
+                vertex: { module: renderMirrorShader, entryPoint: 'mirrorVertex' },
+                fragment: { module: renderMirrorShader, entryPoint: 'mirrorFragment', targets: [{
+                    format: navigator.gpu.getPreferredCanvasFormat(),
+                    blend: particleAdditiveBlending
+                }] },
+                primitive: { topology: 'triangle-strip' }
+            })
+            // ---------------------------------------------------------------------------------------------------------
+            const renderInfiniteShader = device.createShaderModule({ code: renderInfiniteShaderCode });
+            renderInfinitePipeline = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, infiniteRenderOptionsBindGroupLayout]
+                }),
+                vertex: { module: renderInfiniteShader, entryPoint: 'infiniteVertex' },
+                fragment: { module: renderInfiniteShader, entryPoint: 'infiniteFragment', targets: [{
+                    format: navigator.gpu.getPreferredCanvasFormat(),
+                    blend: particleNormalBlending
+                }] },
+                primitive: { topology: 'triangle-strip', stripIndexFormat: 'uint32' }
+            })
+            renderInfinitePipelineAdditive = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, infiniteRenderOptionsBindGroupLayout,]
+                }),
+                vertex: { module: renderInfiniteShader, entryPoint: 'infiniteVertex' },
+                fragment: { module: renderInfiniteShader, entryPoint: 'infiniteFragment', targets: [{
+                    format: navigator.gpu.getPreferredCanvasFormat(),
+                    blend: particleAdditiveBlending
+                }] },
+                primitive: { topology: 'triangle-strip', stripIndexFormat: 'uint32' }
+            })
+            // ---------------------------------------------------------------------------------------------------------
+            const offscreenVertexShader = device.createShaderModule({ code: offscreenShaderCode })
+            renderOffscreenPipeline = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout,],
+                }),
+                vertex: { module: offscreenVertexShader, entryPoint: 'vertexMain' },
+                fragment: { module: renderShader, entryPoint: 'fragmentMain',
+                    targets: [{ format: 'rgba8unorm' }]
                 },
-                fragment: {
-                    module: mirrorFragmentShader,
-                    entryPoint: 'main',
-                    targets: [{
-                        format: navigator.gpu.getPreferredCanvasFormat(),
-                        blend: {
-                            color: {
-                                srcFactor: 'src-alpha',
-                                dstFactor: 'one-minus-src-alpha',
-                                operation: 'add'
-                            },
-                            alpha: {
-                                srcFactor: 'one',
-                                dstFactor: 'one-minus-src-alpha',
-                                operation: 'add'
-                            }
-                        }
-                    }]
+                primitive: { topology: 'triangle-strip' }
+            })
+            // ---------------------------------------------------------------------------------------------------------
+            const infiniteCompositorShader = device.createShaderModule({ code: infiniteCompositorShaderCode })
+            composeInfinitePipeline = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [cameraBindGroupLayout, simOptionsBindGroupLayout, offscreenTextureBindGroupLayout],
+                }),
+                vertex: { module: infiniteCompositorShader, entryPoint: 'vertexInfinite' },
+                fragment: { module: infiniteCompositorShader, entryPoint: 'fragmentInfinite',
+                    targets: [{ format: navigator.gpu.getPreferredCanvasFormat() }]
                 },
                 primitive: { topology: 'triangle-list' }
             })
+        }
+        const createHdrGlowPipelines = () => {
+            const glowBlendOptions: GPUBlendState = {
+                color: { operation: 'add', srcFactor: 'src-alpha', dstFactor: 'one' },
+                alpha: { operation: 'add', srcFactor: 'one', dstFactor: 'one' },
+            }
             // ---------------------------------------------------------------------------------------------------------
-            const infiniteVertexShader = device.createShaderModule({ code: infiniteVertexShaderCode })
-            const infiniteFragmentShader = device.createShaderModule({ code: infiniteFragmentShaderCode })
-            renderInfinitePipeline = device.createRenderPipeline({
-                layout: 'auto',
-                vertex: {
-                    module: infiniteVertexShader,
-                    entryPoint: 'main',
-                    buffers: [
-                        { // triangle/quad vertex buffer
-                            arrayStride: 2 * 4,
-                            attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x2' }]
-                        }
-                    ]
+            const renderGlowShader = device.createShaderModule({ code: renderGlowShaderCode })
+            renderGlowPipeline = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, glowOptionsBindGroupLayout]
+                }),
+                vertex: { module: renderGlowShader, entryPoint: 'vertexGlow' },
+                fragment: { module: renderGlowShader, entryPoint: 'fragmentGlow', targets: [{
+                    format: 'rgba16float',
+                    blend: glowBlendOptions,
+                }] },
+                primitive: { topology: 'triangle-strip' },
+            })
+            renderCirclePipeline = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, glowOptionsBindGroupLayout]
+                }),
+                vertex: { module: renderGlowShader, entryPoint: 'vertexCircle' },
+                fragment: { module: renderGlowShader, entryPoint: 'fragmentCircle', targets: [{
+                    format: 'rgba16float',
+                    blend: particleNormalBlending,
+                }] },
+                primitive: { topology: 'triangle-strip' },
+            })
+            renderCirclePipelineAdditive = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, glowOptionsBindGroupLayout]
+                }),
+                vertex: { module: renderGlowShader, entryPoint: 'vertexCircle' },
+                fragment: { module: renderGlowShader, entryPoint: 'fragmentCircle', targets: [{
+                    format: 'rgba16float',
+                    blend: particleAdditiveBlending,
+                }] },
+                primitive: { topology: 'triangle-strip' },
+            })
+            // ---------------------------------------------------------------------------------------------------------
+            const renderMirrorShader = device.createShaderModule({ code: renderMirrorShaderCode });
+            renderMirrorGlowPipeline = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, glowOptionsBindGroupLayout]
+                }),
+                vertex: { module: renderMirrorShader, entryPoint: 'mirrorVertexGlow' },
+                fragment: { module: renderMirrorShader, entryPoint: 'mirrorFragmentGlow', targets: [{
+                    format: 'rgba16float',
+                    blend: glowBlendOptions,
+                }] },
+                primitive: { topology: 'triangle-strip' },
+            })
+            renderMirrorCirclePipeline = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, glowOptionsBindGroupLayout]
+                }),
+                vertex: { module: renderMirrorShader, entryPoint: 'mirrorVertexCircle' },
+                fragment: { module: renderMirrorShader, entryPoint: 'mirrorFragmentCircle', targets: [{
+                    format: 'rgba16float',
+                    blend: particleNormalBlending,
+                }] },
+                primitive: { topology: 'triangle-strip' },
+            })
+            renderMirrorCirclePipelineAdditive = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, glowOptionsBindGroupLayout]
+                }),
+                vertex: { module: renderMirrorShader, entryPoint: 'mirrorVertexCircle' },
+                fragment: { module: renderMirrorShader, entryPoint: 'mirrorFragmentCircle', targets: [{
+                    format: 'rgba16float',
+                    blend: particleAdditiveBlending,
+                }] },
+                primitive: { topology: 'triangle-strip' },
+            })
+            // ---------------------------------------------------------------------------------------------------------
+            const renderInfiniteShader = device.createShaderModule({ code: renderInfiniteShaderCode });
+            renderInfiniteGlowPipeline = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, infiniteRenderOptionsBindGroupLayout]
+                }),
+                vertex: { module: renderInfiniteShader, entryPoint: 'infiniteVertexGlow' },
+                fragment: { module: renderInfiniteShader, entryPoint: 'infiniteFragmentGlow', targets: [{
+                    format: 'rgba16float',
+                    blend: glowBlendOptions,
+                }] },
+                primitive: { topology: 'triangle-strip' },
+            })
+            renderInfiniteCirclePipeline = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, infiniteRenderOptionsBindGroupLayout]
+                }),
+                vertex: { module: renderInfiniteShader, entryPoint: 'infiniteVertexCircle' },
+                fragment: { module: renderInfiniteShader, entryPoint: 'infiniteFragmentCircle', targets: [{
+                    format: 'rgba16float',
+                    blend: particleNormalBlending,
+                }] },
+                primitive: { topology: 'triangle-strip' },
+            })
+            renderInfiniteCirclePipelineAdditive = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, infiniteRenderOptionsBindGroupLayout]
+                }),
+                vertex: { module: renderInfiniteShader, entryPoint: 'infiniteVertexCircle' },
+                fragment: { module: renderInfiniteShader, entryPoint: 'infiniteFragmentCircle', targets: [{
+                    format: 'rgba16float',
+                    blend: particleAdditiveBlending,
+                }] },
+                primitive: { topology: 'triangle-strip' },
+            })
+            // ---------------------------------------------------------------------------------------------------------
+            const composeShader = device.createShaderModule({ code: composeHdrShaderCode });
+            composeHdrPipeline = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [composeHdrBindGroupLayout]
+                }),
+                vertex: { module: composeShader, entryPoint: 'vertexMain' },
+                fragment: { module: composeShader, entryPoint: 'fragmentMain',
+                    targets: [{ format: navigator.gpu.getPreferredCanvasFormat() }]
                 },
-                fragment: {
-                    module: infiniteFragmentShader,
-                    entryPoint: 'main',
-                    targets: [{
-                        format: navigator.gpu.getPreferredCanvasFormat(),
-                        blend: {
-                            color: {
-                                srcFactor: 'src-alpha',
-                                dstFactor: 'one-minus-src-alpha',
-                                operation: 'add'
-                            },
-                            alpha: {
-                                srcFactor: 'one',
-                                dstFactor: 'one-minus-src-alpha',
-                                operation: 'add'
-                            }
-                        }
-                    }]
-                },
-                primitive: { topology: 'triangle-list' }
+                primitive: { topology: 'triangle-list' },
             })
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
+        const updateHdrTexture = () => {
+            if (hdrTexture) hdrTexture.destroy(); hdrTexture = undefined;
+
+            hdrTexture = device.createTexture({
+                size: [CANVAS_WIDTH, CANVAS_HEIGHT],
+                format: 'rgba16float',
+                usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+                mipLevelCount: 1, // No mipmaps for HDR = -33% performance hit
+                sampleCount: 1, // No multisampling (MSAA) for HDR = -75% memory and compute hit
+            })
+            hdrTextureView = hdrTexture.createView()
+
+            if (composeHdrPipeline) {
+                updateComposeHdrBindGroup()
+            }
+        }
         const updateOffscreenMirrorResources = () => {
             if (offscreenTexture) {
                 offscreenTexture.destroy(); offscreenTexture = undefined;
             }
-            if (!isMirrorWrap && !isInfiniteMirrorWrap) return
+            if (!isInfiniteMirrorWrap) return
 
             const maxDimension = device.limits.maxTextureDimension2D
             const aspectRatio = SIM_WIDTH / SIM_HEIGHT
@@ -1023,8 +1778,63 @@ export default defineComponent({
                 })
             }
 
-            if (isMirrorWrap && renderMirrorPipeline) createRenderMirrorBindGroup()
-            if (isInfiniteMirrorWrap && renderInfinitePipeline) createRenderInfiniteBindGroup()
+            if (isInfiniteMirrorWrap && composeInfinitePipeline) updateOffscreenTextureBindGroup()
+        }
+        const eraseWithBrush = async () => {
+            if (isUpdatingParticles || !isBrushActive || brushType !== 0) return
+            isUpdatingParticles = true
+            await device.queue.onSubmittedWorkDone()
+
+            try {
+                updateBrushOptionsBuffer()
+
+                const encoder = device.createCommandEncoder({ label: 'Erase and Compact Encoder' })
+                encoder.clearBuffer(newParticleCountBuffer!, 0, 4)
+
+                const markPass = encoder.beginComputePass({ label: 'Mark Pass' })
+                markPass.setPipeline(particleErasePipeline)
+                markPass.setBindGroup(0, particleEraseBindGroup)
+                markPass.setBindGroup(1, simOptionsBindGroup)
+                markPass.setBindGroup(2, brushOptionsBindGroup)
+                markPass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
+                markPass.end()
+
+                const compactPass = encoder.beginComputePass({ label: 'Compact Pass' })
+                compactPass.setPipeline(particleCompactPipeline)
+                compactPass.setBindGroup(0, particleCompactBindGroup)
+                compactPass.setBindGroup(1, simOptionsBindGroup)
+                compactPass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
+                compactPass.end()
+
+                encoder.copyBufferToBuffer(newParticleCountBuffer!, 0, newParticleCountReadBuffer!, 0, 4)
+                device.queue.submit([encoder.finish()])
+                await device.queue.onSubmittedWorkDone()
+
+                await newParticleCountReadBuffer!.mapAsync(GPUMapMode.READ)
+                const newCount = new Uint32Array(newParticleCountReadBuffer!.getMappedRange())[0]
+                newParticleCountReadBuffer!.unmap()
+
+                if (newCount < NUM_PARTICLES) {
+                    NUM_PARTICLES = newCount
+                    particleLife.numParticles = newCount
+                    updateParticleBuffers()
+
+                    const copyEncoder = device.createCommandEncoder({ label: 'Copy Compacted Data' })
+                    copyEncoder.copyBufferToBuffer(particleCompactBuffer!, 0, particleBuffer!, 0, newCount * 5 * 4)
+                    device.queue.submit([copyEncoder.finish()])
+                    await device.queue.onSubmittedWorkDone()
+
+                    updateEraseCompactBuffers()
+                    updateSimOptionsBuffer()
+                    updateParticleBindGroups()
+                    updateEraseCompactBindGroups()
+                    updateInfiniteRenderOptions()
+                }
+            } catch (error) {
+                console.error("Error during erase and compact operation:", error)
+            } finally {
+                isUpdatingParticles = false
+            }
         }
         const updateNumParticles = useDebounceFn(async (newCount: number) => {
             if (isUpdatingParticles || newCount === NUM_PARTICLES) return
@@ -1034,45 +1844,41 @@ export default defineComponent({
                 cancelAnimationLoop()
 
                 const oldCount = NUM_PARTICLES
-                const oldPositions = await readBufferFromGPU(currentPositionBuffer!, oldCount * 2 * 4)
-                const oldVelocities = await readBufferFromGPU(velocityBuffer!, oldCount * 2 * 4)
-                const oldTypes = await readBufferFromGPU(typeBuffer!, oldCount * 4)
+                const oldParticlesData = await readBufferFromGPU(particleBuffer!, oldCount * 5 * 4)
+                const oldParticles = new Float32Array(oldParticlesData)
+                initialParticles = new Float32Array(newCount * 5)
 
-                const newPositions = new Float32Array(newCount * 2)
-                const newVelocities = new Float32Array(newCount * 2)
-                const newTypes = new Uint32Array(newCount)
-
-                if (newCount > oldCount) {
-                    newPositions.set(new Float32Array(oldPositions))
-                    newVelocities.set(new Float32Array(oldVelocities))
-                    newTypes.set(new Uint32Array(oldTypes))
+                if (newCount > oldCount) { // If increasing the number of particles
+                    initialParticles.set(oldParticles)
                     for (let i = oldCount; i < newCount; i++) {
-                        newPositions[2 * i] = Math.random() * SIM_WIDTH
-                        newPositions[2 * i + 1] = Math.random() * SIM_HEIGHT
-                        newVelocities[2 * i] = 0
-                        newVelocities[2 * i + 1] = 0
-                        newTypes[i] = Math.floor(Math.random() * NUM_TYPES)
+                        const baseIndex = i * 5
+                        initialParticles[baseIndex] = Math.random() * SIM_WIDTH      // x
+                        initialParticles[baseIndex + 1] = Math.random() * SIM_HEIGHT // y
+                        initialParticles[baseIndex + 4] = Math.floor(Math.random() * NUM_TYPES) // type
                     }
-                } else {
-                    newPositions.set(new Float32Array(oldPositions).subarray(0, newCount * 2))
-                    newVelocities.set(new Float32Array(oldVelocities).subarray(0, newCount * 2))
-                    newTypes.set(new Uint32Array(oldTypes).subarray(0, newCount))
+                } else { // If decreasing the number of particles
+                    initialParticles.set(oldParticles.subarray(0, newCount * 5))
+                    for (let i = newCount; i < oldCount; i++) {
+                        const j = Math.floor(Math.random() * (i + 1))
+                        if (j < newCount) {
+                            const oldStartIndex = i * 5
+                            const newIndex = j * 5
+                            initialParticles[newIndex] = oldParticles[oldStartIndex]         // x
+                            initialParticles[newIndex + 1] = oldParticles[oldStartIndex + 1] // y
+                            initialParticles[newIndex + 2] = oldParticles[oldStartIndex + 2] // vx
+                            initialParticles[newIndex + 3] = oldParticles[oldStartIndex + 3] // vy
+                            initialParticles[newIndex + 4] = oldParticles[oldStartIndex + 4] // type
+                        }
+                    }
                 }
 
-                positions = newPositions
-                velocities = newVelocities
-                types = newTypes
-
                 NUM_PARTICLES = newCount
-                SPATIAL_HASH_TABLE_SIZE = Math.pow(2, Math.ceil(Math.log2(NUM_PARTICLES))) // Ensure SPATIAL_HASH_TABLE_SIZE is a power of 2
-
-                destroyPipelinesAndBindGroups()
-                await destroyBuffers()
-                createBuffers()
-                createPipelines()
-                createBindGroups()
-
-                if (!isRunning) syncPositionBuffers()
+                updateParticleBuffers(true) // Destroy and recreate particle buffers
+                updateEraseCompactBuffers()
+                updateParticleBindGroups() // Recreate bind groups that depend on particle buffers
+                updateEraseCompactBindGroups()
+                updateSimOptionsBuffer() // Update simulation options buffer
+                updateInfiniteRenderOptions() // Update infinite render options buffer
 
                 lastFrameTime = performance.now()
                 animationFrameId = requestAnimationFrame(frame)
@@ -1080,30 +1886,28 @@ export default defineComponent({
                 isUpdatingParticles = false
                 await updateNumParticles(particleLife.numParticles) // Reset the debounce function
             }
-        }, 16, { maxWait: 33 })
+        }, 16, { maxWait: 64 })
         const updateNumTypes = async (newNumTypes: number) => {
             if (isUpdatingParticles || newNumTypes === NUM_TYPES) return
             isUpdatingParticles = true
             try {
                 cancelAnimationLoop()
 
-                const currentPositions = await readBufferFromGPU(currentPositionBuffer!, NUM_PARTICLES * 2 * 4)
-                const currentVelocities = await readBufferFromGPU(velocityBuffer!, NUM_PARTICLES * 2 * 4)
-                const currentTypes = await readBufferFromGPU(typeBuffer!, NUM_PARTICLES * 4)
-                types = new Uint32Array(currentTypes)
-                positions = new Float32Array(currentPositions)
-                velocities = new Float32Array(currentVelocities)
+                const particleDataBuffer = await readBufferFromGPU(particleBuffer!, NUM_PARTICLES * 5 * 4)
+                const particles = new Float32Array(particleDataBuffer)
 
                 if (newNumTypes < NUM_TYPES) {
-                    for (let i = 0; i < types.length; i++) {
-                        if (types[i] >= newNumTypes) {
-                            types[i] = Math.floor(Math.random() * newNumTypes)
+                    for (let i = 0; i < NUM_PARTICLES; i++) {
+                        const typeIndex = i * 5 + 4;
+                        if (particles[typeIndex] >= newNumTypes) {
+                            particles[typeIndex] = Math.floor(Math.random() * newNumTypes);
                         }
                     }
                 } else if (newNumTypes > NUM_TYPES) {
-                    for (let i = 0; i < types.length; i++) {
+                    for (let i = 0; i < NUM_PARTICLES; i++) {
                         if (Math.random() < (newNumTypes - NUM_TYPES) / newNumTypes) {
-                            types[i] = NUM_TYPES + Math.floor(Math.random() * (newNumTypes - NUM_TYPES))
+                            const typeIndex = i * 5 + 4;
+                            particles[typeIndex] = NUM_TYPES + Math.floor(Math.random() * (newNumTypes - NUM_TYPES));
                         }
                     }
                 }
@@ -1126,26 +1930,34 @@ export default defineComponent({
                 colors = newColors
                 particleLife.currentColors = colors // Ensure the store is updated with the new colors
 
-                setRulesMatrix(resizeMatrix(rulesMatrix, NUM_TYPES, newNumTypes, () => {
+                const oldNumTypes = NUM_TYPES;
+                NUM_TYPES = newNumTypes;
+
+                setRulesMatrix(resizeMatrix(rulesMatrix, oldNumTypes, newNumTypes, () => {
                     return Number((Math.random() * 2 - 1).toFixed(4))
                 }))
-                setMinRadiusMatrix(resizeMatrix(minRadiusMatrix, NUM_TYPES, newNumTypes, () => {
+                setMinRadiusMatrix(resizeMatrix(minRadiusMatrix, oldNumTypes, newNumTypes, () => {
                     return Math.floor(Math.random() * (particleLife.minRadiusRange[1] - particleLife.minRadiusRange[0] + 1) + particleLife.minRadiusRange[0])
                 }))
-                setMaxRadiusMatrix(resizeMatrix(maxRadiusMatrix, NUM_TYPES, newNumTypes, () => {
+                setMaxRadiusMatrix(resizeMatrix(maxRadiusMatrix, oldNumTypes, newNumTypes, () => {
                     return Math.floor(Math.random() * (particleLife.maxRadiusRange[1] - particleLife.maxRadiusRange[0] + 1) + particleLife.maxRadiusRange[0])
                 }))
-                NUM_TYPES = newNumTypes
-                particleLife.currentMaxRadius = getCurrentMaxRadius()
 
-                destroyPipelinesAndBindGroups()
-                await destroyBuffers()
-                createBuffers()
-                createPipelines()
-                createBindGroups()
+                device.queue.writeBuffer(particleBuffer!, 0, particles)
+                updateInteractionMatrixBuffer()
+                updateSimOptionsBuffer()
 
-                if (!isRunning) syncPositionBuffers()
+                const paddedSize = Math.ceil(colors.byteLength / 16) * 16
+                if (!colorBuffer || colorBuffer.size !== paddedSize) {
+                    updateColorBuffer()
+                    updateParticleBindGroups()
+                } else {
+                    const paddedColors = new Float32Array(paddedSize / 4)
+                    paddedColors.set(colors)
+                    device.queue.writeBuffer(colorBuffer!, 0, paddedColors)
+                }
 
+                await nextTick()
                 lastFrameTime = performance.now()
                 animationFrameId = requestAnimationFrame(frame)
             } finally {
@@ -1154,15 +1966,6 @@ export default defineComponent({
             }
         }
         // -------------------------------------------------------------------------------------------------------------
-        const syncPositionBuffers = () => {
-            const encoder = device.createCommandEncoder()
-            encoder.copyBufferToBuffer(
-                currentPositionBuffer!, 0,
-                nextPositionBuffer!, 0,
-                positions.byteLength
-            )
-            device.queue.submit([encoder.finish()])
-        }
         async function readBufferFromGPU(buffer: GPUBuffer, size: number): Promise<ArrayBuffer> {
             const readBuffer = device.createBuffer({
                 size,
@@ -1205,25 +2008,13 @@ export default defineComponent({
             particleLife.currentColors = colors // Ensure the store is updated with the initial colors
         }
         function initParticles() {
-            positions = new Float32Array(NUM_PARTICLES * 2)
-            velocities = new Float32Array(NUM_PARTICLES * 2)
-            types = new Uint32Array(NUM_PARTICLES)
-            for (let i = 0; i < NUM_PARTICLES; i++) {
-                positions[2 * i] = Math.random() * SIM_WIDTH
-                positions[2 * i + 1] = Math.random() * SIM_HEIGHT
-                velocities[2 * i] = 0
-                velocities[2 * i + 1] = 0
-                types[i] = Math.floor(Math.random() * NUM_TYPES)
+            initialParticles = new Float32Array(NUM_PARTICLES * 5)
+            for (let i = 0; i < NUM_PARTICLES; ++i) {
+                const baseIndex = i * 5
+                initialParticles[baseIndex] = Math.random() * SIM_WIDTH
+                initialParticles[baseIndex + 1] = Math.random() * SIM_HEIGHT
+                initialParticles[baseIndex + 4] = Math.floor(Math.random() * NUM_TYPES)
             }
-        }
-        function packTypes8Bits(types: Uint32Array): Uint32Array {
-            const packed = new Uint32Array(Math.ceil(types.length / 4));
-            for (let i = 0; i < types.length; i++) {
-                const wordIndex = Math.floor(i / 4);
-                const byteOffset = (i % 4) * 8;
-                packed[wordIndex] |= (types[i] & 0xFF) << byteOffset;
-            }
-            return packed;
         }
         function makeRandomRulesMatrix() {
             let matrix: number[][] = []
@@ -1252,20 +2043,13 @@ export default defineComponent({
             let matrix: number[][] = []
             const min: number = particleLife.maxRadiusRange[0]
             const max: number = particleLife.maxRadiusRange[1]
-            let maxRandom: number = min
             for (let i = 0; i < NUM_TYPES; i++) {
                 matrix.push([])
                 for (let j = 0; j < NUM_TYPES; j++) {
                     const random = Math.floor(Math.random() * (max - min + 1) + min)
                     matrix[i].push(random)
-                    if (random > maxRandom) {
-                        maxRandom = random
-                    }
                 }
             }
-            particleLife.currentMaxRadius = maxRandom
-            // currentMaxRadius = particleLife.currentMaxRadius
-            // CELL_SIZE = currentMaxRadius
             return matrix
         }
         // -------------------------------------------------------------------------------------------------------------
@@ -1274,14 +2058,14 @@ export default defineComponent({
             if (typeof(newWidth) !== 'number') return // Prevent input event like unfocus
             if (particleLife.linkProportions) particleLife.simHeight = SIM_HEIGHT = baseSimHeight = Math.round(SIM_HEIGHT * (newWidth / SIM_WIDTH))
             particleLife.simWidth = SIM_WIDTH = baseSimWidth = newWidth
-            if (isWallWrap) setSimSizeWhenWrapped()
+            setSimSize()
             regenerateLife()
         }
         const updateSimHeight = (newHeight: number | Event) => {
             if (typeof(newHeight) !== 'number') return // Prevent input event like unfocus
             if (particleLife.linkProportions) particleLife.simWidth = SIM_WIDTH = baseSimWidth = Math.round(SIM_WIDTH * (newHeight / SIM_HEIGHT))
             particleLife.simHeight = SIM_HEIGHT = baseSimHeight = newHeight
-            if (isWallWrap) setSimSizeWhenWrapped()
+            setSimSize()
             regenerateLife()
         }
         const updateRulesMatrixValue = (x: number, y: number, value: number) => {
@@ -1295,14 +2079,14 @@ export default defineComponent({
             if (value > particleLife.maxRadiusMatrix[x][y]) {
                 particleLife.maxRadiusMatrix[x][y] = value
                 maxRadiusMatrix[x][y] = value
-                particleLife.currentMaxRadius = getCurrentMaxRadius()
+                setCurrentMaxRadius(getCurrentMaxRadius())
             }
             updateInteractionMatrixBuffer()
         }
         const updateMaxMatrixValue = (x: number, y: number, value: number) => {
             particleLife.maxRadiusMatrix[x][y] = value
             maxRadiusMatrix[x][y] = value
-            particleLife.currentMaxRadius = getCurrentMaxRadius()
+            setCurrentMaxRadius(getCurrentMaxRadius())
             if (value < particleLife.minRadiusMatrix[x][y]) {
                 particleLife.minRadiusMatrix[x][y] = value
                 minRadiusMatrix[x][y] = value
@@ -1323,6 +2107,7 @@ export default defineComponent({
         function setMaxRadiusMatrix(newMaxRadius: number[][]) {
             maxRadiusMatrix = newMaxRadius
             particleLife.maxRadiusMatrix = maxRadiusMatrix
+            setCurrentMaxRadius(getCurrentMaxRadius())
         }
         // -------------------------------------------------------------------------------------------------------------
         const getCurrentMaxRadius = () => {
@@ -1333,6 +2118,15 @@ export default defineComponent({
                 }
             }
             return maxRandom
+        }
+        const setCurrentMaxRadius = (value: number) => {
+            if (currentMaxRadius === value) return
+            currentMaxRadius = value
+            particleLife.currentMaxRadius = value
+            CELL_SIZE = currentMaxRadius
+
+            setSimSize()
+            updateSimOptionsBuffer()
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -1352,33 +2146,47 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
-        function watchAndUpdate(effect: any, callback: any) {
+        function watchAndUpdateSimOptions(effect: any, callback: any) {
             watch(effect, (value) => {
                 callback(value)
                 updateSimOptionsBuffer()
             })
         }
-        watch(() => particleLife.mirrorWrapCount, (value: number) => mirrorWrapCount = value)
-        watch(() => particleLife.numParticles, (value: number) => updateNumParticles(value))
+        function watchAndUpdateGlowOptions(effect: any, callback: any) {
+            watch(effect, (value) => {
+                callback(value)
+                updateGlowOptionsBuffer()
+            })
+        }
         watch(() => particleLife.numColors, (value: number) => updateNumTypes(value))
         watch(() => particleLife.isRunning, (value: boolean) => isRunning = value)
         watch(() => particleLife.useSpatialHash, (value: boolean) => useSpatialHash = value)
-        watchAndUpdate(() => particleLife.particleSize, (value: number) => PARTICLE_SIZE = value)
-        watchAndUpdate(() => particleLife.repel, (value: number) => repel = value)
-        watchAndUpdate(() => particleLife.forceFactor, (value: number) => forceFactor = value)
-        watchAndUpdate(() => particleLife.frictionFactor, (value: number) => frictionFactor = value)
-        watchAndUpdate(() => particleLife.currentMaxRadius, (value: number) => {
-            currentMaxRadius = value
-            CELL_SIZE = currentMaxRadius
-            if (isWallWrap) setSimSizeWhenWrapped()
-        })
+        watch(() => particleLife.isParticleGlow, (value: boolean) => isParticleGlow = value)
+        watch(() => particleLife.isAdditiveBlending, (value: boolean) => isAdditiveBlending = value)
+        watch(() => particleLife.isBrushActive, (value: boolean) => isBrushActive = value)
+        watch(() => particleLife.brushType, (value: number) => brushType = value)
+        watch(() => particleLife.brushRadius, (value: number) => brushRadius = value)
+        watch(() => particleLife.repulseForce, (value: number) => repulseForce = value)
+        watch(() => particleLife.attractForce, (value: number) => attractForce = -value)
+        watch(() => particleLife.brushDirectionalForce, (value: number) => brushDirectionalForce = value)
+
+        watchAndUpdateGlowOptions(() => particleLife.glowSize, (value: number) => glowSize = value)
+        watchAndUpdateGlowOptions(() => particleLife.glowIntensity, (value: number) => glowIntensity = value)
+        watchAndUpdateGlowOptions(() => particleLife.glowSteepness, (value: number) => glowSteepness = value)
+
+        watchAndUpdateSimOptions(() => particleLife.particleOpacity, (value: number) => particleOpacity = value)
+        watchAndUpdateSimOptions(() => particleLife.mirrorWrapCount, (value: number) => mirrorWrapCount = value)
+        watchAndUpdateSimOptions(() => particleLife.particleSize, (value: number) => PARTICLE_SIZE = value)
+        watchAndUpdateSimOptions(() => particleLife.repel, (value: number) => repel = value)
+        watchAndUpdateSimOptions(() => particleLife.forceFactor, (value: number) => forceFactor = value)
+        watchAndUpdateSimOptions(() => particleLife.frictionFactor, (value: number) => frictionFactor = value)
 
         let isUpdatingWallState = false
         watch([
             () => particleLife.isWallRepel,
             () => particleLife.isWallWrap,
             () => particleLife.isMirrorWrap,
-            () => particleLife.isInfiniteMirrorWrap
+            () => particleLife.isInfiniteMirrorWrap,
         ], ([newRepel, newWrap, newMirror, newInfinite], [oldRepel, oldWrap, oldMirror, oldInfinite]) => {
             if (isUpdatingWallState) return
 
@@ -1419,11 +2227,7 @@ export default defineComponent({
             isMirrorWrap = particleLife.isMirrorWrap
             isInfiniteMirrorWrap = particleLife.isInfiniteMirrorWrap
 
-            if (!oldWrap && ((changedProp === 'isWallWrap' && newWrap) || (changedProp === 'isMirrorWrap' && newMirror) || (changedProp === 'isInfiniteMirrorWrap' && newInfinite))) {
-                setSimSizeWhenWrapped()
-            } else {
-                updateOffscreenMirrorResources()
-            }
+            setSimSize()
             if (changedProp === 'isWallWrap' || changedProp === 'isWallRepel' || (changedProp === 'isMirrorWrap' && newMirror && !oldWrap) || (changedProp === 'isInfiniteMirrorWrap' && newInfinite && !oldWrap)) {
                 updateSimOptionsBuffer()
             }
@@ -1433,7 +2237,7 @@ export default defineComponent({
             })
         })
         // -------------------------------------------------------------------------------------------------------------
-        const destroyBuffers = async () => {
+        const destroyBuffers = async (keepTexture: boolean = false) => {
             currentPositionBuffer?.destroy(); currentPositionBuffer = undefined;
             nextPositionBuffer?.destroy(); nextPositionBuffer = undefined;
             velocityBuffer?.destroy(); velocityBuffer = undefined;
@@ -1441,37 +2245,86 @@ export default defineComponent({
             typeBufferPacked?.destroy(); typeBufferPacked = undefined;
             colorBuffer?.destroy(); colorBuffer = undefined;
             deltaTimeBuffer?.destroy(); deltaTimeBuffer = undefined;
-            triangleVertexBuffer?.destroy(); triangleVertexBuffer = undefined;
             cameraBuffer?.destroy(); cameraBuffer = undefined;
             interactionMatrixBuffer?.destroy(); interactionMatrixBuffer = undefined;
             simOptionsBuffer?.destroy(); simOptionsBuffer = undefined;
+            glowOptionsBuffer?.destroy(); glowOptionsBuffer = undefined;
             particleHashesBuffer?.destroy(); particleHashesBuffer = undefined;
             cellHeadsBuffer?.destroy(); cellHeadsBuffer = undefined;
             particleNextIndicesBuffer?.destroy(); particleNextIndicesBuffer = undefined;
-            offscreenTexture?.destroy(); offscreenTexture = undefined;
-            offscreenTextureView = undefined as any;
-            offscreenSampler = undefined as any;
+            particleBuffer?.destroy(); particleBuffer = undefined;
+            particleTempBuffer?.destroy(); particleTempBuffer = undefined;
+            binOffsetBuffer?.destroy(); binOffsetBuffer = undefined;
+            binOffsetTempBuffer?.destroy(); binOffsetTempBuffer = undefined;
+            binPrefixSumStepSizeBuffer?.destroy(); binPrefixSumStepSizeBuffer = undefined;
+
+            particleKeepFlagsBuffer?.destroy(); particleKeepFlagsBuffer = undefined;
+            newParticleCountBuffer?.destroy(); newParticleCountBuffer = undefined;
+            newParticleCountReadBuffer?.destroy(); newParticleCountReadBuffer = undefined;
+            particleCompactBuffer?.destroy(); particleCompactBuffer = undefined;
+
+            if (!keepTexture) {
+                offscreenTexture?.destroy(); offscreenTexture = undefined;
+                offscreenTextureView = undefined as any;
+                offscreenSampler = undefined as any;
+                hdrTexture?.destroy(); hdrTexture = undefined;
+                hdrTextureView = undefined as any;
+            }
+
             await nextTick() // Ensure GPU resources are cleaned up before creating new ones
         }
         const destroyPipelinesAndBindGroups = () => {
+            particleErasePipeline = undefined as any;
+            particleCompactPipeline = undefined as any;
+            particleCompactBindGroup = undefined as any;
+            particleCompactBindGroupLayout = undefined as any;
+            particleEraseBindGroup = undefined as any;
+            particleEraseBindGroupLayout = undefined as any;
+
             renderPipeline = undefined as any;
-            clearHashPipeline = undefined as any;
-            buildHashPipeline = undefined as any;
-            bruteForceComputePipeline = undefined as any;
-            spatialHashComputePipeline = undefined as any;
-
-            renderBindGroup = undefined as any;
-            clearHashBindGroup = undefined as any;
-            buildHashBindGroup = undefined as any;
-            bruteForceComputeBindGroup = undefined as any;
-            spatialHashComputeBindGroup = undefined as any;
-
             renderOffscreenPipeline = undefined as any;
-            renderOffscreenBindGroup = undefined as any;
+            composeInfinitePipeline = undefined as any;
             renderMirrorPipeline = undefined as any;
-            renderMirrorBindGroup = undefined as any;
-            renderInfinitePipeline = undefined as any;
-            renderInfiniteBindGroup = undefined as any;
+            renderGlowPipeline = undefined as any;
+            renderCirclePipeline = undefined as any;
+            renderMirrorGlowPipeline = undefined as any;
+            renderMirrorCirclePipeline = undefined as any;
+            composeHdrPipeline = undefined as any;
+
+            renderPipelineAdditive = undefined as any;
+            renderMirrorPipelineAdditive = undefined as any;
+            renderInfinitePipelineAdditive = undefined as any;
+            renderCirclePipelineAdditive = undefined as any;
+            renderMirrorCirclePipelineAdditive = undefined as any;
+            renderInfiniteCirclePipelineAdditive = undefined as any;
+
+            binClearSizePipeline = undefined as any;
+            binFillSizePipeline = undefined as any;
+            binPrefixSumPipeline = undefined as any;
+            particleSortClearSizePipeline = undefined as any;
+            particleSortPipeline = undefined as any;
+            bruteForceComputePipeline = undefined as any;
+            particleComputeForcesPipeline = undefined as any;
+            particleAdvancePipeline = undefined as any;
+
+            particleBufferReadOnlyBindGroup = undefined as any;
+            binFillSizeBindGroup = undefined as any;
+            if (binPrefixSumBindGroup) {
+                for (let i = 0; i < binPrefixSumBindGroup.length; i++) {
+                    binPrefixSumBindGroup[i] = undefined as any;
+                }
+            }
+            binPrefixSumBindGroup = [];
+            particleSortBindGroup = undefined as any;
+            bruteForceBindGroup = undefined as any;
+            particleComputeForcesBindGroup = undefined as any;
+            particleBufferBindGroup = undefined as any;
+            simOptionsBindGroup = undefined as any;
+            deltaTimeBindGroup = undefined as any;
+            cameraBindGroup = undefined as any;
+            offscreenTextureBindGroup = undefined as any;
+            composeHdrBindGroup = undefined as any;
+            glowOptionsBindGroup = undefined as any;
         }
         const cancelAnimationLoop = () => {
             if (animationFrameId) {
@@ -1500,7 +2353,7 @@ export default defineComponent({
         return {
             particleLife, canvasRef, fps, executionTime, colorRgbStrings,
             handleZoom, toggleFullscreen, isFullscreen, regenerateLife, step,
-            updateSimWidth, updateSimHeight,
+            updateSimWidth, updateSimHeight, updateNumParticles,
             updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, newRandomRulesMatrix,
         }
     }

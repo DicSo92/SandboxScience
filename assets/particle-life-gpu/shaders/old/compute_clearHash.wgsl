@@ -1,17 +1,24 @@
 struct CellHeads { data: array<atomic<u32>> };
 struct SimOptions {
+    simWidth: f32,
+    simHeight: f32,
+    gridWidth: u32,
+    gridHeight: u32,
+    cellSize: f32,
+    numParticles: u32,
+    numTypes: u32,
+    particleSize: f32,
+    particleOpacity: f32,
     isWallRepel: u32,
     isWallWrap: u32,
     forceFactor: f32,
     frictionFactor: f32,
     repel: f32,
-    particleSize: f32,
-    simWidth: f32,
-    simHeight: f32,
-    cellSize: f32,
-    spatialHashTableSize: u32,
-    numParticles: u32,
-    numTypes: u32
+    extendedGridWidth: u32,
+    extendedGridHeight: u32,
+    gridOffsetX: u32,
+    gridOffsetY: u32,
+    mirrorWrapCount: u32,
 };
 
 @group(0) @binding(0) var<storage, read_write> cellHeads: CellHeads;

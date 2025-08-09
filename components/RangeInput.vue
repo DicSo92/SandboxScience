@@ -31,7 +31,7 @@
                 </div>
             </div>
             <div v-if="input" w-14>
-                <input type="text" maxlength="5" :value="modelValue" @input="inputTextUpdate($event.target.value)" class="w-full border border-gray-200 rounded text-sm text-center text-black font-500">
+                <input type="text" maxlength="6" :value="modelValue" @input="inputTextUpdate($event.target.value)" class="w-full border border-gray-200 rounded text-sm text-center text-black font-500">
             </div>
         </div>
     </div>
