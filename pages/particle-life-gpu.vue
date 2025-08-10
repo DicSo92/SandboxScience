@@ -173,6 +173,7 @@ import renderInfiniteShaderCode from 'assets/particle-life-gpu/shaders/render/re
 import particleEraseShaderCode from 'assets/particle-life-gpu/shaders/compute/particleErase.wgsl?raw';
 import particleCompactShaderCode from 'assets/particle-life-gpu/shaders/compute/particleCompact.wgsl?raw';
 import particleDrawShaderCode from 'assets/particle-life-gpu/shaders/compute/particleDraw.wgsl?raw';
+import renderBrushCircleShaderCode from 'assets/particle-life-gpu/shaders/render/render_brush_circle.wgsl?raw';
 
 export default defineComponent({
     name: 'ParticleLifeGpu',
@@ -277,6 +278,7 @@ export default defineComponent({
         let attractForce: number = -Math.abs(particleLife.attractForce)
         let repulseForce: number = particleLife.repulseForce
         let brushDirectionalForce: number = particleLife.brushDirectionalForce // Force applied in the direction of the brush movement
+        let showBrushCircle: boolean = particleLife.showBrushCircle // Show the brush circle when using the brush
 
         // Define GPU resources
         let device: GPUDevice
@@ -387,6 +389,10 @@ export default defineComponent({
         let particleDrawBindGroup: GPUBindGroup;
 
         let brushesBuffer: GPUBuffer | undefined;
+
+        let renderBrushCirclePipeline: GPURenderPipeline
+        let renderBrushCircleBindGroupLayout: GPUBindGroupLayout
+        let renderBrushCircleBindGroup: GPUBindGroup
 
         onMounted(async () => {
             await initWebGPU()
@@ -604,6 +610,8 @@ export default defineComponent({
             //     return
             // }
 
+            if (isBrushActive && showBrushCircle) updateBrushOptionsBuffer()
+
             if (isBrushErasing) await eraseWithBrush()
             else if (isBrushDrawing) await drawWithBrush()
             else if (isUpdateNumParticlesPending) await updateNumParticles(NEW_NUM_PARTICLES)
@@ -616,6 +624,7 @@ export default defineComponent({
             } else {
                 const encoder = device.createCommandEncoder()
                 renderParticles(encoder)
+                if (isBrushActive && showBrushCircle) renderBrushCircle(encoder)
                 device.queue.submit([encoder.finish()])
             }
             // device.queue.onSubmittedWorkDone().then(() => executionTime.value = performance.now() - startExecutionTime) // Approximate execution time of the GPU commands
@@ -652,6 +661,9 @@ export default defineComponent({
             computeAdvance(encoder)
 
             renderParticles(encoder)
+
+            if (isBrushActive && showBrushCircle) renderBrushCircle(encoder)
+
             device.queue.submit([encoder.finish()])
         }
         // -------------------------------------------------------------------------------------------------------------
@@ -697,7 +709,7 @@ export default defineComponent({
         }
         const computeAdvance = (encoder: GPUCommandEncoder) => {
             if (isApplyingBrushForce) {
-                updateBrushOptionsBuffer()
+                if (!showBrushCircle) updateBrushOptionsBuffer() // Condition prevents duplicate updates
 
                 const advanceBrushComputePass = encoder.beginComputePass()
                 advanceBrushComputePass.setPipeline(particleAdvanceBrushPipeline)
@@ -827,6 +839,21 @@ export default defineComponent({
                 renderPass.draw(4, NUM_PARTICLES)
                 renderPass.end()
             }
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        const renderBrushCircle = (encoder: GPUCommandEncoder) => {
+            const renderPass = encoder.beginRenderPass({
+                colorAttachments: [{
+                    view: ctx.getCurrentTexture().createView(),
+                    loadOp: 'load',
+                    storeOp: 'store',
+                }],
+            })
+            renderPass.setPipeline(renderBrushCirclePipeline)
+            renderPass.setBindGroup(0, cameraBindGroup)
+            renderPass.setBindGroup(1, renderBrushCircleBindGroup)
+            renderPass.draw(4, 1, 0, 0)
+            renderPass.end()
         }
         // -------------------------------------------------------------------------------------------------------------
         const renderInfiniteMirrorWithOffscreenTexture = (encoder: GPUCommandEncoder) => {
@@ -992,7 +1019,7 @@ export default defineComponent({
             if (selectedTypes.length > 0) {
                 device.queue.writeBuffer(brushesBuffer, 4, selectedTypes)
             }
-            if (brushOptionsBindGroup) updateBrushOptionsBindGroup()
+            if (brushOptionsBindGroup) updateBrushesBindGroup()
         }
         const updateBrushOptionsBuffer = () => {
             const brushX = cameraCenter.x + (pointerX / CANVAS_WIDTH * 2 - 1) / cameraScaleX
@@ -1142,7 +1169,7 @@ export default defineComponent({
             updateEraseCompactBindGroups()
             updateOffscreenTextureBindGroup()
             updateComposeHdrBindGroup()
-            updateBrushOptionsBindGroup()
+            updateBrushesBindGroup()
             // ---------------------------------------------------------------------------------------------------------
             simOptionsBindGroup = device.createBindGroup({
                 layout: simOptionsBindGroupLayout,
@@ -1175,8 +1202,14 @@ export default defineComponent({
                     { binding: 1, resource: { buffer: infiniteRenderOptionsBuffer! } },
                 ],
             })
+            renderBrushCircleBindGroup = device.createBindGroup({
+                layout: renderBrushCircleBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: brushOptionsBuffer! } },
+                ],
+            })
         }
-        const updateBrushOptionsBindGroup = () => {
+        const updateBrushesBindGroup = () => {
             brushOptionsBindGroup = undefined as any
             brushOptionsBindGroup = device.createBindGroup({
                 layout: brushOptionsBindGroupLayout,
@@ -1420,6 +1453,11 @@ export default defineComponent({
                     { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // particleBuffer
                 ],
             })
+            renderBrushCircleBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } }, // brushOptionsBuffer
+                ],
+            })
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -1648,6 +1686,19 @@ export default defineComponent({
                 },
                 primitive: { topology: 'triangle-list' }
             })
+            // ---------------------------------------------------------------------------------------------------------
+            const renderBrushCircleShader = device.createShaderModule({ code: renderBrushCircleShaderCode })
+            renderBrushCirclePipeline = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [cameraBindGroupLayout, renderBrushCircleBindGroupLayout]
+                }),
+                vertex: { module: renderBrushCircleShader, entryPoint: 'vertexMain' },
+                fragment: { module: renderBrushCircleShader, entryPoint: 'fragmentMain', targets: [{
+                    format: navigator.gpu.getPreferredCanvasFormat(),
+                    blend: particleNormalBlending,
+                }] },
+                primitive: { topology: 'triangle-strip' },
+            })
         }
         const createHdrGlowPipelines = () => {
             const glowBlendOptions: GPUBlendState = {
@@ -1849,7 +1900,7 @@ export default defineComponent({
             await device.queue.onSubmittedWorkDone()
 
             try {
-                updateBrushOptionsBuffer()
+                if (!showBrushCircle) updateBrushOptionsBuffer() // Condition prevents duplicate updates
 
                 const oldNumParticles = NUM_PARTICLES
                 const numParticlesToAdd = Math.floor(brushIntensity)
@@ -1907,7 +1958,7 @@ export default defineComponent({
             await device.queue.onSubmittedWorkDone()
 
             try {
-                updateBrushOptionsBuffer()
+                if (!showBrushCircle) updateBrushOptionsBuffer() // Condition prevents duplicate updates
 
                 const encoder = device.createCommandEncoder({ label: 'Erase and Compact Encoder' })
                 encoder.clearBuffer(newParticleCountBuffer!, 0, 4)
@@ -2294,6 +2345,7 @@ export default defineComponent({
         watch(() => particleLife.repulseForce, (value: number) => repulseForce = value)
         watch(() => particleLife.attractForce, (value: number) => attractForce = -value)
         watch(() => particleLife.brushDirectionalForce, (value: number) => brushDirectionalForce = value)
+        watch(() => particleLife.showBrushCircle, (value: boolean) => showBrushCircle = value)
 
         watchAndUpdateGlowOptions(() => particleLife.glowSize, (value: number) => glowSize = value)
         watchAndUpdateGlowOptions(() => particleLife.glowIntensity, (value: number) => glowIntensity = value)

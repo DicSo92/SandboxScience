@@ -53,14 +53,16 @@
                                 <RangeInput input :min="0" :max="100" :step="1" v-model="particleLife.repulseForce" />
                             </div>
                         </div>
-                        <div flex items-center mt-2 v-if="particleLife.$id === 'particleLifeGPU'">
-                            <p mr-2 class="w-1/4">Velocity</p>
-                            <div flex-1>
-                                <RangeInput input :min="0" :max="100" :step="1" v-model="particleLife.brushDirectionalForce" />
+                        <div v-if="particleLife.$id === 'particleLifeGPU'">
+                            <div flex items-center mt-2>
+                                <p mr-2 class="w-1/4">Velocity</p>
+                                <div flex-1>
+                                    <RangeInput input :min="0" :max="100" :step="1" v-model="particleLife.brushDirectionalForce" />
+                                </div>
                             </div>
+                            <ToggleSwitch label="Show Brush Circle" colorful-label v-model="particleLife.showBrushCircle" />
                         </div>
                     </div>
-
                 </div>
             </div>
         </div>
