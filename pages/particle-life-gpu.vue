@@ -75,11 +75,11 @@
                                   tooltip="Adjust the parameters for randomizing particle attributes. <br> Configure the ranges for minimum and maximum interaction radii, and set the range for generating Z positions for particle spawning.">
                             <RangeInputMinMax input label="Min. Radius"
                                               tooltip="Set the range for generating minimum interaction radii. <br> This determines the range of possible values for the minimum distance at which particles begin to interact."
-                                              :min="0" :max="200" :step="1" v-model="particleLife.minRadiusRange">
+                                              :min="0" :max="128" :step="1" v-model="particleLife.minRadiusRange">
                             </RangeInputMinMax>
                             <RangeInputMinMax input label="Max. Radius"
                                               tooltip="Set the range for generating maximum interaction radii. <br> This determines the range of possible values for the maximum interaction distance between particles."
-                                              :min="particleLife.minRadiusRange[1]" :max="400" :step="1" v-model="particleLife.maxRadiusRange">
+                                              :min="particleLife.minRadiusRange[1]" :max="256" :step="1" v-model="particleLife.maxRadiusRange">
                             </RangeInputMinMax>
                         </Collapse>
                         <Collapse label="Graphics Settings" icon="i-tabler-photo-cog" mt-2>
@@ -106,6 +106,21 @@
                                         :min="0" :max="1" :step="0.01" v-model="particleLife.particleOpacity" mt-2>
                             </RangeInput>
                         </Collapse>
+                        <Collapse label="Debug Tools" icon="i-tabler-bug" mt-2
+                                  tooltip="Provides tools for visualizing the simulation's internal state. <br> Toggle the grid view to see spatial bins or activate a heatmap to analyze particle density. <br> These features are useful for debugging and performance tuning.">
+                            <div flex>
+                                <ToggleSwitch label="Show Bins" colorful-label v-model="particleLife.isDebugBinsActive" mr-4
+                                              tooltip="Displays the cells (bins) of the spatial partitioning system. <br> Each cell is drawn as a grid, which helps visualize how particles are grouped. <br> This is a useful debugging tool for optimizing performance.">
+                                </ToggleSwitch>
+                                <ToggleSwitch label="Show Heatmap" colorful-label v-model="particleLife.isDebugHeatmapActive"
+                                              tooltip="Enables a heatmap to visualize particle density. <br> Each grid cell is colored based on the number of particles it contains, following a gradient from blue (low density) to red (high density). <br> This helps identify areas of high concentration.">
+                                </ToggleSwitch>
+                            </div>
+                            <RangeInput input label="Heatmap Scale"
+                                        tooltip="Sets the number of particles in a cell that maps to the highest value on the heatmap gradient. <br> Adjusting this value scales the density visualization, helping to fine-tune how particle concentrations are displayed."
+                                        :min="640" :max="16000" :step="16" v-model="particleLife.debugMaxParticleCount" mt-2>
+                            </RangeInput>
+                        </Collapse>
                     </div>
                     <div absolute bottom-2 right-0 z-100 class="-mr-px">
                         <button rounded-l-lg border border-gray-400 flex items-center p-1 bg="gray-800 hover:gray-900" @click="particleLife.sidebarLeftOpen = false">
@@ -122,6 +137,13 @@
                 <div flex ml-3>Process: <div ml-1 min-w-7>{{ Math.round(executionTime) }}</div></div>
             </div>
             <BrushSettings :store="particleLife" pointer-events-auto mt-2 mr-1 />
+
+            <div class="faded-hover-effect" pointer-events-auto mr-1>
+                <button type="button" title="Debugger" aria-label="Debugger" btn w-8 aspect-square rounded-full p1 flex items-center justify-center bg="#D62839 hover:#DC4151" mt-2
+                        @click="particleLife.isDebugBinsActive = !particleLife.isDebugBinsActive">
+                    <span text-sm :class="particleLife.isDebugBinsActive ? 'i-tabler-bug-filled' : 'i-tabler-bug'"></span>
+                </button>
+            </div>
         </div>
         <div fixed z-10 bottom-2 flex justify-center items-end class="faded-hover-effect left-1/2 transform -translate-x-1/2">
             <button type="button" name="Randomize" aria-label="Randomize" btn p2 rounded-full mx-1 flex items-center bg="#094F5D hover:#0B5F6F" @click="regenerateLife">
@@ -153,6 +175,8 @@ import WallStateSelection from "~/components/particle-life/WallStateSelection.vu
 import MatrixSettings from "~/components/particle-life/MatrixSettings.vue";
 import BrushSettings from "~/components/particle-life/BrushSettings.vue";
 
+import heatmapImage from 'assets/particle-life-gpu/images/heatmap_red4x_256x1.png';
+
 import binFillSizeShaderCode from 'assets/particle-life-gpu/shaders/compute/binFillSize.wgsl?raw';
 import binPrefixSumShaderCode from 'assets/particle-life-gpu/shaders/compute/binPrefixSum.wgsl?raw';
 import particleSortShaderCode from 'assets/particle-life-gpu/shaders/compute/particleSort.wgsl?raw';
@@ -174,6 +198,7 @@ import particleEraseShaderCode from 'assets/particle-life-gpu/shaders/compute/pa
 import particleCompactShaderCode from 'assets/particle-life-gpu/shaders/compute/particleCompact.wgsl?raw';
 import particleDrawShaderCode from 'assets/particle-life-gpu/shaders/compute/particleDraw.wgsl?raw';
 import renderBrushCircleShaderCode from 'assets/particle-life-gpu/shaders/render/render_brush_circle.wgsl?raw';
+import renderBinsShaderCode from 'assets/particle-life-gpu/shaders/render/render_bins.wgsl?raw';
 
 export default defineComponent({
     name: 'ParticleLifeGpu',
@@ -198,6 +223,7 @@ export default defineComponent({
         let isUpdatingParticles: boolean = false // Flag to prevent multiple additions at once
         let isUpdateNumParticlesPending: boolean = false
         let isUpdateNumTypesPending: boolean = false
+        let hasUpdateNumParticles: boolean = false
 
         let smoothedDeltaTime: number = 0.016 // Initial value (1/60s)
         let CANVAS_WIDTH: number = 0
@@ -261,6 +287,9 @@ export default defineComponent({
         let isInfiniteMirrorWrap: boolean = particleLife.isInfiniteMirrorWrap // Enable infinite wrapping for the particles (only if isWallWrap is true)
         let mirrorWrapCount: number = particleLife.mirrorWrapCount // Number of mirrors to render if isMirrorWrap is true (5 or 9)
         let useSpatialHash: boolean = particleLife.useSpatialHash // Use spatial hash or brute force
+        let isDebugBinsActive: boolean = particleLife.isDebugBinsActive // Flag to show/hide the bins
+        let debugMaxParticleCount: number = particleLife.debugMaxParticleCount // Maximum number of particles for debugging purposes
+        let isDebugHeatmapActive: boolean = particleLife.isDebugHeatmapActive // Flag to show/hide the heatmap
 
         let glowSize: number = particleLife.glowSize
         let glowIntensity: number = particleLife.glowIntensity
@@ -394,8 +423,21 @@ export default defineComponent({
         let renderBrushCircleBindGroupLayout: GPUBindGroupLayout
         let renderBrushCircleBindGroup: GPUBindGroup
 
+        let renderDebugBinsPipeline: GPURenderPipeline
+        let renderDebugBinsBindGroupLayout: GPUBindGroupLayout
+        let renderDebugBinsBindGroup: GPUBindGroup
+        let debugOptionsBindGroupLayout: GPUBindGroupLayout
+        let debugOptionsBindGroup: GPUBindGroup
+
+        let heatmapTexture: GPUTexture | undefined
+        let heatmapTextureView: GPUTextureView
+        let heatmapSampler: GPUSampler
+
+        let debugOptionsBuffer: GPUBuffer | undefined
+
         onMounted(async () => {
             await initWebGPU()
+            await createHeatmapTexture()
             handleResize()
             setSimSizeBasedOnScreen()
             await initLife()
@@ -483,7 +525,7 @@ export default defineComponent({
 
             // If no walls, set a larger grid size for better performance
             if (!isWallWrap && !isWallRepel) {
-                const requestedFactor = 4
+                const requestedFactor = 16
                 const maxWorkgroups = device.limits.maxComputeWorkgroupsPerDimension
                 const maxBinCount = maxWorkgroups * 64
                 const baseBinCount = Math.ceil(SIM_WIDTH / CELL_SIZE) * Math.ceil(SIM_HEIGHT / CELL_SIZE)
@@ -554,7 +596,7 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         const initWebGPU = async () => {
-            const adapter = await navigator.gpu.requestAdapter()
+            const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' })
             if (!adapter) throw new Error("WebGPU adapter not found")
             device = await adapter.requestDevice()
             ctx = canvasRef.value!.getContext('webgpu')!
@@ -624,12 +666,14 @@ export default defineComponent({
             } else {
                 const encoder = device.createCommandEncoder()
                 renderParticles(encoder)
+                if (isDebugBinsActive && useSpatialHash) renderDebugBins(encoder)
                 if (isBrushActive && showBrushCircle) renderBrushCircle(encoder)
                 device.queue.submit([encoder.finish()])
             }
             // device.queue.onSubmittedWorkDone().then(() => executionTime.value = performance.now() - startExecutionTime) // Approximate execution time of the GPU commands
             lastFramePointerX = pointerX
             lastFramePointerY = pointerY
+            hasUpdateNumParticles = false
 
             // // Wait for the GPU to finish processing before starting a new frame
             // ++pendingFrames
@@ -654,14 +698,12 @@ export default defineComponent({
             const encoder = device.createCommandEncoder()
 
             encoder.copyBufferToBuffer(particleBuffer!, 0, particleTempBuffer!, 0, particleBuffer!.size)
-
             if (useSpatialHash) computeBinning(encoder)
             else computeBruteForce(encoder)
-
             computeAdvance(encoder)
-
             renderParticles(encoder)
 
+            if (isDebugBinsActive && useSpatialHash) renderDebugBins(encoder)
             if (isBrushActive && showBrushCircle) renderBrushCircle(encoder)
 
             device.queue.submit([encoder.finish()])
@@ -793,7 +835,7 @@ export default defineComponent({
                         view: ctx.getCurrentTexture().createView(),
                         loadOp: 'clear',
                         storeOp: 'store',
-                        clearValue: { r: 0, g: 0, b: 0, a: 1 }
+                        clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 }
                     }]
                 })
                 renderPass.setPipeline(isAdditiveBlending ? renderMirrorPipelineAdditive : renderMirrorPipeline)
@@ -856,6 +898,41 @@ export default defineComponent({
             renderPass.end()
         }
         // -------------------------------------------------------------------------------------------------------------
+        const renderDebugBins = (encoder: GPUCommandEncoder) => {
+            if (!isRunning && hasUpdateNumParticles) { // Compute binning for debug rendering only when not running so new particles are ordered correctly
+                const binningComputePass = encoder.beginComputePass()
+                binningComputePass.setPipeline(binClearSizePipeline)
+                binningComputePass.setBindGroup(0, particleBufferReadOnlyBindGroup)
+                binningComputePass.setBindGroup(1, simOptionsBindGroup)
+                binningComputePass.setBindGroup(2, binFillSizeBindGroup)
+                binningComputePass.dispatchWorkgroups(Math.ceil((binCount + 1) / 64))
+                binningComputePass.setPipeline(binFillSizePipeline)
+                binningComputePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
+                binningComputePass.setPipeline(binPrefixSumPipeline)
+                for (let i = 0; i < prefixSumIterations; ++i) {
+                    binningComputePass.setBindGroup(0, binPrefixSumBindGroup[i % 2], [i * 256])
+                    binningComputePass.dispatchWorkgroups(Math.ceil((binCount + 1) / 64))
+                }
+                binningComputePass.end()
+            }
+
+            const renderPass = encoder.beginRenderPass({
+                colorAttachments: [{
+                    view: ctx.getCurrentTexture().createView(),
+                    loadOp: 'load',
+                    clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+                    storeOp: 'store',
+                }],
+            })
+            renderPass.setPipeline(renderDebugBinsPipeline)
+            renderPass.setBindGroup(0, renderDebugBinsBindGroup)
+            renderPass.setBindGroup(1, debugOptionsBindGroup)
+            renderPass.setBindGroup(2, simOptionsBindGroup)
+            renderPass.setBindGroup(3, cameraBindGroup)
+            renderPass.draw(4, binCount, 0, 0)
+            renderPass.end()
+        }
+        // -------------------------------------------------------------------------------------------------------------
         const renderInfiniteMirrorWithOffscreenTexture = (encoder: GPUCommandEncoder) => {
             const renderOffscreenPass = encoder.beginRenderPass({
                 colorAttachments: [{
@@ -899,6 +976,7 @@ export default defineComponent({
             updateGlowOptionsBuffer()
             updateBrushOptionsBuffer()
             updateBrushesBuffer()
+            updateDebugOptionsBuffer()
             // ----------------------------------------------------------------------------------------------
             const cameraData = new Float32Array([cameraCenter.x, cameraCenter.y, cameraScaleX, cameraScaleY])
             cameraBuffer = device.createBuffer({
@@ -1129,6 +1207,24 @@ export default defineComponent({
                 device.queue.writeBuffer(simOptionsBuffer, 0, simOptionsData)
             }
         }
+        const updateDebugOptionsBuffer = () => {
+            const debugOptionsData = new ArrayBuffer(8)
+            const debugOptionsView = new DataView(debugOptionsData)
+            debugOptionsView.setUint32(0, isDebugHeatmapActive ? 1 : 0, true)
+            debugOptionsView.setFloat32(4, debugMaxParticleCount, true)
+
+            if (!debugOptionsBuffer) {
+                debugOptionsBuffer = device.createBuffer({
+                    size: debugOptionsData.byteLength,
+                    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+                    mappedAtCreation: true,
+                })
+                new Uint8Array(debugOptionsBuffer.getMappedRange()).set(new Uint8Array(debugOptionsData))
+                debugOptionsBuffer.unmap()
+            } else {
+                device.queue.writeBuffer(debugOptionsBuffer, 0, debugOptionsData)
+            }
+        }
         const updateInteractionMatrixBuffer = () => {
             const stride = 4; // 4 octets par couple
             const interactionData = new Uint8Array(NUM_TYPES * NUM_TYPES * stride);
@@ -1208,6 +1304,12 @@ export default defineComponent({
                     { binding: 0, resource: { buffer: brushOptionsBuffer! } },
                 ],
             })
+            debugOptionsBindGroup = device.createBindGroup({
+                layout: debugOptionsBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: debugOptionsBuffer! } },
+                ],
+            })
         }
         const updateBrushesBindGroup = () => {
             brushOptionsBindGroup = undefined as any
@@ -1240,6 +1342,14 @@ export default defineComponent({
                     { binding: 0, resource: { buffer: binOffsetTempBuffer! } },
                     { binding: 1, resource: { buffer: binOffsetBuffer! } },
                     { binding: 2, resource: { buffer: binPrefixSumStepSizeBuffer!, size: 4 } },
+                ],
+            })
+            renderDebugBinsBindGroup = device.createBindGroup({
+                layout: renderDebugBinsBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: binOffsetBuffer! } },
+                    { binding: 1, resource: heatmapTextureView! },
+                    { binding: 2, resource: heatmapSampler! }
                 ],
             })
         }
@@ -1456,6 +1566,18 @@ export default defineComponent({
             renderBrushCircleBindGroupLayout = device.createBindGroupLayout({
                 entries: [
                     { binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } }, // brushOptionsBuffer
+                ],
+            })
+            renderDebugBinsBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: 'read-only-storage' } }, // binOffsetBuffer
+                    { binding: 1, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'float', viewDimension: '2d' } }, // heatmapTextureView
+                    { binding: 2, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } }, // heatmapSampler
+                ],
+            })
+            debugOptionsBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } }, // debugOptionsBuffer
                 ],
             })
         }
@@ -1699,6 +1821,18 @@ export default defineComponent({
                 }] },
                 primitive: { topology: 'triangle-strip' },
             })
+            const renderBinsShader = device.createShaderModule({ code: renderBinsShaderCode });
+            renderDebugBinsPipeline = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [renderDebugBinsBindGroupLayout, debugOptionsBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout]
+                }),
+                vertex: { module: renderBinsShader, entryPoint: 'vertexMain' },
+                fragment: { module: renderBinsShader, entryPoint: 'fragmentMain', targets: [{
+                        format: navigator.gpu.getPreferredCanvasFormat(),
+                        blend: particleNormalBlending,
+                    }] },
+                primitive: { topology: 'triangle-strip' },
+            })
         }
         const createHdrGlowPipelines = () => {
             const glowBlendOptions: GPUBlendState = {
@@ -1842,6 +1976,35 @@ export default defineComponent({
                 updateComposeHdrBindGroup()
             }
         }
+        const createHeatmapTexture = async () => {
+            const response = await fetch(heatmapImage)
+            const blob = await response.blob()
+            const imageBitmap = await createImageBitmap(blob, {
+                colorSpaceConversion: "none",
+                premultiplyAlpha: "none",
+            })
+
+            heatmapTexture = device.createTexture({
+                size: [imageBitmap.width, imageBitmap.height, 1],
+                format: 'rgba8unorm',
+                usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+            })
+
+            device.queue.copyExternalImageToTexture(
+                { source: imageBitmap },
+                { texture: heatmapTexture },
+                [imageBitmap.width, imageBitmap.height, 1]
+            )
+
+            heatmapSampler = device.createSampler({
+                addressModeU: 'clamp-to-edge',
+                addressModeV: 'clamp-to-edge', // maybe repeat
+                magFilter: 'linear',
+                minFilter: 'linear',
+            })
+
+            heatmapTextureView = heatmapTexture.createView()
+        }
         const updateOffscreenMirrorResources = () => {
             if (offscreenTexture) {
                 offscreenTexture.destroy(); offscreenTexture = undefined;
@@ -1946,6 +2109,7 @@ export default defineComponent({
                 updateParticleBindGroups()
                 updateEraseCompactBindGroups()
                 updateInfiniteRenderOptions()
+                hasUpdateNumParticles = true
             } catch (error) {
                 console.error("Error drawing with brush:", error)
             } finally {
@@ -2001,6 +2165,7 @@ export default defineComponent({
                     updateParticleBindGroups()
                     updateEraseCompactBindGroups()
                     updateInfiniteRenderOptions()
+                    hasUpdateNumParticles = true
                 }
             } catch (error) {
                 console.error("Error during erase and compact operation:", error)
@@ -2057,6 +2222,7 @@ export default defineComponent({
                 updateEraseCompactBindGroups()
                 updateSimOptionsBuffer() // Update simulation options buffer
                 updateInfiniteRenderOptions() // Update infinite render options buffer
+                hasUpdateNumParticles = true
             } finally {
                 isUpdatingParticles = false
                 isUpdateNumParticlesPending = NEW_NUM_PARTICLES !== NUM_PARTICLES
@@ -2358,6 +2524,18 @@ export default defineComponent({
         watchAndUpdateSimOptions(() => particleLife.forceFactor, (value: number) => forceFactor = value)
         watchAndUpdateSimOptions(() => particleLife.frictionFactor, (value: number) => frictionFactor = value)
 
+        watch(() => particleLife.isDebugBinsActive, (value: boolean) => {
+            isDebugBinsActive = value
+            if (!isDebugBinsActive) particleLife.isDebugHeatmapActive = false
+            if (!isRunning && isDebugBinsActive) step() // Force step for debug bins update
+        })
+        watch(() => particleLife.isDebugHeatmapActive, (value: boolean) => {
+            isDebugHeatmapActive = value
+            if (isDebugHeatmapActive) particleLife.isDebugBinsActive = true
+            updateDebugOptionsBuffer()
+        })
+        watch(() => particleLife.debugMaxParticleCount, (value: number) => { debugMaxParticleCount = value; updateDebugOptionsBuffer(); })
+
         let isUpdatingWallState = false
         watch([
             () => particleLife.isWallRepel,
@@ -2407,6 +2585,7 @@ export default defineComponent({
             setSimSize()
             if (changedProp === 'isWallWrap' || changedProp === 'isWallRepel' || (changedProp === 'isMirrorWrap' && newMirror && !oldWrap) || (changedProp === 'isInfiniteMirrorWrap' && newInfinite && !oldWrap)) {
                 updateSimOptionsBuffer()
+                if (!isRunning && isDebugBinsActive) step() // Force step for debug bins update
             }
 
             nextTick(() => {

@@ -27,6 +27,9 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
     const isInfiniteMirrorWrap = ref<boolean>(false) // Enable infinite mirrors for the particles (only works if isWallWrap is true)
     const mirrorWrapCount = ref<number>(5) // Number of mirrors (5 or 9)
     const screenMultiplierForGridSize = ref<number>(3) // Multiplier for the grid size (1 means the grid will be the same size as the screen)
+    const isDebugBinsActive = ref<boolean>(false) // Show bins for the particles
+    const debugMaxParticleCount = ref<number>(1600) // Maximum number of particles for debugging purposes
+    const isDebugHeatmapActive = ref<boolean>(true) // Enable debug heatmap for the particles
 
     // Define force properties
     const repel = ref<number>(1) // repel force for particles that are too close to each other
@@ -68,6 +71,7 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
         simWidth, simHeight, linkProportions,
         numParticles, particleSize, numColors,
         is3D, isParticleGlow, isAdditiveBlending, isWallRepel, isWallWrap, isMirrorWrap, isInfiniteMirrorWrap, mirrorWrapCount, screenMultiplierForGridSize,
+        isDebugBinsActive, debugMaxParticleCount, isDebugHeatmapActive,
         minRadiusRange, maxRadiusRange, currentMaxRadius,
         repel, forceFactor, frictionFactor, useSpatialHash,
         isBrushActive, brushes, brushRadius, brushIntensity, brushType, attractForce, repulseForce, brushDirectionalForce, showBrushCircle,
