@@ -19,6 +19,7 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
     const numColors = ref<number>(7) // Number of colors to be used
 
     const zoomSmoothing = ref<number>(0.15) // Smoothing factor for zooming (0 to 1, where 1 is no smoothing)
+    const panSmoothing = ref<number>(0.17) // Smoothing factor for panning (0 to 1, where 1 is no smoothing)
     const is3D = ref<boolean>(false) // Enable 3D Algorithm
     const isParticleGlow = ref<boolean>(true) // Enable particle glow
     const isAdditiveBlending = ref<boolean>(true) // Enable additive blending for the particles
@@ -70,7 +71,7 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
         isRunning,
         rulesMatrix, minRadiusMatrix, maxRadiusMatrix, currentColors,
         simWidth, simHeight, linkProportions,
-        numParticles, particleSize, numColors, zoomSmoothing,
+        numParticles, particleSize, numColors, zoomSmoothing, panSmoothing,
         is3D, isParticleGlow, isAdditiveBlending, isWallRepel, isWallWrap, isMirrorWrap, isInfiniteMirrorWrap, mirrorWrapCount, screenMultiplierForGridSize,
         isDebugBinsActive, debugMaxParticleCount, isDebugHeatmapActive,
         minRadiusRange, maxRadiusRange, currentMaxRadius,

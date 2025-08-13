@@ -109,6 +109,10 @@
                                         tooltip="Adjusts the smoothness of the zoom. <br> Lower values result in a slower, more fluid zoom, while higher values make it faster and more abrupt."
                                         :min="0.01" :max="0.5" :step="0.01" v-model="particleLife.zoomSmoothing" mt-2>
                             </RangeInput>
+                            <RangeInput input label="Pan Smoothing"
+                                        tooltip="Adjusts the smoothness of camera panning. <br> Lower values create more inertia for a gliding effect, while higher values make the movement stop more abruptly."
+                                        :min="0.01" :max="0.5" :step="0.01" v-model="particleLife.panSmoothing" mt-2>
+                            </RangeInput>
                         </Collapse>
                         <Collapse label="Debug Tools" icon="i-tabler-bug" mt-2
                                   tooltip="Provides tools for visualizing the simulation's internal state. <br> Toggle the grid view to see spatial bins or activate a heatmap to analyze particle density. <br> These features are useful for debugging and performance tuning.">
@@ -263,10 +267,14 @@ export default defineComponent({
         let zoomFactor: number = 1.0
         let targetZoomFactor: number = 1.0 // Target zoom factor for smooth zooming
         let zoomSmoothing: number = particleLife.zoomSmoothing // Smoothing factor for zooming
+        let panSmoothing: number = particleLife.panSmoothing // Smoothing factor for panning
         let cameraCenter = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 }
+        let targetCameraCenter = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 } // Target camera center for smooth movement
         let cameraScaleX: number = 1.0 // Scale factor for X axis
         let cameraScaleY: number = 1.0 // Scale factor for Y axis
         let isDragging: boolean = false // Flag to check if the mouse is being dragged
+        let lastZoomPositionX: number = 0 // Last zoom position X for smooth zooming
+        let lastZoomPositionY: number = 0 // Last zoom position Y for smooth zooming
         let lastPointerX: number = 0 // For dragging
         let lastPointerY: number = 0 // For dragging
         let pointerX: number = 0 // Pointer X
@@ -464,8 +472,8 @@ export default defineComponent({
 
                 if (e.buttons > 0) { // if mouse is pressed
                     if (particleLife.isLockedPointer) return // Prevent canvas dragging if the pointer is locked
-                    isDragging = true
                     if (e.buttons === 1) { // if primary button is pressed (left click)
+                        isDragging = true
                         handleMove()
                     }
                     if (e.buttons === 2 && isBrushActive) { // if secondary button is pressed (right click)
@@ -488,8 +496,6 @@ export default defineComponent({
                 isApplyingBrushForce = false
             })
             useEventListener(canvasRef.value, 'wheel', (e) => {
-                pointerX = e.x - canvasRef.value!.getBoundingClientRect().left
-                pointerY = e.y - canvasRef.value!.getBoundingClientRect().top
                 if (e.deltaY < 0) handleZoom(1) // Zoom in
                 else handleZoom(-1) // Zoom out
             })
@@ -563,30 +569,31 @@ export default defineComponent({
         }
         function centerView() {
             cameraCenter = { x: SIM_WIDTH / 2, y: SIM_HEIGHT / 2 }
+            targetCameraCenter = { x: SIM_WIDTH / 2, y: SIM_HEIGHT / 2 }
         }
         function handleMove() {
-            if (isDragging) {
-                const dx = pointerX - lastPointerX
-                const dy = pointerY - lastPointerY
-                cameraCenter.x -= dx / (cameraScaleX * CANVAS_WIDTH * 0.5)
-                cameraCenter.y -= dy / (cameraScaleY * CANVAS_HEIGHT * 0.5)
-                lastPointerX = pointerX
-                lastPointerY = pointerY
-                cameraChanged = true
-            }
+            const dx = pointerX - lastPointerX
+            const dy = pointerY - lastPointerY
+            targetCameraCenter.x -= dx / (cameraScaleX * CANVAS_WIDTH * 0.5)
+            targetCameraCenter.y -= dy / (cameraScaleY * CANVAS_HEIGHT * 0.5)
+            lastPointerX = pointerX
+            lastPointerY = pointerY
+        }
+        const handleMoveSmoothing = (panXDiff: number, panYDiff: number) => {
+            cameraCenter.x += panXDiff * panSmoothing
+            cameraCenter.y += panYDiff * panSmoothing
+            cameraChanged = true;
         }
         function handleZoom(delta: number, isCentered: boolean = false) {
-            if (isCentered) {
-                pointerX = cameraCenter.x
-                pointerY = cameraCenter.y
-            }
+            lastZoomPositionX = isCentered ? cameraCenter.x : pointerX
+            lastZoomPositionY = isCentered ? cameraCenter.y : pointerY
             const zoomIntensity = 0.1
             const zoomDelta = delta * zoomIntensity
             targetZoomFactor = Math.max(0.15, Math.min(1000.0, targetZoomFactor * (1 + zoomDelta)))
         }
         const handleZoomSmoothing = (zoomDiff: number) => {
-            const mouseClipX = (pointerX / CANVAS_WIDTH) * 2 - 1
-            const mouseClipY = (pointerY / CANVAS_HEIGHT) * 2 - 1
+            const mouseClipX = (lastZoomPositionX / CANVAS_WIDTH) * 2 - 1
+            const mouseClipY = (lastZoomPositionY / CANVAS_HEIGHT) * 2 - 1
 
             const worldXBefore = cameraCenter.x + mouseClipX / cameraScaleX
             const worldYBefore = cameraCenter.y + mouseClipY / cameraScaleY
@@ -598,8 +605,12 @@ export default defineComponent({
             const worldXAfter = cameraCenter.x + mouseClipX / cameraScaleX
             const worldYAfter = cameraCenter.y + mouseClipY / cameraScaleY
 
-            cameraCenter.x += worldXBefore - worldXAfter
-            cameraCenter.y += worldYBefore - worldYAfter
+            const worldXCenter = worldXBefore - worldXAfter
+            const worldYCenter = worldYBefore - worldYAfter
+            cameraCenter.x += worldXCenter
+            cameraCenter.y += worldYCenter
+            targetCameraCenter.x += worldXCenter
+            targetCameraCenter.y += worldYCenter
 
             cameraChanged = true
         }
@@ -663,8 +674,11 @@ export default defineComponent({
             //     return
             // }
 
-            const zoomDifference = targetZoomFactor - zoomFactor
-            if (Math.abs(zoomDifference) > 0.001) handleZoomSmoothing(zoomDifference)
+            const zoomDiff = targetZoomFactor - zoomFactor
+            const panXDiff = targetCameraCenter.x - cameraCenter.x
+            const panYDiff = targetCameraCenter.y - cameraCenter.y
+            if (Math.abs(zoomDiff) > 0.001) handleZoomSmoothing(zoomDiff)
+            if (Math.abs(panXDiff) > 0.001 || Math.abs(panYDiff) > 0.001) handleMoveSmoothing(panXDiff, panYDiff)
 
             if (isBrushActive && showBrushCircle) updateBrushOptionsBuffer()
 
@@ -2527,6 +2541,7 @@ export default defineComponent({
         watch(() => particleLife.brushDirectionalForce, (value: number) => brushDirectionalForce = value)
         watch(() => particleLife.showBrushCircle, (value: boolean) => showBrushCircle = value)
         watch(() => particleLife.zoomSmoothing, (value: number) => zoomSmoothing = value)
+        watch(() => particleLife.panSmoothing, (value: number) => panSmoothing = value)
 
         watchAndUpdateGlowOptions(() => particleLife.glowSize, (value: number) => glowSize = value)
         watchAndUpdateGlowOptions(() => particleLife.glowIntensity, (value: number) => glowIntensity = value)
