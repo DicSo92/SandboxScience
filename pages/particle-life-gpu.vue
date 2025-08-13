@@ -105,6 +105,10 @@
                                         tooltip="Adjust the opacity of the particles in the simulation. <br> This setting allows you to control how transparent or opaque the particles appear."
                                         :min="0" :max="1" :step="0.01" v-model="particleLife.particleOpacity" mt-2>
                             </RangeInput>
+                            <RangeInput input label="Zoom Smoothing"
+                                        tooltip="Adjusts the smoothness of the zoom. <br> Lower values result in a slower, more fluid zoom, while higher values make it faster and more abrupt."
+                                        :min="0.01" :max="0.5" :step="0.01" v-model="particleLife.zoomSmoothing" mt-2>
+                            </RangeInput>
                         </Collapse>
                         <Collapse label="Debug Tools" icon="i-tabler-bug" mt-2
                                   tooltip="Provides tools for visualizing the simulation's internal state. <br> Toggle the grid view to see spatial bins or activate a heatmap to analyze particle density. <br> These features are useful for debugging and performance tuning.">
@@ -150,7 +154,7 @@
                 <span i-game-icons-perspective-dice-six-faces-random></span>
             </button>
 <!--            3D-->
-            <button type="button" name="Zoom Out" aria-label="Zoom Out" btn p2 rounded-full mx-1 flex items-center bg="#212121 hover:#333333" @click="handleZoom(-1, canvasRef!.clientWidth / 2, canvasRef!.clientHeight / 2)">
+            <button type="button" name="Zoom Out" aria-label="Zoom Out" btn p2 rounded-full mx-1 flex items-center bg="#212121 hover:#333333" @click="handleZoom(-1, true)">
                 <span i-tabler-zoom-out></span>
             </button>
             <button type="button" name="Play/Pause" aria-label="Play/Pause" btn p3 rounded-full mx-1 flex items-center bg="#212121 hover:#333333" @click="particleLife.isRunning = !particleLife.isRunning">
@@ -159,7 +163,7 @@
             <button type="button" name="Step" aria-label="Step" btn p2 rounded-full mx-1 flex items-center bg="#212121 hover:#333333" :disabled="particleLife.isRunning" @click="step">
                 <span i-tabler-player-skip-forward-filled></span>
             </button>
-            <button type="button" name="Zoom In" aria-label="Zoom In" btn p2 rounded-full mx-1 flex items-center bg="#212121 hover:#333333" @click="handleZoom(1, canvasRef!.clientWidth / 2, canvasRef!.clientHeight / 2)">
+            <button type="button" name="Zoom In" aria-label="Zoom In" btn p2 rounded-full mx-1 flex items-center bg="#212121 hover:#333333" @click="handleZoom(1, true)">
                 <span i-tabler-zoom-in></span>
             </button>
             <button type="button" name="Toggle Fullscreen" aria-label="Toggle Fullscreen" btn p2 rounded-full mx-1 flex items-center bg="#212121 hover:#333333" @click="toggleFullscreen">
@@ -257,6 +261,8 @@ export default defineComponent({
 
         // Define the properties for dragging and zooming
         let zoomFactor: number = 1.0
+        let targetZoomFactor: number = 1.0 // Target zoom factor for smooth zooming
+        let zoomSmoothing: number = particleLife.zoomSmoothing // Smoothing factor for zooming
         let cameraCenter = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 }
         let cameraScaleX: number = 1.0 // Scale factor for X axis
         let cameraScaleY: number = 1.0 // Scale factor for Y axis
@@ -484,11 +490,8 @@ export default defineComponent({
             useEventListener(canvasRef.value, 'wheel', (e) => {
                 pointerX = e.x - canvasRef.value!.getBoundingClientRect().left
                 pointerY = e.y - canvasRef.value!.getBoundingClientRect().top
-                if (e.deltaY < 0) { // Zoom in
-                    handleZoom(1, pointerX, pointerY)
-                } else { // Zoom out
-                    handleZoom(-1, pointerX, pointerY)
-                }
+                if (e.deltaY < 0) handleZoom(1) // Zoom in
+                else handleZoom(-1) // Zoom out
             })
         })
         // -------------------------------------------------------------------------------------------------------------
@@ -572,16 +575,23 @@ export default defineComponent({
                 cameraChanged = true
             }
         }
-        function handleZoom(delta: number, x: number, y: number) {
-            const mouseClipX = (x / CANVAS_WIDTH) * 2 - 1
-            const mouseClipY = (y / CANVAS_HEIGHT) * 2 - 1
+        function handleZoom(delta: number, isCentered: boolean = false) {
+            if (isCentered) {
+                pointerX = cameraCenter.x
+                pointerY = cameraCenter.y
+            }
+            const zoomIntensity = 0.1
+            const zoomDelta = delta * zoomIntensity
+            targetZoomFactor = Math.max(0.15, Math.min(1000.0, targetZoomFactor * (1 + zoomDelta)))
+        }
+        const handleZoomSmoothing = (zoomDiff: number) => {
+            const mouseClipX = (pointerX / CANVAS_WIDTH) * 2 - 1
+            const mouseClipY = (pointerY / CANVAS_HEIGHT) * 2 - 1
 
             const worldXBefore = cameraCenter.x + mouseClipX / cameraScaleX
             const worldYBefore = cameraCenter.y + mouseClipY / cameraScaleY
 
-            const zoomIntensity = 0.1
-            const zoomDelta = delta * zoomIntensity
-            zoomFactor = Math.max(0.15, Math.min(1000.0, zoomFactor * (1 + zoomDelta)))
+            zoomFactor += zoomDiff * zoomSmoothing
 
             updateCameraScaleFactors()
 
@@ -590,6 +600,7 @@ export default defineComponent({
 
             cameraCenter.x += worldXBefore - worldXAfter
             cameraCenter.y += worldYBefore - worldYAfter
+
             cameraChanged = true
         }
         // -------------------------------------------------------------------------------------------------------------
@@ -651,6 +662,9 @@ export default defineComponent({
             //     animationFrameId = requestAnimationFrame(frame)
             //     return
             // }
+
+            const zoomDifference = targetZoomFactor - zoomFactor
+            if (Math.abs(zoomDifference) > 0.001) handleZoomSmoothing(zoomDifference)
 
             if (isBrushActive && showBrushCircle) updateBrushOptionsBuffer()
 
@@ -2512,6 +2526,7 @@ export default defineComponent({
         watch(() => particleLife.attractForce, (value: number) => attractForce = -value)
         watch(() => particleLife.brushDirectionalForce, (value: number) => brushDirectionalForce = value)
         watch(() => particleLife.showBrushCircle, (value: boolean) => showBrushCircle = value)
+        watch(() => particleLife.zoomSmoothing, (value: number) => zoomSmoothing = value)
 
         watchAndUpdateGlowOptions(() => particleLife.glowSize, (value: number) => glowSize = value)
         watchAndUpdateGlowOptions(() => particleLife.glowIntensity, (value: number) => glowIntensity = value)
