@@ -15,7 +15,7 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
     const linkProportions = ref<boolean>(false) // Constraint x y sim proportions
 
     const numParticles = ref<number>(64000) // Number of particles
-    const particleSize = ref<number>(1.3) // Size of the particles at zoomFactor = 1
+    const particleSize = ref<number>(2.0) // Size of the particles at zoomFactor = 1
     const numColors = ref<number>(7) // Number of colors to be used
 
     const zoomSmoothing = ref<number>(0.15) // Smoothing factor for zooming (0 to 1, where 1 is no smoothing)
@@ -36,11 +36,11 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
     // Define force properties
     const repel = ref<number>(1) // repel force for particles that are too close to each other
     const forceFactor = ref<number>(1.0) // Decrease will increase the impact of the force on the velocity (the higher the value, the slower the particles will move)
-    const frictionFactor = ref<number>(0.4) // Slow down the particles (0 to 1, where 1 is no friction)
+    const frictionFactor = ref<number>(0.3) // Slow down the particles (0 to 1, where 1 is no friction)
 
     // Define properties for randomizing radius matrix
-    const minRadiusRange = ref<number[]>([10, 15]) // Range for the random minRadius of each color
-    const maxRadiusRange = ref<number[]>([25, 32]) // Range for the random maxRadius of each color
+    const minRadiusRange = ref<number[]>([12, 24]) // Range for the random minRadius of each color
+    const maxRadiusRange = ref<number[]>([32, 64]) // Range for the random maxRadius of each color
 
     const currentMaxRadius = ref<number>(0) // Current max radius for the particles
 
@@ -56,7 +56,7 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
     const brushDirectionalForce = ref<number>(40) // Directional force for the brush
     const showBrushCircle = ref<boolean>(true) // Show the brush circle
 
-    const glowSize = ref<number>(12.0) // Size of the glow effect
+    const glowSize = ref<number>(10.0) // Size of the glow effect
     const glowIntensity = ref<number>(0.1) // Intensity of the glow effect
     const glowSteepness = ref<number>(3.0) // Steepness of the glow effect
     const particleOpacity = ref<number>(0.85) // Opacity of the particles

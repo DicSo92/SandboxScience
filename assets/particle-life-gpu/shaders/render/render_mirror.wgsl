@@ -116,15 +116,15 @@ fn mirrorVertexCircle(@builtin(instance_index) instanceIndex: u32, @builtin(vert
 @fragment
 fn mirrorFragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let dist_sq = dot(in.offset, in.offset);
-    if (dist_sq > 1.0) { discard; }
+    let edge_width = fwidth(dist_sq);
+    let alpha = 1.0 - smoothstep(max(0.0, 1.0 - edge_width), 1.0, dist_sq);
 
     let isMirror = f32(in.mirrorIndex != 0u);
     let grayscale = dot(in.color.rgb, GRAYSCALE_WEIGHTS);
     let finalColor = mix(in.color.rgb, vec3f(grayscale), isMirror);
+    let particleOpacity = mix(options.particleOpacity, options.particleOpacity * 0.75, isMirror);
 
-    let particleOpacity = options.particleOpacity;
-    let alpha = in.color.a * mix(particleOpacity, particleOpacity * 0.75, isMirror);
-    return vec4f(finalColor, alpha);
+    return vec4f(finalColor, in.color.a * particleOpacity * alpha);
 }
 @fragment
 fn mirrorFragmentGlow(in: VertexOutput) -> @location(0) vec4<f32> {
@@ -145,15 +145,14 @@ fn mirrorFragmentGlow(in: VertexOutput) -> @location(0) vec4<f32> {
 @fragment
 fn mirrorFragmentCircle(in: VertexOutput) -> @location(0) vec4<f32> {
     let dist_sq = dot(in.offset, in.offset);
-    if (dist_sq > 1.0) { discard; }
+    let edge_width = fwidth(dist_sq);
+    let alpha = 1.0 - smoothstep(max(0.0, 1.0 - edge_width), 1.0, dist_sq);
 
     let isMirror = f32(in.mirrorIndex != 0u);
     let grayscale = dot(in.color.rgb, GRAYSCALE_WEIGHTS);
     let finalColor = mix(in.color.rgb, vec3f(grayscale), isMirror);
-
     let linear_color = pow(finalColor, vec3<f32>(2.2)); // Convert color to linear space for proper blending
+    let particleOpacity = mix(options.particleOpacity, options.particleOpacity * 0.75, isMirror);
 
-    let particleOpacity = options.particleOpacity;
-    let alpha = in.color.a * mix(particleOpacity, particleOpacity * 0.75, isMirror);
-    return vec4f(linear_color, alpha);
+    return vec4f(linear_color, in.color.a * particleOpacity * alpha);
 }

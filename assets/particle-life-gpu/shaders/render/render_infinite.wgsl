@@ -107,9 +107,10 @@ fn infiniteVertexCircle(@builtin(instance_index) instanceIndex: u32, @builtin(ve
 @fragment
 fn infiniteFragment(in: VertexOutput) -> @location(0) vec4f {
     let dist_sq = dot(in.offset, in.offset);
-    if (dist_sq > 1.0) { discard; }
+    let edge_width = fwidth(dist_sq);
+    let alpha = 1.0 - smoothstep(max(0.0, 1.0 - edge_width), 1.0, dist_sq);
 
-    return vec4f(in.color.rgb, in.color.a * options.particleOpacity);
+    return vec4f(in.color.rgb, in.color.a * options.particleOpacity * alpha);
 }
 @fragment
 fn infiniteFragmentGlow(in: VertexOutput) -> @location(0) vec4f {
@@ -125,9 +126,10 @@ fn infiniteFragmentGlow(in: VertexOutput) -> @location(0) vec4f {
 @fragment
 fn infiniteFragmentCircle(in: VertexOutput) -> @location(0) vec4f {
     let dist_sq = dot(in.offset, in.offset);
-    if (dist_sq > 1.0) { discard; }
+    let edge_width = fwidth(dist_sq);
+    let alpha = 1.0 - smoothstep(max(0.0, 1.0 - edge_width), 1.0, dist_sq);
 
     let linear_color = pow(in.color.rgb, vec3<f32>(2.2)); // Convert color to linear space for proper blending
 
-    return vec4f(linear_color, in.color.a * options.particleOpacity);
+    return vec4f(linear_color, in.color.a * options.particleOpacity * alpha);
 }

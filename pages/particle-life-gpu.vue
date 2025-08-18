@@ -224,6 +224,7 @@ export default defineComponent({
         const executionTime = ref<number>(0)
         const canvasRef = ref<HTMLCanvasElement | null>(null)
         let ctx: GPUCanvasContext
+        let DEVICE_PIXEL_RATIO: number = 1
         let animationFrameId: number | null = null
         let lastFrameTime: number = performance.now()
         let isRunning: boolean = particleLife.isRunning
@@ -233,7 +234,7 @@ export default defineComponent({
         let isUpdateNumTypesPending: boolean = false
         let hasUpdateNumParticles: boolean = false
 
-        let smoothedDeltaTime: number = 0.016 // Initial value (1/60s)
+        let smoothedDeltaTime: number = 0.0083 // Initial value (1/120s)
         let CANVAS_WIDTH: number = 0
         let CANVAS_HEIGHT: number = 0
         let SIM_WIDTH: number = 0
@@ -458,8 +459,8 @@ export default defineComponent({
 
             useEventListener('resize', handleResize)
             useEventListener(canvasRef.value, ['mousedown'], (e) => {
-                lastPointerX = e.x - canvasRef.value!.getBoundingClientRect().left
-                lastPointerY = e.y - canvasRef.value!.getBoundingClientRect().top
+                lastPointerX = (e.x - canvasRef.value!.getBoundingClientRect().left) * DEVICE_PIXEL_RATIO
+                lastPointerY = (e.y - canvasRef.value!.getBoundingClientRect().top) * DEVICE_PIXEL_RATIO
                 if (e.buttons === 2 && isBrushActive) { // if secondary button is pressed (right click)
                     if (brushType === 0) isBrushErasing = true
                     else if (brushType === 1) isBrushDrawing = true
@@ -467,8 +468,8 @@ export default defineComponent({
                 }
             })
             useEventListener(canvasRef.value, ['mousemove'], (e) => {
-                pointerX = e.x - canvasRef.value!.getBoundingClientRect().left
-                pointerY = e.y - canvasRef.value!.getBoundingClientRect().top
+                pointerX = (e.x - canvasRef.value!.getBoundingClientRect().left) * DEVICE_PIXEL_RATIO
+                pointerY = (e.y - canvasRef.value!.getBoundingClientRect().top) * DEVICE_PIXEL_RATIO
 
                 if (e.buttons > 0) { // if mouse is pressed
                     if (particleLife.isLockedPointer) return // Prevent canvas dragging if the pointer is locked
@@ -503,8 +504,9 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         function handleResize() {
-            CANVAS_WIDTH = canvasRef.value!.width = canvasRef.value!.clientWidth
-            CANVAS_HEIGHT = canvasRef.value!.height = canvasRef.value!.clientHeight
+            DEVICE_PIXEL_RATIO = window.devicePixelRatio || 1
+            CANVAS_WIDTH = canvasRef.value!.width = Math.round(canvasRef.value!.clientWidth * DEVICE_PIXEL_RATIO)
+            CANVAS_HEIGHT = canvasRef.value!.height = Math.round(canvasRef.value!.clientHeight * DEVICE_PIXEL_RATIO)
             updateCameraScaleFactors()
             updateHdrTexture()
             cameraChanged = true
@@ -625,7 +627,8 @@ export default defineComponent({
             ctx.configure({
                 device,
                 format: navigator.gpu.getPreferredCanvasFormat(),
-                alphaMode: 'opaque'
+                alphaMode: 'opaque',
+                colorSpace: 'srgb',
             })
         }
         const initLife = async () => {

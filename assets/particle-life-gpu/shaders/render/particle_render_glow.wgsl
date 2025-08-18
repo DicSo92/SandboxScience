@@ -108,12 +108,13 @@ fn fragmentGlow(in: VertexOutput) -> @location(0) vec4<f32> {
 }
 @fragment
 fn fragmentCircle(in: VertexOutput) -> @location(0) vec4<f32> {
-    let dist = length(in.offset);
-    if (dist > 1.0) { discard; }
+    let dist_sq = dot(in.offset, in.offset);
+    let edge_width = fwidth(dist_sq);
+    let alpha = 1.0 - smoothstep(max(0.0, 1.0 - edge_width), 1.0, dist_sq);
 
 //    let linear_color = in.color.rgb; // Use original color for circle rendering (no gamma correction)
     let linear_color = pow(in.color.rgb, vec3<f32>(2.2)); // Convert color to linear space for proper blending
 //    let linear_color = srgb_to_linear(in.color.rgb); // Convert color to linear space for proper blending (precise / slower)
 
-    return vec4<f32>(linear_color, in.color.a * options.particleOpacity);
+    return vec4<f32>(linear_color, in.color.a * options.particleOpacity * alpha);
 }
