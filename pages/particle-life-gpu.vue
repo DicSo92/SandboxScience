@@ -27,21 +27,18 @@
                             </MatrixSettings>
                         </Collapse>
                         <Collapse label="World Settings" icon="i-tabler-world-cog" opened mt-2>
-                            <RangeInput input label="Particle Number"
+                            <RangeInput input label="Particle Count"
                                         tooltip="Adjust the total number of particles. <br> More particles may reveal complex interactions but can increase computational demand."
                                         :min="16" :max="1048576" :step="16" v-model="particleLife.numParticles" @update:modelValue="setNewNumParticles">
                             </RangeInput>
-                            <RangeInput input label="Color Number"
+                            <RangeInput input label="Species Count"
                                         tooltip="Specify the number of particle colors. <br> Each color interacts with all others, with distinct forces and interaction ranges."
                                         :min="1" :max="16" :step="1" v-model="particleLife.numColors" mt-2>
                             </RangeInput>
-                            <div mb-2>
-                                <WallStateSelection :store="particleLife" />
-                            </div>
                             <div flex items-center>
                                 <p class="w-2/3 text-2sm mt-1">
-                                    Rectangle Size
-                                    <TooltipInfo container="#mainContainer" tooltip="Adjust the size of the rectangular area where particles are contained." />
+                                    World Size
+                                    <TooltipInfo container="#mainContainer" tooltip="Adjust the size of the area where particles are contained." />
                                 </p>
                                 <Input label="x" v-model="particleLife.simWidth" @change="updateSimWidth" mr-2 />
                                 <Input label="y" v-model="particleLife.simHeight" @change="updateSimHeight" mr-2 />
@@ -49,35 +46,51 @@
                                     <span :class="particleLife.linkProportions ? 'i-tabler-link' : 'i-tabler-unlink'" text-sm></span>
                                 </button>
                             </div>
-                            <ToggleSwitch inactive-label="BruteForce" label="SpatialHash" colorful-label v-model="particleLife.useSpatialHash" />
-                            <ToggleSwitch label="Show Edges Mirrors" colorful-label v-model="particleLife.isMirrorWrap" />
-                            <ToggleSwitch label="Show Infinite Mirrors" colorful-label v-model="particleLife.isInfiniteMirrorWrap" />
-                            <div flex>
-                                <SelectButton :id="5" label="Cross 5" v-model="particleLife.mirrorWrapCount" :disabled="!particleLife.isMirrorWrap" mr-2 />
-                                <SelectButton :id="9" label="3x3" v-model="particleLife.mirrorWrapCount" :disabled="!particleLife.isMirrorWrap" />
+
+                            <hr border-gray-500 mt-1 mb-2>
+                            <p underline text-gray-300 class="-mt-0.5" mb-2>Boundary Settings :</p>
+
+                            <WallStateSelection :store="particleLife" mb-2 />
+
+                            <div flex justify-around mb-1>
+                                <div class="w-2/3 text-2sm mt-1">
+                                    Wrapping Mode
+                                    <TooltipInfo container="#mainContainer" tooltip="Wrapping render modes : <br> <small><u>Normal:</u> Simple wrap. <br> <u>Edges:</u> Wrap + finite grayscale edge tiling. <br> <u>Infinite:</u> wrap + tiles fill the viewport (higher GPU cost).</small>" />
+                                </div>
+                                <WrapModeSelection :store="particleLife" />
+                            </div>
+                            <div flex justify-between>
+                                <div class="w-2/3 text-2sm mt-1">
+                                    Edges Tiling
+                                    <TooltipInfo container="#mainContainer" tooltip="Sets neighbor tiles count for Edges mode (grayscale)." />
+                                </div>
+                                <div flex>
+                                    <SelectButton :id="5" label="Cross 5" v-model="particleLife.mirrorWrapCount" :disabled="!particleLife.isMirrorWrap" mr-2 />
+                                    <SelectButton :id="9" label="3x3" v-model="particleLife.mirrorWrapCount" :disabled="!particleLife.isMirrorWrap" />
+                                </div>
                             </div>
                         </Collapse>
-                        <Collapse label="Force Settings" icon="i-tabler-atom" opened mt-2>
+                        <Collapse label="Physics Settings" icon="i-tabler-atom" opened mt-2>
                             <RangeInput input label="Repel Force"
                                         tooltip="Adjust the force that repels particles from each other. <br> Higher values increase the separation distance."
                                         :min="0.01" :max="4" :step="0.01" v-model="particleLife.repel">
                             </RangeInput>
-                            <RangeInput input label="Force Factor"
+                            <RangeInput input label="Force Multiplier"
                                         tooltip="Adjust the force scaling factor. <br> Increase it to reduce particle speed, prevent explosive behavior, and manage overly rapid interactions."
                                         :min="0.01" :max="2" :step="0.01" v-model="particleLife.forceFactor" mt-2>
                             </RangeInput>
-                            <RangeInput input label="Friction Factor"
+                            <RangeInput input label="Friction"
                                         tooltip="Adjust the friction level. <br> Lowering it slows down particles, reducing chaotic movement and stabilizing the system."
                                         :min="0" :max="1" :step="0.01" v-model="particleLife.frictionFactor" mt-2>
                             </RangeInput>
                         </Collapse>
                         <Collapse label="Randomizer Settings" icon="i-game-icons-perspective-dice-six-faces-random" mt-2
-                                  tooltip="Adjust the parameters for randomizing particle attributes. <br> Configure the ranges for minimum and maximum interaction radii, and set the range for generating Z positions for particle spawning.">
+                                  tooltip="Adjust the parameters for randomizing particle attributes. <br> Configure the ranges for minimum and maximum interaction radii.">
                             <RangeInputMinMax input label="Min. Radius"
                                               tooltip="Set the range for generating minimum interaction radii. <br> This determines the range of possible values for the minimum distance at which particles begin to interact."
                                               :min="0" :max="128" :step="1" v-model="particleLife.minRadiusRange">
                             </RangeInputMinMax>
-                            <RangeInputMinMax input label="Max. Radius"
+                            <RangeInputMinMax input label="Max. Radius" mt-3
                                               tooltip="Set the range for generating maximum interaction radii. <br> This determines the range of possible values for the maximum interaction distance between particles."
                                               :min="particleLife.minRadiusRange[1]" :max="256" :step="1" v-model="particleLife.maxRadiusRange">
                             </RangeInputMinMax>
@@ -85,10 +98,29 @@
                         <Collapse label="Graphics Settings" icon="i-tabler-photo-cog" mt-2>
                             <RangeInput input label="Particle Size"
                                         tooltip="Controls the overall size of the particles in the simulation, allowing you to make them larger or smaller depending on your preference. This setting does not impact performance."
-                                        :min="0.1" :max="6" :step="0.1" v-model="particleLife.particleSize" mt-2>
+                                        :min="0.1" :max="6" :step="0.1" v-model="particleLife.particleSize">
                             </RangeInput>
-                            <ToggleSwitch label="Particle Glowing" colorful-label v-model="particleLife.isParticleGlow" />
-                            <ToggleSwitch label="Additive Blending" colorful-label v-model="particleLife.isAdditiveBlending" />
+                            <RangeInput input label="Particle Opacity"
+                                        tooltip="Adjust the opacity of the particles in the simulation. <br> This setting allows you to control how transparent or opaque the particles appear."
+                                        :min="0" :max="1" :step="0.01" v-model="particleLife.particleOpacity" mt-2>
+                            </RangeInput>
+                            <div flex justify-between mt-1>
+                                <div class="w-2/3 text-2sm mt-1">
+                                    Particle Blending
+                                    <TooltipInfo container="#mainContainer" tooltip="Particle blending modes. <br> <small><u>Normal:</u> Alpha blend (standard colors). <br> <u>Additive:</u> Adds color values. Overlaps accumulate brightness (glow-like).</small>" />
+                                </div>
+                                <div flex>
+                                    <SelectButton :id="false" label="Normal" v-model="particleLife.isAdditiveBlending" mr-2 />
+                                    <SelectButton :id="true" label="Additive" v-model="particleLife.isAdditiveBlending" />
+                                </div>
+                            </div>
+
+                            <hr border-gray-500 my-2>
+                            <div flex items-start justify-between mb-2>
+                                <p underline text-gray-300 mb-1>Glow Settings :</p>
+                                <ToggleSwitch label="Particle Glowing" colorful-label v-model="particleLife.isParticleGlow" />
+                            </div>
+
                             <RangeInput input label="Glow Size"
                                         tooltip="Adjust the size of the glow effect around particles."
                                         :min="0" :max="32" :step="0.1" v-model="particleLife.glowSize" mt-2>
@@ -101,13 +133,11 @@
                                         tooltip="Adjust the steepness of the glow effect around particles. <br> Higher values create a sharper transition between glowing and non-glowing areas."
                                         :min="0" :max="12" :step="1" v-model="particleLife.glowSteepness" mt-2>
                             </RangeInput>
-                            <RangeInput input label="Particle Opacity"
-                                        tooltip="Adjust the opacity of the particles in the simulation. <br> This setting allows you to control how transparent or opaque the particles appear."
-                                        :min="0" :max="1" :step="0.01" v-model="particleLife.particleOpacity" mt-2>
-                            </RangeInput>
+                        </Collapse>
+                        <Collapse label="Camera Settings" icon="i-tabler-camera-cog" mt-2>
                             <RangeInput input label="Zoom Smoothing"
                                         tooltip="Adjusts the smoothness of the zoom. <br> Lower values result in a slower, more fluid zoom, while higher values make it faster and more abrupt."
-                                        :min="0.01" :max="0.5" :step="0.01" v-model="particleLife.zoomSmoothing" mt-2>
+                                        :min="0.01" :max="0.5" :step="0.01" v-model="particleLife.zoomSmoothing">
                             </RangeInput>
                             <RangeInput input label="Pan Smoothing"
                                         tooltip="Adjusts the smoothness of camera panning. <br> Lower values create more inertia for a gliding effect, while higher values make the movement stop more abruptly."
@@ -128,6 +158,8 @@
                                         tooltip="Sets the number of particles in a cell that maps to the highest value on the heatmap gradient. <br> Adjusting this value scales the density visualization, helping to fine-tune how particle concentrations are displayed."
                                         :min="640" :max="16000" :step="16" v-model="particleLife.debugMaxParticleCount" mt-2>
                             </RangeInput>
+                            <hr border-gray-500 my-2>
+                            <ToggleSwitch inactive-label="BruteForce" label="SpatialHash" colorful-label v-model="particleLife.useSpatialHash" />
                         </Collapse>
                     </div>
                     <div absolute bottom-2 right-0 z-100 class="-mr-px">
@@ -180,6 +212,7 @@
 <script lang="ts">
 import { defineComponent, onMounted, ref } from 'vue';
 import WallStateSelection from "~/components/particle-life/WallStateSelection.vue";
+import WrapModeSelection from "~/components/particle-life/WrapModeSelection.vue";
 import MatrixSettings from "~/components/particle-life/MatrixSettings.vue";
 import BrushSettings from "~/components/particle-life/BrushSettings.vue";
 
@@ -210,7 +243,7 @@ import renderBinsShaderCode from 'assets/particle-life-gpu/shaders/render/render
 
 export default defineComponent({
     name: 'ParticleLifeGpu',
-    components: {BrushSettings, MatrixSettings, WallStateSelection},
+    components: { BrushSettings, MatrixSettings, WallStateSelection, WrapModeSelection },
     setup() {
         definePageMeta({
             layout: 'life',

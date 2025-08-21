@@ -4,7 +4,7 @@
             <div>
                 <input type="radio" name="option" id="1" value="none" class="peer hidden" v-model="currentValue" />
                 <label for="1" class="block cursor-pointer select-none rounded-xl px-2 text-center hover:bg-zinc-800 peer-checked:bg-zinc-900 peer-checked:font-bold peer-checked:text-white">
-                    No Walls
+                    None
                 </label>
             </div>
             <div>

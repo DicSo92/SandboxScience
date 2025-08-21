@@ -97,7 +97,7 @@
                             </RangeInput>
                         </Collapse>
                         <Collapse label="Randomizer Settings" icon="i-game-icons-perspective-dice-six-faces-random" mt-2
-                                  tooltip="Adjust the parameters for randomizing particle attributes. <br> Configure the ranges for minimum and maximum interaction radii, and set the range for generating Z positions for particle spawning.">
+                                  tooltip="Adjust the parameters for randomizing particle attributes. <br> Configure the ranges for minimum and maximum interaction radii.">
                             <RangeInputMinMax input label="Min. Radius"
                                               tooltip="Set the range for generating minimum interaction radii. <br> This determines the range of possible values for the minimum distance at which particles begin to interact."
                                               :min="0" :max="100" :step="1" v-model="particleLife.minRadiusRange">

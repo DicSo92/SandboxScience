@@ -12,7 +12,7 @@ import { defineComponent } from 'vue'
 export default defineComponent({
     props: {
         id: {
-            type: [Number, String],
+            type: [Number, String, Boolean],
             required: true
         },
         label: {
@@ -28,7 +28,7 @@ export default defineComponent({
             default: false
         },
         modelValue: {
-            type: [Number, String],
+            type: [Number, String, Boolean],
             required: true
         }
     },
