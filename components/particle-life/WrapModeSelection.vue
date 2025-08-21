@@ -16,7 +16,7 @@ export default defineComponent({
         }
     },
     setup(props, { emit }) {
-        const currentValue = ref()
+        const currentValue = ref('normal')
         const particleLife = props.store
 
         onMounted(() => {

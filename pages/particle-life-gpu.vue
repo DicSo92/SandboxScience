@@ -92,7 +92,7 @@
                             </RangeInputMinMax>
                             <RangeInputMinMax input label="Max. Radius" mt-3
                                               tooltip="Set the range for generating maximum interaction radii. <br> This determines the range of possible values for the maximum interaction distance between particles."
-                                              :min="particleLife.minRadiusRange[1]" :max="256" :step="1" v-model="particleLife.maxRadiusRange">
+                                              :min="0" :max="256" :step="1" v-model="particleLife.maxRadiusRange">
                             </RangeInputMinMax>
                         </Collapse>
                         <Collapse label="Graphics Settings" icon="i-tabler-photo-cog" mt-2>
@@ -2589,6 +2589,15 @@ export default defineComponent({
         watchAndUpdateSimOptions(() => particleLife.repel, (value: number) => repel = value)
         watchAndUpdateSimOptions(() => particleLife.forceFactor, (value: number) => forceFactor = value)
         watchAndUpdateSimOptions(() => particleLife.frictionFactor, (value: number) => frictionFactor = value)
+
+        watch(() => particleLife.minRadiusRange, (value: number[]) => {
+            if (value[0] > value[1]) particleLife.minRadiusRange[0] = value[1]
+            if (value[1] > particleLife.maxRadiusRange[0]) particleLife.maxRadiusRange[0] = value[1]
+        }, { deep: true })
+        watch(() => particleLife.maxRadiusRange, (value: number[]) => {
+            if (value[0] > value[1]) particleLife.maxRadiusRange[1] = value[0]
+            if (value[0] < particleLife.minRadiusRange[1]) particleLife.minRadiusRange[1] = value[0]
+        }, { deep: true })
 
         watch(() => particleLife.isDebugBinsActive, (value: boolean) => {
             isDebugBinsActive = value
