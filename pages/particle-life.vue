@@ -164,6 +164,18 @@
                                         :min="1" :max="2" :step="0.01" v-model="particleLife.cellSizeFactor" mt-2>
                             </RangeInput>
                         </Collapse>
+
+                        <Collapse label="Save and Share" icon="i-carbon-save" mt-2>
+                            <div flex>
+                                <button type="button" btn rounded-full p2 flex items-center text-sm bg="zinc-900 hover:#212121" @click="toggleCaptureMode('screenshot')">
+                                    <span class="i-tabler-photo" mr-1></span>
+                                    Screenshot
+                                </button>
+                                <button type="button" btn rounded-full p2 flex items-center bg="zinc-900 hover:#212121" @click="toggleCaptureMode('GIF')">
+                                    <span class="i-tabler-gif" text-sm></span>
+                                </button>
+                            </div>
+                        </Collapse>
                     </div>
                     <div absolute bottom-2 right-0 z-100 class="-mr-px">
                         <button rounded-l-lg border border-gray-400 flex items-center p-1 bg="gray-800 hover:gray-900" @click="particleLife.sidebarLeftOpen = false">
@@ -173,7 +185,10 @@
                 </div>
             </template>
         </SidebarLeft>
+
         <canvas ref="lifeCanvas" id="lifeCanvas" @contextmenu.prevent w-full h-full cursor-crosshair></canvas>
+        <ParticleLifeShareOptions v-if="particleLife.isShareOptionsOpen" ref="shareOptions" :getSelectedAreaImageData="getSelectedAreaImageData" />
+
         <div absolute top-0 right-0 flex flex-col items-end text-right pointer-events-none>
             <div flex items-center text-start text-xs pl-4 pr-1 bg-gray-800 rounded-bl-xl style="padding-bottom: 1px; opacity: 75%">
                 <div flex>Fps: <div ml-1 min-w-8>{{ fps }}</div></div>
@@ -229,8 +244,9 @@ import Memory from "~/components/particle-life/Memory.vue";
 import BrushSettings from "~/components/particle-life/BrushSettings.vue";
 import WallStateSelection from "~/components/particle-life/WallStateSelection.vue";
 import SidebarLeft from "~/components/SidebarLeft.vue";
+
 export default defineComponent({
-    components: { MatrixSettings, RulesMatrix, Memory, BrushSettings, WallStateSelection },
+    components: { MatrixSettings, RulesMatrix, Memory, BrushSettings, WallStateSelection, SidebarLeft },
     setup() {
         definePageMeta({
             layout: 'life',
@@ -246,6 +262,7 @@ export default defineComponent({
         })
 
         const particleLife = useParticleLifeStore()
+        const shareOptions = ref( )
         const mainContainer = ref<HTMLElement | null>(null)
         const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(mainContainer)
 
@@ -256,7 +273,11 @@ export default defineComponent({
         let ctx: CanvasRenderingContext2D | undefined
         let canvasWidth: number = 0
         let canvasHeight: number = 0
+        let backgroundColor: string = 'black'
         let animationFrameId: number | null = null
+
+        // Flag to check if the GIF is being captured
+        let isCapturingGIF: boolean = false
 
         // Define the reactive variables for the game state
         const fps = useFps()
@@ -599,6 +620,7 @@ export default defineComponent({
                 updateParticles()
                 if (hasGrid) drawGrid()
                 if (hasCells) drawCells()
+                if (isCapturingGIF) captureFrame()
                 if (isMagnetActive) {
                     if (brushType === 2) magnetWithBrush(repulseForce)
                     else if (brushType === 3) magnetWithBrush(attractForce)
@@ -1099,6 +1121,8 @@ export default defineComponent({
         let updateParticles: () => void
         function updateParticles2D() {
             ctx!.clearRect(0, 0, canvasWidth, canvasHeight)
+            ctx!.fillStyle = backgroundColor
+            ctx!.fillRect(0, 0, canvasWidth, canvasHeight)
             for (let i = 0; i < numParticles; i++) {
                 velocityX[i] *= frictionFactor
                 velocityY[i] *= frictionFactor
@@ -1143,6 +1167,8 @@ export default defineComponent({
         }
         function updateParticles3D() {
             ctx!.clearRect(0, 0, canvasWidth, canvasHeight)
+            ctx!.fillStyle = backgroundColor
+            ctx!.fillRect(0, 0, canvasWidth, canvasHeight)
             for (let i = 0; i < numParticles; i++) {
                 velocityX[i] *= frictionFactor
                 velocityY[i] *= frictionFactor
@@ -1209,6 +1235,8 @@ export default defineComponent({
         }
         function simpleDrawParticles() {
             ctx!.clearRect(0, 0, canvasWidth, canvasHeight)
+            ctx!.fillStyle = backgroundColor
+            ctx!.fillRect(0, 0, canvasWidth, canvasHeight)
             for (let i = 0; i < numParticles; i++) {
                 drawParticle(positionX[i], positionY[i], positionZ[i], currentColors[colors[i]], particleSize)
             }
@@ -1658,14 +1686,30 @@ export default defineComponent({
             particleLife.currentMaxRadius = maxRadiusMatrix.reduce((max, row) => Math.max(max, ...row), -Infinity)
         }
         // -------------------------------------------------------------------------------------------------------------
+        function toggleCaptureMode(type: string) {
+            if (type === particleLife.captureType) {
+                particleLife.isShareOptionsOpen = !particleLife.isShareOptionsOpen
+            } else {
+                particleLife.isShareOptionsOpen = true
+                particleLife.captureType = type
+            }
+        }
+        function getSelectedAreaImageData(x: number, y: number, width: number, height: number) {
+            return ctx!.getImageData(x, y, width, height)
+        }
+        function captureFrame() {
+            shareOptions.value.captureOverlay.captureFrame(ctx)
+        }
+        // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         function watchAndDraw(effect: any, callback: any) {
             watch(effect, (value) => {
-                callback(value);
-                if (!isRunning) simpleDrawParticles();
-            });
+                callback(value)
+                if (!isRunning) simpleDrawParticles()
+            })
         }
+        watch(() => particleLife.isCapturingGIF, (value) => isCapturingGIF = value)
         watch(() => particleLife.numParticles, (value) => updateNumParticles(value))
         watch(() => particleLife.numColors, (value) => updateNumColors(value))
         watch(() => particleLife.depthLimit, (value: number) => depthLimit = value)
@@ -1745,9 +1789,9 @@ export default defineComponent({
         })
 
         return {
-            lifeCanvas, particleLife, toggleFullscreen, isFullscreen,
+            lifeCanvas, particleLife, toggleFullscreen, isFullscreen, toggleCaptureMode, getSelectedAreaImageData,
             fps, cellCount, executionTime, step, newRandomRulesMatrix, handleZoom, updateGridWidth, updateGridHeight,
-            updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, regenerateLife
+            updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, regenerateLife, shareOptions
         }
     }
 })

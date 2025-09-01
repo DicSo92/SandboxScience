@@ -23,7 +23,7 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
     const linkProportions = ref<boolean>(false) // Constraint x y grid proportions
 
     const numParticles = ref<number>(6000) // Number of particles
-    const particleSize = ref<number>(6) // Size of the particles at zoomFactor = 1
+    const particleSize = ref<number>(8) // Size of the particles at zoomFactor = 1
     const numColors = ref<number>(7) // Number of colors to be used
     const depthLimit = ref<number>(420) // Maximum Z axis depth (0 means almost 2D because there is friction with the walls && can be negative)
 
@@ -56,6 +56,10 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
 
     const currentMaxRadius = ref<number>(0) // Current max radius for the particles
 
+    const captureType = ref<string>('') // Capture type (screenshot or GIF)
+    const isCapturingGIF = ref<boolean>(false) // Start capturing GIF frames
+    const isShareOptionsOpen = ref<boolean>(false) // Is controls canvas open
+
     function $reset() {
         sidebarLeftOpen.value = false
         currentMaxRadius.value = 0 // Prevent watcher from not triggering when page is reloaded (!important)
@@ -71,6 +75,7 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
         minRadiusRange, maxRadiusRange, currentMaxRadius,
         repel, forceFactor, frictionFactor,
         cellGroupSize, cellSizeFactor,
+        captureType, isCapturingGIF, isShareOptionsOpen,
         $reset
     }
 })

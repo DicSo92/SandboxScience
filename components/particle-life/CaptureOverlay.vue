@@ -1,0 +1,219 @@
+<template>
+    <div w-full h-full>
+        <canvas id="captureCanvas" @contextmenu.prevent w-full h-full cursor-crosshair></canvas>
+
+        <div v-if="particleLife.isCapturingGIF" class="absolute top-16 left-1/2 transform -translate-x-1/2" w-64 h-6 rounded-full border-2 border-gray-500 flex justify-center items-center>
+            <div absolute left-0 h-4 class="px-[2px]" :style="{ width: `${GIFCaptureProgress}%` }">
+                <div rounded-full w-full h-full class="bg-[#E45C3A]"></div>
+            </div>
+            <span text-gray-300 absolute font-semibold class="drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Capturing GIF... {{ GIFCaptureProgress }}%</span>
+        </div>
+    </div>
+</template>
+
+<script lang="ts">
+import { defineComponent } from 'vue'
+import { GIFEncoder, quantize, applyPalette } from "gifenc";
+
+export default defineComponent({
+    props: {
+        getSelectedAreaImageData: {
+            type: Function as PropType<(x: number, y: number, width: number, height: number) => ImageData>,
+            required: true
+        },
+        captureFPS: {
+            type: Number,
+            required: true,
+        },
+        captureDuration: {
+            type: Number,
+            required: true,
+        }
+    },
+    setup(props, { emit }) {
+        const particleLife = useParticleLifeStore()
+        let captureCanvas: HTMLCanvasElement | undefined
+        let ctx: CanvasRenderingContext2D | undefined
+
+        const GIFCaptureProgress = ref<number>(0)
+        let captureAreaBorderSize: number = 4
+        let captureAreaBorderColor: string = '#1b50a8'
+        let canvasColor: string = 'rgba(80,80,80,0.2)'
+
+        let canSelectCaptureArea: boolean = true
+        let isHandlingCaptureArea: boolean = false
+        let startingCaptureArea: { x: number, y: number } | null = null
+        let endingCaptureArea: { x: number, y: number } | null = null
+        let currentCaptureArea: { x: number, y: number, width: number, height: number } | null = null
+        let GIFCaptureCount: number = 0
+        let GIFFrames: Uint8ClampedArray[] = []
+        let GIFOptions: { x: number, y: number, width: number, height: number, delay: number, frames: number }
+
+        let pointerX: number = 0
+        let pointerY: number = 0
+        let canvasWidth: number = 0
+        let canvasHeight: number = 0
+        // -------------------------------------------------------------------------------------------------------------
+        onMounted(() => {
+            captureCanvas = document.getElementById('captureCanvas') as HTMLCanvasElement
+            ctx = captureCanvas?.getContext('2d') || undefined
+            handleResize()
+            drawBackground()
+
+            useEventListener('resize', handleResize)
+            useEventListener(captureCanvas, ['mousemove'], (e) => {
+                pointerX = e.x - captureCanvas!.getBoundingClientRect().left
+                pointerY = e.y - captureCanvas!.getBoundingClientRect().top
+
+                if (e.buttons > 0) { // if mouse is pressed
+                    if (e.buttons === 1) { // if primary button is pressed (left click)
+                        if (canSelectCaptureArea) handleSelectCaptureArea()
+                    }
+                }
+            })
+            useEventListener(captureCanvas, ['mouseup'], (e) => {
+                if (canSelectCaptureArea && isHandlingCaptureArea && e.button === 0) {
+                    makeCapture()
+                    console.log('mouseup')
+                }
+            })
+        })
+
+        // -------------------------------------------------------------------------------------------------------------
+        function handleResize() {
+            canvasWidth = captureCanvas!.width = captureCanvas!.clientWidth
+            canvasHeight = captureCanvas!.height = captureCanvas!.clientHeight
+        }
+
+        function handleSelectCaptureArea() {
+            startingCaptureArea = startingCaptureArea || {x: pointerX, y: pointerY}
+            endingCaptureArea = {x: pointerX, y: pointerY}
+            isHandlingCaptureArea = true
+            drawCaptureArea()
+        }
+
+        function makeCapture() {
+            canSelectCaptureArea = false
+            if (particleLife.captureType === 'screenshot') {
+                takeScreenshot()
+            } else if (particleLife.captureType === 'GIF') {
+                takeGIF()
+            }
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        function takeScreenshot() {
+            if (!currentCaptureArea) return
+            // Define capture zone
+            const x = currentCaptureArea.x + captureAreaBorderSize / 2
+            const y = currentCaptureArea.y + captureAreaBorderSize / 2
+            const width = currentCaptureArea.width - captureAreaBorderSize
+            const height = currentCaptureArea.height - captureAreaBorderSize
+
+            // Get image data from the canvas
+            const imageData = props.getSelectedAreaImageData(x, y, width, height)
+
+            // Create a new canvas to draw the captured data
+            const newCanvas = document.createElement('canvas')
+            newCanvas.width = width
+            newCanvas.height = height
+            const newCtx = newCanvas.getContext('2d')
+
+            newCtx!.putImageData(imageData, 0, 0) // Draw image data on the new canvas
+            const imageURL = newCanvas.toDataURL('image/png') // Convert canvas to image URL
+
+            canSelectCaptureArea = false
+            isHandlingCaptureArea = false
+            startingCaptureArea = null
+            endingCaptureArea = null
+            currentCaptureArea = null
+
+            // Clear the canvas
+            ctx!.clearRect(0, 0, canvasWidth, canvasHeight)
+            emit('captureComplete', imageURL)
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        function takeGIF() {
+            if (!currentCaptureArea) return
+            const fps = props.captureFPS
+            const duration = props.captureDuration // seconds
+            GIFOptions = {
+                x: currentCaptureArea.x + captureAreaBorderSize / 2,
+                y: currentCaptureArea.y + captureAreaBorderSize / 2,
+                width: currentCaptureArea.width - captureAreaBorderSize,
+                height: currentCaptureArea.height - captureAreaBorderSize,
+                delay: 1 / fps * 1000,
+                frames: Math.ceil(duration * fps)
+            }
+            GIFFrames = []
+            GIFCaptureCount = 0
+            // captureFrame()
+            particleLife.isCapturingGIF = true
+        }
+        function captureFrame(context: CanvasRenderingContext2D) {
+            const imageData = context.getImageData(GIFOptions.x, GIFOptions.y, GIFOptions.width, GIFOptions.height).data
+            GIFFrames.push(imageData)
+            GIFCaptureCount++
+            GIFCaptureProgress.value = Math.round((GIFCaptureCount / GIFOptions.frames) * 100)
+            if (GIFCaptureCount === GIFOptions.frames) {
+                particleLife.isCapturingGIF = false
+                generateGif()
+            }
+        }
+        function generateGif() {
+            console.log('Generating GIF...')
+            const delay = GIFOptions.delay
+            const gif = GIFEncoder()
+            GIFFrames.forEach((frame) => {
+                const palette = quantize(frame, 256)
+                const index = applyPalette(frame, palette)
+                gif.writeFrame(index, GIFOptions.width, GIFOptions.height, { palette, delay })
+            })
+            gif.finish()
+            console.log('GIF generated !!')
+
+            const buffer = gif.bytesView()
+            const blob = new Blob([buffer], { type: 'image/gif' })
+            const imageURL = URL.createObjectURL(blob)
+
+            canSelectCaptureArea = false
+            isHandlingCaptureArea = false
+            startingCaptureArea = null
+            endingCaptureArea = null
+            currentCaptureArea = null
+
+            // Clear the canvas
+            ctx!.clearRect(0, 0, canvasWidth, canvasHeight)
+            emit('captureComplete', imageURL)
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        function drawCaptureArea() {
+            if (!startingCaptureArea || !endingCaptureArea) return
+            const x = startingCaptureArea.x
+            const y = startingCaptureArea.y
+            const width = endingCaptureArea.x - x
+            const height = endingCaptureArea.y - y
+            currentCaptureArea = { x, y, width, height }
+
+            drawBackground()
+            ctx!.clearRect(x, y, width, height) // Clear the capture area to make it transparent
+
+            ctx!.strokeStyle = captureAreaBorderColor
+            ctx!.lineWidth = captureAreaBorderSize
+            ctx!.strokeRect(x, y, width, height)
+        }
+        function drawBackground() { // Fill the entire canvas with a semi-transparent color
+            ctx!.clearRect(0, 0, canvasWidth, canvasHeight)
+            ctx!.fillStyle = canvasColor
+            ctx!.fillRect(0, 0, canvasWidth, canvasHeight)
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        return { captureFrame, particleLife, GIFCaptureProgress }
+    }
+})
+</script>
+
+<style scoped>
+#captureCanvas {
+    background:  transparent;
+}
+</style>
