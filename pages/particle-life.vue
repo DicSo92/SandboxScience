@@ -22,7 +22,7 @@
                                   Adjust individual cell values with the slider, or click and drag to change them directly. <br>
                                   Use Ctrl + Click to select multiple cells for group adjustments. <br>
                                   If no cells are selected, the slider will adjust all values.">
-                            <MatrixSettings
+                            <MatrixSettings :store="particleLife"
                                 @updateRulesMatrix="updateRulesMatrixValue"
                                 @randomRulesMatrix="newRandomRulesMatrix"
                                 @updateMinMatrix="updateMinMatrixValue"
@@ -51,7 +51,7 @@
                                 </div>
                             </div>
                             <div mb-2>
-                                <WallStateSelection />
+                                <WallStateSelection :store="particleLife" />
                             </div>
                             <div flex mb-1>
                                 <SelectButton :id="1" label="Screen" v-model="particleLife.screenMultiplierForGridSize" mr-1.5 />
@@ -97,7 +97,7 @@
                             </RangeInput>
                         </Collapse>
                         <Collapse label="Randomizer Settings" icon="i-game-icons-perspective-dice-six-faces-random" mt-2
-                                  tooltip="Adjust the parameters for randomizing particle attributes. <br> Configure the ranges for minimum and maximum interaction radii, and set the range for generating Z positions for particle spawning.">
+                                  tooltip="Adjust the parameters for randomizing particle attributes. <br> Configure the ranges for minimum and maximum interaction radii.">
                             <RangeInputMinMax input label="Min. Radius"
                                               tooltip="Set the range for generating minimum interaction radii. <br> This determines the range of possible values for the minimum distance at which particles begin to interact."
                                               :min="0" :max="100" :step="1" v-model="particleLife.minRadiusRange">
@@ -196,7 +196,7 @@
                 <div flex ml-3>Process: <div ml-1 min-w-7>{{ Math.round(executionTime) }}</div></div>
             </div>
 <!--            <Memory mr-1 />-->
-            <BrushSettings pointer-events-auto mt-2 mr-1 />
+            <BrushSettings :store="particleLife" pointer-events-auto mt-2 mr-1 />
 
             <div class="faded-hover-effect" pointer-events-auto mr-1>
                 <button type="button" title="Debugger" aria-label="Debugger" btn w-8 aspect-square rounded-full p1 flex items-center justify-center bg="#D62839 hover:#DC4151" mt-2

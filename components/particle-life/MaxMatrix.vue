@@ -8,10 +8,10 @@
                             <div bg-black w-full h-full rounded-full></div>
                         </div>
                         <div v-else-if="i === 0 && j > 0" h-full w-full class="pp-6">
-                            <div rounded-full w-full h-full :style="`background-color: hsl(${particleLife.currentColors[j-1]}, 100%, 50%)`"></div>
+                            <div rounded-full w-full h-full :style="`background-color: ${getColorStyleById(j-1)}`"></div>
                         </div>
                         <div v-else-if="j === 0 && i > 0" h-full w-full class="pp-6">
-                            <div rounded-full w-full h-full :style="`background-color: hsl(${particleLife.currentColors[i-1]}, 100%, 50%)`"></div>
+                            <div rounded-full w-full h-full :style="`background-color: ${getColorStyleById(i-1)}`"></div>
                         </div>
                         <div v-else h-full w-full relative cursor-ew-resize select-none
                              :class="(isHoveredCell(i-1, j-1) || isCellSelected(i-1, j-1)) && 'hovered-cell'"
@@ -35,11 +35,11 @@
                     <div v-if="!selectedCells" font-bold text-center text-gray-300>All Types</div>
                     <div v-else-if="selectedCells?.length === 1" flex items-center justify-between>
                         <div flex-1 flex justify-center>
-                            <div class="rounded-full w-5 h-5" :style="`background-color: hsl(${particleLife.currentColors[selectedCells[0][0]]}, 100%, 50%)`"></div>
+                            <div class="rounded-full w-5 h-5" :style="`background-color: ${getColorStyleById(selectedCells[0][0])}`"></div>
                         </div>
                         <div i-tabler-arrow-narrow-right text-xl mx-1 text-gray></div>
                         <div flex-1 flex justify-center>
-                            <div class="rounded-full w-5 h-5" :style="`background-color: hsl(${particleLife.currentColors[selectedCells[0][1]]}, 100%, 50%)`"></div>
+                            <div class="rounded-full w-5 h-5" :style="`background-color: ${getColorStyleById(selectedCells[0][1])}`"></div>
                         </div>
                     </div>
                     <div v-else font-bold text-center text-gray-300>Selection</div>
@@ -52,8 +52,14 @@
 <script lang="ts">
 import { defineComponent } from "vue";
 export default defineComponent({
+    props: {
+        store: {
+            type: Object,
+            required: true,
+        }
+    },
     setup(props, { emit }) {
-        const particleLife = useParticleLifeStore()
+        const particleLife = props.store
         const hoveredCell = ref<[number, number] | null>(null)
         const selectedCell = ref<[number, number] | null>(null)
         const selectedCells = ref<[number, number][] | null>(null)
@@ -251,11 +257,25 @@ export default defineComponent({
 
             return `rgb(${r}, ${g}, ${b})`
         }
+        function getColorStyleById(id: number): string {
+            const colors = particleLife.currentColors
+            if (!colors) return "rgb(12,12,12)"
+            // WebGPU : Float32Array RGBA
+            if (colors instanceof Float32Array) {
+                const i = id * 4
+                const r = Math.round(colors[i] * 255)
+                const g = Math.round(colors[i + 1] * 255)
+                const b = Math.round(colors[i + 2] * 255)
+                return `rgb(${r}, ${g}, ${b})`
+            }
+            // Normal Array of HSL values
+            return `hsl(${colors[id]}, 100%, 50%)`
+        }
         // -------------------------------------------------------------------------------------------------------------
         return {
             particleLife, cellRowCount, selectedValue, selectedCell, selectedCells, hasSameValues,
             mousedown, mouseenter, mouseleave,
-            interpolateColor, isCellSelected, isHoveredCell
+            interpolateColor, isCellSelected, isHoveredCell, getColorStyleById
         }
     }
 })
