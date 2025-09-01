@@ -135,8 +135,9 @@ fn computeForces(@builtin(global_invocation_id) id : vec3u) {
 
                     if (dist < minR) {
 //                        force = (options.repel / minR) * dist - options.repel;
-                        force = (dist * (1.0 / minR) - 1.0) * options.repel;
+//                        force = (dist * (1.0 / minR) - 1.0) * options.repel;
 //                        force = (dist / minR - 1.0) * options.repel;
+                        force = fma(dist / minR, options.repel, -options.repel);
                     } else {
                         let rule = interaction.x;
                         let mid = (minR + maxR) * 0.5;
@@ -148,9 +149,16 @@ fn computeForces(@builtin(global_invocation_id) id : vec3u) {
                         let invDist = 1.0 / dist;
 //                        totalForce += r * (force * invDist);
                         let scaledForce = force * invDist;
-                        totalForce.x += r.x * scaledForce;
-                        totalForce.y += r.y * scaledForce;
+//                        totalForce.x += r.x * scaledForce;
+//                        totalForce.y += r.y * scaledForce;
+                        totalForce.x = fma(r.x, scaledForce, totalForce.x);
+                        totalForce.y = fma(r.y, scaledForce, totalForce.y);
                     }
+//                    // Branchless version, avoiding divergence (slightly faster on some GPUs, slightly slower on others)
+//                    let invDist = 1.0 / dist;
+//                    let scaledForce = force * invDist;
+//                    totalForce.x = fma(r.x, scaledForce, totalForce.x);
+//                    totalForce.y = fma(r.y, scaledForce, totalForce.y);
                 }
             }
         }
