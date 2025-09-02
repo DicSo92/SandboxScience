@@ -245,10 +245,6 @@ export default defineComponent({
     name: 'ParticleLifeGpu',
     components: { BrushSettings, MatrixSettings, WallStateSelection, WrapModeSelection },
     setup() {
-        definePageMeta({
-            layout: 'life',
-            hideNavBar: true
-        })
         // Define refs and variables
         const mainContainer = ref<HTMLElement | null>(null)
         const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(mainContainer)
