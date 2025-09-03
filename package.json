@@ -21,7 +21,7 @@
         "@iconify-json/tabler": "^1.1.120",
         "@nuxt/eslint": "^0.5.0",
         "@nuxtjs/color-mode": "^3.3.2",
-        "@nuxtjs/seo": "^2.0.0-rc.18",
+        "@nuxtjs/seo": "^2.2.0",
         "@pinia/nuxt": "^0.5.3",
         "@unocss/eslint-config": "^0.62.1",
         "@unocss/nuxt": "^0.62.1",
