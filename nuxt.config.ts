@@ -101,7 +101,7 @@ export default defineNuxtConfig({
         },
         prerender: {
             crawlLinks: false,
-            routes: ['/', '/about', '/particle-life', '/game-of-life', '/hash-life'], // Pre-render routes
+            routes: ['/', '/about', '/particle-life', '/game-of-life', '/hash-life', '/sitemap.xml', '/robots.txt'], // Pre-render routes
             ignore: [],
         },
     },
