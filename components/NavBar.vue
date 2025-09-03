@@ -2,10 +2,10 @@
     <nav flex justify-center py-2 px-3 z-100 fixed top-0 left-0 right-0 class="bg-#090909AA">
         <div flex justify-between container>
             <div flex items-center>
-                <SiteLink to="/" title="Home" aria-label="Home" flex items-center>
+                <NuxtLink to="/" title="Home" aria-label="Home" flex items-center>
                     <span class="i-custom:icon text-lg mr-1"></span>
                     <div font-semibold>SandboxScience</div>
-                </SiteLink>
+                </NuxtLink>
                 <div flex ml-8>
                     <Dropdown placement="left">
                         <template v-slot:button>
@@ -15,22 +15,22 @@
                             </div>
                         </template>
                         <template v-slot:content>
-                            <SiteLink to="/game-of-life" flex w-full justify-between items-center rounded px-2 py-1 my-1 hover:bg-zinc-700>
+                            <NuxtLink to="/game-of-life" flex w-full justify-between items-center rounded px-2 py-1 my-1 hover:bg-zinc-700>
                                 Game Of Life
-                            </SiteLink>
-                            <SiteLink to="/particle-life" flex w-full justify-between items-center rounded px-2 py-1 my-1 hover:bg-zinc-700>
+                            </NuxtLink>
+                            <NuxtLink to="/particle-life" flex w-full justify-between items-center rounded px-2 py-1 my-1 hover:bg-zinc-700>
                                 Particle Life
-                            </SiteLink>
-                            <SiteLink to="/hash-life" flex w-full justify-between items-center rounded px-2 py-1 my-1 hover:bg-zinc-700>
+                            </NuxtLink>
+                            <NuxtLink to="/hash-life" flex w-full justify-between items-center rounded px-2 py-1 my-1 hover:bg-zinc-700>
                                 Hash Life
-                            </SiteLink>
+                            </NuxtLink>
                         </template>
                     </Dropdown>
-<!--                    <SiteLink to="/doc" mx-2>Documentation</SiteLink>-->
+<!--                    <NuxtLink to="/doc" mx-2>Documentation</NuxtLink>-->
                     <button mx-2 cursor-not-allowed text-gray-400>Documentation</button>
-                    <SiteLink to="/about" mx-2 class="text-zinc-2 hover:text-zinc-1">
+                    <NuxtLink to="/about" mx-2 class="text-zinc-2 hover:text-zinc-1">
                         About
-                    </SiteLink>
+                    </NuxtLink>
                 </div>
             </div>
             <div flex>
