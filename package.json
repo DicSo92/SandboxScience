@@ -27,6 +27,7 @@
         "@unocss/nuxt": "^0.62.1",
         "@vueuse/core": "^10.11.1",
         "@vueuse/nuxt": "^10.11.1",
+        "@webgpu/types": "^0.1.64",
         "eslint": "^8.57.0",
         "eslint-plugin-format": "^0.1.2",
         "floating-vue": "^5.2.2",
@@ -39,7 +40,6 @@
         "vue-tsc": "^2.0.29"
     },
     "dependencies": {
-        "@webgpu/types": "^0.1.61",
         "gifenc": "^1.0.3"
     }
 }
