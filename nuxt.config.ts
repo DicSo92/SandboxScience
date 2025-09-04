@@ -12,14 +12,14 @@ export default defineNuxtConfig({
         id: process.env.NUXT_PUBLIC_GTAG_ID ?? 'G-XXXXXXXXXX'
     },
     modules: [
-      '@vueuse/nuxt',
-      '@unocss/nuxt',
-      '@pinia/nuxt',
-      '@nuxtjs/color-mode',
-      "@nuxtjs/seo",
-      "@nuxt/eslint",
-      'floating-vue/nuxt',
-      'nuxt-gtag'
+        '@vueuse/nuxt',
+        '@unocss/nuxt',
+        '@pinia/nuxt',
+        '@nuxtjs/color-mode',
+        "@nuxtjs/seo",
+        "@nuxt/eslint",
+        'floating-vue/nuxt',
+        'nuxt-gtag'
     ],
 
     site: {

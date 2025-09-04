@@ -186,7 +186,7 @@
             </template>
         </SidebarLeft>
 
-        <canvas ref="lifeCanvas" id="lifeCanvas" @contextmenu.prevent w-full h-full cursor-crosshair></canvas>
+        <canvas id="lifeCanvas" @contextmenu.prevent w-full h-full cursor-crosshair></canvas>
         <ParticleLifeShareOptions v-if="particleLife.isShareOptionsOpen" ref="shareOptions" :getSelectedAreaImageData="getSelectedAreaImageData" />
 
         <div absolute top-0 right-0 flex flex-col items-end text-right pointer-events-none>
