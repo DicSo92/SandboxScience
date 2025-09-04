@@ -2791,8 +2791,4 @@ export default defineComponent({
 canvas {
     background: black;
 }
-.scrollableArea {
-    scrollbar-color: #a5a5a5 transparent;
-    scrollbar-width: none;
-}
 </style>

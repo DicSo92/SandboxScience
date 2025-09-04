@@ -2,7 +2,7 @@
     <transition name="modal-overlay-animation">
         <div v-if="modalActive" class="modal-overlay" :class="[overlayColor]">
             <transition name="modal-container-animation" appear mode="out-in">
-                <div v-show="modalActive" class="modal-container" ref="modalContainer">
+                <div v-show="modalActive" class="modal-container scrollableArea max-w-[640px]" :class="[modalClass]" ref="modalContainer">
                     <button type="button" title="Close" aria-label="Close"
                             btn absolute top-5 right-5 w-10 aspect-square rounded-full p1 flex items-center justify-center
                             class="text-gray-300 hover:text-gray-100"
@@ -29,6 +29,10 @@ export default defineComponent({
             type: String,
             default: "bg-gray-950/40 backdrop-blur-xs"
         },
+        modalClass: {
+            type: String,
+            default: ""
+        },
     },
     setup(props, { emit }) {
         const modalContainer = ref(null)
@@ -50,10 +54,10 @@ export default defineComponent({
 
 <style lang="scss" scoped>
 .modal-overlay {
-    @apply fixed top-0 left-0 w-screen h-screen flex items-center justify-center;
+    @apply fixed top-0 left-0 w-screen h-screen flex items-center justify-center p-3;
     z-index: 100000;
     .modal-container {
-        @apply relative rounded-xl w-4/5 max-w-[640px] p-14 pb-12 bg-gray-900/70 backdrop-blur-sm border-gray-600/50 border;
+        @apply relative overflow-auto max-h-full rounded-xl w-full sm:w-11/12 lg:w-4/5 p-8 sm:p-14 pb-8 sm:pb-12 bg-slate-900/70 backdrop-blur-sm border-gray-600/50 border;
         box-shadow: 0 19px 38px rgba(0, 0, 0, 0.30), 0 15px 12px rgba(0, 0, 0, 0.22);
         //box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     }

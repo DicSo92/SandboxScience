@@ -1788,24 +1788,5 @@ export default defineComponent({
 canvas {
     background: black;
 }
-.scrollableArea {
-    scrollbar-color: #a5a5a5 transparent;
-    scrollbar-width: none;
-}
-/*
-.scrollableArea::-webkit-scrollbar {
-    width: 8px;
-}
-
-.scrollableArea::-webkit-scrollbar-track {
-    background-color: #e4e4e4;
-    border-radius: 100px;
-}
-
-.scrollableArea::-webkit-scrollbar-thumb {
-    background-color: #d4aa70;
-    border-radius: 100px;
-}
-*/
 
 </style>

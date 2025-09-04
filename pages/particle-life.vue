@@ -13,65 +13,109 @@
         <div v-if="isOverlayOpen" class="fixed inset-0 z-40 bg-gray-950/40 backdrop-blur-[0.6px]"></div>
     </transition>
 
-    <Modal :modal-active="isModalOpen" @close="closeIntroModal" overlayColor="transparent">
+    <Modal :modal-active="isModalOpen" @close="closeIntroModal" overlayColor="transparent" modalClass="max-w-[880px]">
         <section class="space-y-4">
-            <header class="space-y-1">
-                <h2 class="text-xl md:text-2xl font-semibold">Particle Life</h2>
-                <p class="text-gray-300">
-                    Particle Life is a particle simulator where simple interaction rules lead to complex, emergent behaviors.
-                    Explore how tuning species interactions, forces, and initial conditions produces stable clusters, flowing patterns, and chaotic transitions in real time.
+            <header>
+                <h1 class="text-xl md:text-[1.75rem] font-bold mb-3 flex items-center">
+                    Particle Life
+                    <span class="ml-2 px-2 py-1 rounded-lg ring-1 uppercase justify-center font-mono" :class="currentRenderer === 'gpu' ? 'bg-fuchsia-600/20 text-fuchsia-400 ring-fuchsia-500/30' : 'bg-sky-600/20 text-sky-400 ring-sky-500/30'">
+                        {{ currentRenderer }}
+                    </span>
+                </h1>
+                <p class="text-gray-300 mb-2">
+                    <strong>Particle Life</strong> is a <strong>particle simulator</strong> where <em>simple interaction rules</em> produce <strong>complex, emergent behaviors</strong>.
+                    Tweak <strong>forces</strong> and <strong>starting conditions</strong> to reveal <em>stable clusters</em>, <em>flowing patterns</em>, and <em>chaotic transitions</em> in <strong>real time</strong>.
+                </p>
+                <p class="text-sm text-gray-300">
+                    <span class="font-bold text-fuchsia-500">WebGPU</span> provides <strong>higher FPS</strong>, <strong>smoother motion</strong>, and <strong>bigger particle counts</strong> when supported, while the <span class="font-bold text-sky-500">CPU renderer</span> stays <em>compatible</em> on every device.
                 </p>
             </header>
 
-            <div v-if="isWebGPUSupported" class="rounded-lg border border-green-800 bg-green-900/20 p-3 text-green-100">
-                <h3 class="font-medium mb-1">WebGPU is available</h3>
-
-                <div v-if="currentRenderer === 'cpu'" class="space-y-2">
-                    <p>
-                        Great news! WebGPU is supported on this machine. Switch to the GPU renderer for up to 100x better performance.
-                    </p>
-                    <div class="flex items-center gap-3">
-                        <button class="px-3 py-1 rounded bg-emerald-600 hover:bg-emerald-500 border border-emerald-700 text-white" @click.prevent="selectRenderer('gpu')">
-                            Switch to WebGPU
-                        </button>
-                        <span class="text-xs text-emerald-200">Recommended</span>
-                    </div>
-                    <p class="text-xs text-green-200">
-                        Prefer to stay on CPU?
-                        <a href="#" class="underline hover:no-underline" @click.prevent="closeIntroModal">Keep CPU</a>.
-                    </p>
+            <div v-if="isWebGPUSupported && currentRenderer === 'cpu'" class="rounded-lg ring-1 ring-gray-500/30 bg-slate-700/20 text-gray-50 text-sm p-4">
+                <div class="flex items-center rounded-full bg-amber-700/60 ring-1 ring-amber-400/30 w-fit pl-2 pr-3 py-0.5 mb-3">
+                    <div i-tabler-alert-hexagon text-lg mr-1></div>
+                    <h3 class="font-semibold">WebGPU is available</h3>
                 </div>
 
-                <div v-else class="space-y-1">
+                <div flex flex-col gap-2>
                     <p>
-                        You are using the GPU renderer. Enjoy the best performance (up to 100x faster than CPU).
+                        This device supports <strong>WebGPU</strong>. You’re currently on the <strong>CPU renderer</strong>.
                     </p>
-                    <p class="text-sm">
-                        Need compatibility or lower power usage?
+                    <div rounded-lg py-2 px-3 mb-1 class="bg-sky-600/10 ring-1 ring-sky-400/20">
+                        <div class="text-sky-100 text-sm font-semibold">CPU mode — Fully compatible</div>
+                        <p class="text-indigo-50/90 text-sm mt-1">
+                            Runs on every device and supports the full <strong>3D simulation</strong>. Switch to <strong>WebGPU</strong> for higher FPS and more particles. You can switch back anytime.
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-3 mt-1">
+                        <button class="px-4 sm:px-8 py-2 rounded-xl bg-gray-50 hover:bg-gray-200 transition-all ring-1 ring-black text-black text-base font-semibold" @click.prevent="selectRenderer('gpu')">
+                            Switch to WebGPU <em>(Recommended)</em>
+                        </button>
+                        <button class="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700/75 transition-all text-white text-base font-semibold" @click.prevent="closeIntroModal">
+                            Keep CPU for now
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div v-else-if="isWebGPUSupported && currentRenderer === 'gpu'" class="rounded-lg border border-green-800 bg-green-900/20 ring-1 ring-green-400/30 text-green-100 text-sm p-4">
+                <div class="flex items-center rounded-full bg-green-700/60 ring-1 ring-green-400/30 w-fit pl-2 pr-3 py-0.5 mb-3">
+                    <div i-tabler-check text-lg mr-1></div>
+                    <h3 class="font-semibold">WebGPU is available</h3>
+                </div>
+
+                <div flex flex-col gap-2>
+                    <p>
+                        You’re on the <strong>GPU renderer</strong> for maximum performance.
+                    </p>
+                    <div rounded-lg py-2 px-3 class="bg-emerald-500/10 ring-1 ring-emerald-400/20">
+                        <div class="text-emerald-100 text-sm font-semibold">WebGPU mode — High performance</div>
+                        <p class="text-emerald-50/90 text-sm mt-1">
+                            <strong>WebGPU</strong> runs the simulation on your graphics card for <strong>higher FPS</strong>, <strong>more particles</strong>, and <em>richer visuals</em>. It also reduces <strong>CPU</strong> load to keep the <em>UI</em> responsive as scenes grow.
+                        </p>
+                    </div>
+                    <p class="text-slate-300/90">
+                        Need compatibility or lower power usage ?
                         <a href="#" class="underline hover:no-underline" @click.prevent="selectRenderer('cpu')">
                             Switch to CPU
-                        </a>.
+                        </a>
                     </p>
+                    <div class="flex items-center gap-3 mt-1">
+                        <button class="px-4 sm:px-8 py-2 w-fit rounded-xl bg-gray-50 hover:bg-gray-200 transition-all ring-1 ring-black text-black text-base font-semibold" @click.prevent="closeIntroModal">
+                            Start Simulation
+                        </button>
+                        <button class="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700/75 ring-1 ring-gray-500/20 transition-all text-white text-base font-semibold" @click.prevent="selectRenderer('cpu')">
+                            Switch to CPU
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <div v-else class="rounded-lg border border-yellow-700 bg-yellow-900/30 p-3 text-yellow-100">
-                <h3 class="font-medium mb-1">WebGPU is not available</h3>
-                <p>
-                    GPU rendering cannot start on this device. You can still use the CPU renderer. To get up to 100x better performance, try enabling WebGPU:
-                </p>
-                <ul class="list-disc list-inside space-y-1 mt-2 text-yellow-50">
-                    <li>Windows: Settings → System → Display → Graphics → Graphics settings, add Chrome/Edge and select High performance GPU.</li>
-                    <li>Update Chrome or Edge to version 113+ and enable Hardware Acceleration in browser settings.</li>
-                    <li>Update your GPU drivers (NVIDIA/AMD/Intel).</li>
-                    <li>Check chrome://gpu or edge://gpu and ensure WebGPU is Hardware accelerated.</li>
-                    <li>Temporarily disable extensions that may affect rendering and restart the browser.</li>
-                    <li>Use a secure context: HTTPS or localhost.</li>
-                </ul>
+            <div v-else class="rounded-lg bg-amber-900/20 ring-1 ring-amber-400/30 text-amber-100 text-sm p-4">
+                <div class="flex items-center rounded-full bg-amber-700/60 ring-1 ring-amber-400/30 w-fit pl-2 pr-3 py-0.5 mb-3">
+                    <div i-tabler-alert-triangle text-lg mr-1></div>
+                    <h3 class="font-semibold">WebGPU is not available</h3>
+                </div>
+                <div flex flex-col gap-2>
+                    <p>
+                        <strong>WebGPU</strong> is <strong>not supported</strong> on this <em>device or browser</em>. You’re currently on the <strong>CPU renderer</strong>.
+                    </p>
+                    <div rounded-lg py-2 px-3 class="bg-amber-500/10 ring-1 ring-amber-400/20">
+                        <div class="text-amber-100 text-sm font-semibold">CPU mode — Fully compatible</div>
+                        <p class="text-amber-50/90 text-sm mt-1">
+                            Runs on <strong>every device</strong> and supports the full <strong>3D simulation</strong>. Enable <strong>WebGPU</strong> for higher FPS and more particles when your setup supports it.
+                        </p>
+                    </div>
+                    <p class="text-stone-300/90">
+                        Follow the <em>Enable WebGPU</em> guide below to set up your browser for higher FPS and more particles.
+                    </p>
+                    <button class="mt-1 px-4 sm:px-8 py-2 w-fit rounded-xl bg-gray-50 hover:bg-gray-200 transition-all ring-1 ring-black text-black text-base font-semibold" @click.prevent="closeIntroModal">
+                        Start Simulation
+                    </button>
+                </div>
             </div>
 
             <!-- Performance warning even when WebGPU is available -->
-            <div v-if="isWebGPUSupported && currentRenderer === 'gpu'" class="mt-3 rounded-lg border border-yellow-700 bg-yellow-900/30 p-3 text-yellow-100">
+            <div v-if="isWebGPUSupported && currentRenderer === 'gpu'" class="mt-3 rounded-lg border border-yellow-700 bg-yellow-900/30 text-yellow-100 p-4">
                 <strong class="font-medium">Performance warning</strong>
                 <p class="mt-1 text-sm">
                     If performance is not as expected, your system may be using the integrated GPU or a wrong graphics profile.
