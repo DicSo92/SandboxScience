@@ -130,9 +130,34 @@
                 </p>
             </div>
 
-            <div flex justify-end>
-                <ToggleSwitch label="Don’t show this again" colorful-label v-model="modalDismissed" @update:modelValue="toggleModalDismiss" />
+            <div flex gap-4 v-if="currentRenderer === 'cpu'" :key="currentRenderer">
+                <DevicesGpuTips class="w-1/2"></DevicesGpuTips>
+                <div flex flex-col gap-3 class="w-1/2">
+                    <div class="rounded-2xl p-4 bg-gradient-to-br from-amber-500/15 to-rose-500/10 ring-1 ring-amber-400/30">
+                        <div class="flex items-center gap-2 text-sm font-semibold text-white/90 mb-1">
+                            <div i-tabler-alert-triangle text-lg mr-1></div>
+                            <h3 class="font-semibold">Performance not great ?</h3>
+                        </div>
+                        <p>Try the tips in the left guide for your OS, then restart the browser — small changes often make a big difference.</p>
+                    </div>
+                    <div class="rounded-2xl p-4 bg-gradient-to-br from-sky-500/15 to-indigo-500/10 ring-1 ring-sky-400/30">
+                        <div class="flex items-center gap-2 text-sm font-semibold text-white/90 mb-1">
+                            <div i-tabler-info-circle text-lg mr-1></div>
+                            <h3 class="font-semibold">Helpfull reminders</h3>
+                        </div>
+                        <ul class="list-disc list-outside pl-5">
+                            <li>Use HTTPS or localhost for WebGPU.</li>
+                            <li>Plug in laptops and avoid low‑power modes for steadier FPS.</li>
+                            <li>Close heavy tabs/apps if you notice stutter.</li>
+                        </ul>
+                    </div>
+                </div>
+
             </div>
+
+<!--            <div flex justify-end>-->
+<!--                <ToggleSwitch label="Don’t show this again" colorful-label v-model="modalDismissed" @update:modelValue="toggleModalDismiss" />-->
+<!--            </div>-->
         </section>
     </Modal>
 
@@ -141,9 +166,10 @@
 
 <script lang="ts">
 import { defineComponent } from "vue";
+import DevicesGpuTips from "~/components/particle-life/DevicesGpuTips.vue";
 
 export default defineComponent({
-    components: {},
+    components: {DevicesGpuTips},
     setup() {
         definePageMeta({
             layout: 'life',
