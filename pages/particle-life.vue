@@ -16,7 +16,7 @@
     <Modal :modal-active="isModalOpen" @close="closeIntroModal" overlayColor="transparent" modalClass="max-w-[880px]">
         <section class="space-y-4">
             <header>
-                <h1 class="text-xl md:text-[1.75rem] font-bold mb-3 flex items-center">
+                <h1 class="text-2xl sm:text-[1.75rem] font-bold mb-3 flex items-center">
                     Particle Life
                     <span class="ml-2 px-2 py-1 rounded-lg ring-1 uppercase justify-center font-mono" :class="currentRenderer === 'gpu' ? 'bg-fuchsia-600/20 text-fuchsia-400 ring-fuchsia-500/30' : 'bg-sky-600/20 text-sky-400 ring-sky-500/30'">
                         {{ currentRenderer }}
@@ -48,7 +48,7 @@
                         </p>
                     </div>
                     <div class="flex items-center gap-3 mt-1">
-                        <button class="px-4 sm:px-8 py-2 rounded-xl bg-gray-50 hover:bg-gray-200 transition-all ring-1 ring-black text-black text-base font-semibold" @click.prevent="selectRenderer('gpu')">
+                        <button class="px-4 sm:px-8 py-2 rounded-xl bg-gray-50 hover:bg-gray-200 transition-all ring-1 ring-black text-black text-base font-semibold" @click.prevent="selectRenderer('gpu', true)">
                             Switch to WebGPU <em>(Recommended)</em>
                         </button>
                         <button class="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700/75 transition-all text-white text-base font-semibold" @click.prevent="closeIntroModal">
@@ -75,7 +75,7 @@
                     </div>
                     <p class="text-slate-300/90">
                         Need compatibility or lower power usage ?
-                        <a href="#" class="underline hover:no-underline" @click.prevent="selectRenderer('cpu')">
+                        <a href="#" class="underline hover:no-underline" @click.prevent="selectRenderer('cpu', true)">
                             Switch to CPU
                         </a>
                     </p>
@@ -83,7 +83,7 @@
                         <button class="px-4 sm:px-8 py-2 w-fit rounded-xl bg-gray-50 hover:bg-gray-200 transition-all ring-1 ring-black text-black text-base font-semibold" @click.prevent="closeIntroModal">
                             Start Simulation
                         </button>
-                        <button class="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700/75 ring-1 ring-gray-500/20 transition-all text-white text-base font-semibold" @click.prevent="selectRenderer('cpu')">
+                        <button class="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700/75 ring-1 ring-gray-500/20 transition-all text-white text-base font-semibold" @click.prevent="selectRenderer('cpu', true)">
                             Switch to CPU
                         </button>
                     </div>
@@ -116,43 +116,45 @@
 
             <!-- Performance warning even when WebGPU is available -->
             <div v-if="isWebGPUSupported && currentRenderer === 'gpu'" class="mt-3 rounded-lg border border-yellow-700 bg-yellow-900/30 text-yellow-100 p-4">
-                <strong class="font-medium">Performance warning</strong>
+                <div class="flex items-center gap-2 font-medium text-white/90 mb-2">
+                    <div i-tabler-alert-triangle text-lg mr-1></div>
+                    <h3>Performance warning</h3>
+                </div>
                 <p class="mt-1 text-sm">
-                    If performance is not as expected, your system may be using the integrated GPU or a wrong graphics profile.
+                    If performance is lower than expected, your system might be using the integrated GPU or the wrong graphics profile.
                 </p>
                 <p class="mt-1 text-sm">
-                    On Windows, go to Settings → System → Display → Graphics → Graphics settings, add Chrome/Edge and select High performance GPU.
+                    On Windows, open <em>Settings → System → Display → Graphics → Graphics settings</em>, add Chrome or Edge, and set it to <strong>High performance GPU</strong>.
                     <br>
-                    Also enable Hardware Acceleration in your browser settings and restart the browser.
+                    Also make sure <strong>Hardware Acceleration</strong> is enabled in your browser settings, then restart the browser.
                 </p>
                 <p class="mt-2 text-xs opacity-90">
-                    Tip: Check `chrome://gpu` or `edge://gpu` and confirm WebGPU is “Hardware accelerated”.
+                    💡 Tip: Open <code>chrome://gpu</code> or <code>edge://gpu</code> and check that WebGPU shows <em>“Hardware accelerated”</em>.
                 </p>
             </div>
 
-            <div flex gap-4 v-if="currentRenderer === 'cpu'" :key="currentRenderer">
-                <DevicesGpuTips class="w-1/2"></DevicesGpuTips>
-                <div flex flex-col gap-3 class="w-1/2">
-                    <div class="rounded-2xl p-4 bg-gradient-to-br from-amber-500/15 to-rose-500/10 ring-1 ring-amber-400/30">
+            <div class="flex flex-col md:flex-row gap-4" v-if="currentRenderer === 'cpu'" :key="currentRenderer">
+                <DevicesGpuTips class="w-full md:w-1/2"></DevicesGpuTips>
+                <div class="w-full md:w-1/2 flex flex-col sm:flex-row md:flex-col gap-3">
+                    <div class="rounded-2xl p-4 bg-gradient-to-br from-amber-500/15 to-rose-500/10 ring-1 ring-amber-400/30 sm:w-1/2 md:w-auto">
                         <div class="flex items-center gap-2 text-sm font-semibold text-white/90 mb-1">
                             <div i-tabler-alert-triangle text-lg mr-1></div>
                             <h3 class="font-semibold">Performance not great ?</h3>
                         </div>
-                        <p>Try the tips in the left guide for your OS, then restart the browser — small changes often make a big difference.</p>
+                        <p text-sm>Try the tips in the left guide for your OS, then restart the browser — small changes often make a big difference.</p>
                     </div>
-                    <div class="rounded-2xl p-4 bg-gradient-to-br from-sky-500/15 to-indigo-500/10 ring-1 ring-sky-400/30">
+                    <div class="rounded-2xl p-4 bg-gradient-to-br from-sky-500/15 to-indigo-500/10 ring-1 ring-sky-400/30 sm:w-1/2 md:w-auto">
                         <div class="flex items-center gap-2 text-sm font-semibold text-white/90 mb-1">
                             <div i-tabler-info-circle text-lg mr-1></div>
                             <h3 class="font-semibold">Helpfull reminders</h3>
                         </div>
-                        <ul class="list-disc list-outside pl-5">
-                            <li>Use HTTPS or localhost for WebGPU.</li>
-                            <li>Plug in laptops and avoid low‑power modes for steadier FPS.</li>
+                        <ul class="list-disc list-outside pl-5 text-sm">
+                            <li>Keep your browser and GPU drivers up to date.</li>
+                            <li>Plug in laptops and avoid power-saving modes.</li>
                             <li>Close heavy tabs/apps if you notice stutter.</li>
                         </ul>
                     </div>
                 </div>
-
             </div>
 
 <!--            <div flex justify-end>-->
@@ -229,8 +231,9 @@ export default defineComponent({
             console.log("WebGPU is supported")
             return true
         }
-        const selectRenderer = async (mode: 'gpu' | 'cpu', closeModal: boolean = false) => {
+        const selectRenderer = async (mode: 'gpu' | 'cpu', isSwitching: boolean = false) => { // changer le nom isSwitching par quelque chose de plus parlant comme
             isBooting.value = true
+            if (isSwitching) isModalOpen.value = false
             await new Promise(resolve => setTimeout(resolve, 300)) // allow overlay to show
             if (mode === 'gpu') {
                 particleLifeComponent.value = (await import('~/components/particle-life/ParticleLifeGpu.vue')).default
@@ -240,7 +243,7 @@ export default defineComponent({
             currentRenderer.value = mode
             await new Promise(resolve => setTimeout(resolve, 200)) // allow component to mount
             isBooting.value = false
-            if (closeModal) isModalOpen.value = false
+            if (isSwitching) isModalOpen.value = true
         }
         const toggleModalDismiss = () => {
             if (modalDismissed.value) {

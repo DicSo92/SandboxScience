@@ -60,7 +60,7 @@
                                     <RangeInput input :min="0" :max="100" :step="1" v-model="particleLife.brushDirectionalForce" />
                                 </div>
                             </div>
-                            <ToggleSwitch label="Show Brush Circle" colorful-label v-model="particleLife.showBrushCircle" />
+                            <ToggleSwitch label="Show Brush Circle" colorful-label v-model="particleLife.showBrushCircle" mt-2 />
                         </div>
                     </div>
                 </div>
