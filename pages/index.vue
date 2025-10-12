@@ -19,7 +19,7 @@
         </section>
         <section container>
             <div grid gap-4 grid-cols-1 class="sm:grid-cols-3">
-                <SiteLink to="/particle-life" bg="gray-900 hover:gray-800"
+                <NuxtLink to="/particle-life" bg="gray-900 hover:gray-800"
                           class="relative overflow-hidden rounded-lg border border-gray-800 shadow-lg p-6 sm:p-5 md:p-6 pt-3 sm:pt-4 md:pt-4">
                     <div flex items-center mb-2>
                         <span class="text-2xl md:text-3xl" font-bold mr-2>⚛</span>
@@ -31,8 +31,8 @@
                             BETA
                         </div>
                     </div>
-                </SiteLink>
-                <SiteLink to="/game-of-life" bg="gray-900 hover:gray-800"
+                </NuxtLink>
+                <NuxtLink to="/game-of-life" bg="gray-900 hover:gray-800"
                           class="relative overflow-hidden rounded-lg border border-gray-800 shadow-lg p-6 sm:p-5 md:p-6 pt-3 sm:pt-4 md:pt-4">
                     <div flex items-center mb-2>
                         <span class="text-2xl md:text-3xl" font-bold mr-1>🧬</span>
@@ -44,8 +44,8 @@
                             ALPHA
                         </div>
                     </div>
-                </SiteLink>
-                <SiteLink to="/hash-life" bg="gray-900 hover:gray-800"
+                </NuxtLink>
+                <NuxtLink to="/hash-life" bg="gray-900 hover:gray-800"
                           class="relative overflow-hidden rounded-lg border border-gray-800 shadow-lg p-6 sm:p-5 md:p-6 pt-3 sm:pt-4 md:pt-4">
                     <div flex items-center mb-2>
                         <span class="text-2xl md:text-3xl" font-bold mr-2>🚀</span>
@@ -57,7 +57,7 @@
                             WIP
                         </div>
                     </div>
-                </SiteLink>
+                </NuxtLink>
             </div>
         </section>
         <section my-12 flex-1 flex flex-col justify-end>

@@ -6,12 +6,33 @@ body {
 }
 
 .faded-hover-effect {
-  transition: opacity 120ms ease-in-out;
+  transition: opacity 200ms ease-in-out 200ms;
   opacity: 40%;
   &:hover {
     opacity: 100%;
+    transition-delay: 0ms;
   }
 }
 .force-hover-effect {
     opacity: 100%;
 }
+
+.scrollableArea {
+  scrollbar-color: #a5a5a5 transparent;
+  scrollbar-width: none;
+}
+/*
+.scrollableArea::-webkit-scrollbar {
+    width: 8px;
+}
+
+.scrollableArea::-webkit-scrollbar-track {
+    background-color: #e4e4e4;
+    border-radius: 100px;
+}
+
+.scrollableArea::-webkit-scrollbar-thumb {
+    background-color: #d4aa70;
+    border-radius: 100px;
+}
+*/

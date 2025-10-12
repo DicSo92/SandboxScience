@@ -2,7 +2,7 @@
     <div flex items-center>
         <p v-if="label" class="text-2sm pt-0.5 mr-2">{{ label }}</p>
         <slot name="customLabel"></slot>
-        <div flex items-center w-full>
+        <div flex items-center>
             <div w-14>
                 <input type="text" maxlength="5" :value="modelValue" @input="inputTextUpdate($event.target.value)" class="w-full border border-gray-200 rounded text-sm text-center text-black font-500">
             </div>
@@ -22,12 +22,17 @@ export default defineComponent({
         label: {
             type: String,
             required: false
+        },
+        debounce: {
+            type: Number,
+            default: 750
         }
     },
     setup(props, { emit }) {
         const inputTextUpdate = useDebounceFn((value: number) => {
             emit("change", Number(value))
-        }, 750, { maxWait: 2500 })
+            emit("update:modelValue", Number(value))
+        }, props.debounce, { maxWait: 2500 })
 
         return { inputTextUpdate }
     }

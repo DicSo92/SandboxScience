@@ -21,12 +21,13 @@
         "@iconify-json/tabler": "^1.1.120",
         "@nuxt/eslint": "^0.5.0",
         "@nuxtjs/color-mode": "^3.3.2",
-        "@nuxtjs/seo": "^2.0.0-rc.18",
+        "@nuxtjs/seo": "^2.2.0",
         "@pinia/nuxt": "^0.5.3",
         "@unocss/eslint-config": "^0.62.1",
         "@unocss/nuxt": "^0.62.1",
         "@vueuse/core": "^10.11.1",
         "@vueuse/nuxt": "^10.11.1",
+        "@webgpu/types": "^0.1.64",
         "eslint": "^8.57.0",
         "eslint-plugin-format": "^0.1.2",
         "floating-vue": "^5.2.2",
@@ -37,5 +38,8 @@
         "vue": "^3.4.37",
         "vue-router": "^4.4.3",
         "vue-tsc": "^2.0.29"
+    },
+    "dependencies": {
+        "gifenc": "^1.0.3"
     }
 }
