@@ -1,10 +1,12 @@
 <template>
     <section absolute w-full h-full>
-        <ParticleLifeCaptureOverlay ref="captureOverlay" v-if="isCaptureOverlayOpen"
-                                    :getSelectedAreaImageData="getSelectedAreaImageData"
-                                    :captureFPS="captureFPS" :captureDuration="captureDuration"
-                                    @captureComplete="onCaptureComplete">>
-        </ParticleLifeCaptureOverlay>
+        <ClientOnly>
+            <ParticleLifeCaptureOverlay ref="captureOverlay" v-if="isCaptureOverlayOpen"
+                                        :getSelectedAreaImageData="getSelectedAreaImageData"
+                                        :captureFPS="captureFPS" :captureDuration="captureDuration"
+                                        @captureComplete="onCaptureComplete">>
+            </ParticleLifeCaptureOverlay>
+        </ClientOnly>
 
         <Modal :modalActive="modalActive" @close="closeModal">
             <div class="modal-content">

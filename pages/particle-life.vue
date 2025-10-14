@@ -169,6 +169,7 @@
 <script lang="ts">
 import { defineComponent } from "vue";
 import DevicesGpuTips from "~/components/particle-life/DevicesGpuTips.vue";
+import CpuComp from '~/components/particle-life/ParticleLifeCpu.vue'
 
 export default defineComponent({
     components: {DevicesGpuTips},
@@ -186,19 +187,13 @@ export default defineComponent({
             twitterDescription: 'Discover Particle Life, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.',
         })
 
-        const CpuComp = defineAsyncComponent({
-            loader: () => import('~/components/particle-life/ParticleLifeCpu.vue'),
-            suspensible: false
-        })
         const GpuComp = defineAsyncComponent({
             loader: () => import('~/components/particle-life/ParticleLifeGpu.vue'),
             suspensible: false
         })
         const particleLifeComponent = shallowRef<any>(CpuComp)
-
         const currentRenderer = ref<'gpu' | 'cpu'>('cpu') // track active renderer
         const isWebGPUSupported = ref<boolean>(true)
-
         const isModalOpen = ref<boolean>(false)
         const isOverlayOpen = ref<boolean>(true)
         const MODAL_DISMISS_KEY = 'particle-life:intro-modal-dismissed' // key stored in localStorage
