@@ -245,10 +245,6 @@ export default defineComponent({
     name: 'ParticleLifeGpu',
     components: { BrushSettings, MatrixSettings, WallStateSelection, WrapModeSelection },
     setup() {
-        definePageMeta({
-            layout: 'life',
-            hideNavBar: true
-        })
         // Define refs and variables
         const mainContainer = ref<HTMLElement | null>(null)
         const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(mainContainer)
@@ -2794,9 +2790,5 @@ export default defineComponent({
 <style scoped>
 canvas {
     background: black;
-}
-.scrollableArea {
-    scrollbar-color: #a5a5a5 transparent;
-    scrollbar-width: none;
 }
 </style>

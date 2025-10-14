@@ -12,14 +12,14 @@ export default defineNuxtConfig({
         id: process.env.NUXT_PUBLIC_GTAG_ID ?? 'G-XXXXXXXXXX'
     },
     modules: [
-      '@vueuse/nuxt',
-      '@unocss/nuxt',
-      '@pinia/nuxt',
-      '@nuxtjs/color-mode',
-      "@nuxtjs/seo",
-      "@nuxt/eslint",
-      'floating-vue/nuxt',
-      'nuxt-gtag'
+        '@vueuse/nuxt',
+        '@unocss/nuxt',
+        '@pinia/nuxt',
+        '@nuxtjs/color-mode',
+        "@nuxtjs/seo",
+        "@nuxt/eslint",
+        'floating-vue/nuxt',
+        'nuxt-gtag'
     ],
 
     site: {
@@ -59,7 +59,7 @@ export default defineNuxtConfig({
         },
     },
     seo: {
-        redirectToCanonicalSiteUrl: true
+        redirectToCanonicalSiteUrl: false
     },
     schemaOrg: {
         identity: {
@@ -77,7 +77,7 @@ export default defineNuxtConfig({
     ogImage: {
         enabled: false,
         defaults: {
-            cacheMaxAgeSeconds: 60 * 60 * 24 * 7 * 1000 // 7 days
+            cacheMaxAgeSeconds: 60 * 60 * 24 * 7 // 7 days
         }
     },
 
@@ -101,7 +101,7 @@ export default defineNuxtConfig({
         },
         prerender: {
             crawlLinks: false,
-            routes: ['/', '/about', '/particle-life', '/particle-life-gpu', '/game-of-life', '/hash-life'], // Pre-render routes
+            routes: ['/', '/about', '/particle-life', '/game-of-life', '/hash-life', '/sitemap.xml', '/robots.txt'], // Pre-render routes
             ignore: [],
         },
     },
