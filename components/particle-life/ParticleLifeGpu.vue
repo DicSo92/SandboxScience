@@ -14,6 +14,9 @@
                     </div>
                     <hr>
                     <div overflow-auto flex-1 mt-2 class="scrollableArea">
+<!--                        <section>-->
+<!--                            <SelectInput label="Spawn Position" :options="particleLife.spawnPositionOptions" v-model="particleLife.selectedSpawnPositionOption"></SelectInput>-->
+<!--                        </section>-->
                         <Collapse label="Matrix Settings" icon="i-tabler-grid-4x4"
                                   tooltip="Modify matrix values by clicking on cells in the grid. <br>
                                   Adjust individual cell values with the slider, or click and drag to change them directly. <br>
@@ -174,7 +177,7 @@
         <div absolute top-0 right-0 flex flex-col items-end text-right pointer-events-none>
             <div flex items-center text-start text-xs pl-4 pr-1 bg-gray-800 rounded-bl-xl style="padding-bottom: 1px; opacity: 75%">
                 <div flex>Fps: <div ml-1 min-w-8>{{ fps }}</div></div>
-                <div flex ml-3>Process: <div ml-1 min-w-7>{{ Math.round(executionTime) }}</div></div>
+<!--                <div flex ml-3>Process: <div ml-1 min-w-7>{{ Math.round(executionTime) }}</div></div>-->
             </div>
             <BrushSettings :store="particleLife" pointer-events-auto mt-2 mr-1 />
 
