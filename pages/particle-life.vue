@@ -169,6 +169,7 @@
 <script lang="ts">
 import { defineComponent } from "vue";
 import DevicesGpuTips from "~/components/particle-life/DevicesGpuTips.vue";
+import CpuComp from '~/components/particle-life/ParticleLifeCpu.vue'
 
 export default defineComponent({
     components: {DevicesGpuTips},
@@ -186,15 +187,80 @@ export default defineComponent({
             twitterDescription: 'Discover Particle Life, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.',
         })
 
+        const GpuComp = defineAsyncComponent({
+            loader: () => import('~/components/particle-life/ParticleLifeGpu.vue'),
+            suspensible: false
+        })
+        const particleLifeComponent = shallowRef<any>(CpuComp)
+        const currentRenderer = ref<'gpu' | 'cpu'>('cpu') // track active renderer
+        const isWebGPUSupported = ref<boolean>(true)
         const isModalOpen = ref<boolean>(false)
         const isOverlayOpen = ref<boolean>(true)
-        const isWebGPUSupported = ref<boolean>(true)
-        const currentRenderer = ref<'gpu' | 'cpu'>('cpu') // track active renderer
-        const particleLifeComponent = shallowRef<Component | null>(null)
         const MODAL_DISMISS_KEY = 'particle-life:intro-modal-dismissed' // key stored in localStorage
         const modalDismissed = ref<boolean>(false)
-
         const isBooting = ref<boolean>(true)
+
+        onMounted(async () => {
+            modalDismissed.value = localStorage.getItem(MODAL_DISMISS_KEY) === 'true'
+            isOverlayOpen.value = !modalDismissed.value
+            try {
+                isWebGPUSupported.value = await checkGPUAdapter()
+                // isWebGPUSupported.value = false // TEMP DISABLE GPU RENDERER
+                await selectRenderer(isWebGPUSupported.value ? 'gpu' : 'cpu')
+            } catch (err) {
+                console.error('Boot error:', err)
+                isWebGPUSupported.value = false
+                try { await selectRenderer('cpu') } catch {}
+            }
+        })
+        // -------------------------------------------------------------------------------------------------------------
+        const checkGPUAdapter = async (): Promise<boolean> => {
+            try {
+                if (!('gpu' in navigator) || !navigator.gpu?.requestAdapter) {
+                    console.warn('WebGPU not available on this device/browser')
+                    return false
+                }
+                const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' })
+                if (!adapter) {
+                    console.warn('WebGPU adapter not found')
+                    return false
+                }
+                const device = await adapter.requestDevice()
+                if (!device) {
+                    console.warn('WebGPU device not found')
+                    return false
+                }
+                console.log('WebGPU is supported')
+                return true
+            } catch (err) {
+                console.warn('WebGPU check failed:', err)
+                return false
+            }
+        }
+        const selectRenderer = async (mode: 'gpu' | 'cpu', isSwitching = false) => {
+            isBooting.value = true
+            try {
+                if (isSwitching) {
+                    isModalOpen.value = false
+                    await new Promise(r => setTimeout(r, 600)) // wait for fade out
+                }
+                if (mode === 'gpu' && !isWebGPUSupported.value) mode = 'cpu'
+
+                particleLifeComponent.value = mode === 'gpu' ? GpuComp : CpuComp
+                currentRenderer.value = mode
+                await nextTick()
+
+                await new Promise(r => setTimeout(r, 100)) // wait for component to mount
+            } catch (err) {
+                console.error('selectRenderer error:', err)
+                particleLifeComponent.value = CpuComp
+                currentRenderer.value = 'cpu'
+            } finally {
+                isBooting.value = false
+                if (isSwitching) isModalOpen.value = true
+            }
+        }
+        // -------------------------------------------------------------------------------------------------------------
         const onBootOverlayHidden = () => {
             isModalOpen.value = !modalDismissed.value
             isOverlayOpen.value = !modalDismissed.value
@@ -202,48 +268,6 @@ export default defineComponent({
         const closeIntroModal = () => {
             isModalOpen.value = false
             isOverlayOpen.value = false
-        }
-
-        onMounted(async () => {
-            modalDismissed.value = localStorage.getItem(MODAL_DISMISS_KEY) === 'true'
-            isOverlayOpen.value = !modalDismissed.value
-
-            isWebGPUSupported.value = await checkGPUAdapter()
-            // isWebGPUSupported.value = false // TEMP DISABLE GPU RENDERER
-            await selectRenderer(isWebGPUSupported.value ? 'gpu' : 'cpu')
-
-            await new Promise(resolve => setTimeout(resolve, 200))
-            isBooting.value = false
-        })
-        // -------------------------------------------------------------------------------------------------------------
-        const checkGPUAdapter = async () => {
-            const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' })
-            if (!adapter) {
-                console.error("WebGPU adapter not found")
-                return false
-            }
-            const device = await adapter.requestDevice().catch(() => null)
-            if (!device) {
-                console.error("WebGPU device not found")
-                return false
-            }
-
-            console.log("WebGPU is supported")
-            return true
-        }
-        const selectRenderer = async (mode: 'gpu' | 'cpu', isSwitching: boolean = false) => { // changer le nom isSwitching par quelque chose de plus parlant comme
-            isBooting.value = true
-            if (isSwitching) isModalOpen.value = false
-            await new Promise(resolve => setTimeout(resolve, 300)) // allow overlay to show
-            if (mode === 'gpu') {
-                particleLifeComponent.value = (await import('~/components/particle-life/ParticleLifeGpu.vue')).default
-            } else {
-                particleLifeComponent.value = (await import('~/components/particle-life/ParticleLifeCpu.vue')).default
-            }
-            currentRenderer.value = mode
-            await new Promise(resolve => setTimeout(resolve, 200)) // allow component to mount
-            isBooting.value = false
-            if (isSwitching) isModalOpen.value = true
         }
         const toggleModalDismiss = () => {
             if (modalDismissed.value) {
