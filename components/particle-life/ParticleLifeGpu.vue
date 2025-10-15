@@ -14,8 +14,14 @@
                     </div>
                     <hr>
                     <div overflow-auto flex-1 mt-2 class="scrollableArea">
-<!--                        <section>-->
-<!--                            <SelectInput label="Spawn Position" :options="particleLife.spawnPositionOptions" v-model="particleLife.selectedSpawnPositionOption"></SelectInput>-->
+<!--                        <section mb-4>-->
+<!--                            <div flex gap-2>-->
+<!--                                <SelectInput v-model="particleLife.selectedSpawnPositionOption" :options="particleLife.spawnPositionOptions"></SelectInput>-->
+<!--                                <button type="button" btn px-3 rounded-full flex items-center bg="zinc-900 hover:#212121">-->
+<!--                                    <span class="i-game-icons-perspective-dice-six-faces-random" mr-1></span>-->
+<!--                                    Positions-->
+<!--                                </button>-->
+<!--                            </div>-->
 <!--                        </section>-->
                         <Collapse label="Matrix Settings" icon="i-tabler-grid-4x4"
                                   tooltip="Modify matrix values by clicking on cells in the grid. <br>
