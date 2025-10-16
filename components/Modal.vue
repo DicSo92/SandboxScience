@@ -54,8 +54,7 @@ export default defineComponent({
 
 <style lang="scss" scoped>
 .modal-overlay {
-    @apply fixed top-0 left-0 w-screen h-screen flex items-center justify-center p-3;
-    z-index: 100000;
+    @apply fixed top-0 left-0 w-screen h-screen flex items-center justify-center p-3 z-1000;
     .modal-container {
         @apply relative overflow-auto max-h-full rounded-xl w-full sm:w-11/12 lg:w-4/5 p-8 sm:p-14 pb-8 sm:pb-12 bg-slate-900/70 backdrop-blur-sm border-gray-600/50 border;
         box-shadow: 0 19px 38px rgba(0, 0, 0, 0.30), 0 15px 12px rgba(0, 0, 0, 0.22);

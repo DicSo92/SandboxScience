@@ -31,7 +31,7 @@
         </div>
         <RangeInput input :min="selectedCell && selectedCells?.length === 1 ? particleLife.minRadiusMatrix[selectedCell[0]][selectedCell[1]] : 1" :max="600" :step="1" v-model="selectedValue" mt-2 >
             <template #customLabel>
-                <div class="w-2/3 px-2 py-0.5" border-2 border-gray-500 bg-zinc-800 rounded-lg>
+                <div class="w-2/3 px-2 py-0.5 bg-slate-900/80 border-2 border-slate-500/80" rounded-lg>
                     <div v-if="!selectedCells" font-bold text-center text-gray-300>All Types</div>
                     <div v-else-if="selectedCells?.length === 1" flex items-center justify-between>
                         <div flex-1 flex justify-center>

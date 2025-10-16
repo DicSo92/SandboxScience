@@ -1,6 +1,6 @@
 <template>
     <transition name="fade" @after-leave="onBootOverlayHidden">
-        <div v-if="isBooting" class="fixed inset-0 z-50 bg-gray-950">
+        <div v-if="isBooting" class="fixed inset-0 z-100 bg-gray-950">
             <div class="absolute inset-0 flex items-center justify-center">
                 <div class="flex flex-col items-center gap-3">
                     <div class="h-10 w-10 rounded-full border-4 border-white/30 border-t-white animate-spin"></div>
@@ -10,22 +10,22 @@
         </div>
     </transition>
     <transition name="overlay-animation">
-        <div v-if="isOverlayOpen" class="fixed inset-0 z-40 bg-gray-950/40 backdrop-blur-[0.6px]"></div>
+        <div v-if="isOverlayOpen" class="fixed inset-0 z-90 bg-gray-950/40 backdrop-blur-[0.6px]"></div>
     </transition>
 
     <Modal :modal-active="isModalOpen" @close="closeIntroModal" overlayColor="transparent" modalClass="max-w-[880px]">
         <section class="space-y-4">
             <header>
-                <h1 class="text-2xl sm:text-[1.75rem] font-bold mb-3 flex items-center">
-                    Particle Life
-                    <span class="ml-2 px-2 py-1 rounded-lg ring-1 uppercase justify-center font-mono" :class="currentRenderer === 'gpu' ? 'bg-fuchsia-600/20 text-fuchsia-400 ring-fuchsia-500/30' : 'bg-sky-600/20 text-sky-400 ring-sky-500/30'">
+                <div flex items-center mb-3 class="text-2xl sm:text-[1.75rem] font-bold">
+                    <h1 flex items-center>Particle Life</h1>
+                    <p class="ml-2 px-2 py-1 rounded-lg ring-1 uppercase justify-center font-mono" :class="currentRenderer === 'gpu' ? 'bg-fuchsia-600/20 text-fuchsia-400 ring-fuchsia-500/30' : 'bg-sky-600/20 text-sky-400 ring-sky-500/30'">
                         {{ currentRenderer }}
-                    </span>
-                </h1>
-                <p class="text-gray-300 mb-2">
+                    </p>
+                </div>
+                <h2 class="text-gray-300 mb-2">
                     <strong>Particle Life</strong> is a <strong>particle simulator</strong> where <em>simple interaction rules</em> produce <strong>complex, emergent behaviors</strong>.
                     Tweak <strong>forces</strong> and <strong>starting conditions</strong> to reveal <em>stable clusters</em>, <em>flowing patterns</em>, and <em>chaotic transitions</em> in <strong>real time</strong>.
-                </p>
+                </h2>
                 <p class="text-sm text-gray-300">
                     <span class="font-bold text-fuchsia-500">WebGPU</span> provides <strong>higher FPS</strong>, <strong>smoother motion</strong>, and <strong>bigger particle counts</strong> when supported, while the <span class="font-bold text-sky-500">CPU renderer</span> stays <em>compatible</em> on every device.
                 </p>
@@ -180,10 +180,10 @@ export default defineComponent({
         })
         useSeoMeta({
             title: 'Particle Life',
+            ogTitle: 'Particle Life',
+            twitterTitle: 'Particle Life',
             description: 'Discover Particle Life, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.',
-            ogTitle: 'Particle Life • Particle Simulation',
             ogDescription: 'Discover Particle Life, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.',
-            twitterTitle: 'Particle Life • Particle Simulation',
             twitterDescription: 'Discover Particle Life, an interactive and educational particle simulator to understand physical phenomena and particle system dynamics.',
         })
 

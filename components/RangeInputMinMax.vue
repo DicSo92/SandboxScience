@@ -3,13 +3,7 @@
         <div v-if="label" class="flex w-2/3 -mt-1.5">
             <p class="text-2sm">
                 {{ label }}
-                <button v-if="tooltip" name="Info" aria-label="Info" i-tabler-info-circle text-zinc text-base cursor-help align-top
-                        v-tooltip="{
-                            content: tooltip, html: true, container: '#mainContainer',
-                            popperClass: 'bg-gray-800 text-sm max-w-64 pointer-events-none',
-                            delay: 0, distance: 7, placement: 'auto-start', overflowPadding: 10, arrowPadding: 10
-                        }">
-                </button>
+                <TooltipInfo v-if="tooltip" container="#mainContainer" :tooltip="tooltip!" />
             </p>
         </div>
         <div flex flex-col w-full>
