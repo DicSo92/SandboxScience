@@ -8,8 +8,9 @@
             </NuxtLink>
         </div>
         <div absolute left-0 class="top-13 z-10" :style="toggleBtnStyle">
-            <button type="button" title="Settings" aria-label="Settings" rounded-r-3xl btn flex items-center pr-2 class="pl-0.5 py-[14px]" bg="gray-800 hover:gray-900" @click="toggle">
-                <span i-tabler-settings text-lg></span>
+            <button type="button" title="Settings" aria-label="Settings" rounded-r-3xl btn flex flex-col items-center pr-2 class="-ml-1 pl-2 py-[14px]" bg="amber-700 hover:amber-800" @click="toggle">
+                <span i-tabler-settings text-lg mb-1></span>
+                <span class="vertical-90 rotate-180" text-sm>Settings</span>
             </button>
         </div>
 
@@ -27,7 +28,7 @@
                     leave-to-class="-translate-x-full">
             <div v-show="modelValue" :style="`width: ${sidebarWidth}px`"
                  class="z-50 fixed inset-y-0 left-0 max-w-full max-h-full flex border-r border-gray-400"> <!-- inset-y-0 for fullheight sidebar -->
-                <div class="h-full w-full flex flex-col py-2 bg-zinc-700 shadow-xl">
+                <div class="h-full w-full flex flex-col py-2 bg-zinc-700 shadow-xl"> <!-- bg-slate-900/80 -->
                     <slot></slot>
                 </div>
             </div>
@@ -67,4 +68,8 @@ export default defineComponent({
 
 <style scoped>
 #sidebarLeftBtn {}
+.vertical-90 {
+    writing-mode: vertical-rl;
+    text-orientation: sideways;
+}
 </style>
