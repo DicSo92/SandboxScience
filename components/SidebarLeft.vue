@@ -10,7 +10,7 @@
         </div>
         <div absolute left-0 top-13 z-40 :style="toggleBtnStyle">
             <button type="button" title="Settings" aria-label="Settings" rounded-r-3xl btn flex flex-col items-center pr-2
-                    class="-ml-1 pl-2 py-[14px] ring-1 ring-slate-500 backdrop-blur-sm" bg="cyan-800/85 hover:cyan-900/85" @click="toggle">
+                    class="-ml-1 pl-2 py-[14px] ring-1 ring-slate-500 backdrop-blur-sm" bg="cyan-900/85 hover:cyan-950/85" @click="toggle">
                 <span i-tabler-settings text-lg mb-1></span>
                 <span class="vertical-90 rotate-180" text-sm>Settings</span>
             </button>
