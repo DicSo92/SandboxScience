@@ -2,13 +2,7 @@
     <div flex items-center>
         <p v-if="inactiveLabel" class="mr-2 pt-0.5 text-2sm" :class="(colorfulLabel && !modelValue) ? 'text-white font-600' : (colorfulLabel && modelValue) ? 'text-zinc-400 font-400' : ''">
             {{ inactiveLabel }}
-            <button v-if="tooltip" name="Info" aria-label="Info" i-tabler-info-circle text-zinc text-base cursor-help align-top
-                    v-tooltip="{
-                            content: tooltip, html: true, container: '#mainContainer',
-                            popperClass: 'bg-gray-800 text-sm max-w-64 pointer-events-none',
-                            delay: 0, distance: 7, placement: 'auto-start', overflowPadding: 10, arrowPadding: 10
-                        }">
-            </button>
+            <TooltipInfo v-if="tooltip" container="#mainContainer" :tooltip="tooltip!" />
         </p>
         <label class="relative inline-flex items-center cursor-pointer">
             <input type="checkbox" class="sr-only peer" @change="toggle" :value="modelValue" :checked="modelValue" :disabled="disabled">
@@ -21,13 +15,7 @@
         </label>
         <p v-if="label"  class="ml-2 pt-0.5 text-2sm" :class="(colorfulLabel && modelValue) ? 'text-white font-600' : (colorfulLabel && !modelValue) ? 'text-zinc-400 font-400' : ''">
             {{ label }}
-            <button v-if="tooltip" name="Info" aria-label="Info" i-tabler-info-circle text-zinc text-base cursor-help align-top
-                    v-tooltip="{
-                            content: tooltip, html: true, container: '#mainContainer',
-                            popperClass: 'bg-gray-800 text-sm max-w-64 pointer-events-none',
-                            delay: 0, distance: 7, placement: 'auto-start', overflowPadding: 10, arrowPadding: 10
-                        }">
-            </button>
+            <TooltipInfo v-if="tooltip" container="#mainContainer" :tooltip="tooltip!" />
         </p>
     </div>
 </template>

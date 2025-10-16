@@ -1,7 +1,7 @@
 <template>
     <component :is="tag" name="Info" aria-label="Info" i-tabler-info-circle text-zinc text-base cursor-help align-top inline-flex
             v-tooltip="{ content: tooltip, html: true, container: container,
-            popperClass: 'bg-gray-800 text-sm max-w-64 pointer-events-none', delay: 0,
+            popperClass: 'bg-slate-700/50 backdrop-blur-sm text-sm max-w-64 pointer-events-none rounded-md', delay: 0,
             distance: 7, placement: 'auto-start', overflowPadding: 10, arrowPadding: 10 }">
     </component>
 </template>
@@ -25,6 +25,9 @@ defineProps({
 })
 </script>
 
-<style scoped>
-
+<style>
+.v-popper__popper {
+}
+.v-popper__inner {
+}
 </style>

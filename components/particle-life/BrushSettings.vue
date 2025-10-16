@@ -1,32 +1,32 @@
 <template>
-    <div class="faded-hover-effect">
-        <button type="button" title="Brush" aria-label="Brush" btn w-8 aspect-square rounded-full p1 flex items-center justify-center
-                :class="particleLife.isBrushActive && particleLife.brushType === 1 ? 'bg-blue-900 hover:bg-blue-950' : 'bg-zinc-800 hover:bg-zinc-700'"
+    <div> <!-- faded-hover-effect -->
+        <button type="button" title="Brush" aria-label="Brush" btn w-8 aspect-square rounded-full p1 flex items-center justify-center backdrop-blur-sm
+                :class="particleLife.isBrushActive && particleLife.brushType === 1 ? 'bg-blue-900 hover:bg-blue-950' : 'bg-slate-800/80 hover:bg-slate-700/80'"
                 @click="toggleBrushType(1)">
             <span i-tabler-brush text-sm></span>
         </button>
-        <button type="button" title="Eraser" aria-label="Eraser" btn w-8 aspect-square rounded-full p1 flex items-center justify-center
-                :class="particleLife.isBrushActive && particleLife.brushType === 0 ? 'bg-blue-900 hover:bg-blue-950' : 'bg-zinc-800 hover:bg-zinc-700'"
+        <button type="button" title="Eraser" aria-label="Eraser" btn w-8 aspect-square rounded-full p1 flex items-center justify-center backdrop-blur-sm
+                :class="particleLife.isBrushActive && particleLife.brushType === 0 ? 'bg-blue-900 hover:bg-blue-950' : 'bg-slate-800/80 hover:bg-slate-700/80'"
                 @click="toggleBrushType(0)">
             <span i-tabler-eraser text-sm></span>
         </button>
-        <button type="button" title="Attractor" aria-label="Attractor" btn w-8 aspect-square rounded-full p1 flex items-center justify-center
-                :class="particleLife.isBrushActive && particleLife.brushType === 3 ? 'bg-blue-900 hover:bg-blue-950' : 'bg-zinc-800 hover:bg-zinc-700'"
+        <button type="button" title="Attractor" aria-label="Attractor" btn w-8 aspect-square rounded-full p1 flex items-center justify-center backdrop-blur-sm
+                :class="particleLife.isBrushActive && particleLife.brushType === 3 ? 'bg-blue-900 hover:bg-blue-950' : 'bg-slate-800/80 hover:bg-slate-700/80'"
                 @click="toggleBrushType(3)">
             <span i-tabler-magnetic text-sm></span>
         </button>
-        <button type="button" title="Repeller" aria-label="Repeller" btn w-8 aspect-square rounded-full p1 flex items-center justify-center
-                :class="particleLife.isBrushActive && particleLife.brushType === 2 ? 'bg-blue-900 hover:bg-blue-950' : 'bg-zinc-800 hover:bg-zinc-700'"
+        <button type="button" title="Repeller" aria-label="Repeller" btn w-8 aspect-square rounded-full p1 flex items-center justify-center backdrop-blur-sm
+                :class="particleLife.isBrushActive && particleLife.brushType === 2 ? 'bg-blue-900 hover:bg-blue-950' : 'bg-slate-800/80 hover:bg-slate-700/80'"
                 @click="toggleBrushType(2)">
             <span i-tabler-magnet text-sm></span>
         </button>
         <div class="settings-btn group">
-            <button type="button" title="Brush Settings" aria-label="Brush Settings" btn w-8 aspect-square rounded-full p1 flex items-center justify-center bg="zinc-800 hover:zinc-700">
+            <button type="button" title="Brush Settings" aria-label="Brush Settings" btn w-8 aspect-square rounded-full p1 flex items-center justify-center backdrop-blur-sm bg="slate-800/80 hover:slate-700/80">
                 <span i-tabler-settings text-sm></span>
             </button>
             <div class="settings-panel absolute pr-1 right-full top-0 transition-all duration-200 ease-in-out delay-300
                 opacity-0 invisible group-hover:opacity-100 group-hover:visible group-hover:translate-x-0 group-hover:transition-delay-0">
-                <div p-3 pl-4 bg-zinc-800 w-64 rounded-lg text-left>
+                <div p-3 pl-4 w-64 rounded-lg text-left backdrop-blur-sm class="bg-slate-800/80">
                     <p underline mb-2>Brush Settings :</p>
                     <div text-gray-300>
                         <div flex items-center mb-2>
@@ -67,7 +67,7 @@
             </div>
         </div>
 
-        <div flex flex-col p1 rounded-full bg-gray-8>
+        <div flex flex-col p1 rounded-full backdrop-blur-sm class="bg-slate-800/80">
             <button type="button" name="All Colors" aria-label="All Colors"
                     w-6 aspect-square rounded-full class="rainbow"
                     :class="!particleLife.brushes.length && 'border-3 border-gray-400 shadow-inner'"

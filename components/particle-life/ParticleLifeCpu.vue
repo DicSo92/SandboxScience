@@ -9,13 +9,16 @@
                         <div flex items-center class="-mb-0.5">
                             <div i-lets-icons-bubble text-2xl mr-2 class="text-[#2a9d8f] -mt-0.5"></div>
                             <h1 font-800 text-lg tracking-widest class="text-[#dff6f3] drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Particle Life</h1>
+                            <p class="ml-2 px-2 py-0.5 rounded-lg ring-1 uppercase justify-center font-mono font-bold bg-sky-600/20 text-sky-400 ring-sky-500/30">
+                                CPU
+                            </p>
                         </div>
 <!--                        <div rounded-lg border-2 border-white style="width: 72px;">-->
 <!--                            <div i-tabler-badge-3d style="font-size: 30px" class="-my-1"></div>-->
 <!--                        </div>-->
                         <ToggleSwitch inactive-label="2D" label="3D" colorful-label v-model="particleLife.is3D" />
                     </div>
-                    <hr>
+                    <hr border-slate-500>
                     <div overflow-auto flex-1 mt-2 class="scrollableArea">
                         <Collapse label="Matrix Settings" icon="i-tabler-grid-4x4"
                                   tooltip="Modify matrix values by clicking on cells in the grid. <br>
@@ -178,7 +181,7 @@
                         </Collapse>
                     </div>
                     <div absolute bottom-2 right-0 z-100 class="-mr-px">
-                        <button rounded-l-lg border border-gray-400 flex items-center p-1 bg="gray-800 hover:gray-900" @click="particleLife.sidebarLeftOpen = false">
+                        <button rounded-l-lg border border-gray-400 flex items-center p-1 bg="slate-900/85 hover:slate-950/85" @click="particleLife.sidebarLeftOpen = false">
                             <span i-tabler-chevron-left text-2xl></span>
                         </button>
                     </div>

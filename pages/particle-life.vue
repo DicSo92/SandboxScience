@@ -1,6 +1,6 @@
 <template>
     <transition name="fade" @after-leave="onBootOverlayHidden">
-        <div v-if="isBooting" class="fixed inset-0 z-50 bg-gray-950">
+        <div v-if="isBooting" class="fixed inset-0 z-100 bg-gray-950">
             <div class="absolute inset-0 flex items-center justify-center">
                 <div class="flex flex-col items-center gap-3">
                     <div class="h-10 w-10 rounded-full border-4 border-white/30 border-t-white animate-spin"></div>
@@ -10,7 +10,7 @@
         </div>
     </transition>
     <transition name="overlay-animation">
-        <div v-if="isOverlayOpen" class="fixed inset-0 z-40 bg-gray-950/40 backdrop-blur-[0.6px]"></div>
+        <div v-if="isOverlayOpen" class="fixed inset-0 z-90 bg-gray-950/40 backdrop-blur-[0.6px]"></div>
     </transition>
 
     <Modal :modal-active="isModalOpen" @close="closeIntroModal" overlayColor="transparent" modalClass="max-w-[880px]">
