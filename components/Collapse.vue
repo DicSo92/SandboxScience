@@ -1,18 +1,21 @@
 <template>
     <section w-full>
-        <div py-1 px-4 flex justify-between items-center bg-zinc-900 cursor-pointer rounded-full relative z-50
-             @click="toggle" :class="isOpen && 'shadow-lg'">
-            <div flex items-center>
-                <div v-if="icon" :class="icon" text-lg mr-2></div>
-                <p flex items-center>
-                    {{ label }}
-                    <TooltipInfo v-if="tooltip" container="#mainContainer" :tooltip="tooltip" ml-1 />
-                </p>
+        <div :class="isOpen && 'bg-slate-700/30 rounded-t-[18px]'">
+            <div py-1 px-4 flex justify-between items-center cursor-pointer rounded-full relative z-50
+                 @click="toggle" class="hover:bg-slate-600/50" :class="isOpen ? 'shadow-lg bg-slate-700/27' : 'bg-slate-700/50'">
+                <div flex items-center>
+                    <div v-if="icon" :class="icon" text-lg mr-2></div>
+                    <p flex items-center>
+                        {{ label }}
+                        <TooltipInfo v-if="tooltip" container="#mainContainer" :tooltip="tooltip" ml-1 />
+                    </p>
+                </div>
+                <div :class="isOpen && 'rotate-180'" class="icon i-tabler-caret-up-filled" text-2xl></div>
             </div>
-            <div :class="isOpen && 'rotate-180'" class="icon i-tabler-caret-up-filled" text-2xl></div>
         </div>
+
         <transition name="collapse">
-            <div v-show="isOpen" class="content -mt-4" p-2 bg-zinc-800 pt-6 rounded-b-lg relative z-40>
+            <div v-show="isOpen" class="content bg-slate-700/30" p-2 rounded-b-lg relative z-40>
                 <slot></slot>
             </div>
         </transition>

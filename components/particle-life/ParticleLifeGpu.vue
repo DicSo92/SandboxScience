@@ -8,11 +8,14 @@
                     <div flex justify-between items-end mb-2 px-1>
                         <div flex items-center class="-mb-0.5">
                             <div i-lets-icons-bubble text-2xl mr-2 class="text-[#2a9d8f] -mt-0.5"></div>
-                            <h1 font-800 text-lg tracking-widest class="text-[#dff6f3] drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Particle Life (GPU)</h1>
+                            <h1 font-800 text-lg tracking-widest class="text-[#dff6f3] drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Particle Life</h1>
+                            <p class="ml-2 px-2 py-0.5 rounded-lg ring-1 uppercase justify-center font-mono font-bold bg-fuchsia-600/20 text-fuchsia-400 ring-fuchsia-500/30">
+                                GPU
+                            </p>
                         </div>
 <!--                        <ToggleSwitch inactive-label="2D" label="3D" colorful-label v-model="particleLife.is3D" />-->
                     </div>
-                    <hr>
+                    <hr border-slate-500>
                     <div overflow-auto flex-1 mt-2 class="scrollableArea">
 <!--                        <section mb-4>-->
 <!--                            <div flex gap-2>-->
@@ -44,14 +47,14 @@
                                         tooltip="Specify the number of particle colors. <br> Each color interacts with all others, with distinct forces and interaction ranges."
                                         :min="1" :max="16" :step="1" v-model="particleLife.numColors" mt-2>
                             </RangeInput>
-                            <div flex items-center>
+                            <div flex items-center class="mt-0.5">
                                 <p class="w-2/3 text-2sm mt-1">
                                     World Size
                                     <TooltipInfo container="#mainContainer" tooltip="Adjust the size of the area where particles are contained." />
                                 </p>
                                 <Input label="x" v-model="particleLife.simWidth" @change="updateSimWidth" mr-2 />
                                 <Input label="y" v-model="particleLife.simHeight" @change="updateSimHeight" mr-2 />
-                                <button type="button" btn rounded-full p2 flex items-center bg="zinc-900 hover:#212121" @click="particleLife.linkProportions = !particleLife.linkProportions">
+                                <button type="button" btn rounded-full p2 flex items-center bg="slate-950/90 hover:slate-950/50" @click="particleLife.linkProportions = !particleLife.linkProportions">
                                     <span :class="particleLife.linkProportions ? 'i-tabler-link' : 'i-tabler-unlink'" text-sm></span>
                                 </button>
                             </div>
@@ -172,7 +175,7 @@
                         </Collapse>
                     </div>
                     <div absolute bottom-2 right-0 z-100 class="-mr-px">
-                        <button rounded-l-lg border border-gray-400 flex items-center p-1 bg="gray-800 hover:gray-900" @click="particleLife.sidebarLeftOpen = false">
+                        <button rounded-l-lg border border-slate-600 flex items-center p-1 bg="slate-900/85 hover:slate-950/85" @click="particleLife.sidebarLeftOpen = false">
                             <span i-tabler-chevron-left text-2xl></span>
                         </button>
                     </div>
@@ -181,7 +184,7 @@
         </SidebarLeft>
         <canvas ref="canvasRef" id="canvasRef" @contextmenu.prevent w-full h-full cursor-crosshair></canvas>
         <div absolute top-0 right-0 flex flex-col items-end text-right pointer-events-none>
-            <div flex items-center text-start text-xs pl-4 pr-1 bg-gray-800 rounded-bl-xl style="padding-bottom: 1px; opacity: 75%">
+            <div flex items-center text-start text-xs pl-4 pr-1 bg-slate-800 rounded-bl-xl style="padding-bottom: 1px; opacity: 75%" >
                 <div flex>Fps: <div ml-1 min-w-8>{{ fps }}</div></div>
 <!--                <div flex ml-3>Process: <div ml-1 min-w-7>{{ Math.round(executionTime) }}</div></div>-->
             </div>
