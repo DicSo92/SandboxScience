@@ -3,14 +3,14 @@
         <div fixed left-0 z-40 :style="toggleBtnStyle">
             <NuxtLink to="/" title="Home" aria-label="Home">
                 <button type="button" name="Home" aria-label="Home" rounded-br-3xl btn flex items-center p-2
-                        class="-mt-0.5 -ml-1 mr-px ring-1 ring-slate-700 backdrop-blur-sm" bg="slate-900/85 hover:slate-950/85">
+                        class="-mt-0.5 -ml-1 mr-px ring-1 ring-slate-500 backdrop-blur-sm" bg="slate-900/85 hover:slate-950/85">
                     <span class="i-custom:icon text-2xl"></span>
                 </button>
             </NuxtLink>
         </div>
         <div absolute left-0 top-13 z-40 :style="toggleBtnStyle">
             <button type="button" title="Settings" aria-label="Settings" rounded-r-3xl btn flex flex-col items-center pr-2
-                    class="-ml-1 pl-2 py-[14px] ring-1 ring-slate-950 backdrop-blur-sm" bg="amber-700/85 hover:amber-800/85" @click="toggle">
+                    class="-ml-1 pl-2 py-[14px] ring-1 ring-slate-500 backdrop-blur-sm" bg="cyan-800/85 hover:cyan-900/85" @click="toggle">
                 <span i-tabler-settings text-lg mb-1></span>
                 <span class="vertical-90 rotate-180" text-sm>Settings</span>
             </button>
