@@ -57,7 +57,7 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
     const showBrushCircle = ref<boolean>(true) // Show the brush circle
 
     const glowSize = ref<number>(10.0) // Size of the glow effect
-    const glowIntensity = ref<number>(0.1) // Intensity of the glow effect
+    const glowIntensity = ref<number>(0.066) // Intensity of the glow effect
     const glowSteepness = ref<number>(3.0) // Steepness of the glow effect
     const particleOpacity = ref<number>(0.85) // Opacity of the particles
 
