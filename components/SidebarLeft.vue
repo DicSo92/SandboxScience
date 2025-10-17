@@ -11,7 +11,11 @@
         <div absolute left-0 top-13 z-40 :style="toggleBtnStyle">
             <button type="button" title="Settings" aria-label="Settings" rounded-r-3xl btn flex flex-col items-center pr-2
                     class="-ml-1 pl-2 py-[14px] ring-1 ring-slate-500 backdrop-blur-sm" bg="cyan-900/85 hover:cyan-950/85" @click="toggle">
-                <span i-tabler-settings text-lg mb-1></span>
+<!--                <span i-tabler-settings text-lg mb-1></span>-->
+                <span class="relative flex mb-1">
+                    <span i-tabler-settings v-show="!modelValue" class="absolute inline-flex text-sm h-full w-full opacity-75 ping"></span>
+                    <span i-tabler-settings class="relative inline-flex text-lg"></span>
+                </span>
                 <span class="vertical-90 rotate-180" text-sm font-medium>Settings</span>
             </button>
         </div>
@@ -72,5 +76,22 @@ export default defineComponent({
 .vertical-90 {
     writing-mode: vertical-rl;
     text-orientation: sideways;
+}
+.ping {
+    animation: ping 4s cubic-bezier(0,0,0.2,1) 4s infinite;
+}
+@keyframes ping {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    20% {
+        transform: scale(1.75);
+        opacity: 0;
+    }
+    100% {
+        transform: scale(1.75);
+        opacity: 0;
+    }
 }
 </style>
