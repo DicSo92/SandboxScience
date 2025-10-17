@@ -26,7 +26,7 @@
 <!--                                </button>-->
 <!--                            </div>-->
 <!--                        </section>-->
-                        <Collapse label="Matrix Settings" icon="i-tabler-grid-4x4"
+                        <Collapse label="Matrix Settings" icon="i-tabler-grid-4x4 text-indigo-500"
                                   tooltip="Modify matrix values by clicking on cells in the grid. <br>
                                   Adjust individual cell values with the slider, or click and drag to change them directly. <br>
                                   Use Ctrl + Click to select multiple cells for group adjustments. <br>
@@ -38,7 +38,7 @@
                                             @updateMaxMatrix="updateMaxMatrixValue">
                             </MatrixSettings>
                         </Collapse>
-                        <Collapse label="World Settings" icon="i-tabler-world-cog" opened mt-2>
+                        <Collapse label="World Settings" icon="i-tabler-world-cog text-cyan-500" opened mt-2>
                             <RangeInput input label="Particle Count"
                                         tooltip="Adjust the total number of particles. <br> More particles may reveal complex interactions but can increase computational demand."
                                         :min="16" :max="1048576" :step="16" v-model="particleLife.numParticles" @update:modelValue="setNewNumParticles">
@@ -82,7 +82,7 @@
                                 </div>
                             </div>
                         </Collapse>
-                        <Collapse label="Physics Settings" icon="i-tabler-atom" opened mt-2>
+                        <Collapse label="Physics Settings" icon="i-tabler-atom text-fuchsia-500" opened mt-2>
                             <RangeInput input label="Repel Force"
                                         tooltip="Adjust the force that repels particles from each other. <br> Higher values increase the separation distance."
                                         :min="0.01" :max="4" :step="0.01" v-model="particleLife.repel">
@@ -96,7 +96,7 @@
                                         :min="0" :max="1" :step="0.01" v-model="particleLife.frictionFactor" mt-2>
                             </RangeInput>
                         </Collapse>
-                        <Collapse label="Randomizer Settings" icon="i-game-icons-perspective-dice-six-faces-random" mt-2
+                        <Collapse label="Randomizer Settings" icon="i-game-icons-perspective-dice-six-faces-random text-teal-500" mt-2
                                   tooltip="Adjust the parameters for randomizing particle attributes. <br> Configure the ranges for minimum and maximum interaction radii.">
                             <RangeInputMinMax input label="Min. Radius"
                                               tooltip="Set the range for generating minimum interaction radii. <br> This determines the range of possible values for the minimum distance at which particles begin to interact."
@@ -107,7 +107,7 @@
                                               :min="0" :max="256" :step="1" v-model="particleLife.maxRadiusRange">
                             </RangeInputMinMax>
                         </Collapse>
-                        <Collapse label="Graphics Settings" icon="i-tabler-photo-cog" mt-2>
+                        <Collapse label="Graphics Settings" icon="i-tabler-photo-cog text-emerald-500" mt-2>
                             <RangeInput input label="Particle Size"
                                         tooltip="Controls the overall size of the particles in the simulation, allowing you to make them larger or smaller depending on your preference. This setting does not impact performance."
                                         :min="0.1" :max="6" :step="0.1" v-model="particleLife.particleSize">
@@ -146,7 +146,7 @@
                                         :min="0" :max="12" :step="1" v-model="particleLife.glowSteepness" mt-2>
                             </RangeInput>
                         </Collapse>
-                        <Collapse label="Camera Settings" icon="i-tabler-camera-cog" mt-2>
+                        <Collapse label="Camera Settings" icon="i-tabler-camera-cog text-violet-500" mt-2>
                             <RangeInput input label="Zoom Smoothing"
                                         tooltip="Adjusts the smoothness of the zoom. <br> Lower values result in a slower, more fluid zoom, while higher values make it faster and more abrupt."
                                         :min="0.01" :max="0.5" :step="0.01" v-model="particleLife.zoomSmoothing">
@@ -156,7 +156,7 @@
                                         :min="0.01" :max="0.5" :step="0.01" v-model="particleLife.panSmoothing" mt-2>
                             </RangeInput>
                         </Collapse>
-                        <Collapse label="Debug Tools" icon="i-tabler-bug" mt-2
+                        <Collapse label="Debug Tools" icon="i-tabler-bug text-rose-500" mt-2
                                   tooltip="Provides tools for visualizing the simulation's internal state. <br> Toggle the grid view to see spatial bins or activate a heatmap to analyze particle density. <br> These features are useful for debugging and performance tuning.">
                             <div flex>
                                 <ToggleSwitch label="Show Bins" colorful-label v-model="particleLife.isDebugBinsActive" mr-4

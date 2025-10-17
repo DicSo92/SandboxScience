@@ -20,7 +20,7 @@
                     </div>
                     <hr border-slate-500>
                     <div overflow-auto flex-1 mt-2 class="scrollableArea">
-                        <Collapse label="Matrix Settings" icon="i-tabler-grid-4x4"
+                        <Collapse label="Matrix Settings" icon="i-tabler-grid-4x4 text-indigo-500"
                                   tooltip="Modify matrix values by clicking on cells in the grid. <br>
                                   Adjust individual cell values with the slider, or click and drag to change them directly. <br>
                                   Use Ctrl + Click to select multiple cells for group adjustments. <br>
@@ -32,7 +32,7 @@
                                 @updateMaxMatrix="updateMaxMatrixValue">
                             </MatrixSettings>
                         </Collapse>
-                        <Collapse label="World Settings" icon="i-tabler-world-cog" opened mt-2>
+                        <Collapse label="World Settings" icon="i-tabler-world-cog text-cyan-500" opened mt-2>
                             <RangeInput input label="Particle Number"
                                         tooltip="Adjust the total number of particles. <br> More particles may reveal complex interactions but can increase computational demand."
                                         :min="0" :max="20000" :step="10" v-model="particleLife.numParticles">
@@ -85,7 +85,7 @@
                                 <Input label="Diameter" v-model="particleLife.gridHeight" @change="updateGridHeight" mr-2 />
                             </div>
                         </Collapse>
-                        <Collapse label="Force Settings" icon="i-tabler-atom" opened mt-2>
+                        <Collapse label="Physics Settings" icon="i-tabler-atom text-fuchsia-500" opened mt-2>
                             <RangeInput input label="Repel Force"
                                         tooltip="Adjust the force that repels particles from each other. <br> Higher values increase the separation distance."
                                         :min="0.01" :max="4" :step="0.01" v-model="particleLife.repel">
@@ -99,7 +99,7 @@
                                         :min="0" :max="1" :step="0.01" v-model="particleLife.frictionFactor" mt-2>
                             </RangeInput>
                         </Collapse>
-                        <Collapse label="Randomizer Settings" icon="i-game-icons-perspective-dice-six-faces-random" mt-2
+                        <Collapse label="Randomizer Settings" icon="i-game-icons-perspective-dice-six-faces-random text-teal-500" mt-2
                                   tooltip="Adjust the parameters for randomizing particle attributes. <br> Configure the ranges for minimum and maximum interaction radii.">
                             <RangeInputMinMax input label="Min. Radius"
                                               tooltip="Set the range for generating minimum interaction radii. <br> This determines the range of possible values for the minimum distance at which particles begin to interact."
@@ -110,7 +110,7 @@
                                               :min="particleLife.minRadiusRange[1]" :max="300" :step="1" v-model="particleLife.maxRadiusRange">
                             </RangeInputMinMax>
                         </Collapse>
-                        <Collapse label="Graphics Settings" icon="i-tabler-photo-cog" mt-2>
+                        <Collapse label="Graphics Settings" icon="i-tabler-photo-cog text-emerald-500" mt-2>
                             <div flex items-center justify-between mb-2>
                                 <p underline text-gray-300 class="-mt-0.5">General Settings :</p>
                                 <ToggleSwitch inactive-label="Circle Shape" v-model="particleLife.isCircle"
@@ -141,7 +141,7 @@
                                         :min="particleLife.minOpacity" :max="2" :step="0.01" v-model="particleLife.maxOpacity" mt-2>
                             </RangeInput>
                         </Collapse>
-                        <Collapse label="Debug Tools" icon="i-tabler-bug" mt-2
+                        <Collapse label="Debug Tools" icon="i-tabler-bug text-rose-500" mt-2
                                   tooltip="Access debugging tools to visualize and refine the simulation. <br> Manage cell boundaries, adjust cell sizes, and control particle groupings to troubleshoot and optimize performance.">
                             <div flex items-center justify-between>
                                 <div flex>
@@ -168,7 +168,7 @@
                             </RangeInput>
                         </Collapse>
 
-                        <Collapse label="Save and Share" icon="i-carbon-save" mt-2>
+                        <Collapse label="Save and Share" icon="i-carbon-save text-yellow-500" mt-2>
                             <div flex>
                                 <button type="button" btn rounded-full p2 flex items-center text-sm bg="zinc-900 hover:#212121" @click="toggleCaptureMode('screenshot')">
                                     <span class="i-tabler-photo" mr-1></span>

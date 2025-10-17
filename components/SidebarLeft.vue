@@ -12,7 +12,7 @@
             <button type="button" title="Settings" aria-label="Settings" rounded-r-3xl btn flex flex-col items-center pr-2
                     class="-ml-1 pl-2 py-[14px] ring-1 ring-slate-500 backdrop-blur-sm" bg="cyan-900/85 hover:cyan-950/85" @click="toggle">
                 <span i-tabler-settings text-lg mb-1></span>
-                <span class="vertical-90 rotate-180" text-sm>Settings</span>
+                <span class="vertical-90 rotate-180" text-sm font-medium>Settings</span>
             </button>
         </div>
 
