@@ -66,7 +66,8 @@ export default defineComponent({
         const noSelectionValue = ref<number>(40)
 
         const neutralColor = [12, 12, 12]
-        const targetColor = [12, 116, 137] // blue cerulean
+        // const targetColor = [12, 116, 137] // blue cerulean
+        const targetColor = [6, 182, 212] // #06b6d4 cyan-500
 
         let dragging = false
         let wasDragging = false
