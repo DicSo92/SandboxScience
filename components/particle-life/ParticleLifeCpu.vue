@@ -549,7 +549,7 @@ export default defineComponent({
             for (let i = 0; i < numColors; i++) {
                 matrix.push([])
                 for (let j = 0; j < numColors; j++) {
-                    matrix[i].push(Number((Math.random() * 2 - 1).toFixed(4)))
+                    matrix[i].push(Math.round((Math.random() * 2 - 1) * 100) / 100)
                 }
             }
             return matrix
@@ -1613,7 +1613,7 @@ export default defineComponent({
                         newMinRadiusMatrix[i][j] = minRadiusMatrix[i][j]
                         newMaxRadiusMatrix[i][j] = maxRadiusMatrix[i][j]
                     } else { // Set new rules for the new colors
-                        newRulesMatrix[i][j] = Number((Math.random() * 2 - 1).toFixed(4)) // Set a random rule between -1 and 1
+                        newRulesMatrix[i][j] = Math.round((Math.random() * 2 - 1) * 100) / 100 // Set a random rule between -1 and 1
 
                         // Set a random min radius between the range
                         const minRandom = Math.floor(Math.random() * (particleLife.minRadiusRange[1] - particleLife.minRadiusRange[0] + 1) + particleLife.minRadiusRange[0])
@@ -1664,8 +1664,9 @@ export default defineComponent({
             particleLife.minRadiusMatrix = minRadiusMatrix
         }
         function updateRulesMatrixValue(x: number, y: number, value: number) {
-            particleLife.rulesMatrix[x][y] = value
-            rulesMatrix[x][y] = value
+            const roundedValue = Math.round(value * 100) / 100
+            particleLife.rulesMatrix[x][y] = roundedValue
+            rulesMatrix[x][y] = roundedValue
         }
         function updateMinMatrixValue(x: number, y: number, value: number) {
             particleLife.minRadiusMatrix[x][y] = value

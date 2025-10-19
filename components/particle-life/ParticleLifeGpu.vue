@@ -17,15 +17,22 @@
                     </div>
                     <hr border-slate-500>
                     <div overflow-auto flex-1 mt-2 class="scrollableArea">
-<!--                        <section mb-4>-->
-<!--                            <div flex gap-2>-->
-<!--                                <SelectInput v-model="particleLife.selectedSpawnPositionOption" :options="particleLife.spawnPositionOptions"></SelectInput>-->
-<!--                                <button type="button" btn px-3 rounded-full flex items-center bg="zinc-900 hover:#212121">-->
-<!--                                    <span class="i-game-icons-perspective-dice-six-faces-random" mr-1></span>-->
-<!--                                    Positions-->
-<!--                                </button>-->
-<!--                            </div>-->
-<!--                        </section>-->
+                        <section mb-4>
+                            <div flex gap-2>
+                                <SelectInput v-model="particleLife.selectedSpawnPositionOption" :options="particleLife.spawnPositionOptions"></SelectInput>
+                                <button @click="updateParticlePositions" type="button" btn px-3 rounded-full flex items-center bg="zinc-900 hover:#212121">
+                                    <span class="i-game-icons-perspective-dice-six-faces-random" mr-1></span>
+                                    Positions
+                                </button>
+                            </div>
+                            <div flex gap-2 mt-2>
+                                <SelectInput v-model="particleLife.selectedRulesOption" :options="rulesOptions"></SelectInput>
+                                <button @click="updateRulesMatrix" type="button" btn px-3 rounded-full flex items-center bg="zinc-900 hover:#212121">
+                                    <span class="i-game-icons-perspective-dice-six-faces-random" mr-1></span>
+                                    Rules
+                                </button>
+                            </div>
+                        </section>
                         <Collapse label="Matrix Settings" icon="i-tabler-grid-4x4 text-indigo-500"
                                   tooltip="Modify matrix values by clicking on cells in the grid. <br>
                                   Adjust individual cell values with the slider, or click and drag to change them directly. <br>
@@ -239,6 +246,7 @@ import WallStateSelection from "~/components/particle-life/WallStateSelection.vu
 import WrapModeSelection from "~/components/particle-life/WrapModeSelection.vue";
 import MatrixSettings from "~/components/particle-life/MatrixSettings.vue";
 import BrushSettings from "~/components/particle-life/BrushSettings.vue";
+import { RULES_OPTIONS, generateRules } from '~/helpers/utils/rulesGenerator';
 
 import heatmapImage from 'assets/particle-life-gpu/images/heatmap_red4x_256x1.png';
 
@@ -273,6 +281,7 @@ export default defineComponent({
         const mainContainer = ref<HTMLElement | null>(null)
         const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(mainContainer)
         const particleLife = useParticleLifeGPUStore()
+        const rulesOptions = RULES_OPTIONS
         const fps = useFps()
         const executionTime = ref<number>(0)
         const canvasRef = ref<HTMLCanvasElement | null>(null)
@@ -686,7 +695,7 @@ export default defineComponent({
         }
         const initLife = async () => {
             isInitializing = true
-            setRulesMatrix(makeRandomRulesMatrix())
+            setRulesMatrix(generateRules(0, NUM_TYPES)) // Random rule
             setMinRadiusMatrix(makeRandomMinRadiusMatrix())
             setMaxRadiusMatrix(makeRandomMaxRadiusMatrix())
             // setRulesMatrix([[-0.2758, -0.9341, -0.7292, -0.2024, -0.4367, -0.4714, -0.8962],[0.3548, -0.4365, -0.5117, -0.3945, -0.7828, 0.7885, 0.4696],[-0.9114, -0.8742, -0.5724, 0.1277, 0.3471, 0.3468, -0.6377],[0.3619, 0.6267, -0.6251, -0.1823, -0.285, -0.7255, 0.4615],[-0.2717, 0.9975, -0.4783, -0.9001, -0.2176, -0.9916, -0.4428],[-0.133, -0.342, -0.5631, 0.1238, -0.2723, -0.7484, 0.8461],[0.571, -0.7669, 0.0851, 0.5078, 0.8143, -0.7627, 0.7893]])
@@ -2362,7 +2371,7 @@ export default defineComponent({
                 NUM_TYPES = newNumTypes
 
                 setRulesMatrix(resizeMatrix(rulesMatrix, oldNumTypes, newNumTypes, () => {
-                    return Number((Math.random() * 2 - 1).toFixed(4))
+                    return Math.round((Math.random() * 2 - 1) * 100) / 100
                 }))
                 setMinRadiusMatrix(resizeMatrix(minRadiusMatrix, oldNumTypes, newNumTypes, () => {
                     return Math.floor(Math.random() * (particleLife.minRadiusRange[1] - particleLife.minRadiusRange[0] + 1) + particleLife.minRadiusRange[0])
@@ -2388,6 +2397,20 @@ export default defineComponent({
                 isUpdatingParticles = false
                 isUpdateNumTypesPending = NEW_NUM_TYPES !== NUM_TYPES
             }
+        }
+        const updateParticlePositions = async () => {
+            switch (particleLife.selectedSpawnPositionOption) {
+                case 0: // Random
+                    initParticles()
+                    device.queue.writeBuffer(particleBuffer!, 0, initialParticles)
+                    break
+                case 1: // Circle
+                    break
+            }
+        }
+        const updateRulesMatrix = async () => {
+            setRulesMatrix(generateRules(particleLife.selectedRulesOption, NUM_TYPES))
+            updateInteractionMatrixBuffer()
         }
         // -------------------------------------------------------------------------------------------------------------
         async function readBufferFromGPU(buffer: GPUBuffer, size: number): Promise<ArrayBuffer> {
@@ -2440,16 +2463,6 @@ export default defineComponent({
                 initialParticles[baseIndex + 4] = Math.floor(Math.random() * NUM_TYPES)
             }
         }
-        function makeRandomRulesMatrix() {
-            let matrix: number[][] = []
-            for (let i = 0; i < NUM_TYPES; i++) {
-                matrix.push([])
-                for (let j = 0; j < NUM_TYPES; j++) {
-                    matrix[i].push(Number((Math.random() * 2 - 1).toFixed(4)))
-                }
-            }
-            return matrix
-        }
         function makeRandomMinRadiusMatrix() {
             let matrix: number[][] = []
             const min: number = particleLife.minRadiusRange[0]
@@ -2493,8 +2506,9 @@ export default defineComponent({
             regenerateLife()
         }
         const updateRulesMatrixValue = (x: number, y: number, value: number) => {
-            particleLife.rulesMatrix[x][y] = value
-            rulesMatrix[x][y] = value
+            const roundedValue = Math.round(value * 100) / 100
+            particleLife.rulesMatrix[x][y] = roundedValue
+            rulesMatrix[x][y] = roundedValue
             updateInteractionMatrixBuffer()
         }
         const updateMinMatrixValue = (x: number, y: number, value: number) => {
@@ -2806,6 +2820,7 @@ export default defineComponent({
             handleZoom, toggleFullscreen, isFullscreen, regenerateLife, step,
             updateSimWidth, updateSimHeight, updateNumParticles, setNewNumParticles,
             updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, newRandomRulesMatrix,
+            updateRulesMatrix, updateParticlePositions, rulesOptions
         }
     }
 });
