@@ -70,6 +70,7 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
     ])
     const selectedSpawnPositionOption = ref<number>(0) // Default to 'random'
     const selectedRulesOption = ref<number>(0) // Default to 'random'
+    const selectedColorPaletteOption = ref<number>(0) // Default to 'random'
 
     function $reset() {
         sidebarLeftOpen.value = false
@@ -88,7 +89,7 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
         repel, forceFactor, frictionFactor, useSpatialHash,
         isBrushActive, brushes, brushRadius, brushIntensity, brushType, attractForce, repulseForce, brushDirectionalForce, showBrushCircle,
         glowSize, glowIntensity, glowSteepness, particleOpacity,
-        spawnPositionOptions, selectedSpawnPositionOption, selectedRulesOption,
+        spawnPositionOptions, selectedSpawnPositionOption, selectedRulesOption, selectedColorPaletteOption,
         $reset
     }
 })

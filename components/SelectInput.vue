@@ -1,5 +1,5 @@
 <template>
-    <select v-model="value" @change="onChange" name="select-input" class="w-full rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-900 shadow-sm focus:outline-none">
+    <select v-model="value" @change="onChange" name="select-input" class="rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-900 shadow-sm focus:outline-none">
         <option v-for="(option, index) in options" :key="option.id" :value="option.id" class="text-gray-900">
             {{ option.name }}
         </option>

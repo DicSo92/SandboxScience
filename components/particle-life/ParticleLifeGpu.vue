@@ -19,18 +19,37 @@
                     <div overflow-auto flex-1 mt-2 class="scrollableArea">
                         <section mb-4>
                             <div flex gap-2>
-                                <SelectInput v-model="particleLife.selectedSpawnPositionOption" :options="particleLife.spawnPositionOptions"></SelectInput>
-                                <button @click="updateParticlePositions" type="button" btn px-3 rounded-full flex items-center bg="zinc-900 hover:#212121">
-                                    <span class="i-game-icons-perspective-dice-six-faces-random" mr-1></span>
-                                    Positions
-                                </button>
+                                <SelectInput class="w-8/12" v-model="particleLife.selectedColorPaletteOption" :options="paletteOptions"></SelectInput>
+                                <div grid grid-cols-2 gap-1 class="w-4/12">
+                                    <button @click="updateColors" type="button" btn px-3 rounded-full flex justify-center items-center bg="slate-800/80 hover:slate-800/50">
+                                        <span i-tabler-reload></span>
+                                    </button>
+                                    <button @click="updateColors(true)" type="button" btn px-3 rounded-full flex justify-center items-center bg="cyan-900/80 hover:cyan-900/50">
+                                        <span i-game-icons-perspective-dice-six-faces-random></span>
+                                    </button>
+                                </div>
                             </div>
                             <div flex gap-2 mt-2>
-                                <SelectInput v-model="particleLife.selectedRulesOption" :options="rulesOptions"></SelectInput>
-                                <button @click="updateRulesMatrix" type="button" btn px-3 rounded-full flex items-center bg="zinc-900 hover:#212121">
-                                    <span class="i-game-icons-perspective-dice-six-faces-random" mr-1></span>
-                                    Rules
-                                </button>
+                                <SelectInput class="w-8/12" v-model="particleLife.selectedRulesOption" :options="rulesOptions"></SelectInput>
+                                <div grid grid-cols-2 gap-1 class="w-4/12">
+                                    <button @click="updateRulesMatrix" type="button" btn px-3 rounded-full flex justify-center items-center bg="slate-800/80 hover:slate-800/50">
+                                        <span i-tabler-reload></span>
+                                    </button>
+                                    <button @click="updateRulesMatrix(true)" type="button" btn px-3 rounded-full flex justify-center items-center bg="cyan-900/80 hover:cyan-900/50">
+                                        <span i-game-icons-perspective-dice-six-faces-random></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div flex gap-2 mt-2>
+                                <SelectInput class="w-8/12" v-model="particleLife.selectedSpawnPositionOption" :options="particleLife.spawnPositionOptions"></SelectInput>
+                                <div grid grid-cols-2 gap-1 class="w-4/12">
+                                    <button @click="updateParticlePositions" type="button" btn px-3 rounded-full flex justify-center items-center bg="slate-800/80 hover:slate-800/50">
+                                        <span i-tabler-reload></span>
+                                    </button>
+                                    <button @click="updateParticlePositions(true)" type="button" btn px-3 rounded-full flex justify-center items-center bg="cyan-900/80 hover:cyan-900/50">
+                                        <span i-game-icons-perspective-dice-six-faces-random></span>
+                                    </button>
+                                </div>
                             </div>
                         </section>
                         <Collapse label="Matrix Settings" icon="i-tabler-grid-4x4 text-indigo-500"
@@ -247,6 +266,7 @@ import WrapModeSelection from "~/components/particle-life/WrapModeSelection.vue"
 import MatrixSettings from "~/components/particle-life/MatrixSettings.vue";
 import BrushSettings from "~/components/particle-life/BrushSettings.vue";
 import { RULES_OPTIONS, generateRules } from '~/helpers/utils/rulesGenerator';
+import { PALETTE_OPTIONS, generateColors } from "~/helpers/utils/colorsGenerator";
 
 import heatmapImage from 'assets/particle-life-gpu/images/heatmap_red4x_256x1.png';
 
@@ -282,6 +302,7 @@ export default defineComponent({
         const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(mainContainer)
         const particleLife = useParticleLifeGPUStore()
         const rulesOptions = RULES_OPTIONS
+        const paletteOptions = PALETTE_OPTIONS
         const fps = useFps()
         const executionTime = ref<number>(0)
         const canvasRef = ref<HTMLCanvasElement | null>(null)
@@ -2398,20 +2419,6 @@ export default defineComponent({
                 isUpdateNumTypesPending = NEW_NUM_TYPES !== NUM_TYPES
             }
         }
-        const updateParticlePositions = async () => {
-            switch (particleLife.selectedSpawnPositionOption) {
-                case 0: // Random
-                    initParticles()
-                    device.queue.writeBuffer(particleBuffer!, 0, initialParticles)
-                    break
-                case 1: // Circle
-                    break
-            }
-        }
-        const updateRulesMatrix = async () => {
-            setRulesMatrix(generateRules(particleLife.selectedRulesOption, NUM_TYPES))
-            updateInteractionMatrixBuffer()
-        }
         // -------------------------------------------------------------------------------------------------------------
         async function readBufferFromGPU(buffer: GPUBuffer, size: number): Promise<ArrayBuffer> {
             const readBuffer = device.createBuffer({
@@ -2445,13 +2452,7 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         function initColors() {
-            colors = new Float32Array(NUM_TYPES * 4)
-            for (let i = 0; i < NUM_TYPES; ++i) {
-                colors[i * 4] = Math.random()
-                colors[i * 4 + 1] = Math.random()
-                colors[i * 4 + 2] = Math.random()
-                colors[i * 4 + 3] = 1 // padding alpha channel
-            }
+            colors = generateColors(particleLife.selectedColorPaletteOption, NUM_TYPES)
             particleLife.currentColors = colors // Ensure the store is updated with the initial colors
         }
         function initParticles() {
@@ -2488,6 +2489,38 @@ export default defineComponent({
                 }
             }
             return matrix
+        }
+        const updateColors = async (useRandomGenerator: boolean | Event = false) => {
+            const shouldRandom = typeof useRandomGenerator === 'boolean' ? useRandomGenerator : false
+            if (shouldRandom) particleLife.selectedColorPaletteOption = Math.floor(Math.random() * paletteOptions.length)
+            colors = generateColors(particleLife.selectedColorPaletteOption, NUM_TYPES)
+            particleLife.currentColors = colors
+
+            const paddedSize = Math.ceil(colors.byteLength / 16) * 16
+            if (!colorBuffer || colorBuffer.size !== paddedSize) {
+                updateColorBuffer()
+                updateParticleBindGroups()
+            } else {
+                const paddedColors = new Float32Array(paddedSize / 4)
+                paddedColors.set(colors)
+                device.queue.writeBuffer(colorBuffer!, 0, paddedColors)
+            }
+        }
+        const updateRulesMatrix = async (useRandomGenerator: boolean | Event = false) => {
+            const shouldRandom = typeof useRandomGenerator === 'boolean' ? useRandomGenerator : false
+            if (shouldRandom) particleLife.selectedRulesOption = Math.floor(Math.random() * rulesOptions.length)
+            setRulesMatrix(generateRules(particleLife.selectedRulesOption, NUM_TYPES))
+            updateInteractionMatrixBuffer()
+        }
+        const updateParticlePositions = async (useRandomGenerator: boolean | Event = false) => {
+            switch (particleLife.selectedSpawnPositionOption) {
+                case 0: // Random
+                    initParticles()
+                    device.queue.writeBuffer(particleBuffer!, 0, initialParticles)
+                    break
+                case 1: // Circle
+                    break
+            }
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -2820,7 +2853,7 @@ export default defineComponent({
             handleZoom, toggleFullscreen, isFullscreen, regenerateLife, step,
             updateSimWidth, updateSimHeight, updateNumParticles, setNewNumParticles,
             updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, newRandomRulesMatrix,
-            updateRulesMatrix, updateParticlePositions, rulesOptions
+            updateRulesMatrix, updateParticlePositions, updateColors, rulesOptions, paletteOptions,
         }
     }
 });
