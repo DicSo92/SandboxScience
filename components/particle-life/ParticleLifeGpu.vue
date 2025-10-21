@@ -41,7 +41,7 @@
                                 </div>
                             </div>
                             <div flex gap-2 mt-2>
-                                <SelectInput class="w-8/12" v-model="particleLife.selectedSpawnPositionOption" :options="particleLife.spawnPositionOptions"></SelectInput>
+                                <SelectInput class="w-8/12" v-model="particleLife.selectedSpawnPositionOption" :options="positionOptions"></SelectInput>
                                 <div grid grid-cols-2 gap-1 class="w-4/12">
                                     <button @click="updateParticlePositions" type="button" btn px-3 rounded-full flex justify-center items-center bg="slate-800/80 hover:slate-800/50">
                                         <span i-tabler-reload></span>
@@ -267,6 +267,7 @@ import MatrixSettings from "~/components/particle-life/MatrixSettings.vue";
 import BrushSettings from "~/components/particle-life/BrushSettings.vue";
 import { RULES_OPTIONS, generateRules } from '~/helpers/utils/rulesGenerator';
 import { PALETTE_OPTIONS, generateColors } from "~/helpers/utils/colorsGenerator";
+import { POSITION_OPTIONS, generatePositions } from "~/helpers/utils/positionsGenerator";
 
 import heatmapImage from 'assets/particle-life-gpu/images/heatmap_red4x_256x1.png';
 
@@ -303,6 +304,7 @@ export default defineComponent({
         const particleLife = useParticleLifeGPUStore()
         const rulesOptions = RULES_OPTIONS
         const paletteOptions = PALETTE_OPTIONS
+        const positionOptions = POSITION_OPTIONS
         const fps = useFps()
         const executionTime = ref<number>(0)
         const canvasRef = ref<HTMLCanvasElement | null>(null)
@@ -2456,13 +2458,7 @@ export default defineComponent({
             particleLife.currentColors = colors // Ensure the store is updated with the initial colors
         }
         function initParticles() {
-            initialParticles = new Float32Array(NUM_PARTICLES * 5)
-            for (let i = 0; i < NUM_PARTICLES; ++i) {
-                const baseIndex = i * 5
-                initialParticles[baseIndex] = Math.random() * SIM_WIDTH
-                initialParticles[baseIndex + 1] = Math.random() * SIM_HEIGHT
-                initialParticles[baseIndex + 4] = Math.floor(Math.random() * NUM_TYPES)
-            }
+            initialParticles = generatePositions(particleLife.selectedColorPaletteOption, NUM_PARTICLES, NUM_TYPES, SIM_WIDTH, SIM_HEIGHT)
         }
         function makeRandomMinRadiusMatrix() {
             let matrix: number[][] = []
@@ -2493,6 +2489,7 @@ export default defineComponent({
         const updateColors = async (useRandomGenerator: boolean | Event = false) => {
             const shouldRandom = typeof useRandomGenerator === 'boolean' ? useRandomGenerator : false
             if (shouldRandom) particleLife.selectedColorPaletteOption = Math.floor(Math.random() * paletteOptions.length)
+
             colors = generateColors(particleLife.selectedColorPaletteOption, NUM_TYPES)
             particleLife.currentColors = colors
 
@@ -2509,18 +2506,16 @@ export default defineComponent({
         const updateRulesMatrix = async (useRandomGenerator: boolean | Event = false) => {
             const shouldRandom = typeof useRandomGenerator === 'boolean' ? useRandomGenerator : false
             if (shouldRandom) particleLife.selectedRulesOption = Math.floor(Math.random() * rulesOptions.length)
+
             setRulesMatrix(generateRules(particleLife.selectedRulesOption, NUM_TYPES))
             updateInteractionMatrixBuffer()
         }
         const updateParticlePositions = async (useRandomGenerator: boolean | Event = false) => {
-            switch (particleLife.selectedSpawnPositionOption) {
-                case 0: // Random
-                    initParticles()
-                    device.queue.writeBuffer(particleBuffer!, 0, initialParticles)
-                    break
-                case 1: // Circle
-                    break
-            }
+            const shouldRandom = typeof useRandomGenerator === 'boolean' ? useRandomGenerator : false
+            if (shouldRandom) particleLife.selectedSpawnPositionOption = Math.floor(Math.random() * positionOptions.length)
+
+            initialParticles = generatePositions(particleLife.selectedSpawnPositionOption, NUM_PARTICLES, NUM_TYPES, SIM_WIDTH, SIM_HEIGHT)
+            device.queue.writeBuffer(particleBuffer!, 0, initialParticles)
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -2853,7 +2848,7 @@ export default defineComponent({
             handleZoom, toggleFullscreen, isFullscreen, regenerateLife, step,
             updateSimWidth, updateSimHeight, updateNumParticles, setNewNumParticles,
             updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, newRandomRulesMatrix,
-            updateRulesMatrix, updateParticlePositions, updateColors, rulesOptions, paletteOptions,
+            updateRulesMatrix, updateParticlePositions, updateColors, rulesOptions, paletteOptions, positionOptions
         }
     }
 });
