@@ -360,7 +360,7 @@ export const grid: PosGen = (N, T, W, H) => {
     return A
 }
 // ---------------------------------------------------------------------------------------------------------------------
-export const gaussianClusters: PosGen = (N, T, W, H) => {
+export const softClusters: PosGen = (N, T, W, H) => {
     const A = new Float32Array(N * 5)
     const k = Math.max(2, Math.min(T, 8)) // number of clusters
     const centers: Array<[number, number]> = []
@@ -379,6 +379,126 @@ export const gaussianClusters: PosGen = (N, T, W, H) => {
         const y = cy + randN(0, sigma)
         writeParticle(A, i, x, y, i % T)
     }
+    return A
+}
+export const linkedClusters: PosGen = (N, T, W, H) => {
+    const A = new Float32Array(N * 5)
+    const k = Math.max(2, Math.min(T, 8))    // number of clusters
+    const margin = 0.18                            // edge margin (0..1)
+    const sigma = 0.06 * Math.min(W, H)            // cluster radius
+    const bridgeFrac = 0.18                        // fraction of bridge particles
+    const bridgeWidth = 0.005 * Math.min(W, H)     // bridge thickness
+    const bridgeAlong = 0.05 * Math.min(W, H)      // jitter along bridge
+    const blendFrac = 0.22                         // central blend zone length fraction (0..1)
+    const blendBands = 28                          // number of stripes inside blend zone
+
+    const centers: Array<[number, number]> = []
+    for (let c = 0; c < k; c++) {
+        centers.push([
+            W * (margin + Math.random() * (1 - 2 * margin)),
+            H * (margin + Math.random() * (1 - 2 * margin)),
+        ])
+    }
+
+    const edges: Array<[number, number, number, number]> = []
+    const seen = new Set<string>()
+    for (let a = 0; a < k; a++) {
+        let best = -1, bd = Infinity
+        const [ax, ay] = centers[a]
+        for (let b = 0; b < k; b++) {
+            if (a === b) continue
+            const [bx, by] = centers[b]
+            const d = (ax - bx) ** 2 + (ay - by) ** 2
+            if (d < bd) { bd = d; best = b }
+        }
+        const u = Math.min(a, best), v = Math.max(a, best)
+        const key = u + ":" + v
+        if (!seen.has(key)) { seen.add(key); edges.push([u, v, u % T, v % T]) }
+    }
+    const extra = Math.max(0, k - 2)
+    for (let e = 0; e < extra; e++) {
+        const a = (Math.random() * k) | 0
+        let b = (Math.random() * k) | 0
+        if (b === a) b = (b + 1) % k
+        const u = Math.min(a, b), v = Math.max(a, b)
+        const key = u + ":" + v
+        if (!seen.has(key)) { seen.add(key); edges.push([u, v, u % T, v % T]) }
+    }
+
+    const bridges = Math.min(N, Math.floor(N * bridgeFrac))
+    const coreN = N - bridges
+
+    let i = 0
+    for (let n = 0; n < coreN; n++, i++) {
+        const cluster = n % k
+        const [cx, cy] = centers[cluster]
+        const x = cx + randN(0, sigma)
+        const y = cy + randN(0, sigma)
+        writeParticle(A, i, x, y, cluster % T)
+    }
+    if (bridges === 0 || edges.length === 0) return A
+
+    const halfBlend = Math.max(0, Math.min(0.49, blendFrac * 0.5))
+    const tLeft = 0.5 - halfBlend
+    const tRight = 0.5 + halfBlend
+    const perEdge = Math.max(1, Math.floor(bridges / edges.length))
+
+    let bleft = bridges
+    for (let ei = 0; ei < edges.length && bleft > 0; ei++) {
+        const [a, b, tA, tB] = edges[ei]
+        const [ax, ay] = centers[a]
+        const [bx, by] = centers[b]
+        const dx = bx - ax, dy = by - ay
+        const len = Math.hypot(dx, dy) || 1
+        const ux = dx / len, uy = dy / len
+        const nx = -uy, ny = ux
+
+        const count = Math.min(perEdge, bleft)
+        for (let j = 0; j < count && bleft > 0; j++, i++, bleft--) {
+            const tpos = (j + 0.5) / count
+            const along = (Math.random() * 2 - 1) * bridgeAlong
+            const off = randN(0, bridgeWidth)
+            const x = ax + dx * tpos + ux * along + nx * off
+            const y = ay + dy * tpos + uy * along + ny * off
+
+            let type: number
+            if (tpos < tLeft) type = tA
+            else if (tpos > tRight) type = tB
+            else {
+                const u = (tpos - tLeft) / Math.max(1e-6, (tRight - tLeft))
+                const band = Math.floor(u * blendBands)
+                type = (band & 1) === 0 ? tA : tB
+            }
+            writeParticle(A, i, x, y, type)
+        }
+    }
+
+    while (bleft-- > 0) {
+        const [a, b, tA, tB] = edges[(Math.random() * edges.length) | 0]
+        const [ax, ay] = centers[a]
+        const [bx, by] = centers[b]
+        const dx = bx - ax, dy = by - ay
+        const len = Math.hypot(dx, dy) || 1
+        const ux = dx / len, uy = dy / len
+        const nx = -uy, ny = ux
+
+        const tpos = Math.random()
+        const along = (Math.random() * 2 - 1) * bridgeAlong
+        const off = randN(0, bridgeWidth)
+        const x = ax + dx * tpos + ux * along + nx * off
+        const y = ay + dy * tpos + uy * along + ny * off
+
+        let type: number
+        if (tpos < tLeft) type = tA
+        else if (tpos > tRight) type = tB
+        else {
+            const u = (tpos - tLeft) / Math.max(1e-6, (tRight - tLeft))
+            const band = Math.floor(u * blendBands)
+            type = (band & 1) === 0 ? tA : tB
+        }
+        writeParticle(A, i++, x, y, type)
+    }
+
     return A
 }
 // ---------------------------------------------------------------------------------------------------------------------
@@ -447,20 +567,108 @@ export const yinYang: PosGen = (N, T, W, H) => {
     }
     return A
 }
+export const chromaticFlower: PosGen = (N, T, W, H) => {
+    const A = new Float32Array(N * 5)
+    if (N <= 0 || T <= 0) return A
 
-export const polarFlowers: PosGen = (N, T, W, H) => {
-    const A = new Float32Array(N*5)
-    const cx=W*0.5, cy=H*0.5, R=0.46*Math.min(W,H)
-    const counts = perTypeCounts(N,T)
-    const k = 3 + (T % 4)
-    let idx=0
-    for (let t=0;t<T;t++){
-        const phi = (t/T)*Math.PI*2
-        for (let j=0;j<counts[t]; j++,idx++){
-            const th = Math.random()*2*Math.PI
-            const r  = Math.abs(Math.cos(k*th + phi)) * R
-            const jig = 0.008*Math.min(W,H)
-            writeParticle(A, idx, cx + r*Math.cos(th)+randN(0,jig), cy + r*Math.sin(th)+randN(0,jig), t)
+    const PETALS_MIN = 2        // shared petals min
+    const PETALS_MAX = 7        // shared petals max
+    const R_OUT = 0.46          // outer radius (fraction of min(W,H))
+    const SCALE_MIN = 0.62      // min per-color radial scale (0..1)
+    const JITTER = 0.006        // positional jitter (fraction of min(W,H))
+    const GAMMA = 1.35          // petal sharpening (>1 = crisper petals)
+    const BETA = 2.0            // soft-floor strength (higher = more outward)
+    const INNER_FRAC_MIN = 0.01 // soft inner floor min (fraction of per-color max)
+    const INNER_FRAC_MAX = 0.14 // soft inner floor max (fraction of per-color max)
+
+    const m = Math.min(W, H)
+    const cx = W * 0.5, cy = H * 0.5
+    const Rmax = R_OUT * m
+    const jitterAbs = JITTER * m
+    const TAU = 2 * Math.PI
+    const GA = Math.PI * (3 - Math.sqrt(5))
+
+    const petals = PETALS_MIN + ((Math.random() * (PETALS_MAX - PETALS_MIN + 1)) | 0)
+
+    const allTypes = Array.from({ length: T }, (_, i) => i)
+    for (let i = T - 1; i > 0; i--) {
+        const j = (Math.random() * (i + 1)) | 0
+        const tmp = allTypes[i]; allTypes[i] = allTypes[j]; allTypes[j] = tmp
+    }
+
+    const raw = new Float32Array(T)
+    for (let i = 0; i < T; i++) raw[i] = SCALE_MIN + Math.random() * (1 - SCALE_MIN)
+    let smax = SCALE_MIN
+    for (let i = 0; i < T; i++) if (raw[i] > smax) smax = raw[i]
+    const scale = new Float32Array(T)
+    if (smax === SCALE_MIN) {
+        for (let i = 0; i < T; i++) scale[i] = SCALE_MIN
+        scale[(Math.random() * T) | 0] = 1
+    } else {
+        const denom = smax - SCALE_MIN, range = 1 - SCALE_MIN
+        for (let i = 0; i < T; i++) scale[i] = SCALE_MIN + ((raw[i] - SCALE_MIN) / denom) * range
+    }
+
+    const phase = new Float32Array(T)
+    for (let i = 0; i < T; i++) phase[i] = Math.random() * TAU
+
+    let idx = 0
+    if (N < T) {
+        for (let u = 0; u < N; u++) {
+            const t = allTypes[u]
+            const th = Math.random() * TAU
+            const rMaxColor = Rmax * scale[t]
+            const innerFrac = INNER_FRAC_MIN + Math.random() * (INNER_FRAC_MAX - INNER_FRAC_MIN)
+            const rFloor = innerFrac * rMaxColor
+            const g = Math.abs(Math.cos(petals * th + phase[t]))
+            const shaped = Math.pow(g, GAMMA)
+            const soft = (1 - Math.exp(-BETA * shaped)) / (1 - Math.exp(-BETA))
+            const rr = rFloor + (rMaxColor - rFloor) * soft
+            const x = cx + rr * Math.cos(th) + (Math.random() * 2 - 1) * jitterAbs
+            const y = cy + rr * Math.sin(th) + (Math.random() * 2 - 1) * jitterAbs
+            writeParticle(A, idx++, x, y, t)
+        }
+        return A
+    }
+
+    for (let u = 0; u < T; u++) {
+        const t = allTypes[u]
+        const th = Math.random() * TAU
+        const rMaxColor = Rmax * scale[t]
+        const innerFrac = INNER_FRAC_MIN + Math.random() * (INNER_FRAC_MAX - INNER_FRAC_MIN)
+        const rFloor = innerFrac * rMaxColor
+        const g = Math.abs(Math.cos(petals * th + phase[t]))
+        const shaped = Math.pow(g, GAMMA)
+        const soft = (1 - Math.exp(-BETA * shaped)) / (1 - Math.exp(-BETA))
+        const rr = rFloor + (rMaxColor - rFloor) * soft
+        const x = cx + rr * Math.cos(th) + (Math.random() * 2 - 1) * jitterAbs
+        const y = cy + rr * Math.sin(th) + (Math.random() * 2 - 1) * jitterAbs
+        writeParticle(A, idx++, x, y, t)
+    }
+
+    const remain = N - idx
+    const base = (remain / T) | 0
+    let rem = remain % T
+
+    for (let u = 0; u < T; u++) {
+        const t = allTypes[u]
+        let k = base + (rem > 0 ? 1 : 0); if (rem > 0) rem--
+        let th = Math.random() * TAU
+        const rMaxColor = Rmax * scale[t]
+        const innerFrac = INNER_FRAC_MIN + Math.random() * (INNER_FRAC_MAX - INNER_FRAC_MIN)
+        const rFloor = innerFrac * rMaxColor
+
+        while (k-- > 0) {
+            const g = Math.abs(Math.cos(petals * th + phase[t]))
+            const shaped = Math.pow(g, GAMMA)
+            const soft = (1 - Math.exp(-BETA * shaped)) / (1 - Math.exp(-BETA))
+            const rr = rFloor + (rMaxColor - rFloor) * soft
+            const x = cx + rr * Math.cos(th) + (Math.random() * 2 - 1) * jitterAbs
+            const y = cy + rr * Math.sin(th) + (Math.random() * 2 - 1) * jitterAbs
+            writeParticle(A, idx++, x, y, t)
+            th += GA + (Math.random() - 0.5) * 0.06
+            if (th >= TAU) th -= TAU
+            else if (th < 0) th += TAU
         }
     }
     return A
@@ -513,212 +721,165 @@ export const wavyBands: PosGen = (N, T, W, H) => {
     return A
 }
 // ---------------------------------------------------------------------------------------------------------------------
-export const clusterWeb: PosGen = (N, T, W, H) => {
-    const A = new Float32Array(N * 5)
-    const k = Math.max(2, Math.min(T, 8))    // number of clusters
-    const margin = 0.18                            // edge margin (0..1)
-    const sigma = 0.06 * Math.min(W, H)            // cluster radius
-    const bridgeFrac = 0.18                        // fraction of bridge particles
-    const bridgeWidth = 0.005 * Math.min(W, H)     // bridge thickness
-    const bridgeAlong = 0.05 * Math.min(W, H)      // jitter along bridge
-    const blendFrac = 0.22                         // central blend zone length fraction (0..1)
-    const blendBands = 28                          // number of stripes inside blend zone
-
-    const centers: Array<[number, number]> = []
-    for (let c = 0; c < k; c++) {
-        centers.push([
-            W * (margin + Math.random() * (1 - 2 * margin)),
-            H * (margin + Math.random() * (1 - 2 * margin)),
-        ])
-    }
-
-    // edges: undirected nearest-neighbour plus a few extras
-    const edges: Array<[number, number, number, number]> = []
-    const seen = new Set<string>()
-    for (let a = 0; a < k; a++) {
-        let best = -1, bd = Infinity
-        const [ax, ay] = centers[a]
-        for (let b = 0; b < k; b++) {
-            if (a === b) continue
-            const [bx, by] = centers[b]
-            const d = (ax - bx) ** 2 + (ay - by) ** 2
-            if (d < bd) { bd = d; best = b }
-        }
-        const u = Math.min(a, best), v = Math.max(a, best)
-        const key = u + ":" + v
-        if (!seen.has(key)) { seen.add(key); edges.push([u, v, u % T, v % T]) }
-    }
-    const extra = Math.max(0, k - 2)
-    for (let e = 0; e < extra; e++) {
-        const a = (Math.random() * k) | 0
-        let b = (Math.random() * k) | 0
-        if (b === a) b = (b + 1) % k
-        const u = Math.min(a, b), v = Math.max(a, b)
-        const key = u + ":" + v
-        if (!seen.has(key)) { seen.add(key); edges.push([u, v, u % T, v % T]) }
-    }
-
-    const bridges = Math.min(N, Math.floor(N * bridgeFrac))
-    const coreN = N - bridges
-
-    // gaussian cores
-    let i = 0
-    for (let n = 0; n < coreN; n++, i++) {
-        const cluster = n % k
-        const [cx, cy] = centers[cluster]
-        const x = cx + randN(0, sigma)
-        const y = cy + randN(0, sigma)
-        writeParticle(A, i, x, y, cluster % T)
-    }
-    if (bridges === 0 || edges.length === 0) return A
-
-    // helpers for blend zone (deterministic banding in the center)
-    const halfBlend = Math.max(0, Math.min(0.49, blendFrac * 0.5))
-    const tLeft = 0.5 - halfBlend
-    const tRight = 0.5 + halfBlend
-
-    const perEdge = Math.max(1, Math.floor(bridges / edges.length))
-    let bleft = bridges
-
-    for (let ei = 0; ei < edges.length && bleft > 0; ei++) {
-        const [a, b, tA, tB] = edges[ei]
-        const [ax, ay] = centers[a]
-        const [bx, by] = centers[b]
-        const dx = bx - ax, dy = by - ay
-        const len = Math.hypot(dx, dy) || 1
-        const ux = dx / len, uy = dy / len
-        const nx = -uy, ny = ux
-
-        const count = Math.min(perEdge, bleft)
-        for (let j = 0; j < count && bleft > 0; j++, i++, bleft--) {
-            const tpos = (j + 0.5) / count
-            const along = (Math.random() * 2 - 1) * bridgeAlong
-            const off = randN(0, bridgeWidth)
-            const x = ax + dx * tpos + ux * along + nx * off
-            const y = ay + dy * tpos + uy * along + ny * off
-
-            let type: number
-            if (tpos < tLeft) type = tA
-            else if (tpos > tRight) type = tB
-            else {
-                const u = (tpos - tLeft) / Math.max(1e-6, (tRight - tLeft))
-                const band = Math.floor(u * blendBands)
-                type = (band & 1) === 0 ? tA : tB
-            }
-            writeParticle(A, i, x, y, type)
-        }
-    }
-
-    // leftovers
-    while (bleft-- > 0) {
-        const [a, b, tA, tB] = edges[(Math.random() * edges.length) | 0]
-        const [ax, ay] = centers[a]
-        const [bx, by] = centers[b]
-        const dx = bx - ax, dy = by - ay
-        const len = Math.hypot(dx, dy) || 1
-        const ux = dx / len, uy = dy / len
-        const nx = -uy, ny = ux
-
-        const tpos = Math.random()
-        const along = (Math.random() * 2 - 1) * bridgeAlong
-        const off = randN(0, bridgeWidth)
-        const x = ax + dx * tpos + ux * along + nx * off
-        const y = ay + dy * tpos + uy * along + ny * off
-
-        let type: number
-        if (tpos < tLeft) type = tA
-        else if (tpos > tRight) type = tB
-        else {
-            const u = (tpos - tLeft) / Math.max(1e-6, (tRight - tLeft))
-            const band = Math.floor(u * blendBands)
-            type = (band & 1) === 0 ? tA : tB
-        }
-        writeParticle(A, i++, x, y, type)
-    }
-
-    return A
-}
 export const polarMaze: PosGen = (N, T, W, H) => {
     const A = new Float32Array(N * 5)
+    if (N <= 0 || T <= 0) return A
+
+    const mwh = Math.min(W, H)
     const cx = W * 0.5, cy = H * 0.5
-    const Rmin = 0.12 * Math.min(W, H) // inner radius
-    const Rmax = 0.46 * Math.min(W, H) // outer radius
-    const LAYERS = 5                   // number of rings
-    const SECTORS = 16                 // sectors per ring
-    const GAP_SPAN = 2.5                 // consecutive empty sectors per ring
-    const THICK = 0.01 * Math.min(W, H) // arc thickness
 
-    // weights by circumference
-    const w = new Float32Array(LAYERS)
-    let ws = 0
-    for (let l = 0; l < LAYERS; l++) { const r = Rmin + (l + 0.5) * (Rmax - Rmin) / LAYERS; w[l] = r; ws += r }
+    const LAYERS = 6                 // number of rings
+    const SECTORS = 18               // angular divisions
+    const GAP = 0.04                 // sector inner gap [0..1]
+    const THICK = 0.012 * mwh        // ring thickness
 
-    const counts = new Int32Array(LAYERS)
-    let acc = 0
-    for (let l = 0; l < LAYERS; l++) { counts[l] = Math.max(1, Math.floor((w[l] / ws) * N)); acc += counts[l] }
-    while (acc > N) { for (let l = LAYERS - 1; l >= 0 && acc > N; l--) { if (counts[l] > 1) { counts[l]--; acc-- } } }
-    while (acc < N) { for (let l = 0; l < LAYERS && acc < N; l++) { counts[l]++; acc++ } }
+    const Rmin = 0.12 * mwh
+    const Rmax = 0.46 * mwh
+    const dr = (Rmax - Rmin) / LAYERS
+    const dth = (2 * Math.PI) / SECTORS
 
-    const twopi = 2 * Math.PI
-    const sectorSize = twopi / SECTORS
+    // assign random colors per layer ensuring all appear at least once
+    const allTypes = Array.from({ length: T }, (_, i) => i)
+    const layerTypes: number[][] = Array.from({ length: LAYERS }, () => [])
+    const shuffled = allTypes.slice().sort(() => Math.random() - 0.5)
+    for (let i = 0; i < shuffled.length; i++) {
+        layerTypes[i % LAYERS].push(shuffled[i])
+    }
+    // randomly add extra colors to random layers for more variety
+    for (let t = 0; t < T; t++) {
+        if (Math.random() < 0.35) layerTypes[(Math.random() * LAYERS) | 0].push(t)
+    }
 
-    let i = 0, type = 0
+    const base = (N / LAYERS) | 0
+    const rem = N % LAYERS
+    let idx = 0
+
     for (let l = 0; l < LAYERS; l++) {
-        let kLayer = counts[l]
-        const r = Rmin + (l + 0.5) * (Rmax - Rmin) / LAYERS
-        const gapStart = (Math.random() * SECTORS) | 0
-        const activeSectors = SECTORS - GAP_SPAN
-        if (activeSectors <= 0) continue
-        const perSector = Math.max(1, Math.floor(kLayer / activeSectors))
+        let remain = base + (l < rem ? 1 : 0)
+        if (remain <= 0) continue
 
-        for (let s = 0; s < SECTORS && kLayer > 0; s++) {
-            const inGap = ((s - gapStart + SECTORS) % SECTORS) < GAP_SPAN
-            if (inGap) continue
+        const r = Rmin + (l + 0.5) * dr
+        const arcs = Math.max(2, (SECTORS * (0.5 + Math.random() * 0.5)) | 0)
+        const used = new Uint8Array(SECTORS)
+        const typesHere = layerTypes[l]
+        const kPerArc = Math.max(1, (remain / arcs) | 0)
 
-            const th0 = s * sectorSize
-            const th1 = (s + 1) * sectorSize
-            const arcLen = th1 - th0
-            const k = Math.min(perSector, kLayer)
-            const dth = arcLen / k
-            const start = th0 + dth * Math.random()
-            const c = Math.cos(dth), sng = Math.sin(dth)
+        for (let a = 0; a < arcs && remain > 0; a++) {
+            let s = (Math.random() * SECTORS) | 0
+            while (used[s]) { s++; if (s === SECTORS) s = 0 }
+            used[s] = 1
+
+            const th0 = s * dth + dth * GAP
+            const th1 = (s + 1 - GAP) * dth
+            const arc = th1 - th0
+            const k = Math.min(kPerArc, remain)
+            const step = arc / k
+            const start = th0 + Math.random() * step
+            const c = Math.cos(step), sn = Math.sin(step)
             let ux = Math.cos(start), uy = Math.sin(start)
+            const tType = typesHere[(Math.random() * typesHere.length) | 0]
 
-            for (let j = 0; j < k && kLayer > 0; j++) {
-                const off = (Math.random() * 2 - 1) * THICK
-                const x = cx + (r + off) * ux
-                const y = cy + (r + off) * uy
-                writeParticle(A, i++, x, y, type)
-                type++; if (type === T) type = 0
-                const nx = ux * c - uy * sng
-                uy = ux * sng + uy * c
+            for (let j = 0; j < k; j++) {
+                const rr = (Math.random() * 2 - 1) * THICK
+                const x = cx + (r + rr) * ux
+                const y = cy + (r + rr) * uy
+                writeParticle(A, idx++, x, y, tType)
+                const nx = ux * c - uy * sn
+                uy = ux * sn + uy * c
                 ux = nx
-                kLayer--
             }
+            remain -= k
+        }
+
+        while (remain-- > 0) {
+            const s = (Math.random() * SECTORS) | 0
+            const ang = (s + Math.random()) * dth
+            const rr = (Math.random() * 2 - 1) * THICK
+            const x = cx + (r + rr) * Math.cos(ang)
+            const y = cy + (r + rr) * Math.sin(ang)
+            const tType = typesHere[(Math.random() * typesHere.length) | 0]
+            writeParticle(A, idx++, x, y, tType)
         }
     }
+
     return A
 }
-export const helixField: PosGen = (N, T, W, H) => {
-    const A = new Float32Array(N * 5)
-    const lanes = Math.max(2, Math.min(6, T)) // number of helices
-    const amp = 0.28 * H // helix amplitude
-    const freq = 1.2 // helix frequency (cycles across width)
-    const thickness = 0.02 * H // tube thickness
 
-    const base = Math.floor(N / lanes), rem = N % lanes
-    const kx = (2 * Math.PI * freq) / Math.max(1, W)
+export const chaoticBands: PosGen = (N, T, W, H) => {
+    const A = new Float32Array(N * 5)
+    if (N <= 0 || T <= 0) return A
+
+    const intersectLineRect = (cx: number, cy: number, ux: number, uy: number, minX: number, minY: number, maxX: number, maxY: number): { t0: number; t1: number } | null => {
+        const ts: number[] = []; const EPS = 1e-8
+        if (Math.abs(ux) > EPS) { ts.push((minX - cx) / ux, (maxX - cx) / ux) }
+        if (Math.abs(uy) > EPS) { ts.push((minY - cy) / uy, (maxY - cy) / uy) }
+        if (ts.length === 0) return null
+        let t0 = Infinity, t1 = -Infinity
+        for (let k = 0; k < ts.length; k++) {
+            const t = ts[k], x = cx + ux * t, y = cy + uy * t
+            if (x >= minX - 1e-6 && x <= maxX + 1e-6 && y >= minY - 1e-6 && y <= maxY + 1e-6) { if (t < t0) t0 = t; if (t > t1) t1 = t }
+        }
+        if (!isFinite(t0) || !isFinite(t1) || t1 <= t0) return null
+        return { t0, t1 }
+    }
+
+    const lanesMin = Math.min(3, T)              // min lanes
+    const lanesMax = Math.min(10, Math.max(3, T))// max lanes
+    const ampMin = 0.005 * H                     // helix amplitude min
+    const ampMax = 0.06 * H                      // helix amplitude max
+    const tubeMin = 0.012 * Math.min(W, H)       // tube thickness min
+    const tubeMax = 0.028 * Math.min(W, H)       // tube thickness max
+    const edgeFrac = 0.18                        // edge scatter (0..1)
+    const noise = 0.02 * Math.min(W, H)          // free noise
+    const cyclesMin = 1.0                        // min cycles
+    const cyclesMax = 3.0                        // max cycles
+    const wobble = 0.2                           // secondary modulation factor
+    const SAFE_PAD = 2                           // extra px safety
+
+    const lanes = (lanesMin + Math.random() * (lanesMax - lanesMin + 1)) | 0
+    const base = (N / lanes) | 0, rem = N % lanes
+
+    const laneTypes: number[][] = Array.from({ length: lanes }, () => [])
+    const types = Array.from({ length: T }, (_, t) => t)
+    for (let i = T - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; const tmp = types[i]; types[i] = types[j]; types[j] = tmp }
+    for (let i = 0; i < T; i++) laneTypes[(Math.random() * lanes) | 0].push(types[i])
+    for (let l = 0; l < lanes; l++) { const want = 1 + ((Math.random() * Math.min(4, T)) | 0); while (laneTypes[l].length < want) { const t = (Math.random() * T) | 0; if (!laneTypes[l].includes(t)) laneTypes[l].push(t) } }
 
     let i = 0
-    for (let l = 0; l < lanes; l++) {
-        let cnt = base + (l < rem ? 1 : 0)
-        const y0 = (l + 0.5) * (H / lanes)
-        const phase = (l / lanes) * 2 * Math.PI
-        const type = l % T
-        while (cnt-- > 0) {
-            const x = Math.random() * W
-            const y = y0 + amp * Math.sin(kx * x + phase) + (Math.random() * 2 - 1) * thickness
+    for (let l = 0; l < lanes && i < N; l++) {
+        let cnt = base + (l < rem ? 1 : 0); if (cnt <= 0) continue
+        const theta = Math.random() * 2 * Math.PI, ux = Math.cos(theta), uy = Math.sin(theta), nx = -uy, ny = ux
+        const amp = ampMin + Math.random() * (ampMax - ampMin), tube = tubeMin + Math.random() * (tubeMax - tubeMin)
+        const maxOff = amp * (1 + wobble) + edgeFrac * tube + noise + SAFE_PAD
+        const minX = maxOff, maxX = W - maxOff, minY = maxOff, maxY = H - maxOff
+        if (minX >= maxX || minY >= maxY) break
+        const cx = minX + Math.random() * (maxX - minX), cy = minY + Math.random() * (maxY - minY)
+        const seg = intersectLineRect(cx, cy, ux, uy, minX, minY, maxX, maxY); if (!seg) continue
+        const t0 = seg.t0, t1 = seg.t1, segLen = t1 - t0; if (segLen <= 1e-6) continue
+        const cycles = cyclesMin + Math.random() * (cyclesMax - cyclesMin)
+        const k = (2 * Math.PI * cycles) / segLen, phase = Math.random() * 2 * Math.PI, wobK = 2 * k, wobPhase = Math.random() * 2 * Math.PI
+        const step = segLen / cnt; let t = t0 + Math.random() * step
+        let baseX = cx + ux * t, baseY = cy + uy * t
+        const dBX = ux * step, dBY = uy * step
+        const a0 = k * (t - t0) + phase, da = k * step
+        let sinA = Math.sin(a0), cosA = Math.cos(a0), cda = Math.cos(da), sda = Math.sin(da)
+        const w0 = wobK * (t - t0) + wobPhase, dw = wobK * step
+        let sinW = Math.sin(w0), cosW = Math.cos(w0), cdw = Math.cos(dw), sdw = Math.sin(dw)
+        const typesHere = laneTypes[l]
+        while (cnt-- > 0 && i < N) {
+            const helix = amp * sinA, wobb = wobble * amp * sinW
+            const edgeSign = Math.random() < 0.5 ? -1 : 1, edgeBias = 0.5 + 0.5 * Math.pow(Math.random(), 0.35)
+            const offset = helix + wobb + edgeSign * edgeFrac * tube * edgeBias + (Math.random() * 2 - 1) * noise
+            let x = baseX + nx * offset, y = baseY + ny * offset
+            if (x < 0) x = 0; else if (x > W) x = W
+            if (y < 0) y = 0; else if (y > H) y = H
+            const type = typesHere[(Math.random() * typesHere.length) | 0]
             writeParticle(A, i++, x, y, type)
+            baseX += dBX; baseY += dBY
+            const sinA2 = sinA * cda + cosA * sda, cosA2 = cosA * cda - sinA * sda
+            sinA = sinA2; cosA = cosA2
+            const sinW2 = sinW * cdw + cosW * sdw, cosW2 = cosW * cdw - sinW * sdw
+            sinW = sinW2; cosW = cosW2
         }
     }
     return A
@@ -727,9 +888,9 @@ export const orbitalBelts: PosGen = (N, T, W, H) => {
     const A = new Float32Array(N * 5)
     if (T === 0) return A
 
-    const R = 0.46 * Math.min(W, H)           // outer radius
-    const ecc = 0.35                           // eccentricity
-    const thick = 0.02 * R                     // belt thickness
+    const R = 0.46 * Math.min(W, H) // outer radius
+    const ecc = 0.35 // eccentricity
+    const thick = 0.02 * R // belt thickness
     const minBelts = Math.min(4, T)
     const maxBelts = Math.min(8, T)
     const belts = Math.floor(minBelts + Math.random() * (maxBelts - minBelts + 1))
@@ -781,12 +942,12 @@ export const orbitalBelts: PosGen = (N, T, W, H) => {
 }
 export const braidedBelts: PosGen = (N, T, W, H) => {
     const A = new Float32Array(N * 5)
-    const R = 0.46 * Math.min(W, H)                  // outer radius
-    const ecc = 0.36                                 // eccentricity
-    const belts = Math.floor(2 + Math.random() * 4)  // number of belts [2..5]
-    const wavAmp = 0.06 * R                          // radial waviness
-    const wavFreq = 4                                // waves per revolution
-    const thick = 0.018 * R                          // belt thickness
+    const R = 0.46 * Math.min(W, H) // outer radius
+    const ecc = 0.36 // eccentricity
+    const belts = Math.floor(2 + Math.random() * 4) // number of belts [2..5]
+    const wavAmp = 0.06 * R // radial waviness
+    const wavFreq = 4 // waves per revolution
+    const thick = 0.018 * R // belt thickness
 
     const cx = W * 0.5, cy = H * 0.5
     const baseN = Math.floor(N / belts), remN = N % belts
@@ -854,73 +1015,152 @@ export const braidedBelts: PosGen = (N, T, W, H) => {
 
     return A
 }
-export const crescentFields: PosGen = (N, T, W, H) => {
+export const twinCrescents: PosGen = (N, T, W, H) => {
     const A = new Float32Array(N * 5)
+    if (N <= 0 || T <= 0) return A
+
     const m = Math.min(W, H)
-    const r = 0.34 * m                 // disc radius
-    const offset = 0.28 * m            // center separation
     const cx = W * 0.5, cy = H * 0.5
-    const c1x = cx - offset * 0.5, c1y = cy
-    const c2x = cx + offset * 0.5, c2y = cy
-    for (let i = 0, t = 0; i < N; i++) {
-        let x: number, y: number
-        if (i & 1) {
-            const th = Math.random() * 2 * Math.PI
-            const rr = r * Math.sqrt(Math.random())
-            x = c1x + rr * Math.cos(th); y = c1y + rr * Math.sin(th)
-            const d2 = (x - c2x) ** 2 + (y - c2y) ** 2
-            if (d2 < r * r) { i--; continue }
-        } else {
-            const th = Math.random() * 2 * Math.PI
-            const rr = r * Math.sqrt(Math.random())
-            x = c2x + rr * Math.cos(th); y = c2y + rr * Math.sin(th)
-            const d1 = (x - c1x) ** 2 + (y - c1y) ** 2
-            if (d1 < r * r) { i--; continue }
+
+    const R = 0.36 * m          // disc radius
+    const SEP = 0.28 * m        // center separation
+
+    const LEFT_FIRST = Math.random() < 0.5
+    const c1x = cx - SEP * 0.5, c1y = cy
+    const c2x = cx + SEP * 0.5, c2y = cy
+    const R2 = R * R
+    const TAU = 2 * Math.PI
+
+    const types = Array.from({ length: T }, (_, t) => t)
+    for (let i = T - 1; i > 0; i--) {
+        const j = (Math.random() * (i + 1)) | 0
+        const tmp = types[i]
+        types[i] = types[j]
+        types[j] = tmp
+    }
+
+    const mid = (T + 1) >> 1
+    const groupA = types.slice(0, mid)
+    const groupB = types.slice(mid)
+    const leftTypes = LEFT_FIRST ? groupA : groupB
+    const rightTypes = LEFT_FIRST ? groupB : groupA
+    const ltLen = leftTypes.length || 1
+    const rtLen = rightTypes.length || 1
+
+    let leftCount = N >> 1
+    let rightCount = N - leftCount
+    let li = (Math.random() * ltLen) | 0
+    let ri = (Math.random() * rtLen) | 0
+    let idx = 0
+
+    while (leftCount > 0 && idx < N) {
+        const th = Math.random() * TAU
+        const rr = R * Math.sqrt(Math.random())
+        const x = c1x + rr * Math.cos(th)
+        const y = c1y + rr * Math.sin(th)
+        const dx = x - c2x, dy = y - c2y
+        if (dx * dx + dy * dy < R2) continue
+        writeParticle(A, idx++, x, y, leftTypes[li])
+        li = (li + 1) % ltLen
+        leftCount--
+    }
+
+    while (rightCount > 0 && idx < N) {
+        const th = Math.random() * TAU
+        const rr = R * Math.sqrt(Math.random())
+        const x = c2x + rr * Math.cos(th)
+        const y = c2y + rr * Math.sin(th)
+        const dx = x - c1x, dy = y - c1y
+        if (dx * dx + dy * dy < R2) continue
+        writeParticle(A, idx++, x, y, rightTypes[ri])
+        ri = (ri + 1) % rtLen
+        rightCount--
+    }
+
+    while (idx < N) {
+        const useLeft = Math.random() < 0.5
+        const cx0 = useLeft ? c1x : c2x
+        const cy0 = useLeft ? c1y : c2y
+        const ox0 = useLeft ? c2x : c1x
+        const oy0 = useLeft ? c2y : c1y
+        const set = useLeft ? leftTypes : rightTypes
+        const len = set.length || 1
+        const sel = (Math.random() * len) | 0
+
+        let x, y
+        for (;;) {
+            const th = Math.random() * TAU
+            const rr = R * Math.sqrt(Math.random())
+            x = cx0 + rr * Math.cos(th)
+            y = cy0 + rr * Math.sin(th)
+            const dx = x - ox0, dy = y - oy0
+            if (dx * dx + dy * dy >= R2) break
         }
+        writeParticle(A, idx++, x, y, set[sel])
+    }
+
+    return A
+}
+export const simpleFlower: PosGen = (N, T, W, H) => {
+    const A = new Float32Array(N * 5)
+    if (N <= 0 || T <= 0) return A
+
+    const PETALS_MIN = 2            // minimum petals
+    const PETALS_MAX = 8            // maximum petals
+    const R = 0.46 * Math.min(W, H) // max radius
+    const JITTER = 0.02 * R         // radial noise
+
+    const petals = PETALS_MIN + ((Math.random() * (PETALS_MAX - PETALS_MIN + 1)) | 0)
+    const phase = Math.random() * 2 * Math.PI
+    const cx = W * 0.5, cy = H * 0.5
+
+    let t = 0
+    for (let i = 0; i < N; i++) {
+        const u = (i + Math.random()) / N
+        const th = 2 * Math.PI * u + phase
+        const rBase = Math.abs(Math.cos(petals * th)) * R
+        const r = rBase + (Math.random() * 2 - 1) * JITTER
+        const x = cx + r * Math.cos(th)
+        const y = cy + r * Math.sin(th)
         writeParticle(A, i, x, y, t)
         t++; if (t === T) t = 0
     }
-    return A
-}
-export const rosettePetals: PosGen = (N, T, W, H) => {
-    const A = new Float32Array(N*5)
-    const petals = Math.max(3, Math.min(9, T)) // number of petals
-    const R = 0.46 * Math.min(W,H)             // max radius
-    const jitter = 0.02 * R                     // radial thickness
-    const cx=W*0.5, cy=H*0.5
 
-    for(let i=0,t=0;i<N;i++){
-        const u = (i+Math.random())/N
-        const th = 2*Math.PI*u
-        const r0 = Math.abs(Math.cos(petals*th)) * R
-        const r = Math.max(0, r0 + (Math.random()*2-1)*jitter)
-        const x = cx + r*Math.cos(th)
-        const y = cy + r*Math.sin(th)
-        writeParticle(A, i, x, y, t)
-        t++; if(t===T) t=0
-    }
     return A
 }
-export const cometFans: PosGen = (N, T, W, H) => {
-    const A = new Float32Array(N*5)
+export const radiantFans: PosGen = (N, T, W, H) => {
+    const A = new Float32Array(N * 5)
+    if (N <= 0 || T <= 0) return A
+
     const fans = Math.max(3, Math.min(10, T)) // number of fans
-    const R = 0.46 * Math.min(W,H)            // outer radius
-    const spread = 0.28 * Math.PI             // angular spread per fan
-    const tail = 0.65                          // tail decay (0..1)
-    const cx=W*0.5, cy=H*0.5
+    const R = 0.46 * Math.min(W, H)           // outer radius
+    const spread = 0.22 * Math.PI             // angular spread per fan
+    const tail = 0.65                         // tail decay (0..1)
+    const cx = W * 0.5, cy = H * 0.5
 
-    const base = Math.floor(N/fans), rem = N%fans
-    let i=0
-    for(let f=0; f<fans; f++){
-        let k = base + (f<rem?1:0)
-        const th0 = (f/fans)*2*Math.PI + Math.random()*0.2
-        const type = f % T
-        while(k-- > 0){
+    // distribute colors across fans randomly, ensuring all colors appear
+    const colorSets: number[][] = Array.from({ length: fans }, () => [])
+    const types = Array.from({ length: T }, (_, i) => i)
+    for (let i = T - 1; i > 0; i--) {
+        const j = (Math.random() * (i + 1)) | 0
+        const tmp = types[i]; types[i] = types[j]; types[j] = tmp
+    }
+    for (let i = 0; i < T; i++) colorSets[i % fans].push(types[i])
+
+    const base = Math.floor(N / fans), rem = N % fans
+    let i = 0
+    for (let f = 0; f < fans; f++) {
+        let k = base + (f < rem ? 1 : 0)
+        const th0 = (f / fans) * (2 * Math.PI) + Math.random() * 0.2
+        const cset = colorSets[f]
+        const clen = cset.length || 1
+        while (k-- > 0) {
             const u = Math.random()
-            const r = R*(1 - Math.pow(1-u, tail))
-            const th = th0 + (Math.random()*2-1)*spread
-            const x = cx + r*Math.cos(th)
-            const y = cy + r*Math.sin(th)
+            const r = R * (1 - Math.pow(1 - u, tail))
+            const th = th0 + (Math.random() * 2 - 1) * spread
+            const x = cx + r * Math.cos(th)
+            const y = cy + r * Math.sin(th)
+            const type = cset[(Math.random() * clen) | 0]
             writeParticle(A, i++, x, y, type)
         }
     }
@@ -949,18 +1189,18 @@ export const POSITIONS = [
     { id: 17, name: 'Twin Galaxies',     generator: twinGalaxies },
     { id: 18, name: 'Spiral Arms',       generator: spiralArms },
     { id: 19, name: 'Yin–Yang',          generator: yinYang },
-    { id: 20, name: 'Polar Flowers',     generator: polarFlowers },
 
-    { id: 21, name: 'Wavy Bands',        generator: wavyBands },        // +
-    { id: 14, name: 'Gaussian Clusters', generator: gaussianClusters }, // +
-    { id: 23, name: 'Cluster Web',       generator: clusterWeb },       // ++
-    { id: 24, name: 'Polar Maze',        generator: polarMaze },        // ~
-    { id: 25, name: 'Helix Field',       generator: helixField },       // --
-    { id: 26, name: 'Orbital Belts',     generator: orbitalBelts },     // +++
-    { id: 27, name: 'Braided Belts',     generator: braidedBelts },     // ++++
-    { id: 28, name: 'Crescent Fields',   generator: crescentFields },   // ~
-    { id: 29, name: 'Rosette Petals',    generator: rosettePetals },    // ~
-    { id: 30, name: 'Comet Fans',        generator: cometFans },        // ++
+    { id: 29, name: 'Simple Flower',     generator: simpleFlower },     // +  Done
+    { id: 20, name: 'Chromatic Flower',  generator: chromaticFlower },  // ++  Done
+    { id: 21, name: 'Wavy Bands',        generator: wavyBands },        // +  Done
+    { id: 25, name: 'Chaotic Bands',     generator: chaoticBands },     // +  Done
+    { id: 14, name: 'Soft Clusters',     generator: softClusters },     // +  Done
+    { id: 23, name: 'Linked Clusters',   generator: linkedClusters },   // ++  Done
+    { id: 26, name: 'Orbital Belts',     generator: orbitalBelts },     // +++  Done
+    { id: 27, name: 'Braided Belts',     generator: braidedBelts },     // ++++  Done
+    { id: 24, name: 'Polar Maze',        generator: polarMaze },        // ++  Done
+    { id: 28, name: 'Twin Crescents',    generator: twinCrescents },    // ++  Done
+    { id: 30, name: 'Radiant Fans',      generator: radiantFans },      // ++  Done
 ] as const
 
 export const POSITION_OPTIONS: PositionOption[] = POSITIONS.map(({ id, name }) => ({ id, name }))
