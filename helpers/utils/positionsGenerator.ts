@@ -20,10 +20,6 @@ const randN = (mu = 0, sigma = 1) => {
     while (v === 0) v = Math.random()
     return mu + sigma * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v)
 }
-const perTypeCounts = (N: number, T: number): number[] => {
-    const base = Math.floor(N / T), rem = N % T
-    return Array.from({length:T}, (_,t)=> base + (t < rem ? 1 : 0))
-}
 // ---------------------------------------------------------------------------------------------------------------------
 // ==== GENERATORS =====================================================================================================
 // ---------------------------------------------------------------------------------------------------------------------
@@ -198,13 +194,13 @@ export const spiral: PosGen = (N, T, W, H) => {
     const A = new Float32Array(N * 5)
     const cx = W * 0.5, cy = H * 0.5
     const turns = 3.0
-    const maxR = 0.45 * Math.min(W, H)
+    const maxR = 0.46 * Math.min(W, H)
     const n1 = Math.max(1, N - 1)
     const stepR = maxR / n1
     const dTheta = (turns * 2 * Math.PI) / n1
     const c = Math.cos(dTheta), s = Math.sin(dTheta)
     let ux = 1, uy = 0
-    const j = 0.02 * maxR // thickness jitter
+    const j = 0.025 * maxR // thickness jitter
 
     let tType = 0
     for (let i = 0; i < N; i++) {
@@ -223,7 +219,7 @@ export const rainbowSpiral: PosGen = (N, T, W, H) => {
     const A = new Float32Array(N * 5)
     const cx = W * 0.5, cy = H * 0.5
     const turns = 3.0
-    const maxR = 0.45 * Math.min(W, H)
+    const maxR = 0.46 * Math.min(W, H)
     const n1 = Math.max(1, N - 1)
     const stepR = maxR / n1
     const dTheta = (turns * 2 * Math.PI) / n1
@@ -232,7 +228,7 @@ export const rainbowSpiral: PosGen = (N, T, W, H) => {
     const invTau = 1 / (2 * Math.PI)
     const dPhase = dTheta * invTau
     let phase = 0
-    const j = 0.02 * maxR // thickness jitter
+    const j = 0.025 * maxR // thickness jitter
 
     for (let i = 0; i < N; i++) {
         const r = i * stepR
@@ -502,68 +498,149 @@ export const linkedClusters: PosGen = (N, T, W, H) => {
     return A
 }
 // ---------------------------------------------------------------------------------------------------------------------
-export const starburst: PosGen = (N, T, W, H) => {
+export const twinSpirals: PosGen = (N, T, W, H) => {
     const A = new Float32Array(N * 5)
+    if (N <= 0 || T <= 0) return A
+
+    const THICK = 0.015 * Math.min(W, H)   // arm thickness
+    const TURNS = 1.5 + Math.random() * 1.5 // spiral turns per arm (1.5–3)
+
     const cx = W * 0.5, cy = H * 0.5
-    const arms = Math.max(5, Math.min(16, T * 2))
-    const maxR = 0.48 * Math.min(W, H)
-    for (let i = 0; i < N; i++) {
-        const arm = i % arms
-        const t = Math.random()
-        const r = t * maxR
-        const th = (arm / arms) * Math.PI * 2 + randN(0, 0.04)
-        writeParticle(A, i, cx + r * Math.cos(th), cy + r * Math.sin(th), i % T)
+    const R = 0.46 * Math.min(W, H)
+    const TAU = 6.283185307179586
+    const ROT = Math.random() * TAU // random global rotation
+
+    const perm = Array.from({ length: T }, (_, i) => i)
+    for (let i = T - 1; i > 0; i--) {
+        const j = (Math.random() * (i + 1)) | 0
+        ;[perm[i], perm[j]] = [perm[j], perm[i]]
+    }
+    const mid = (T + 1) >> 1
+    const armColors: [number[], number[]] = [perm.slice(0, mid), perm.slice(mid)]
+    if (armColors[1].length === 0) armColors[1] = armColors[0].slice()
+
+    const base = (N / 2) | 0
+    let rem = N % 2
+    let i = 0
+
+    for (let a = 0; a < 2; a++) {
+        let k = base + (rem-- > 0 ? 1 : 0)
+        if (k <= 0) continue
+
+        const palette = armColors[a]
+        const plen = palette.length
+        let pi = (Math.random() * plen) | 0
+
+        const th0 = ROT + a * Math.PI
+        const dth = (TURNS * TAU) / Math.max(1, k - 1)
+        const c = Math.cos(dth), s = Math.sin(dth)
+        let ux = Math.cos(th0), uy = Math.sin(th0)
+
+        for (let n = 0; n < k; n++, i++) {
+            const u = k > 1 ? n / (k - 1) : 0
+            const r = u * R
+            const rr = Math.max(0, r + (Math.random() * 2 - 1) * THICK)
+            const t = palette[pi]; pi++; if (pi === plen) pi = 0
+
+            writeParticle(A, i, cx + rr * ux, cy + rr * uy, t)
+
+            const nx = ux * c - uy * s
+            uy = ux * s + uy * c
+            ux = nx
+        }
     }
     return A
 }
-
-export const twinGalaxies: PosGen = (N, T, W, H) => {
-    const A = new Float32Array(N * 5)
-    const cx = W * 0.5, cy = H * 0.5
-    const arms = 2
-    const maxR = 0.42 * Math.min(W, H)
-    for (let i = 0; i < N; i++) {
-        const arm = i % arms
-        const t = (i / N)
-        const th = (t * 4 * Math.PI + (arm ? Math.PI : 0))
-        const r = Math.pow(t, 0.7) * maxR
-        const jitter = 0.01 * Math.min(W, H)
-        writeParticle(A, i, cx + r * Math.cos(th) + randN(0, jitter), cy + r * Math.sin(th) + randN(0, jitter), i % T)
-    }
-    return A
-}
-
 export const spiralArms: PosGen = (N, T, W, H) => {
-    const A = new Float32Array(N*5)
-    const cx=W*0.5, cy=H*0.5, maxR=0.45*Math.min(W,H)
-    const counts = perTypeCounts(N,T)
-    let idx=0
-    for (let t=0;t<T;t++){
-        const turns = 2.5
-        for (let j=0;j<counts[t]; j++,idx++){
-            const u = (j+0.5)/counts[t]
-            const th = u*turns*2*Math.PI + (t/T)*2*Math.PI
-            const r  = Math.pow(u, 0.9)*maxR
-            const jig = 0.01*Math.min(W,H)
-            writeParticle(A, idx, cx + r*Math.cos(th)+randN(0,jig), cy + r*Math.sin(th)+randN(0,jig), t)
+    const A = new Float32Array(N * 5)
+    if (N <= 0 || T <= 0) return A
+
+    const TURNS = 2.5                 // spiral turns
+    const THICK_MAX_FRAC = 0.02       // max arm thickness as fraction of min(W,H)
+    const THICK_BASE_FRAC = 0.07      // thickness baseline before scaling by 1/T
+    const THICK_FRAC = Math.min(THICK_MAX_FRAC, THICK_BASE_FRAC / T)
+    const THICK = THICK_FRAC * Math.min(W, H)
+
+    const cx = W * 0.5, cy = H * 0.5
+    const maxR = 0.46 * Math.min(W, H)
+    const TAU = 6.283185307179586
+
+    const armOrder = Array.from({ length: T }, (_, i) => i)
+    for (let i = T - 1; i > 0; i--) {
+        const j = (Math.random() * (i + 1)) | 0
+        ;[armOrder[i], armOrder[j]] = [armOrder[j], armOrder[i]]
+    }
+
+    const base = (N / T) | 0, rem = N % T
+    let i = 0
+
+    for (let a = 0; a < T; a++) {
+        let k = base + (a < rem ? 1 : 0)
+        if (k <= 0) continue
+
+        const tType = armOrder[a]
+        const th0 = (a / T) * TAU
+        const dth = (TURNS * TAU) / Math.max(1, k - 1)
+        const c = Math.cos(dth), s = Math.sin(dth)
+        let ux = Math.cos(th0), uy = Math.sin(th0)
+
+        for (let n = 0; n < k; n++, i++) {
+            const u = k > 1 ? n / (k - 1) : 0
+            const r = u * maxR
+            const rr = Math.max(0, r + (Math.random() * 2 - 1) * THICK)
+            writeParticle(A, i, cx + rr * ux, cy + rr * uy, tType)
+
+            const nx = ux * c - uy * s
+            uy = ux * s + uy * c
+            ux = nx
         }
     }
     return A
 }
 
 export const yinYang: PosGen = (N, T, W, H) => {
-    const A = new Float32Array(N*5)
-    const cx=W*0.5, cy=H*0.5, R=0.42*Math.min(W,H)
-    const two = Math.max(2, T)
-    for (let i=0;i<N;i++){
-        const th = Math.random()*2*Math.PI
-        const r  = Math.sqrt(Math.random())*R
-        const x = cx + r*Math.cos(th), y = cy + r*Math.sin(th)
-        // type selon demi-cercle + bulle yin/yang
-        const left = (Math.cos(th) < 0)
-        let type = left ? 0 : 1
-        if (T>2) type = (type + Math.floor(Math.random()*(two-1))) % T
-        writeParticle(A, i, x, y, type)
+    const A = new Float32Array(N * 5)
+    if (N <= 0 || T <= 0) return A
+
+    const R_FRAC = 0.46   // outer radius (fraction of min(W,H))
+    const EYE_FR = 1 / 6  // eye radius (fraction of R)
+
+    const m = Math.min(W, H)
+    const cx = W * 0.5, cy = H * 0.5
+    const R = R_FRAC * m, R2 = R * R
+    const r = 0.5 * R,   r2 = r * r
+    const e = EYE_FR * R, e2 = e * e
+    const TAU = 6.283185307179586
+
+    const topCx = cx, topCy = cy - r
+    const botCx = cx, botCy = cy + r
+
+    const types = Array.from({ length: T }, (_, i) => i)
+    for (let i = T - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [types[i], types[j]] = [types[j], types[i]] }
+    const mid = (T + 1) >> 1
+    const groupTop = types.slice(0, mid)
+    const groupBot = types.slice(mid)
+    const lenT = Math.max(1, groupTop.length), lenB = Math.max(1, groupBot.length)
+    let it = 0, ib = 0
+
+    const d2 = (x:number,y:number,a:number,b:number)=>{ const dx=x-a, dy=y-b; return dx*dx+dy*dy }
+    let i = 0
+    while (i < N) {
+        const th = Math.random() * TAU
+        const rr = R * Math.sqrt(Math.random())
+        const x = cx + rr * Math.cos(th)
+        const y = cy + rr * Math.sin(th)
+        if (d2(x, y, cx, cy) > R2) continue
+
+        let useTop = (y <= cy)
+        const inTopEye = d2(x, y, topCx, topCy) <= e2
+        const inBotEye = d2(x, y, botCx, botCy) <= e2
+        if (inTopEye) useTop = false
+        else if (inBotEye) useTop = true
+
+        const t = useTop ? groupTop[it % lenT] : groupBot[ib % lenB]
+        if (useTop) it++; else ib++
+        writeParticle(A, i++, x, y, t)
     }
     return A
 }
@@ -1173,34 +1250,32 @@ export const POSITIONS = [
     { id: 0,  name: 'Random',            generator: random },
     { id: 1,  name: 'Disk',              generator: disk },
     { id: 2,  name: 'Ring',              generator: ring },
-    { id: 3,  name: 'Rings',             generator: rings },
-    { id: 4,  name: 'Spiral',            generator: spiral },
+    { id: 3,  name: 'Rings',             generator: rings },            // toDo: Randomize
+    { id: 4,  name: 'Spiral',            generator: spiral },           // toDo: Randomize
     { id: 5,  name: 'Line',              generator: line },
-    { id: 6,  name: 'Rainbow Disk',      generator: rainbowDisk },
-    { id: 7,  name: 'Rainbow Ring',      generator: rainbowRing },
-    { id: 8,  name: 'Rainbow Rings',     generator: rainbowRings },
-    { id: 9,  name: 'Rainbow Spiral',    generator: rainbowSpiral },
+    { id: 6,  name: 'Rainbow Disk',      generator: rainbowDisk },      // toDo: Randomize
+    { id: 7,  name: 'Rainbow Ring',      generator: rainbowRing },      // toDo: Randomize
+    { id: 8,  name: 'Rainbow Rings',     generator: rainbowRings },     // toDo: Randomize
+    { id: 9,  name: 'Rainbow Spiral',    generator: rainbowSpiral },    // toDo: Randomize
     { id: 10, name: 'Rainbow Line',      generator: rainbowLine },
-    { id: 11, name: 'Stripes',           generator: stripes },
+    { id: 11, name: 'Stripes',           generator: stripes },          // toDo: Randomize
     { id: 12, name: 'Border',            generator: border },
     { id: 13, name: 'Grid',              generator: grid },
 
-    { id: 15, name: 'Starburst',         generator: starburst },
-    { id: 17, name: 'Twin Galaxies',     generator: twinGalaxies },
-    { id: 18, name: 'Spiral Arms',       generator: spiralArms },
-    { id: 19, name: 'Yin–Yang',          generator: yinYang },
-
-    { id: 29, name: 'Simple Flower',     generator: simpleFlower },     // +  Done
-    { id: 20, name: 'Chromatic Flower',  generator: chromaticFlower },  // ++  Done
-    { id: 21, name: 'Wavy Bands',        generator: wavyBands },        // +  Done
-    { id: 25, name: 'Chaotic Bands',     generator: chaoticBands },     // +  Done
-    { id: 14, name: 'Soft Clusters',     generator: softClusters },     // +  Done
-    { id: 23, name: 'Linked Clusters',   generator: linkedClusters },   // ++  Done
-    { id: 26, name: 'Orbital Belts',     generator: orbitalBelts },     // +++  Done
-    { id: 27, name: 'Braided Belts',     generator: braidedBelts },     // ++++  Done
-    { id: 24, name: 'Polar Maze',        generator: polarMaze },        // ++  Done
-    { id: 28, name: 'Twin Crescents',    generator: twinCrescents },    // ++  Done
-    { id: 30, name: 'Radiant Fans',      generator: radiantFans },      // ++  Done
+    { id: 14, name: 'Wavy Bands',        generator: wavyBands },        // ~  Done
+    { id: 15, name: 'Chaotic Bands',     generator: chaoticBands },     // ~  Done
+    { id: 16, name: 'Simple Flower',     generator: simpleFlower },     // +  Done
+    { id: 17, name: 'Chromatic Flower',  generator: chromaticFlower },  // +  Done
+    { id: 18, name: 'Radiant Fans',      generator: radiantFans },      // ++  Done
+    { id: 19, name: 'Yin–Yang',          generator: yinYang },          // +  Done
+    { id: 20, name: 'Twin Crescents',    generator: twinCrescents },    // ++  Done
+    { id: 21, name: 'Twin Spirals',      generator: twinSpirals },      // ++  Done
+    { id: 22, name: 'Spiral Arms',       generator: spiralArms },       // ++  Done
+    { id: 23, name: 'Soft Clusters',     generator: softClusters },     // +  toDo: improve nb clusters / fix missing colors / optimize (remove randN)
+    { id: 24, name: 'Linked Clusters',   generator: linkedClusters },   // ++  toDo: improve nb clusters / fix missing colors / optimize (remove randN)
+    { id: 25, name: 'Orbital Belts',     generator: orbitalBelts },     // +++  Done
+    { id: 26, name: 'Braided Belts',     generator: braidedBelts },     // +++  Done
+    { id: 27, name: 'Polar Maze',        generator: polarMaze },        // ++  Done
 ] as const
 
 export const POSITION_OPTIONS: PositionOption[] = POSITIONS.map(({ id, name }) => ({ id, name }))
