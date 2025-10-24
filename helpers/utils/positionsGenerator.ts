@@ -13,13 +13,6 @@ const writeParticle = (arr: Float32Array, i: number, x: number, y: number, type:
     arr[k + 3] = 0 // vy
     arr[k + 4] = type
 }
-const randN = (mu = 0, sigma = 1) => {
-    // Box–Muller
-    let u = 0, v = 0
-    while (u === 0) u = Math.random()
-    while (v === 0) v = Math.random()
-    return mu + sigma * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v)
-}
 // ---------------------------------------------------------------------------------------------------------------------
 // ==== GENERATORS =====================================================================================================
 // ---------------------------------------------------------------------------------------------------------------------
@@ -358,102 +351,239 @@ export const grid: PosGen = (N, T, W, H) => {
 // ---------------------------------------------------------------------------------------------------------------------
 export const softClusters: PosGen = (N, T, W, H) => {
     const A = new Float32Array(N * 5)
-    const k = Math.max(2, Math.min(T, 8)) // number of clusters
-    const centers: Array<[number, number]> = []
-    const margin = 0.18
+    if (N <= 0 || T <= 0) return A
+
+    const MIN_CLUSTERS = Math.max(2, Math.floor(T / 2))  // min clusters
+    const MAX_CLUSTERS = Math.max(6, T)                     // max clusters
+    const MARGIN = 0.18                                           // spawn margin (0..1)
+    const SIGMA_MIN_FRAC = 0.05                                   // min cluster spread × min(W,H)
+    const SIGMA_MAX_FRAC = 0.09                                   // max cluster spread × min(W,H)
+
+    const m = Math.min(W, H)
+    const k = Math.floor(MIN_CLUSTERS + Math.random() * (MAX_CLUSTERS - MIN_CLUSTERS + 1))
+    const TAU = 6.283185307179586
+
+    const cxs = new Float32Array(k)
+    const cys = new Float32Array(k)
+    const sig = new Float32Array(k)
+    const spanX = W * (1 - 2 * MARGIN)
+    const spanY = H * (1 - 2 * MARGIN)
     for (let c = 0; c < k; c++) {
-        centers.push([
-            W * (margin + Math.random() * (1 - 2 * margin)),
-            H * (margin + Math.random() * (1 - 2 * margin))
-        ])
+        cxs[c] = W * MARGIN + Math.random() * spanX
+        cys[c] = H * MARGIN + Math.random() * spanY
+        sig[c] = (SIGMA_MIN_FRAC + Math.random() * (SIGMA_MAX_FRAC - SIGMA_MIN_FRAC)) * m
     }
-    const sigma = 0.06 * Math.min(W, H)
-    for (let i = 0; i < N; i++) {
-        const cluster = i % k
-        const [cx, cy] = centers[cluster]
-        const x = cx + randN(0, sigma)
-        const y = cy + randN(0, sigma)
-        writeParticle(A, i, x, y, i % T)
+
+    const types = Array.from({ length: T }, (_, i) => i)
+    for (let i = T - 1; i > 0; i--) {
+        const j = (Math.random() * (i + 1)) | 0
+        ;[types[i], types[j]] = [types[j], types[i]]
+    }
+
+    const clusterTypes: number[][] = Array.from({ length: k }, () => [])
+    const first = Math.min(T, k)
+    for (let c = 0; c < first; c++) clusterTypes[c].push(types[c])
+    for (let t = first; t < T; t++) clusterTypes[(Math.random() * k) | 0].push(types[t])
+    if (T < k) for (let c = T; c < k; c++) clusterTypes[c].push(types[(Math.random() * T) | 0])
+
+    const base = (N / k) | 0
+    let rem = N % k
+    let idx = 0
+    for (let c = 0; c < k; c++) {
+        let cnt = base + (rem > 0 ? 1 : 0); if (rem > 0) rem--
+        if (cnt <= 0) continue
+
+        const cx = cxs[c], cy = cys[c], s = sig[c]
+        const pal = clusterTypes[c]
+        const plen = pal.length || 1
+        let ti = (Math.random() * plen) | 0
+
+        // Box–Muller in pairs
+        while (cnt > 1) {
+            let u1 = Math.random(); if (u1 < 1e-12) u1 = 1e-12
+            const mag = s * Math.sqrt(-2 * Math.log(u1))
+            const ang = TAU * Math.random()
+            const ca = Math.cos(ang), sa = Math.sin(ang)
+
+            const t0 = pal[ti]; if (++ti === plen) ti = 0
+            writeParticle(A, idx++, cx + mag * ca, cy + mag * sa, t0)
+            const t1 = pal[ti]; if (++ti === plen) ti = 0
+            writeParticle(A, idx++, cx - mag * ca, cy - mag * sa, t1)
+            cnt -= 2
+        }
+        if (cnt === 1) {
+            let u1 = Math.random(); if (u1 < 1e-12) u1 = 1e-12
+            const mag = s * Math.sqrt(-2 * Math.log(u1))
+            const ang = TAU * Math.random()
+            const t = pal[ti]; if (++ti === plen) ti = 0
+            writeParticle(A, idx++, cx + mag * Math.cos(ang), cy + mag * Math.sin(ang), t)
+        }
     }
     return A
 }
 export const linkedClusters: PosGen = (N, T, W, H) => {
     const A = new Float32Array(N * 5)
-    const k = Math.max(2, Math.min(T, 8))    // number of clusters
-    const margin = 0.18                            // edge margin (0..1)
-    const sigma = 0.06 * Math.min(W, H)            // cluster radius
-    const bridgeFrac = 0.18                        // fraction of bridge particles
-    const bridgeWidth = 0.005 * Math.min(W, H)     // bridge thickness
-    const bridgeAlong = 0.05 * Math.min(W, H)      // jitter along bridge
-    const blendFrac = 0.22                         // central blend zone length fraction (0..1)
-    const blendBands = 28                          // number of stripes inside blend zone
+    if (N <= 0 || T <= 0) return A
 
-    const centers: Array<[number, number]> = []
+    const MIN_CLUSTERS = Math.max(2, Math.floor(T / 2))  // min clusters
+    const MAX_CLUSTERS = Math.max(6, T)                     // max clusters
+    const MARGIN = 0.18                                           // spawn margin (0..1)
+    const SIGMA_MIN_FRAC = 0.05                                   // min cluster spread × min(W,H)
+    const SIGMA_MAX_FRAC = 0.09                                   // max cluster spread × min(W,H)
+    const CENTER_SEP_FRAC = 0.22                                  // min distance between centers × min(W,H)
+    const RELAX_ITER = 3                                          // separation relax iterations
+    const BRIDGE_FRAC = 0.18                                      // fraction of particles used as bridges (0..1)
+    const BRIDGE_WIDTH_FRAC = 0.005                               // perpendicular thickness × min(W,H)
+    const BRIDGE_ALONG_FRAC = 0.05                                // along-edge jitter × min(W,H)
+    const BLEND_FRAC = 0.22                                       // central blend zone length fraction (0..1)
+    const BLEND_BANDS = 28                                        // stripes count inside blend
+
+    const m = Math.min(W, H)
+    const TAU = 6.283185307179586
+    const bridgeWidth = BRIDGE_WIDTH_FRAC * m
+    const bridgeAlong = BRIDGE_ALONG_FRAC * m
+    const k = Math.floor(MIN_CLUSTERS + Math.random() * (MAX_CLUSTERS - MIN_CLUSTERS + 1))
+
+    const cxs = new Float32Array(k)
+    const cys = new Float32Array(k)
+    const spanX = W * (1 - 2 * MARGIN), spanY = H * (1 - 2 * MARGIN)
+    const minX = W * MARGIN, minY = H * MARGIN
+    const maxX = minX + spanX, maxY = minY + spanY
+    const minSep0 = CENTER_SEP_FRAC * m, minSep02 = minSep0 * minSep0
+
     for (let c = 0; c < k; c++) {
-        centers.push([
-            W * (margin + Math.random() * (1 - 2 * margin)),
-            H * (margin + Math.random() * (1 - 2 * margin)),
-        ])
+        let placed = false, sep = minSep0, sep2 = minSep02
+        for (let attempt = 0; attempt < 400 && !placed; attempt++) {
+            const x = minX + Math.random() * spanX
+            const y = minY + Math.random() * spanY
+            let ok = true
+            for (let p = 0; p < c; p++) {
+                const dx = x - cxs[p], dy = y - cys[p]
+                if (dx * dx + dy * dy < sep2) { ok = false; break }
+            }
+            if (ok) { cxs[c] = x; cys[c] = y; placed = true }
+            else if ((attempt & 63) === 63) { sep *= 0.9; sep2 = sep * sep }
+        }
+        if (!placed) { cxs[c] = minX + Math.random() * spanX; cys[c] = minY + Math.random() * spanY }
     }
 
-    const edges: Array<[number, number, number, number]> = []
+    for (let it = 0; it < RELAX_ITER; it++) {
+        for (let a = 0; a < k; a++) for (let b = a + 1; b < k; b++) {
+            let dx = cxs[b] - cxs[a], dy = cys[b] - cys[a]
+            const d2 = dx * dx + dy * dy
+            if (d2 < minSep02 && d2 > 1e-8) {
+                const d = Math.sqrt(d2), push = (minSep0 - d) * 0.5 / d
+                dx *= push; dy *= push
+                let xa = cxs[a] - dx, ya = cys[a] - dy
+                let xb = cxs[b] + dx, yb = cys[b] + dy
+                if (xa < minX) xa = minX; else if (xa > maxX) xa = maxX
+                if (ya < minY) ya = minY; else if (ya > maxY) ya = maxY
+                if (xb < minX) xb = minX; else if (xb > maxX) xb = maxX
+                if (yb < minY) yb = minY; else if (yb > maxY) yb = maxY
+                cxs[a] = xa; cys[a] = ya; cxs[b] = xb; cys[b] = yb
+            }
+        }
+    }
+
+    const sig = new Float32Array(k)
+    for (let c = 0; c < k; c++) sig[c] = (SIGMA_MIN_FRAC + Math.random() * (SIGMA_MAX_FRAC - SIGMA_MIN_FRAC)) * m
+    const types = Array.from({ length: T }, (_, i) => i)
+    for (let i = T - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [types[i], types[j]] = [types[j], types[i]] }
+
+    const clusterTypes: number[][] = Array.from({ length: k }, () => [])
+    const first = Math.min(T, k)
+    for (let c = 0; c < first; c++) clusterTypes[c].push(types[c])
+    for (let t = first; t < T; t++) clusterTypes[(Math.random() * k) | 0].push(types[t])
+    if (T < k) for (let c = T; c < k; c++) clusterTypes[c].push(types[(Math.random() * T) | 0])
+
+    type Edge = { a: number; b: number; tA: number; tB: number }
+    const edges: Edge[] = []
     const seen = new Set<string>()
     for (let a = 0; a < k; a++) {
-        let best = -1, bd = Infinity
-        const [ax, ay] = centers[a]
+        let best = -1, bd = Infinity, ax = cxs[a], ay = cys[a]
         for (let b = 0; b < k; b++) {
             if (a === b) continue
-            const [bx, by] = centers[b]
-            const d = (ax - bx) ** 2 + (ay - by) ** 2
+            const dx = ax - cxs[b], dy = ay - cys[b], d = dx * dx + dy * dy
             if (d < bd) { bd = d; best = b }
         }
-        const u = Math.min(a, best), v = Math.max(a, best)
-        const key = u + ":" + v
-        if (!seen.has(key)) { seen.add(key); edges.push([u, v, u % T, v % T]) }
+        const u = a < best ? a : best, v = a < best ? best : a, key = u + ":" + v
+        if (!seen.has(key)) {
+            seen.add(key)
+            const palA = clusterTypes[u], palB = clusterTypes[v]
+            edges.push({ a: u, b: v, tA: palA[(Math.random() * palA.length) | 0], tB: palB[(Math.random() * palB.length) | 0] })
+        }
     }
     const extra = Math.max(0, k - 2)
     for (let e = 0; e < extra; e++) {
         const a = (Math.random() * k) | 0
         let b = (Math.random() * k) | 0
         if (b === a) b = (b + 1) % k
-        const u = Math.min(a, b), v = Math.max(a, b)
-        const key = u + ":" + v
-        if (!seen.has(key)) { seen.add(key); edges.push([u, v, u % T, v % T]) }
+        const u = a < b ? a : b, v = a < b ? b : a, key = u + ":" + v
+        if (!seen.has(key)) {
+            seen.add(key)
+            const palA = clusterTypes[u], palB = clusterTypes[v]
+            edges.push({ a: u, b: v, tA: palA[(Math.random() * palA.length) | 0], tB: palB[(Math.random() * palB.length) | 0] })
+        }
     }
 
-    const bridges = Math.min(N, Math.floor(N * bridgeFrac))
+    const bridges = Math.min(N, Math.floor(N * BRIDGE_FRAC))
     const coreN = N - bridges
 
-    let i = 0
-    for (let n = 0; n < coreN; n++, i++) {
-        const cluster = n % k
-        const [cx, cy] = centers[cluster]
-        const x = cx + randN(0, sigma)
-        const y = cy + randN(0, sigma)
-        writeParticle(A, i, x, y, cluster % T)
+    const gaussianPair = (s: number): [number, number] => {
+        let u1 = Math.random(); if (u1 < 1e-12) u1 = 1e-12
+        const mag = s * Math.sqrt(-2 * Math.log(u1)), ang = TAU * Math.random()
+        return [mag * Math.cos(ang), mag * Math.sin(ang)]
     }
+    const sampleOff = () => {
+        let u1 = Math.random(); if (u1 < 1e-12) u1 = 1e-12
+        return bridgeWidth * (Math.sqrt(-2 * Math.log(u1)) * Math.cos(TAU * Math.random()))
+    }
+
+    const base = (coreN / k) | 0
+    let rem = coreN % k, idx = 0
+    for (let c = 0; c < k; c++) {
+        let cnt = base + (rem-- > 0 ? 1 : 0)
+        if (cnt <= 0) continue
+        const cx = cxs[c], cy = cys[c], s = sig[c], pal = clusterTypes[c], plen = pal.length || 1
+        let ti = (Math.random() * plen) | 0
+        while (cnt > 1) {
+            const [dx, dy] = gaussianPair(s)
+            const t0 = pal[ti]; if (++ti === plen) ti = 0
+            writeParticle(A, idx++, cx + dx, cy + dy, t0)
+            const t1 = pal[ti]; if (++ti === plen) ti = 0
+            writeParticle(A, idx++, cx - dx, cy - dy, t1)
+            cnt -= 2
+        }
+        if (cnt === 1) {
+            const [dx, dy] = gaussianPair(s)
+            const t = pal[ti]; if (++ti === plen) ti = 0
+            writeParticle(A, idx++, cx + dx, cy + dy, t)
+        }
+    }
+
     if (bridges === 0 || edges.length === 0) return A
 
-    const halfBlend = Math.max(0, Math.min(0.49, blendFrac * 0.5))
-    const tLeft = 0.5 - halfBlend
-    const tRight = 0.5 + halfBlend
-    const perEdge = Math.max(1, Math.floor(bridges / edges.length))
+    const halfBlend = Math.max(0, Math.min(0.49, BLEND_FRAC * 0.5))
+    const tLeft = 0.5 - halfBlend, tRight = 0.5 + halfBlend
+    const M = edges.length
+    const perEdgeBase = (bridges / M) | 0
+    let perEdgeRem = bridges % M
 
-    let bleft = bridges
-    for (let ei = 0; ei < edges.length && bleft > 0; ei++) {
-        const [a, b, tA, tB] = edges[ei]
-        const [ax, ay] = centers[a]
-        const [bx, by] = centers[b]
+    for (let ei = 0; ei < M; ei++) {
+        const { a, b, tA, tB } = edges[ei]
+        const ax = cxs[a], ay = cys[a], bx = cxs[b], by = cys[b]
         const dx = bx - ax, dy = by - ay
         const len = Math.hypot(dx, dy) || 1
-        const ux = dx / len, uy = dy / len
-        const nx = -uy, ny = ux
+        const ux = dx / len, uy = dy / len, nx = -uy, ny = ux
 
-        const count = Math.min(perEdge, bleft)
-        for (let j = 0; j < count && bleft > 0; j++, i++, bleft--) {
-            const tpos = (j + 0.5) / count
+        let count = perEdgeBase + (perEdgeRem-- > 0 ? 1 : 0)
+        if (count <= 0) continue
+
+        const invCount = 1 / count
+        for (let j = 0; j < count; j++) {
+            const tpos = (j + 0.5) * invCount
             const along = (Math.random() * 2 - 1) * bridgeAlong
-            const off = randN(0, bridgeWidth)
+            const off = sampleOff()
             const x = ax + dx * tpos + ux * along + nx * off
             const y = ay + dy * tpos + uy * along + ny * off
 
@@ -461,40 +591,12 @@ export const linkedClusters: PosGen = (N, T, W, H) => {
             if (tpos < tLeft) type = tA
             else if (tpos > tRight) type = tB
             else {
-                const u = (tpos - tLeft) / Math.max(1e-6, (tRight - tLeft))
-                const band = Math.floor(u * blendBands)
-                type = (band & 1) === 0 ? tA : tB
+                const u = (tpos - tLeft) / (tRight - tLeft + 1e-6)
+                type = ((Math.floor(u * BLEND_BANDS) & 1) === 0) ? tA : tB
             }
-            writeParticle(A, i, x, y, type)
+            writeParticle(A, idx++, x, y, type)
         }
     }
-
-    while (bleft-- > 0) {
-        const [a, b, tA, tB] = edges[(Math.random() * edges.length) | 0]
-        const [ax, ay] = centers[a]
-        const [bx, by] = centers[b]
-        const dx = bx - ax, dy = by - ay
-        const len = Math.hypot(dx, dy) || 1
-        const ux = dx / len, uy = dy / len
-        const nx = -uy, ny = ux
-
-        const tpos = Math.random()
-        const along = (Math.random() * 2 - 1) * bridgeAlong
-        const off = randN(0, bridgeWidth)
-        const x = ax + dx * tpos + ux * along + nx * off
-        const y = ay + dy * tpos + uy * along + ny * off
-
-        let type: number
-        if (tpos < tLeft) type = tA
-        else if (tpos > tRight) type = tB
-        else {
-            const u = (tpos - tLeft) / Math.max(1e-6, (tRight - tLeft))
-            const band = Math.floor(u * blendBands)
-            type = (band & 1) === 0 ? tA : tB
-        }
-        writeParticle(A, i++, x, y, type)
-    }
-
     return A
 }
 // ---------------------------------------------------------------------------------------------------------------------
@@ -953,10 +1055,10 @@ export const chaoticBands: PosGen = (N, T, W, H) => {
             const type = typesHere[(Math.random() * typesHere.length) | 0]
             writeParticle(A, i++, x, y, type)
             baseX += dBX; baseY += dBY
-            const sinA2 = sinA * cda + cosA * sda, cosA2 = cosA * cda - sinA * sda
-            sinA = sinA2; cosA = cosA2
-            const sinW2 = sinW * cdw + cosW * sdw, cosW2 = cosW * cdw - sinW * sdw
-            sinW = sinW2; cosW = cosW2
+            const cosA2 = cosA * cda - sinA * sda
+            sinA = sinA * cda + cosA * sda; cosA = cosA2
+            const cosW2 = cosW * cdw - sinW * sdw
+            sinW = sinW * cdw + cosW * sdw; cosW = cosW2
         }
     }
     return A
@@ -1271,8 +1373,8 @@ export const POSITIONS = [
     { id: 20, name: 'Twin Crescents',    generator: twinCrescents },    // ++  Done
     { id: 21, name: 'Twin Spirals',      generator: twinSpirals },      // ++  Done
     { id: 22, name: 'Spiral Arms',       generator: spiralArms },       // ++  Done
-    { id: 23, name: 'Soft Clusters',     generator: softClusters },     // +  toDo: improve nb clusters / fix missing colors / optimize (remove randN)
-    { id: 24, name: 'Linked Clusters',   generator: linkedClusters },   // ++  toDo: improve nb clusters / fix missing colors / optimize (remove randN)
+    { id: 23, name: 'Soft Clusters',     generator: softClusters },     // +  Done
+    { id: 24, name: 'Linked Clusters',   generator: linkedClusters },   // +  Done
     { id: 25, name: 'Orbital Belts',     generator: orbitalBelts },     // +++  Done
     { id: 26, name: 'Braided Belts',     generator: braidedBelts },     // +++  Done
     { id: 27, name: 'Polar Maze',        generator: polarMaze },        // ++  Done
