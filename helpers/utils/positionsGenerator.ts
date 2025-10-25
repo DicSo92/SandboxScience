@@ -55,24 +55,30 @@ export const disk: PosGen = (N, T, W, H) => {
 }
 export const rainbowDisk: PosGen = (N, T, W, H) => {
     const A = new Float32Array(N * 5)
-    const cx = W * 0.5, cy = H * 0.5
-    const R = 0.46 * Math.min(W, H) // disk radius
-    const sector = 6.283185307179586 / Math.max(1, T)
-    const base = Math.floor(N / T), rem = N % T
+    if (N <= 0 || T <= 0) return A
 
-    let i = 0
+    const m = Math.min(W, H)
+    const R = 0.46 * m
+    const cx = W * 0.5, cy = H * 0.5
+    const TAU = 6.283185307179586
+    const ROT = Math.random() * TAU
+    const sector = TAU / Math.max(1, T)
+    const base = (N / T) | 0
+    let rem = N % T, i = 0
+
     for (let t = 0; t < T; t++) {
-        const k = base + (t < rem ? 1 : 0)
-        if (!k) continue
+        let k = base + (rem-- > 0 ? 1 : 0)
+        if (k <= 0) continue
+
         const dth = sector / k
-        const start = t * sector + Math.random() * dth
+        const th0 = ROT + t * sector + Math.random() * dth
         const c = Math.cos(dth), s = Math.sin(dth)
-        let ux = Math.cos(start), uy = Math.sin(start)
+        let ux = Math.cos(th0), uy = Math.sin(th0)
+
         for (let j = 0; j < k; j++, i++) {
-            const r = Math.sqrt(Math.random()) * R
-            const x = cx + r * ux
-            const y = cy + r * uy
-            writeParticle(A, i, x, y, t)
+            const r = R * Math.sqrt(Math.random())
+            writeParticle(A, i, cx + r * ux, cy + r * uy, t)
+
             const nx = ux * c - uy * s
             uy = ux * s + uy * c
             ux = nx
@@ -83,49 +89,63 @@ export const rainbowDisk: PosGen = (N, T, W, H) => {
 // ---------------------------------------------------------------------------------------------------------------------
 export const ring: PosGen = (N, T, W, H) => {
     const A = new Float32Array(N * 5)
+    if (N <= 0 || T <= 0) return A
+
+    const R_FRAC = 0.46      // outer ring radius as fraction of min(W,H)
+    const THICK_FRAC = 0.2   // ring thickness as fraction of radius
+
+    const m = Math.min(W, H)
     const cx = W * 0.5, cy = H * 0.5
-    const R = 0.4 * Math.min(W, H)
-    const thick = R * 0.12 // ring thickness
-    const twopi = 2 * Math.PI
-    const dth = twopi / Math.max(1, N)
+    const R = R_FRAC * m
+    const thick = R * THICK_FRAC
+    const TAU = 6.283185307179586
+    const ROT = Math.random() * TAU
+
+    const dth = TAU / Math.max(1, N)
     const c = Math.cos(dth), s = Math.sin(dth)
-    let th = twopi * Math.random() / Math.max(1, N)
-    let ux = Math.cos(th), uy = Math.sin(th)
+    let ux = Math.cos(ROT), uy = Math.sin(ROT)
     let t = 0
+
     for (let i = 0; i < N; i++) {
-        const rr = R + (Math.random() * 2 - 1) * thick
-        const x = cx + rr * ux
-        const y = cy + rr * uy
-        writeParticle(A, i, x, y, t)
+        const rr = R - Math.random() * thick
+        writeParticle(A, i, cx + rr * ux, cy + rr * uy, t)
         const nx = ux * c - uy * s
         uy = ux * s + uy * c
         ux = nx
-        t++; if (t === T) t = 0
+        if (++t === T) t = 0
     }
     return A
 }
+
 export const rainbowRing: PosGen = (N, T, W, H) => {
     const A = new Float32Array(N * 5)
-    const cx = W * 0.5, cy = H * 0.5
-    const R = 0.4 * Math.min(W, H)
-    const thick = 0.048 * Math.min(W, H) // ring thickness
-    const twopi = 2 * Math.PI
-    const sector = twopi / Math.max(1, T)
-    const base = Math.floor(N / T), rem = N % T
+    if (N <= 0 || T <= 0) return A
 
-    let i = 0
+    const R_FRAC = 0.46      // outer ring radius as fraction of min(W,H)
+    const THICK_FRAC = 0.2   // ring thickness as fraction of radius
+
+    const m = Math.min(W, H)
+    const cx = W * 0.5, cy = H * 0.5
+    const R = R_FRAC * m
+    const thick = R * THICK_FRAC
+    const TAU = 6.283185307179586
+    const ROT = Math.random() * TAU
+    const sector = TAU / Math.max(1, T)
+    const base = (N / T) | 0
+    let rem = N % T, i = 0
+
     for (let t = 0; t < T; t++) {
-        const k = base + (t < rem ? 1 : 0)
-        if (!k) continue
+        let k = base + (rem-- > 0 ? 1 : 0)
+        if (k <= 0) continue
+
         const dth = sector / k
-        const start = t * sector + dth * Math.random()
+        const th0 = ROT + t * sector + Math.random() * dth
         const c = Math.cos(dth), s = Math.sin(dth)
-        let ux = Math.cos(start), uy = Math.sin(start)
+        let ux = Math.cos(th0), uy = Math.sin(th0)
+
         for (let j = 0; j < k; j++, i++) {
-            const rr = R + (Math.random() * 2 - 1) * thick
-            const x = cx + rr * ux
-            const y = cy + rr * uy
-            writeParticle(A, i, x, y, t)
+            const rr = R - Math.random() * thick
+            writeParticle(A, i, cx + rr * ux, cy + rr * uy, t)
             const nx = ux * c - uy * s
             uy = ux * s + uy * c
             ux = nx
@@ -133,51 +153,72 @@ export const rainbowRing: PosGen = (N, T, W, H) => {
     }
     return A
 }
+
 // ---------------------------------------------------------------------------------------------------------------------
 export const rings: PosGen = (N, T, W, H) => {
     const A = new Float32Array(N * 5)
+    if (N <= 0 || T <= 0) return A
+
+    const MIN_RINGS = 2               // minimum number of rings
+    const MAX_RINGS = 8               // maximum number of rings
+    const R_MIN_FRAC = 0.23           // innermost ring radius fraction (× max radius)
+    const R_MAX_FRAC = 0.92           // outermost ring radius fraction (× max radius)
+    const THICK_FRAC = 0.02           // ring thickness × max radius
+
+    const m = Math.min(W, H)
     const cx = W * 0.5, cy = H * 0.5
-    const rings = Math.max(2, Math.min(5, Math.round(Math.sqrt(T)) + 1))
-    const maxR = 0.46 * Math.min(W, H)
-    const base = Math.floor(N / rings), rem = N % rings
-    const twopi = 2 * Math.PI
-    const thick = maxR * 0.02 // ring thickness
+    const rings = (MIN_RINGS + Math.random() * (MAX_RINGS - MIN_RINGS + 1)) | 0
+    const maxR = 0.46 * m
+    const thick = THICK_FRAC * maxR
+    const base = (N / rings) | 0
+    let rem = N % rings
+    const TAU = 6.283185307179586
 
     let i = 0, t = 0
     for (let r = 0; r < rings; r++) {
-        const k = base + (r < rem ? 1 : 0)
-        if (!k) continue
-        const R = maxR * (0.25 + 0.7 * (r / (rings - 1)))
+        let k = base + (rem-- > 0 ? 1 : 0)
+        if (k <= 0) continue
+
+        const f = R_MIN_FRAC + (R_MAX_FRAC - R_MIN_FRAC) * (rings === 1 ? 0 : r / (rings - 1))
+        const R = f * maxR
+        const step = TAU / k
         for (let j = 0; j < k; j++, i++) {
-            const th = twopi * ((j + Math.random()) / k)
+            const th = step * j + Math.random() * step
             const rr = R + (Math.random() * 2 - 1) * thick
-            const x = cx + rr * Math.cos(th)
-            const y = cy + rr * Math.sin(th)
-            writeParticle(A, i, x, y, t)
-            t++; if (t === T) t = 0
+            writeParticle(A, i, cx + rr * Math.cos(th), cy + rr * Math.sin(th), t)
+            if (++t === T) t = 0
         }
     }
     return A
 }
 export const rainbowRings: PosGen = (N, T, W, H) => {
     const A = new Float32Array(N * 5)
-    const cx = W * 0.5, cy = H * 0.5
-    const Rmax = 0.46 * Math.min(W, H)
-    const base = Math.floor(N / T), rem = N % T
-    const twopi = 2 * Math.PI
-    const thick = Rmax * 0.02 // ring thickness
+    if (N <= 0 || T <= 0) return A
 
-    let i = 0
-    for (let t = 0; t < T; t++) {
-        const k = base + (t < rem ? 1 : 0)
-        if (!k) continue
-        const r = Rmax * ((t + 0.5) / T)
+    const R_MIN_FRAC = 0.23   // minimum ring radius × max radius
+    const R_MAX_FRAC = 0.92   // maximum ring radius × max radius
+    const THICK_FRAC = 0.02   // ring thickness × max radius
+
+    const m = Math.min(W, H)
+    const cx = W * 0.5, cy = H * 0.5
+    const Rmax = 0.46 * m
+    const thick = THICK_FRAC * Rmax
+    const TAU = 6.283185307179586
+
+    const rings = T
+    const denom = Math.max(1, rings - 1)
+    const base = (N / rings) | 0
+    let rem = N % rings, i = 0
+    for (let r = 0; r < rings; r++) {
+        let k = base + (rem-- > 0 ? 1 : 0)
+        if (k <= 0) continue
+
+        const R = Rmax * (R_MIN_FRAC + (R_MAX_FRAC - R_MIN_FRAC) * (r / denom))
+        const step = TAU / k
         for (let j = 0; j < k; j++, i++) {
-            const th = twopi * ((j + Math.random()) / k)
-            const rr = r + (Math.random() * 2 - 1) * thick
-            const x = cx + rr * Math.cos(th)
-            const y = cy + rr * Math.sin(th)
-            writeParticle(A, i, x, y, t)
+            const th = j * step + Math.random() * step
+            const rr = R + (Math.random() * 2 - 1) * thick
+            writeParticle(A, i, cx + rr * Math.cos(th), cy + rr * Math.sin(th), r % T)
         }
     }
     return A
@@ -185,94 +226,123 @@ export const rainbowRings: PosGen = (N, T, W, H) => {
 // ---------------------------------------------------------------------------------------------------------------------
 export const spiral: PosGen = (N, T, W, H) => {
     const A = new Float32Array(N * 5)
-    const cx = W * 0.5, cy = H * 0.5
-    const turns = 3.0
-    const maxR = 0.46 * Math.min(W, H)
-    const n1 = Math.max(1, N - 1)
-    const stepR = maxR / n1
-    const dTheta = (turns * 2 * Math.PI) / n1
-    const c = Math.cos(dTheta), s = Math.sin(dTheta)
-    let ux = 1, uy = 0
-    const j = 0.025 * maxR // thickness jitter
+    if (N <= 0 || T <= 0) return A
 
-    let tType = 0
+    const THICK_FRAC = 0.0175             // arm thickness × min(W,H)
+    const TURNS_MIN = 1.2                 // min spiral turns
+    const TURNS_MAX = 3.6                 // max spiral turns
+
+    const m = Math.min(W, H)
+    const cx = W * 0.5, cy = H * 0.5
+    const R = 0.46 * m
+    const TAU = 6.283185307179586
+    const THICK = THICK_FRAC * m
+    const TURNS = TURNS_MIN + Math.random() * (TURNS_MAX - TURNS_MIN)
+    const ROT = Math.random() * TAU
+
+    const n1 = Math.max(1, N - 1)
+    const dth = (TURNS * TAU) / n1
+    const c = Math.cos(dth), s = Math.sin(dth)
+    let ux = Math.cos(ROT), uy = Math.sin(ROT)
+
+    let t = 0
     for (let i = 0; i < N; i++) {
-        const r = i * stepR
-        const x = cx + r * ux + (Math.random() * 2 - 1) * j
-        const y = cy + r * uy + (Math.random() * 2 - 1) * j
-        writeParticle(A, i, x, y, tType)
+        const u = i / n1
+        const r = u * R
+        const rr = Math.max(0, r + (Math.random() * 2 - 1) * THICK)
+        writeParticle(A, i, cx + rr * ux, cy + rr * uy, t)
         const nx = ux * c - uy * s
         uy = ux * s + uy * c
         ux = nx
-        tType++; if (tType === T) tType = 0
+        t++; if (t === T) t = 0
     }
     return A
 }
 export const rainbowSpiral: PosGen = (N, T, W, H) => {
     const A = new Float32Array(N * 5)
+    if (N <= 0 || T <= 0) return A
+
+    const THICK_FRAC = 0.0175             // arm thickness × min(W,H)
+    const TURNS_MIN = 1.2                 // min spiral turns
+    const TURNS_MAX = 3.6                 // max spiral turns
+
+    const m = Math.min(W, H)
     const cx = W * 0.5, cy = H * 0.5
-    const turns = 3.0
-    const maxR = 0.46 * Math.min(W, H)
+    const R = 0.46 * m
+    const TAU = 6.283185307179586
+    const THICK = THICK_FRAC * m
+    const TURNS = TURNS_MIN + Math.random() * (TURNS_MAX - TURNS_MIN)
+    const ROT = Math.random() * TAU
+    const phase0 = Math.random()
+
     const n1 = Math.max(1, N - 1)
-    const stepR = maxR / n1
-    const dTheta = (turns * 2 * Math.PI) / n1
-    const c = Math.cos(dTheta), s = Math.sin(dTheta)
-    let ux = 1, uy = 0
-    const invTau = 1 / (2 * Math.PI)
-    const dPhase = dTheta * invTau
-    let phase = 0
-    const j = 0.025 * maxR // thickness jitter
+    const dth = (TURNS * TAU) / n1
+    const c = Math.cos(dth), s = Math.sin(dth)
+    const phaseStep = TURNS / n1
+    let ux = Math.cos(ROT), uy = Math.sin(ROT)
 
     for (let i = 0; i < N; i++) {
-        const r = i * stepR
-        const x = cx + r * ux + (Math.random() * 2 - 1) * j
-        const y = cy + r * uy + (Math.random() * 2 - 1) * j
-        const tType = Math.floor(phase * T)
-        writeParticle(A, i, x, y, tType)
+        const u = i / n1
+        const r = u * R
+        const rr = Math.max(0, r + (Math.random() * 2 - 1) * THICK)
+        const tType = Math.floor(((phase0 + i * phaseStep) % 1) * T)
+        writeParticle(A, i, cx + rr * ux, cy + rr * uy, tType)
+
         const nx = ux * c - uy * s
         uy = ux * s + uy * c
         ux = nx
-        phase += dPhase
-        if (phase >= 1) phase -= 1
     }
     return A
 }
 // ---------------------------------------------------------------------------------------------------------------------
 export const line: PosGen = (N, T, W, H) => {
     const A = new Float32Array(N * 5)
-    const cx = W * 0.5
-    const cy = H * 0.5
-    const L = W * 0.9 // line length (90% of width)
-    const thickness = H * 0.1 // thickness jitter (10% of height)
+    if (N <= 0 || T <= 0) return A
+
+    const LENGTH_FRAC = 0.92   // line length as fraction of width
+    const THICK_FRAC = 0.10    // line thickness as fraction of height
+
+    const L = W * LENGTH_FRAC
+    const thick = H * THICK_FRAC
+    const cx = W * 0.5, cy = H * 0.5
     const xStart = cx - L * 0.5
     const step = N > 1 ? L / (N - 1) : 0
 
     let t = 0
     for (let i = 0; i < N; i++) {
         const x = xStart + step * i
-        const y = cy + (Math.random() - 0.5) * thickness
+        const y = cy + (Math.random() * 2 - 1) * 0.5 * thick
         writeParticle(A, i, x, y, t)
-        t++; if (t === T) t = 0
+        if (++t === T) t = 0
     }
     return A
 }
 export const rainbowLine: PosGen = (N, T, W, H) => {
     const A = new Float32Array(N * 5)
-    const L = W * 0.9 // line length (90% of width)
-    const thickness = H * 0.1 // thickness jitter (10% of height)
+    if (N <= 0 || T <= 0) return A
+
+    const LENGTH_FRAC = 0.92   // line length as fraction of width
+    const THICK_FRAC = 0.10    // line thickness as fraction of height
+
+    const L = W * LENGTH_FRAC
+    const thick = H * THICK_FRAC
     const cx = W * 0.5, cy = H * 0.5
     const xStart = cx - L * 0.5
     const segW = L / T
-    const base = Math.floor(N / T), rem = N % T
+    const base = (N / T) | 0
+    let rem = N % T
+    const reversed = Math.random() < 0.5
 
     let i = 0
-    for (let t = 0; t < T; t++) {
-        const k = base + (t < rem ? 1 : 0)
-        if (k === 0) continue
-        const x0 = xStart + t * segW
+    for (let ti = 0; ti < T; ti++) {
+        const t = reversed ? T - 1 - ti : ti
+        let k = base + (rem-- > 0 ? 1 : 0)
+        if (k <= 0) continue
+
+        const x0 = xStart + ti * segW
         for (let j = 0; j < k; j++, i++) {
             const x = x0 + segW * ((j + Math.random()) / k)
-            const y = cy + (Math.random() - 0.5) * thickness
+            const y = cy + (Math.random() * 2 - 1) * 0.5 * thick
             writeParticle(A, i, x, y, t)
         }
     }
@@ -281,18 +351,45 @@ export const rainbowLine: PosGen = (N, T, W, H) => {
 // ---------------------------------------------------------------------------------------------------------------------
 export const stripes: PosGen = (N, T, W, H) => {
     const A = new Float32Array(N * 5)
-    const segW = W / T // stripe width
-    const base = Math.floor(N / T), rem = N % T
+    if (N <= 0 || T <= 0) return A
+
+    const EDGE_MARGIN_FRAC = 0.0  // perpendicular margin (0..0.5)
+
+    const vertical = Math.random() < 0.5
+    const reversed = Math.random() < 0.5
+
+    const m = EDGE_MARGIN_FRAC
+    const base = (N / T) | 0
+    let rem = N % T
 
     let i = 0
-    for (let t = 0; t < T; t++) {
-        let k = base + (t < rem ? 1 : 0)
-        const x0 = t * segW
-        while (k-- > 0) {
-            const x = x0 + Math.random() * segW
-            const y = Math.random() * H
-            writeParticle(A, i, x, y, t)
-            i++
+    if (vertical) {
+        const spanW = W * (1 - 2 * m)
+        const xStart = W * m
+        const seg = spanW / T
+        for (let si = 0; si < T; si++) {
+            const t = reversed ? T - 1 - si : si
+            let k = base + (rem-- > 0 ? 1 : 0)
+            const x0 = xStart + si * seg
+            while (k-- > 0) {
+                const x = x0 + Math.random() * seg
+                const y = Math.random() * H
+                writeParticle(A, i++, x, y, t)
+            }
+        }
+    } else {
+        const spanH = H * (1 - 2 * m)
+        const yStart = H * m
+        const seg = spanH / T
+        for (let si = 0; si < T; si++) {
+            const t = reversed ? T - 1 - si : si
+            let k = base + (rem-- > 0 ? 1 : 0)
+            const y0 = yStart + si * seg
+            while (k-- > 0) {
+                const x = Math.random() * W
+                const y = y0 + Math.random() * seg
+                writeParticle(A, i++, x, y, t)
+            }
         }
     }
     return A
@@ -300,19 +397,20 @@ export const stripes: PosGen = (N, T, W, H) => {
 // ---------------------------------------------------------------------------------------------------------------------
 export const border: PosGen = (N, T, W, H) => {
     const A = new Float32Array(N * 5)
-    const inset = 1 // inset from edges (px)
+    if (N <= 0 || T <= 0) return A
 
+    const inset = 1
     const w = Math.max(0, W - 2 * inset)
     const h = Math.max(0, H - 2 * inset)
-    const P = 2 * (w + h)
-    if (N === 0 || P === 0) return A
+    const P = (w + h) * 2
+    if (P === 0) return A
 
-    const step = P / N
     const L0 = w, L1 = w + h, L2 = w + h + w
-    let t = 0
+    const step = P / N
 
-    for (let i = 0; i < N; i++) {
-        const s = i * step
+    let s = 0
+    let t = 0
+    for (let i = 0; i < N; i++, s += step) {
         let x: number, y: number
         if (s < L0) { x = inset + s; y = inset }
         else if (s < L1) { x = inset + w; y = inset + (s - L0) }
@@ -326,7 +424,9 @@ export const border: PosGen = (N, T, W, H) => {
 // ---------------------------------------------------------------------------------------------------------------------
 export const grid: PosGen = (N, T, W, H) => {
     const A = new Float32Array(N * 5)
-    const margin = 0.08 // outer margin (0..1)
+    if (N <= 0 || T <= 0) return A
+
+    const margin = 0.00 // outer margin (0..1)
 
     const cols = Math.ceil(Math.sqrt(N))
     const rows = Math.ceil(N / cols)
@@ -1312,20 +1412,20 @@ export const radiantFans: PosGen = (N, T, W, H) => {
 // === Registry & API ==================================================================================================
 // ---------------------------------------------------------------------------------------------------------------------
 export const POSITIONS = [
-    { id: 0,  name: 'Random',            generator: random },
-    { id: 1,  name: 'Disk',              generator: disk },
-    { id: 2,  name: 'Ring',              generator: ring },
-    { id: 3,  name: 'Rings',             generator: rings },            // toDo: Randomize
-    { id: 4,  name: 'Spiral',            generator: spiral },           // toDo: Randomize
-    { id: 5,  name: 'Line',              generator: line },
-    { id: 6,  name: 'Rainbow Disk',      generator: rainbowDisk },      // toDo: Randomize
-    { id: 7,  name: 'Rainbow Ring',      generator: rainbowRing },      // toDo: Randomize
-    { id: 8,  name: 'Rainbow Rings',     generator: rainbowRings },     // toDo: Randomize
-    { id: 9,  name: 'Rainbow Spiral',    generator: rainbowSpiral },    // toDo: Randomize
-    { id: 10, name: 'Rainbow Line',      generator: rainbowLine },
-    { id: 11, name: 'Stripes',           generator: stripes },          // toDo: Randomize
-    { id: 12, name: 'Border',            generator: border },
-    { id: 13, name: 'Grid',              generator: grid },
+    { id: 0,  name: 'Random',            generator: random },           // Done
+    { id: 1,  name: 'Disk',              generator: disk },             // Done
+    { id: 2,  name: 'Ring',              generator: ring },             // Done
+    { id: 3,  name: 'Rings',             generator: rings },            // Done
+    { id: 4,  name: 'Spiral',            generator: spiral },           // Done
+    { id: 5,  name: 'Line',              generator: line },             // Done
+    { id: 6,  name: 'Rainbow Disk',      generator: rainbowDisk },      // Done
+    { id: 7,  name: 'Rainbow Ring',      generator: rainbowRing },      // Done
+    { id: 8,  name: 'Rainbow Rings',     generator: rainbowRings },     // Done
+    { id: 9,  name: 'Rainbow Spiral',    generator: rainbowSpiral },    // Done
+    { id: 10, name: 'Rainbow Line',      generator: rainbowLine },      // Done
+    { id: 11, name: 'Stripes',           generator: stripes },          // Done
+    { id: 12, name: 'Border',            generator: border },           // Done
+    { id: 13, name: 'Grid',              generator: grid },             // Done
 
     { id: 14, name: 'Wavy Bands',        generator: wavyBands },        // ~  Done
     { id: 15, name: 'Chaotic Bands',     generator: chaoticBands },     // ~  Done
