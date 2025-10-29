@@ -142,6 +142,22 @@ export function heatmapWarm(NUM_TYPES: number): Colors {
         { t: 1.00, r: 1.00, g: 1.00, b: 1.00 }, // white
     ])
 }
+export function grayscale(NUM_TYPES: number): Colors {
+    return gradientPalette(NUM_TYPES, [
+        { t: 0.00, r: 0.05, g: 0.05, b: 0.05 }, // dark gray
+        { t: 0.75, r: 0.65, g: 0.65, b: 0.65 }, // light gray
+        { t: 1.00, r: 1.00, g: 1.00, b: 1.00 }, // white
+    ])
+}
+export function desertWarm(NUM_TYPES: number): Colors {
+    return gradientPalette(NUM_TYPES, [
+        { t: 0.00, r: 0.9647, g: 0.8863, b: 0.7020 }, // light sand
+        { t: 0.25, r: 0.9098, g: 0.7529, b: 0.4471 }, // golden sand
+        { t: 0.50, r: 0.8471, g: 0.5373, b: 0.2275 }, // warm ochre
+        { t: 0.75, r: 0.7216, g: 0.3608, b: 0.1843 }, // terracotta
+        { t: 1.00, r: 0.3686, g: 0.2275, b: 0.1804 }, // deep umber
+    ])
+}
 // ---------------------------------------------------------------------------------------------------------------------
 export function neonWarm(NUM_TYPES: number): Colors {
     const colors = new Float32Array(NUM_TYPES * 4)
@@ -220,6 +236,7 @@ export function crimsonFlame(NUM_TYPES: number): Colors {
     // Hue range: fiery red → deep magenta (avoids green transition)
     const startH = 2     // bright red
     const endH = -30     // deep magenta, moving backward on hue circle
+
     const s0 = 1.0       // strong saturation
     const s1 = 0.7       // slightly softer at the end
     const v0 = 0.95       // bright start
@@ -237,7 +254,7 @@ export function crimsonFlame(NUM_TYPES: number): Colors {
 
     return colors
 }
-
+// ---------------------------------------------------------------------------------------------------------------------
 export function dualGradientGenerator(NUM_TYPES: number): Colors {
     const colors = new Float32Array(NUM_TYPES * 4)
     const startHue = Math.random() * 360
@@ -247,49 +264,6 @@ export function dualGradientGenerator(NUM_TYPES: number): Colors {
         const hue = startHue * (1 - t) + endHue * t
         const [r, g, b] = hsvToRgb(hue, 0.9, 1.0)
         colors.set([r, g, b, 1], i * 4)
-    }
-    return colors
-}
-
-export function desertWarmGenerator(NUM_TYPES: number): Colors {
-    const colors = new Float32Array(NUM_TYPES*4)
-    const baseH = randRange(20, 40)
-    const baseS = randRange(0.45, 0.75)
-    const baseV = randRange(0.85, 1.0)
-    for (let i=0;i<NUM_TYPES;i++){
-        const h = (baseH + randN(0, 6)) % 360
-        const s = clamp(baseS + randN(0, 0.08))
-        const v = clamp(baseV - Math.abs(randN(0, 0.07)))
-        const [r,g,b] = hsvToRgb(h,s,v)
-        colors.set([r,g,b,1], i*4)
-    }
-    return colors
-}
-
-export function oceanCoolGenerator(NUM_TYPES: number): Colors {
-    const colors = new Float32Array(NUM_TYPES*4)
-    const baseH = randRange(180, 210)
-    const baseS = randRange(0.45, 0.9)
-    const baseV = randRange(0.7, 1.0)
-    for (let i=0;i<NUM_TYPES;i++){
-        const h = (baseH + randN(0, 10)) % 360
-        const s = clamp(baseS + randN(0, 0.12))
-        const v = clamp(baseV + randN(0, 0.08))
-        const [r,g,b] = hsvToRgb(h,s,v)
-        colors.set([r,g,b,1], i*4)
-    }
-    return colors
-}
-
-export function forestEarthGenerator(NUM_TYPES: number): Colors {
-    const colors = new Float32Array(NUM_TYPES*4)
-    const baseH = randRange(85, 140)
-    for (let i=0;i<NUM_TYPES;i++){
-        const h = (baseH + randN(0, 12) + (i%3===0 ? randRange(-20,20):0)) % 360
-        const s = clamp(0.35 + randN(0, 0.12))
-        const v = clamp(0.45 + randN(0, 0.15))
-        const [r,g,b] = hsvToRgb(h,s,v)
-        colors.set([r,g,b,1], i*4)
     }
     return colors
 }
@@ -307,22 +281,6 @@ export function cyberNeonGenerator(NUM_TYPES: number): Colors {
     return colors
 }
 
-export function sunsetVariantGenerator(NUM_TYPES: number): Colors {
-    const colors = new Float32Array(NUM_TYPES*4)
-    const startH = randRange(10, 25)
-    const endH   = (startH + randRange(40, 80)) % 360
-    const s0 = randRange(0.7, 1.0), s1 = randRange(0.6, 0.9)
-    const v0 = randRange(0.8, 1.0), v1 = randRange(0.6, 0.95)
-    for (let i=0;i<NUM_TYPES;i++){
-        const t = NUM_TYPES<=1 ? 0 : i/(NUM_TYPES-1)
-        const h = (lerp(startH, endH, t) + randN(0, 4)) % 360
-        const s = clamp(lerp(s0, s1, t) + randN(0, 0.05))
-        const v = clamp(lerp(v0, v1, t) + randN(0, 0.05))
-        const [r,g,b] = hsvToRgb(h,s,v)
-        colors.set([r,g,b,1], i*4)
-    }
-    return colors
-}
 export function magmaDeepGenerator(NUM_TYPES: number): Colors {
     const colors = new Float32Array(NUM_TYPES*4)
     const baseH = randRange(0, 15)
@@ -350,17 +308,6 @@ export function auroraGenerator(NUM_TYPES: number): Colors {
     return colors
 }
 
-export function grayscaleFilmGenerator(NUM_TYPES: number): Colors {
-    const colors = new Float32Array(NUM_TYPES*4)
-    const gamma = randRange(0.9, 1.2)
-    for (let i=0;i<NUM_TYPES;i++){
-        let v = clamp(0.25 + 0.7 * (i/(NUM_TYPES-1)) + randN(0, 0.08))
-        v = Math.pow(clamp(v), gamma)
-        colors.set([v, v, v, 1], i*4)
-    }
-    return colors
-}
-
 export function goldenAngleJitterGenerator(NUM_TYPES: number): Colors {
     const colors = new Float32Array(NUM_TYPES*4)
     const phi = 137.50776405003785
@@ -374,19 +321,6 @@ export function goldenAngleJitterGenerator(NUM_TYPES: number): Colors {
         const v = clamp(vBase + randN(0, 0.05))
         const [r,g,b] = hsvToRgb(h,s,v)
         colors.set([r,g,b,1], i*4)
-    }
-    return colors
-}
-
-export function retroConsoleGenerator(NUM_TYPES: number): Colors {
-    const colors = new Float32Array(NUM_TYPES*4)
-    const baseH = randRange(105, 125)
-    for (let i=0;i<NUM_TYPES;i++){
-        const h = (baseH + randN(0, 3)) % 360
-        const s = clamp(0.55 + randN(0, .08))
-        const v = clamp(0.75 + randN(0, .1))
-        const [r,g,b] = hsvToRgb(h,s,v)
-        colors.set([r*0.9, g, b*0.8, 1], i*4)
     }
     return colors
 }
@@ -473,19 +407,6 @@ export function blueprintGenerator(NUM_TYPES: number): Colors {
     return colors
 }
 
-export function crtAmberGenerator(NUM_TYPES: number): Colors {
-    const colors = new Float32Array(NUM_TYPES*4)
-    const baseH = randRange(28, 38)
-    for (let i=0;i<NUM_TYPES;i++){
-        const h = (baseH + randN(0, 2.5)) % 360
-        const s = clamp(0.75 + randN(0,.06))
-        const v = clamp(0.85 + randN(0,.08))
-        const [r,g,b] = hsvToRgb(h,s,v)
-        colors.set([r, g*0.8, b*0.5, 1], i*4)
-    }
-    return colors
-}
-
 export function gameboyDMGGenerator(NUM_TYPES: number): Colors {
     const colors = new Float32Array(NUM_TYPES*4)
     const steps = [0.2, 0.35, 0.55, 0.78]
@@ -542,20 +463,6 @@ export function biolumAbyssGenerator(NUM_TYPES:number): Colors {
         const s = isAccent ? clamp(0.9 + randN(0,.05)) : clamp(0.35 + randN(0,.1))
         const v = isAccent ? clamp(0.95 + randN(0,.03)) : clamp(0.12 + randN(0,.05))
         const [r,g,b] = hsvToRgb((h+360)%360, s, v)
-        colors.set([r,g,b,1], i*4)
-    }
-    return colors
-}
-
-export function iridescentBeetleGenerator(NUM_TYPES:number): Colors {
-    const colors = new Float32Array(NUM_TYPES*4)
-    const base = randRange(110, 140)
-    for (let i=0;i<NUM_TYPES;i++){
-        const t = i/Math.max(1,NUM_TYPES-1)
-        const h = (base + 80*Math.sin(2*Math.PI*t) + randN(0,6)) % 360
-        const s = clamp(0.7 + 0.2*Math.cos(4*Math.PI*t) + randN(0,.05))
-        const v = clamp(0.6 + 0.35*Math.sin(3*Math.PI*t + 0.8) + randN(0,.04))
-        const [r,g,b] = hsvToRgb(h,s,v)
         colors.set([r,g,b,1], i*4)
     }
     return colors
@@ -702,57 +609,48 @@ export function solarizedDriftGenerator(NUM_TYPES:number): Colors {
 // === Registry & API ==================================================================================================
 // ---------------------------------------------------------------------------------------------------------------------
 const PALETTES: { id: number; name: string; generator: (n: number) => Colors }[] = [
-    { id: 0, name: 'Random', generator: randomGenerator },                      // +++ GENERATIVE   DONE
-    { id: 1, name: 'Rainbow', generator: rainbow },                             // +++ STATIC   DONE
-    { id: 50, name: 'Neon Warm', generator: neonWarm },                         // +++ STATIC   DONE toDo: renaming? (radiantGlow?)
-    { id: 4, name: 'Heatmap Classic', generator: heatmapClassic },              // +++ STATIC   DONE
-    { id: 53, name: 'Heatmap Cool', generator: heatmapCool },                   // ++  STATIC   DONE
-    { id: 54, name: 'Heatmap Warm', generator: heatmapWarm },                   // ++  STATIC   DONE
-    { id: 12, name: 'Pastel', generator: pastel },                              // +++ STATIC   DONE
-    { id: 28, name: 'Cold Blue', generator: coldBlue },                         // +   STATIC   DONE
-    { id: 56, name: 'Vivid Spectrum', generator: vividSpectrum },               // +   STATIC   DONE
-    { id: 57, name: 'Thermal Glow', generator: thermalGlow },                   // +   STATIC   DONE
-    { id: 55, name: 'Crimson Flame', generator: crimsonFlame },                 // +++ STATIC   DONE
-    { id: 51, name: 'Fire', generator: fire },                                  // +++ STATIC   DONE
-    { id: 52, name: 'Violet Fade', generator: violetFade },                     // +++ STATIC   DONE
+    { id: 0, name: 'Random', generator: randomGenerator },                       // +++ GENERATIVE   DONE
+    { id: 1, name: 'Rainbow', generator: rainbow },                              // +++ STATIC   DONE
+    { id: 2, name: 'Neon Warm', generator: neonWarm },                           // +++ STATIC   DONE toDo: renaming? (radiantGlow?)
+    { id: 3, name: 'Heatmap Classic', generator: heatmapClassic },               // +++ STATIC   DONE
+    { id: 4, name: 'Heatmap Cool', generator: heatmapCool },                     // ++  STATIC   DONE
+    { id: 5, name: 'Heatmap Warm', generator: heatmapWarm },                     // ++  STATIC   DONE
+    { id: 6, name: 'Pastel', generator: pastel },                                // +++ STATIC   DONE
+    { id: 7, name: 'Cold Blue', generator: coldBlue },                           // +   STATIC   DONE
+    { id: 8, name: 'Vivid Spectrum', generator: vividSpectrum },                 // +   STATIC   DONE
+    { id: 9, name: 'Thermal Glow', generator: thermalGlow },                     // +   STATIC   DONE
+    { id: 10, name: 'Crimson Flame', generator: crimsonFlame },                  // +++ STATIC   DONE
+    { id: 11, name: 'Fire', generator: fire },                                   // +++ STATIC   DONE
+    { id: 12, name: 'Violet Fade', generator: violetFade },                      // +++ STATIC   DONE
+    { id: 13, name: 'Grayscale', generator: grayscale },                         // +++ STATIC   DONE
+    { id: 14, name: 'Desert Warm', generator: desertWarm },                      // +   STATIC   DONE
 
-    { id: 27, name: 'Holographic Foil', generator: holoFoilGenerator },         // +   GENERATIVE
-    { id: 11, name: 'Mineral Gemstones', generator: gemstonesGenerator },       // ++  GENERATIVE
-    { id: 40, name: 'Vaporwave Pastel', generator: vaporwavePastelGenerator },  // ~~  GENERATIVE pastel neon rose/violet/cyan
-    { id: 30, name: 'Solarized Drift', generator: solarizedDriftGenerator },    // ++  GENERATIVE Encore une sorte de random pastel
+    { id: 15, name: 'Dual Gradient', generator: dualGradientGenerator },         // +++ GENERATIVE
+    { id: 16, name: 'Candy', generator: candyGenerator },                        // +++ GENERATIVE fun bright colors
+    { id: 17, name: 'Paper & Ink', generator: paperInkGenerator },               // +++ GENERATIVE toDo: description
+    { id: 22, name: 'Midnight Circuit', generator: midnightCircuitGenerator },   // ++  GENERATIVE encore un truc neon aleatoire sombre avec couleur d'accent
+    { id: 20, name: 'Lava Lamp', generator: lavaLampGenerator },                 // ++  GENERATIVE toDo: Sympas mais incoherent? Renaming
+    
+    { id: 18, name: 'BioLuminescent Abyss', generator: biolumAbyssGenerator },   // +   GENERATIVE toDo: too dark?
+    { id: 19, name: 'Blueprint', generator: blueprintGenerator },                // +   GENERATIVE toDo: frequence du blanc
+    { id: 21, name: 'Fluoro Sport', generator: fluoroSportGenerator },           // +   GENERATIVE nuances foncees avec accents fluos
+    { id: 23, name: 'Magma Deep', generator: magmaDeepGenerator },               // +   GENERATIVE toDo: Incoherent? green?? Renaming?
 
-    { id: 3, name: 'Dual Gradient', generator: dualGradientGenerator },         // +++
-    { id: 5, name: 'Grayscale Film', generator: grayscaleFilmGenerator },       // +++ toDo: maybe remove randomization / linear grayscale?
-    { id: 39, name: 'Candy', generator: candyGenerator },                       // +++ fun bright colors
-    { id: 9, name: 'Aurora', generator: auroraGenerator },                      // ++ toDo: description
-    { id: 15, name: 'Cyber Neon', generator: cyberNeonGenerator },              // ++
-    { id: 10, name: 'BioLuminescent Abyss', generator: biolumAbyssGenerator },  // ++ toDo: too dark?
-    { id: 33, name: 'Golden Angle Jitter', generator: goldenAngleJitterGenerator }, // ++ toDo: description
-    { id: 34, name: 'Paper & Ink', generator: paperInkGenerator },              // +++ toDo: description
-    { id: 35, name: 'Blueprint', generator: blueprintGenerator },               // ++ toDo: frequence du blanc
+    { id: 24, name: 'Holographic Foil', generator: holoFoilGenerator },          // +   GENERATIVE
+    { id: 25, name: 'Mineral Gemstones', generator: gemstonesGenerator },        // ++  GENERATIVE
+    { id: 26, name: 'Vaporwave Pastel', generator: vaporwavePastelGenerator },   // +   GENERATIVE pastel neon rose/violet/cyan
+    { id: 27, name: 'Solarized Drift', generator: solarizedDriftGenerator },     // ++  GENERATIVE Encore une sorte de random pastel
+    { id: 28, name: 'Aurora', generator: auroraGenerator },                      // ++  GENERATIVE toDo: description
+    { id: 29, name: 'Cyber Neon', generator: cyberNeonGenerator },               // ++  GENERATIVE
+    { id: 30, name: 'Golden Angle Jitter', generator: goldenAngleJitterGenerator }, // ++  GENERATIVE toDo: description
 
-    { id: 37, name: 'CMYK Misregister', generator: cmykMisregisterGenerator },  // +  Bleu, Magenta, Jaune, Noir avec legeres variations
-    { id: 17, name: 'Lava Lamp', generator: lavaLampGenerator },                // + toDo: Sympas mais incoherent?
-    { id: 22, name: 'Sci-Fi UI', generator: sciFiUIGenerator },                 // + nuance de bleu/cyan avec accents rose/violet et orange
-    { id: 23, name: 'Fluoro Sport', generator: fluoroSportGenerator },          // + nuances foncees avec accents fluos
-    { id: 24, name: 'Midnight Circuit', generator: midnightCircuitGenerator },  // + encore un truc neon aleatoire sombre avec couleur d'accent
-    { id: 19, name: 'Game Boy DMG', generator: gameboyDMGGenerator },           // + toDo: pas mal, mais peut etre a revoir
-    { id: 16, name: 'Magma Deep', generator: magmaDeepGenerator },              // + toDo: Incoherent? green??
-
-
-    { id: 6, name: 'Desert Warm', generator: desertWarmGenerator },             // ~~ toDo: maybe too much randomization
-    { id: 7, name: 'Forest Earth', generator: forestEarthGenerator },           // ~~ toDo: trop kaki
-    { id: 8, name: 'Ocean Cool', generator: oceanCoolGenerator },               // ~~ toDo: maybe too much randomization
-    { id: 18, name: 'Retro Console', generator: retroConsoleGenerator },        // ~~ toDo: maybe static, pas assez de vert foncé
-    { id: 20, name: 'CRT Amber', generator: crtAmberGenerator },                // ~~ toDo: maybe static, pas assez d'orange foncé
-    { id: 21, name: 'CGA Neon', generator: cgaNeonGenerator },                  // ~~ alterne en rose neaon et cyan neon 1 sur 2
-    { id: 26, name: 'Anodized Metal', generator: anodizedMetalGenerator },      // ~~ Des bleu et rose/violet metallique
-    { id: 25, name: 'Iridescent Beetle', generator: iridescentBeetleGenerator }, // ~~ Mouais
-    { id: 38, name: 'Noir + Accent', generator: noirAccentGenerator },          // ~  Mouais trop de gris
-
-
-    { id: 14, name: 'Sunset Variant', generator: sunsetVariantGenerator },      // -- toDo: incoherent
-    { id: 36, name: 'Ink Bleed Watercolor', generator: inkBleedWatercolorGenerator }, // -- Pas compris
+    { id: 31, name: 'Game Boy DMG', generator: gameboyDMGGenerator },            // + toDo: pas mal, mais peut etre a revoir
+    { id: 32, name: 'CGA Neon', generator: cgaNeonGenerator },                   // + alterne en rose neaon et cyan neon 1 sur 2
+    { id: 33, name: 'Noir + Accent', generator: noirAccentGenerator },           // +  Mouais trop de gris
+    { id: 34, name: 'Ink Bleed Watercolor', generator: inkBleedWatercolorGenerator }, // +
+    { id: 35, name: 'CMYK Misregister', generator: cmykMisregisterGenerator },   // +  Bleu, Magenta, Jaune, Noir avec legeres variations
+    { id: 36, name: 'Anodized Metal', generator: anodizedMetalGenerator },       // ~~ Des bleu et rose/violet metallique
+    { id: 37, name: 'Sci-Fi UI', generator: sciFiUIGenerator },                  // ~~ nuance de bleu/cyan avec accents rose/violet et orange
 ]
 
 export const PALETTE_OPTIONS: PaletteOption[] = PALETTES.map(({ id, name }) => ({ id, name }))
@@ -761,6 +659,5 @@ export function generateColors(optionID: number, NUM_TYPES: number): Colors {
     if (NUM_TYPES <= 0) return new Float32Array(0)
     const palette = PALETTES.find(p => p.id === optionID)
     const generator = palette?.generator ?? randomGenerator
-    const colors = generator(NUM_TYPES)
-    return colors
+    return generator(NUM_TYPES)
 }
