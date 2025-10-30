@@ -55,6 +55,37 @@ function gradientPalette(NUM_TYPES: number, keyColors: KeyColor[]): Colors {
     }
     return colors
 }
+function jitterPair([a, b]: [number, number], jStart: number, jEnd: number): [number, number] {
+    let x = clamp(a + (Math.random() * 2 - 1) * jStart)
+    let y = clamp(b + (Math.random() * 2 - 1) * jEnd)
+    if (y < x) [x, y] = [y, x]
+    return [x, y]
+}
+function fillSegment(
+    out: Float32Array,
+    start: number, count: number,
+    hMin: number, hMax: number,
+    sMin: number, sMax: number,
+    vMin: number, vMax: number,
+    opts?: { vCurveExp?: number }
+): void {
+    if (count <= 0) return
+    const last = Math.max(1, count - 1)
+    const useCurve = opts && typeof opts.vCurveExp === 'number'
+    const exp = useCurve ? (opts!.vCurveExp as number) : 1
+
+    for (let i = 0; i < count; i++) {
+        const u = count === 1 ? 0.5 : i / last
+        const h = hMin + (hMax - hMin) * u
+        const s = clamp(sMin + (sMax - sMin) * u)
+        const v = useCurve
+            ? clamp(vMax - (vMax - vMin) * Math.pow(u, exp))  // abyss-style fade
+            : clamp(vMin + (vMax - vMin) * u)                 // linear
+        const [r, g, b] = hsvToRgb((h + 360) % 360, s, v)
+        out.set([r, g, b, 1], (start + i) * 4)
+    }
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 // ==== GENERATORS =====================================================================================================
 // ---------------------------------------------------------------------------------------------------------------------
@@ -96,7 +127,7 @@ export function coldBlue(NUM_TYPES: number): Colors {
         { t: 1.00, r: 0.85, g: 0.95, b: 1.00 }, // icy white-blue
     ])
 }
-export function vividSpectrum(NUM_TYPES: number): Colors {
+export function sciFiSpectrum(NUM_TYPES: number): Colors {
     return gradientPalette(NUM_TYPES, [
         { t: 0.00, r: 0.00, g: 0.00, b: 0.30 }, // deep blue
         { t: 0.25, r: 0.00, g: 0.20, b: 1.00 }, // cyan-ish
@@ -162,11 +193,8 @@ export function desertWarm(NUM_TYPES: number): Colors {
 export function neonWarm(NUM_TYPES: number): Colors {
     const colors = new Float32Array(NUM_TYPES * 4)
 
-    // Hue range: from orange (20°) to pink-violet (300°)
-    const startH = 20
-    const endH = 300
-
-    // Saturation and value gradually soften for a natural gradient
+    const startH = 20   // warm orange
+    const endH = 300    // vibrant magenta
     const s0 = 1.0
     const s1 = 0.7
     const v0 = 1.0
@@ -185,11 +213,8 @@ export function neonWarm(NUM_TYPES: number): Colors {
 export function fire(NUM_TYPES: number): Colors {
     const colors = new Float32Array(NUM_TYPES * 4)
 
-    // Hue range: deep red → golden orange (degrees on HSV color wheel)
     const startH = 5     // deep red
     const endH = 45      // golden yellow-orange
-
-    // Rich, warm saturation and brightness values
     const s0 = 1.0
     const s1 = 0.9
     const v0 = 0.9
@@ -203,17 +228,13 @@ export function fire(NUM_TYPES: number): Colors {
         const [r, g, b] = hsvToRgb(h, s, v)
         colors.set([r, g, b, 1], i * 4)
     }
-
     return colors
 }
 export function violetFade(NUM_TYPES: number): Colors {
     const colors = new Float32Array(NUM_TYPES * 4)
 
-    // Hue range: from warm magenta-pink → deep violet-blue
     const startH = 345  // bright pinkish red
     const endH = 260    // deep violet-blue
-
-    // More dynamic gradient: starts bright, ends dark
     const s0 = 0.9
     const s1 = 0.55
     const v0 = 0.95
@@ -227,19 +248,16 @@ export function violetFade(NUM_TYPES: number): Colors {
         const [r, g, b] = hsvToRgb(h, s, v)
         colors.set([r, g, b, 1], i * 4)
     }
-
     return colors
 }
 export function crimsonFlame(NUM_TYPES: number): Colors {
     const colors = new Float32Array(NUM_TYPES * 4)
 
-    // Hue range: fiery red → deep magenta (avoids green transition)
     const startH = 2     // bright red
-    const endH = -30     // deep magenta, moving backward on hue circle
-
+    const endH = -30     // deep magenta
     const s0 = 1.0       // strong saturation
     const s1 = 0.7       // slightly softer at the end
-    const v0 = 0.95       // bright start
+    const v0 = 0.95      // bright start
     const v1 = 0.45      // darker finish
 
     for (let i = 0; i < NUM_TYPES; i++) {
@@ -251,18 +269,43 @@ export function crimsonFlame(NUM_TYPES: number): Colors {
         const [r, g, b] = hsvToRgb(h, s, v)
         colors.set([r, g, b, 1], i * 4)
     }
-
     return colors
 }
 // ---------------------------------------------------------------------------------------------------------------------
 export function dualGradientGenerator(NUM_TYPES: number): Colors {
     const colors = new Float32Array(NUM_TYPES * 4)
-    const startHue = Math.random() * 360
-    const endHue = (startHue + 180) % 360
-    for (let i = 0; i < NUM_TYPES; ++i) {
-        const t = i / (NUM_TYPES - 1)
-        const hue = startHue * (1 - t) + endHue * t
-        const [r, g, b] = hsvToRgb(hue, 0.9, 1.0)
+    if (NUM_TYPES <= 0) return colors
+
+    const MIN_HUE_DIFF = 70;   // minimal hue separation in degrees
+    const MIN_S_DIFF   = 0.15; // minimal saturation difference
+    const MIN_V_DIFF   = 0.12; // minimal value/brightness difference
+
+    const startH = Math.random() * 360
+    let endH     = Math.random() * 360
+    let startS = 0.70 + Math.random() * 0.30  // 0.70–1.00
+    let endS   = 0.70 + Math.random() * 0.30
+    let startV = 0.80 + Math.random() * 0.20  // 0.80–1.00
+    let endV   = 0.70 + Math.random() * 0.30
+
+    const hueDelta = ((endH - startH + 540) % 360) - 180 // [-180,180)
+    if (Math.abs(hueDelta) < MIN_HUE_DIFF) {
+        const sign = hueDelta >= 0 ? 1 : -1
+        endH = (startH + sign * MIN_HUE_DIFF + 360) % 360
+    }
+    if (Math.abs(endS - startS) < MIN_S_DIFF) {
+        endS = clamp(endS + (endS >= startS ? MIN_S_DIFF : -MIN_S_DIFF), 0, 1)
+    }
+    if (Math.abs(endV - startV) < MIN_V_DIFF) {
+        endV = clamp(endV + (endV >= startV ? MIN_V_DIFF : -MIN_V_DIFF), 0, 1)
+    }
+
+    let dH = ((endH - startH + 540) % 360) - 180
+    for (let i = 0; i < NUM_TYPES; i++) {
+        const t = NUM_TYPES <= 1 ? 0 : i / (NUM_TYPES - 1)
+        const h = (startH + dH * t + 360) % 360
+        const s = startS + (endS - startS) * t
+        const v = startV + (endV - startV) * t
+        const [r, g, b] = hsvToRgb(h, s, v)
         colors.set([r, g, b, 1], i * 4)
     }
     return colors
@@ -451,23 +494,6 @@ export function cgaNeonGenerator(NUM_TYPES: number): Colors {
     return colors
 }
 
-export function biolumAbyssGenerator(NUM_TYPES:number): Colors {
-    const colors = new Float32Array(NUM_TYPES*4)
-    const baseH = randRange(180, 210)
-    const accentCount = Math.max(1, Math.round(NUM_TYPES * randRange(0.08, 0.2)))
-    const accentIdx = new Set<number>()
-    while (accentIdx.size < accentCount) accentIdx.add(Math.floor(Math.random()*NUM_TYPES))
-    for (let i=0;i<NUM_TYPES;i++){
-        const isAccent = accentIdx.has(i)
-        const h = isAccent ? randRange(160, 190) : (baseH + randN(0,8))
-        const s = isAccent ? clamp(0.9 + randN(0,.05)) : clamp(0.35 + randN(0,.1))
-        const v = isAccent ? clamp(0.95 + randN(0,.03)) : clamp(0.12 + randN(0,.05))
-        const [r,g,b] = hsvToRgb((h+360)%360, s, v)
-        colors.set([r,g,b,1], i*4)
-    }
-    return colors
-}
-
 export function anodizedMetalGenerator(NUM_TYPES:number): Colors {
     const colors = new Float32Array(NUM_TYPES*4)
     const hue0 = randRange(180, 320)
@@ -521,22 +547,27 @@ export function cmykMisregisterGenerator(NUM_TYPES:number): Colors {
     }
     return colors
 }
+export function earthFlowGenerator(NUM_TYPES: number): Colors {
+    const colors = new Float32Array(NUM_TYPES * 4)
+    if (NUM_TYPES <= 0) return colors
 
-export function lavaLampGenerator(NUM_TYPES:number): Colors {
-    const colors = new Float32Array(NUM_TYPES*4)
-    const hA = randRange(10, 30), hB = (hA + randRange(140,220)) % 360
-    for (let i=0;i<NUM_TYPES;i++){
-        const t = i/Math.max(1,NUM_TYPES-1)
-        const mix = 0.5 + 0.5*Math.sin(2*Math.PI*t + randRange(0,Math.PI))
-        const h = (hA*(1-mix) + hB*mix + randN(0,4)) % 360
-        const s = clamp(0.75 + randN(0,.08))
-        const v = clamp(0.6 + 0.35*Math.sin(2*Math.PI*t + 1.1) + randN(0,.06))
-        const [r,g,b] = hsvToRgb(h,s,v)
-        colors.set([r,g,b,1], i*4)
+    const hA = randRange(10, 30)                 // earth
+    const hB = (hA + randRange(140, 220)) % 360  // water/sky
+    const phase = Math.random() * Math.PI              // phase offset for sinusoïdal variation
+
+    const TAU = 6.283185307179586
+    for (let i = 0; i < NUM_TYPES; i++) {
+        const u = NUM_TYPES <= 1 ? 0 : i / (NUM_TYPES - 1)
+        const a = TAU * u + phase
+        const mix = 0.5 + 0.5 * Math.sin(a)
+        const hue = (hA * (1 - mix) + hB * mix + randN(0, 3) + 360) % 360
+        const s = clamp(0.75 + randN(0, 0.07))
+        const v = clamp(0.60 + 0.35 * Math.sin(a + 1.1) + randN(0, 0.06))
+        const [r, g, b] = hsvToRgb(hue, s, v)
+        colors.set([r, g, b, 1], i * 4)
     }
     return colors
 }
-
 export function fluoroSportGenerator(NUM_TYPES:number): Colors {
     const colors = new Float32Array(NUM_TYPES*4)
     const accents = [95, 175, 310]
@@ -551,22 +582,81 @@ export function fluoroSportGenerator(NUM_TYPES:number): Colors {
     }
     return colors
 }
+export function midnightCircuitGenerator(NUM_TYPES: number): Colors {
+    const colors = new Float32Array(NUM_TYPES * 4)
+    if (NUM_TYPES <= 0) return colors
 
-export function midnightCircuitGenerator(NUM_TYPES:number): Colors {
-    const colors = new Float32Array(NUM_TYPES*4)
-    for (let i=0;i<NUM_TYPES;i++){
-        const roll = Math.random()
-        let h:number, s:number, v:number
-        if (roll < 0.1){
-            h = randRange(25, 40); s = clamp(0.9 + randN(0,.05)); v = clamp(0.95 + randN(0,.02))
-        } else if (roll < 0.55){
-            h = randRange(170, 200); s = clamp(0.7 + randN(0,.08)); v = clamp(0.35 + randN(0,.06))
-        } else {
-            h = randRange(270, 300); s = clamp(0.7 + randN(0,.08)); v = clamp(0.35 + randN(0,.06))
-        }
-        const [r,g,b] = hsvToRgb((h+360)%360, s, v)
-        colors.set([r,g,b,1], i*4)
+    const AMBER_MAX    = 2
+    const AMBER_CHANCE = 0.80
+    const JIT_S = 0.08
+    const JIT_V = 0.08
+
+    const H_AMB: [number, number] = [25, 40]
+    const H_VIO: [number, number] = [270, 285]
+    const H_TEA: [number, number] = [175, 200]
+    const SVA_S: [number, number] = [0.90, 1.00]
+    const SVA_V: [number, number] = [0.90, 1.00]
+    const SVV_S: [number, number] = [0.65, 0.92]
+    const SVV_V: [number, number] = [0.28, 0.52]
+    const SVT_S: [number, number] = [0.65, 0.85]
+    const SVT_V: [number, number] = [0.20, 0.50]
+
+    const ambS = jitterPair(SVA_S, JIT_S, JIT_S)
+    const ambV = jitterPair(SVA_V, JIT_V, JIT_V)
+    const vioS = jitterPair(SVV_S, JIT_S, JIT_S)
+    const vioV = jitterPair(SVV_V, JIT_V, JIT_V)
+    const teaS = jitterPair(SVT_S, JIT_S, JIT_S)
+    const teaV = jitterPair(SVT_V, JIT_V, JIT_V)
+
+    let a = 0, v = 0, t = 0
+    if (Math.random() < AMBER_CHANCE) {
+        const maxAmberAllowed = Math.min(AMBER_MAX, Math.max(0, NUM_TYPES - 1))
+        a = maxAmberAllowed > 0 ? (1 + Math.floor(Math.random() * maxAmberAllowed)) : 0
+    } else {
+        a = 0
     }
+
+    let rest = NUM_TYPES - a
+    v = Math.min(1, rest)
+    rest -= v
+    const tealExtra = rest > 0 ? Math.floor(Math.random() * (rest + 1)) : 0
+    t = tealExtra
+    v += (rest - tealExtra)
+
+    let idx = 0
+    fillSegment(colors, idx, a, H_AMB[0], H_AMB[1], ambS[0], ambS[1], ambV[0], ambV[1]); idx += a
+    fillSegment(colors, idx, v, H_VIO[0], H_VIO[1], vioS[0], vioS[1], vioV[0], vioV[1]); idx += v
+    fillSegment(colors, idx, t, H_TEA[0], H_TEA[1], teaS[0], teaS[1], teaV[0], teaV[1])
+
+    return colors
+}
+export function biolumAbyssGenerator(NUM_TYPES: number): Colors {
+    const colors = new Float32Array(NUM_TYPES * 4)
+    if (NUM_TYPES <= 0) return colors
+
+    const ACCENT_MAX = 2
+    const JIT_S = 0.05
+    const JIT_V = 0.06
+
+    const H_ACC:  [number, number] = [185, 200]
+    const H_DEEP: [number, number] = [200, 225]
+    const S_ACC:  [number, number] = [0.9, 1.0]
+    const V_ACC:  [number, number] = [0.85, 1.0]
+    const S_DEEP: [number, number] = [0.8, 0.95]
+    const V_DEEP: [number, number] = [0.12, 0.20]
+
+    const accS  = jitterPair(S_ACC,  JIT_S, JIT_S)
+    const accV  = jitterPair(V_ACC,  JIT_V, JIT_V)
+    const deepS = jitterPair(S_DEEP, JIT_S, JIT_S)
+    const deepV = jitterPair(V_DEEP, JIT_V, JIT_V)
+
+    const accentCount = Math.min(ACCENT_MAX, Math.max(1, Math.floor(Math.random() * (ACCENT_MAX + 1))))
+    const deepCount   = Math.max(0, NUM_TYPES - accentCount)
+
+    let idx = 0
+    fillSegment(colors, idx, accentCount, H_ACC[0], H_ACC[1], accS[0],  accS[1],  accV[0],  accV[1]); idx += accentCount
+    fillSegment(colors, idx, deepCount,   H_DEEP[0], H_DEEP[1], deepS[0], deepS[1], deepV[0], deepV[1], { vCurveExp: 1.8 })
+
     return colors
 }
 
@@ -611,27 +701,27 @@ export function solarizedDriftGenerator(NUM_TYPES:number): Colors {
 const PALETTES: { id: number; name: string; generator: (n: number) => Colors }[] = [
     { id: 0, name: 'Random', generator: randomGenerator },                       // +++ GENERATIVE   DONE
     { id: 1, name: 'Rainbow', generator: rainbow },                              // +++ STATIC   DONE
-    { id: 2, name: 'Neon Warm', generator: neonWarm },                           // +++ STATIC   DONE toDo: renaming? (radiantGlow?)
+    { id: 2, name: 'Neon Warm', generator: neonWarm },                           // +++ STATIC   DONE
     { id: 3, name: 'Heatmap Classic', generator: heatmapClassic },               // +++ STATIC   DONE
     { id: 4, name: 'Heatmap Cool', generator: heatmapCool },                     // ++  STATIC   DONE
     { id: 5, name: 'Heatmap Warm', generator: heatmapWarm },                     // ++  STATIC   DONE
     { id: 6, name: 'Pastel', generator: pastel },                                // +++ STATIC   DONE
     { id: 7, name: 'Cold Blue', generator: coldBlue },                           // +   STATIC   DONE
-    { id: 8, name: 'Vivid Spectrum', generator: vividSpectrum },                 // +   STATIC   DONE
+    { id: 8, name: 'Sci-Fi Spectrum', generator: sciFiSpectrum },                // ++  STATIC   DONE
     { id: 9, name: 'Thermal Glow', generator: thermalGlow },                     // +   STATIC   DONE
     { id: 10, name: 'Crimson Flame', generator: crimsonFlame },                  // +++ STATIC   DONE
     { id: 11, name: 'Fire', generator: fire },                                   // +++ STATIC   DONE
     { id: 12, name: 'Violet Fade', generator: violetFade },                      // +++ STATIC   DONE
     { id: 13, name: 'Grayscale', generator: grayscale },                         // +++ STATIC   DONE
     { id: 14, name: 'Desert Warm', generator: desertWarm },                      // +   STATIC   DONE
-
-    { id: 15, name: 'Dual Gradient', generator: dualGradientGenerator },         // +++ GENERATIVE
-    { id: 16, name: 'Candy', generator: candyGenerator },                        // +++ GENERATIVE fun bright colors
-    { id: 17, name: 'Paper & Ink', generator: paperInkGenerator },               // +++ GENERATIVE toDo: description
-    { id: 22, name: 'Midnight Circuit', generator: midnightCircuitGenerator },   // ++  GENERATIVE encore un truc neon aleatoire sombre avec couleur d'accent
-    { id: 20, name: 'Lava Lamp', generator: lavaLampGenerator },                 // ++  GENERATIVE toDo: Sympas mais incoherent? Renaming
     
-    { id: 18, name: 'BioLuminescent Abyss', generator: biolumAbyssGenerator },   // +   GENERATIVE toDo: too dark?
+    { id: 15, name: 'Dual Gradient', generator: dualGradientGenerator },         // +++ GENERATIVE   NEED OPTIMIZATION
+    { id: 16, name: 'Candy', generator: candyGenerator },                        // +++ GENERATIVE   NEED OPTIMIZATION
+    { id: 17, name: 'Paper & Ink', generator: paperInkGenerator },               // +++ GENERATIVE   NEED OPTIMIZATION
+    { id: 22, name: 'Midnight Circuit', generator: midnightCircuitGenerator },   // ++  GENERATIVE   DONE
+    { id: 18, name: 'BioLuminescent Abyss', generator: biolumAbyssGenerator },   // +   GENERATIVE   DONE
+    { id: 20, name: 'Earth Flow', generator: earthFlowGenerator },               // ++  GENERATIVE   DONE
+
     { id: 19, name: 'Blueprint', generator: blueprintGenerator },                // +   GENERATIVE toDo: frequence du blanc
     { id: 21, name: 'Fluoro Sport', generator: fluoroSportGenerator },           // +   GENERATIVE nuances foncees avec accents fluos
     { id: 23, name: 'Magma Deep', generator: magmaDeepGenerator },               // +   GENERATIVE toDo: Incoherent? green?? Renaming?
