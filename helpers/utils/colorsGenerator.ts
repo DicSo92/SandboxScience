@@ -5,15 +5,14 @@ type KeyColor = { t: number; r: number; g: number; b: number }
 // ---------------------------------------------------------------------------------------------------------------------
 // ==== HELPERS ========================================================================================================
 // ---------------------------------------------------------------------------------------------------------------------
-const clamp = (x:number, a=0, b=1)=> Math.max(a, Math.min(b, x))
-const lerp = (a:number,b:number,t:number)=> a + (b - a) * t
-const rand = ()=> Math.random()
-const randRange = (a:number,b:number)=> lerp(a,b,rand())
-const randN = (mu=0, sigma=1)=> { // Box–Muller
+const clamp = (x: number, a = 0, b = 1) => Math.max(a, Math.min(b, x))
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t
+const randRange = (a: number, b: number) => lerp(a, b, Math.random())
+const randN = (mu = 0, sigma = 1) => { // Box–Muller
     let u = 0, v = 0
-    while (u===0) u = Math.random()
-    while (v===0) v = Math.random()
-    return mu + sigma * Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2*Math.PI*v)
+    while (u === 0) u = Math.random()
+    while (v === 0) v = Math.random()
+    return mu + sigma * Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2 * Math.PI * v)
 }
 function hsvToRgb(h: number, s: number, v: number): [number, number, number] {
     const c = v * s
@@ -92,9 +91,9 @@ function fillSegment(
 export function randomGenerator(NUM_TYPES: number): Colors {
     const colors = new Float32Array(NUM_TYPES * 4)
     for (let i = 0; i < NUM_TYPES; ++i) {
-        colors[i * 4] = rand()
-        colors[i * 4 + 1] = rand()
-        colors[i * 4 + 2] = rand()
+        colors[i * 4] = Math.random()
+        colors[i * 4 + 1] = Math.random()
+        colors[i * 4 + 2] = Math.random()
         colors[i * 4 + 3] = 1 // padding alpha channel
     }
     return colors
@@ -324,7 +323,7 @@ export function cyberNeonGenerator(NUM_TYPES: number): Colors {
     return colors
 }
 
-export function magmaDeepGenerator(NUM_TYPES: number): Colors {
+export function organicFlowGenerator(NUM_TYPES: number): Colors {
     const colors = new Float32Array(NUM_TYPES*4)
     const baseH = randRange(0, 15)
     for (let i=0;i<NUM_TYPES;i++){
@@ -379,7 +378,7 @@ export function paperInkGenerator(NUM_TYPES: number): Colors {
             const [r,g,b] = hsvToRgb((45+tint+360)%360, 0.18 + randN(0,.05), v)
             colors.set([r,g,b,1], i*4)
         } else {
-            const hue = inks[Math.floor(rand()*inks.length)]
+            const hue = inks[Math.floor(Math.random() * inks.length)]
             const [r,g,b] = hsvToRgb((hue+randN(0,6)+360)%360, 0.6 + randN(0,.1), 0.35 + randN(0,.08))
             colors.set([r,g,b,1], i*4)
         }
@@ -415,81 +414,38 @@ export function vaporwavePastelGenerator(NUM_TYPES: number): Colors {
     return colors
 }
 
-export function sciFiUIGenerator(NUM_TYPES: number): Colors {
-    const colors = new Float32Array(NUM_TYPES*4)
-    const coolBand = [170, 200]
-    const accents  = [300, 30]
-    for (let i=0;i<NUM_TYPES;i++){
-        const accent = (i % 6 === 0)
-        const hue = accent ? accents[Math.floor(rand()*accents.length)]
-            : randRange(coolBand[0], coolBand[1])
-        const s = accent ? clamp(0.85 + randN(0,.08)) : clamp(0.7 + randN(0,.1))
-        const v = accent ? clamp(0.95 + randN(0,.03)) : clamp(0.75 + randN(0,.07))
-        let [r,g,b] = hsvToRgb((hue+360)%360, s, v)
-        r*=0.8; g*=0.9; b*=0.95
-        colors.set([r,g,b,1], i*4)
-    }
-    return colors
-}
-
-export function blueprintGenerator(NUM_TYPES: number): Colors {
-    const colors = new Float32Array(NUM_TYPES*4)
-    for (let i=0;i<NUM_TYPES;i++){
-        const blueprint = i % 5 !== 0
-        if (blueprint){
-            const h = (220 + randN(0, 5)) % 360
-            const s = clamp(0.6 + randN(0,.05))
-            const v = clamp(0.5 + randN(0,.05))
-            const [r,g,b] = hsvToRgb(h,s,v)
-            colors.set([r*0.8, g*0.85, b, 1], i*4)
-        } else {
-            const v = clamp(0.95 + randN(0,.03))
-            colors.set([v, v, v, 1], i*4)
-        }
-    }
-    return colors
-}
-
 export function gameboyDMGGenerator(NUM_TYPES: number): Colors {
-    const colors = new Float32Array(NUM_TYPES*4)
+    const colors = new Float32Array(NUM_TYPES * 4)
     const steps = [0.2, 0.35, 0.55, 0.78]
     const hue = randRange(90, 110)
-    for (let i=0;i<NUM_TYPES;i++){
-        const v = steps[i % steps.length] + randN(0, .03)
-        const s = clamp(0.25 + randN(0,.05))
-        const [r,g,b] = hsvToRgb(hue, s, clamp(v))
-        colors.set([r*0.9, g, b*0.9, 1], i*4)
+
+    for (let i = 0; i < NUM_TYPES; i++) {
+        const v = steps[i % steps.length] + randN(0, 0.03)
+        const s = clamp(0.25 + randN(0, 0.05))
+        const [r, g, b] = hsvToRgb(hue, s, clamp(v))
+        colors.set([r * 0.9, g, b * 0.9, 1], i * 4)
     }
     return colors
 }
+export function cyberDarkGenerator(NUM_TYPES: number): Colors {
+    const colors = new Float32Array(NUM_TYPES * 4)
+    if (NUM_TYPES <= 0) return colors
 
-export function noirAccentGenerator(NUM_TYPES: number): Colors {
-    const colors = new Float32Array(NUM_TYPES*4)
     const accentH = randRange(10, 350)
-    for (let i=0;i<NUM_TYPES;i++){
-        const isAccent = i % Math.max(3, Math.round(NUM_TYPES/5)) === 0
-        if (isAccent){
-            const [r,g,b] = hsvToRgb((accentH+randN(0,8)+360)%360, 0.9, 0.95)
-            colors.set([r,g,b,1], i*4)
-        } else {
-            let v = clamp(0.25 + rand() * 0.55)
-            v = Math.pow(v, 1.1)
-            colors.set([v, v, v, 1], i*4)
-        }
-    }
-    return colors
-}
+    const accentPeriod = Math.max(3, Math.round(NUM_TYPES / 3))
 
-export function cgaNeonGenerator(NUM_TYPES: number): Colors {
-    const colors = new Float32Array(NUM_TYPES*4)
-    const choices = [ {h:300,s:1,v:1}, {h:190,s:1,v:1} ]
-    for (let i=0;i<NUM_TYPES;i++){
-        const c = choices[i % choices.length]
-        const h = (c.h + randN(0, 6)) % 360
-        const s = clamp(c.s - Math.abs(randN(0,.08)))
-        const v = clamp(0.9 + randN(0,.07))
-        const [r,g,b] = hsvToRgb(h,s,v)
-        colors.set([r, g, b, 1], i*4)
+    for (let i = 0; i < NUM_TYPES; i++) {
+        const isAccent = (i % accentPeriod) === 0
+
+        if (isAccent) {
+            const h = (accentH + randN(0, 8) + 360) % 360
+            const [r, g, b] = hsvToRgb(h, 0.9, 0.95)
+            colors.set([r, g, b, 1], i * 4)
+        } else {
+            let v = clamp(0.25 + Math.random() * 0.55)
+            v = Math.pow(v, 1.1)
+            colors.set([v, v, v, 1], i * 4)
+        }
     }
     return colors
 }
@@ -521,6 +477,34 @@ export function holoFoilGenerator(NUM_TYPES:number): Colors {
     }
     return colors
 }
+export function holoFoilGenerator1(NUM_TYPES: number): Colors {
+    const colors = new Float32Array(NUM_TYPES * 4)
+    if (NUM_TYPES <= 0) return colors
+
+    const IRIDESCENCE = 0.06        // hue ripple amplitude (0..~0.1)
+    const WAVES = 2.5               // hue ripple frequency
+    const S_MIN = 0.70, S_MAX = 0.95
+    const V_MIN = 0.92, V_MAX = 1.00
+
+    const phaseH = Math.random() * 2 * Math.PI
+    const phaseS = Math.random() * 2 * Math.PI
+    const phaseV = Math.random() * 2 * Math.PI
+
+    for (let i = 0; i < NUM_TYPES; i++) {
+        const t = NUM_TYPES <= 1 ? 0 : i / (NUM_TYPES - 1)
+
+        const baseHue = 360 * t
+        const hue = (baseHue + 360 * IRIDESCENCE * Math.sin((WAVES * 2 * Math.PI) * t + phaseH)) % 360
+
+        const s = clamp(S_MIN + (S_MAX - S_MIN) * (0.5 + 0.5 * Math.sin(2 * Math.PI * t + phaseS)))
+        const v = clamp(V_MIN + (V_MAX - V_MIN) * (0.5 + 0.5 * Math.cos(2 * Math.PI * t + phaseV)))
+
+        const [r, g, b] = hsvToRgb((hue + 360) % 360, s, v)
+        colors.set([r, g, b, 1], i * 4)
+    }
+    return colors
+}
+
 
 export function inkBleedWatercolorGenerator(NUM_TYPES:number): Colors {
     const colors = new Float32Array(NUM_TYPES*4)
@@ -659,6 +643,31 @@ export function biolumAbyssGenerator(NUM_TYPES: number): Colors {
 
     return colors
 }
+export function blueprintGenerator(NUM_TYPES: number): Colors {
+    const colors = new Float32Array(NUM_TYPES * 4)
+    if (NUM_TYPES <= 0) return colors
+
+    const ACCENT_MAX = 2       // number of bright white accents
+    const JIT_S = 0.05         // saturation jitter
+    const JIT_V = 0.05         // brightness jitter
+
+    const H_BLUE: [number, number] = [215, 235]   // blueprint hue span
+    const S_BLUE: [number, number] = [0.60, 0.75] // blueprint saturation range
+    const V_BLUE: [number, number] = [0.30, 0.50] // blueprint value range
+    const V_ACCENT: [number, number] = [0.90, 0.98] // white accent brightness
+
+    const sBlue = jitterPair(S_BLUE, JIT_S, JIT_S)
+    const vBlue = jitterPair(V_BLUE, JIT_V, JIT_V)
+    const vAccent = jitterPair(V_ACCENT, 0.01, 0.01)
+
+    const accentCount = Math.min(ACCENT_MAX, Math.max(1, Math.floor(Math.random() * (ACCENT_MAX + 1))))
+    const blueCount = Math.max(0, NUM_TYPES - accentCount)
+
+    let idx = 0
+    fillSegment(colors, idx, accentCount, 0, 0, 0, 0, vAccent[0], vAccent[1]); idx += accentCount
+    fillSegment(colors, idx, blueCount, H_BLUE[0], H_BLUE[1], sBlue[0], sBlue[1], vBlue[0], vBlue[1])
+    return colors
+}
 
 export function gemstonesGenerator(NUM_TYPES:number): Colors {
     const colors = new Float32Array(NUM_TYPES*4)
@@ -714,33 +723,30 @@ const PALETTES: { id: number; name: string; generator: (n: number) => Colors }[]
     { id: 12, name: 'Violet Fade', generator: violetFade },                      // +++ STATIC   DONE
     { id: 13, name: 'Grayscale', generator: grayscale },                         // +++ STATIC   DONE
     { id: 14, name: 'Desert Warm', generator: desertWarm },                      // +   STATIC   DONE
-    
+
     { id: 15, name: 'Dual Gradient', generator: dualGradientGenerator },         // +++ GENERATIVE   NEED OPTIMIZATION
     { id: 16, name: 'Candy', generator: candyGenerator },                        // +++ GENERATIVE   NEED OPTIMIZATION
-    { id: 17, name: 'Paper & Ink', generator: paperInkGenerator },               // +++ GENERATIVE   NEED OPTIMIZATION
+    { id: 17, name: 'Organic Flow', generator: organicFlowGenerator },           // +   GENERATIVE   NEED OPTIMIZATION
+    { id: 18, name: 'Earth Flow', generator: earthFlowGenerator },               // ++  GENERATIVE   DONE
+    { id: 19, name: 'Game Boy DMG', generator: gameboyDMGGenerator },            // ++  GENERATIVE   DONE
+    { id: 20, name: 'Paper & Ink', generator: paperInkGenerator },               // +++ GENERATIVE   NEED OPTIMIZATION
+    { id: 21, name: 'Fluoro Sport', generator: fluoroSportGenerator },           // ++  GENERATIVE   NEED OPTIMIZATION
     { id: 22, name: 'Midnight Circuit', generator: midnightCircuitGenerator },   // ++  GENERATIVE   DONE
-    { id: 18, name: 'BioLuminescent Abyss', generator: biolumAbyssGenerator },   // +   GENERATIVE   DONE
-    { id: 20, name: 'Earth Flow', generator: earthFlowGenerator },               // ++  GENERATIVE   DONE
+    { id: 23, name: 'BioLuminescent Abyss', generator: biolumAbyssGenerator },   // +   GENERATIVE   DONE
+    { id: 24, name: 'Blueprint', generator: blueprintGenerator },                // +   GENERATIVE   DONE
+    { id: 25, name: 'Cyber Dark', generator: cyberDarkGenerator },               // +   GENERATIVE   DONE
 
-    { id: 19, name: 'Blueprint', generator: blueprintGenerator },                // +   GENERATIVE toDo: frequence du blanc
-    { id: 21, name: 'Fluoro Sport', generator: fluoroSportGenerator },           // +   GENERATIVE nuances foncees avec accents fluos
-    { id: 23, name: 'Magma Deep', generator: magmaDeepGenerator },               // +   GENERATIVE toDo: Incoherent? green?? Renaming?
-
-    { id: 24, name: 'Holographic Foil', generator: holoFoilGenerator },          // +   GENERATIVE
-    { id: 25, name: 'Mineral Gemstones', generator: gemstonesGenerator },        // ++  GENERATIVE
-    { id: 26, name: 'Vaporwave Pastel', generator: vaporwavePastelGenerator },   // +   GENERATIVE pastel neon rose/violet/cyan
-    { id: 27, name: 'Solarized Drift', generator: solarizedDriftGenerator },     // ++  GENERATIVE Encore une sorte de random pastel
-    { id: 28, name: 'Aurora', generator: auroraGenerator },                      // ++  GENERATIVE toDo: description
-    { id: 29, name: 'Cyber Neon', generator: cyberNeonGenerator },               // ++  GENERATIVE
-    { id: 30, name: 'Golden Angle Jitter', generator: goldenAngleJitterGenerator }, // ++  GENERATIVE toDo: description
-
-    { id: 31, name: 'Game Boy DMG', generator: gameboyDMGGenerator },            // + toDo: pas mal, mais peut etre a revoir
-    { id: 32, name: 'CGA Neon', generator: cgaNeonGenerator },                   // + alterne en rose neaon et cyan neon 1 sur 2
-    { id: 33, name: 'Noir + Accent', generator: noirAccentGenerator },           // +  Mouais trop de gris
-    { id: 34, name: 'Ink Bleed Watercolor', generator: inkBleedWatercolorGenerator }, // +
-    { id: 35, name: 'CMYK Misregister', generator: cmykMisregisterGenerator },   // +  Bleu, Magenta, Jaune, Noir avec legeres variations
-    { id: 36, name: 'Anodized Metal', generator: anodizedMetalGenerator },       // ~~ Des bleu et rose/violet metallique
-    { id: 37, name: 'Sci-Fi UI', generator: sciFiUIGenerator },                  // ~~ nuance de bleu/cyan avec accents rose/violet et orange
+    { id: 26, name: 'Holographic Foil', generator: holoFoilGenerator },          // +   GENERATIVE
+    { id: 36, name: 'Holographic Foil 2', generator: holoFoilGenerator1 },       // +   GENERATIVE
+    { id: 27, name: 'Mineral Gemstones', generator: gemstonesGenerator },        // ++  GENERATIVE
+    { id: 28, name: 'Vaporwave Pastel', generator: vaporwavePastelGenerator },   // +   GENERATIVE pastel neon rose/violet/cyan
+    { id: 29, name: 'Solarized Drift', generator: solarizedDriftGenerator },     // ++  GENERATIVE Encore une sorte de random pastel
+    { id: 30, name: 'Aurora', generator: auroraGenerator },                      // ++  GENERATIVE toDo: description
+    { id: 31, name: 'Cyber Neon', generator: cyberNeonGenerator },               // ++  GENERATIVE
+    { id: 32, name: 'Golden Angle Jitter', generator: goldenAngleJitterGenerator }, // ++  GENERATIVE toDo: description
+    { id: 33, name: 'CMYK Misregister', generator: cmykMisregisterGenerator },   // +  Bleu, Magenta, Jaune, Noir avec legeres variations
+    { id: 34, name: 'Anodized Metal', generator: anodizedMetalGenerator },       // ~~ Des bleu et rose/violet metallique
+    { id: 35, name: 'Ink Bleed Watercolor', generator: inkBleedWatercolorGenerator }, // ~~
 ]
 
 export const PALETTE_OPTIONS: PaletteOption[] = PALETTES.map(({ id, name }) => ({ id, name }))

@@ -2488,7 +2488,7 @@ export default defineComponent({
         }
         const updateColors = async (useRandomGenerator: boolean | Event = false) => {
             const shouldRandom = typeof useRandomGenerator === 'boolean' ? useRandomGenerator : false
-            if (shouldRandom) particleLife.selectedColorPaletteOption = Math.floor(Math.random() * paletteOptions.length)
+            if (shouldRandom) particleLife.selectedColorPaletteOption = paletteOptions[Math.floor(Math.random() * paletteOptions.length)].id
 
             colors = generateColors(particleLife.selectedColorPaletteOption, NUM_TYPES)
             particleLife.currentColors = colors
