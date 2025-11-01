@@ -2505,14 +2505,14 @@ export default defineComponent({
         }
         const updateRulesMatrix = async (useRandomGenerator: boolean | Event = false) => {
             const shouldRandom = typeof useRandomGenerator === 'boolean' ? useRandomGenerator : false
-            if (shouldRandom) particleLife.selectedRulesOption = Math.floor(Math.random() * rulesOptions.length)
+            if (shouldRandom) particleLife.selectedRulesOption = rulesOptions[Math.floor(Math.random() * rulesOptions.length)].id
 
             setRulesMatrix(generateRules(particleLife.selectedRulesOption, NUM_TYPES))
             updateInteractionMatrixBuffer()
         }
         const updateParticlePositions = async (useRandomGenerator: boolean | Event = false) => {
             const shouldRandom = typeof useRandomGenerator === 'boolean' ? useRandomGenerator : false
-            if (shouldRandom) particleLife.selectedSpawnPositionOption = Math.floor(Math.random() * positionOptions.length)
+            if (shouldRandom) particleLife.selectedSpawnPositionOption = positionOptions[Math.floor(Math.random() * positionOptions.length)].id
 
             initialParticles = generatePositions(particleLife.selectedSpawnPositionOption, NUM_PARTICLES, NUM_TYPES, SIM_WIDTH, SIM_HEIGHT)
             device.queue.writeBuffer(particleBuffer!, 0, initialParticles)
