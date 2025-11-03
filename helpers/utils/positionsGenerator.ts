@@ -1,4 +1,4 @@
-export interface PositionOption { id: number; name: string }
+export interface PositionOption { id: number; name: string, category?: string }
 type ParticlesArray = Float32Array
 type PosGen = (NUM_PARTICLES: number, NUM_TYPES: number, SIM_WIDTH: number, SIM_HEIGHT: number) => ParticlesArray
 
@@ -1412,38 +1412,41 @@ export const radiantFans: PosGen = (N, T, W, H) => {
 // === Registry & API ==================================================================================================
 // ---------------------------------------------------------------------------------------------------------------------
 export const POSITIONS = [
-    { id: 0,  name: 'Random',            generator: random },           // Done
-    { id: 1,  name: 'Disk',              generator: disk },             // Done
-    { id: 2,  name: 'Ring',              generator: ring },             // Done
-    { id: 3,  name: 'Rings',             generator: rings },            // Done
-    { id: 4,  name: 'Spiral',            generator: spiral },           // Done
-    { id: 5,  name: 'Line',              generator: line },             // Done
-    { id: 6,  name: 'Rainbow Disk',      generator: rainbowDisk },      // Done
-    { id: 7,  name: 'Rainbow Ring',      generator: rainbowRing },      // Done
-    { id: 8,  name: 'Rainbow Rings',     generator: rainbowRings },     // Done
-    { id: 9,  name: 'Rainbow Spiral',    generator: rainbowSpiral },    // Done
-    { id: 10, name: 'Rainbow Line',      generator: rainbowLine },      // Done
-    { id: 11, name: 'Stripes',           generator: stripes },          // Done
-    { id: 12, name: 'Border',            generator: border },           // Done
-    { id: 13, name: 'Grid',              generator: grid },             // Done
+    { id: 0,  name: 'Random', category: 'Default',              generator: random },           // Done
 
-    { id: 14, name: 'Wavy Bands',        generator: wavyBands },        // ~  Done
-    { id: 15, name: 'Chaotic Bands',     generator: chaoticBands },     // ~  Done
-    { id: 16, name: 'Simple Flower',     generator: simpleFlower },     // +  Done
-    { id: 17, name: 'Chromatic Flower',  generator: chromaticFlower },  // +  Done
-    { id: 18, name: 'Radiant Fans',      generator: radiantFans },      // ++  Done
-    { id: 19, name: 'Yin–Yang',          generator: yinYang },          // +  Done
-    { id: 20, name: 'Twin Crescents',    generator: twinCrescents },    // ++  Done
-    { id: 21, name: 'Twin Spirals',      generator: twinSpirals },      // ++  Done
-    { id: 22, name: 'Spiral Arms',       generator: spiralArms },       // ++  Done
-    { id: 23, name: 'Soft Clusters',     generator: softClusters },     // +  Done
-    { id: 24, name: 'Linked Clusters',   generator: linkedClusters },   // +  Done
-    { id: 25, name: 'Orbital Belts',     generator: orbitalBelts },     // +++  Done
-    { id: 26, name: 'Braided Belts',     generator: braidedBelts },     // +++  Done
-    { id: 27, name: 'Polar Maze',        generator: polarMaze },        // ++  Done
+    { id: 1,  name: 'Disk', category: 'Classic',                generator: disk },             // Done
+    { id: 2,  name: 'Ring', category: 'Classic',                generator: ring },             // Done
+    { id: 3,  name: 'Rings', category: 'Classic',               generator: rings },            // Done
+    { id: 4,  name: 'Spiral', category: 'Classic',              generator: spiral },           // Done
+    { id: 5,  name: 'Line', category: 'Classic',                generator: line },             // Done
+
+    { id: 6,  name: 'Rainbow Disk', category: 'Chromatic',      generator: rainbowDisk },      // Done
+    { id: 7,  name: 'Rainbow Ring', category: 'Chromatic',      generator: rainbowRing },      // Done
+    { id: 8,  name: 'Rainbow Rings', category: 'Chromatic',     generator: rainbowRings },     // Done
+    { id: 9,  name: 'Rainbow Spiral', category: 'Chromatic',    generator: rainbowSpiral },    // Done
+    { id: 10, name: 'Rainbow Line', category: 'Chromatic',      generator: rainbowLine },      // Done
+
+    { id: 11, name: 'Stripes', category: 'Geometric',           generator: stripes },          // Done
+    { id: 12, name: 'Border', category: 'Geometric',            generator: border },           // Done
+    { id: 13, name: 'Grid', category: 'Geometric',              generator: grid },             // Done
+    { id: 14, name: 'Wavy Bands', category: 'Geometric',        generator: wavyBands },        // ~  Done
+    { id: 15, name: 'Simple Flower', category: 'Geometric',     generator: simpleFlower },     // +  Done
+    { id: 16, name: 'Chromatic Flower', category: 'Geometric',  generator: chromaticFlower },  // +  Done
+    { id: 17, name: 'Yin–Yang', category: 'Geometric',          generator: yinYang },          // +  Done
+    { id: 18, name: 'Twin Crescents', category: 'Geometric',    generator: twinCrescents },    // ++  Done
+    { id: 19, name: 'Twin Spirals', category: 'Geometric',      generator: twinSpirals },      // ++  Done
+    { id: 20, name: 'Spiral Arms', category: 'Geometric',       generator: spiralArms },       // ++  Done
+    { id: 21, name: 'Polar Maze', category: 'Geometric',        generator: polarMaze },        // ++  Done
+
+    { id: 22, name: 'Chaotic Bands', category: 'Dynamic',       generator: chaoticBands },     // ~  Done
+    { id: 23, name: 'Radiant Fans', category: 'Dynamic',        generator: radiantFans },      // ++  Done
+    { id: 24, name: 'Soft Clusters', category: 'Dynamic',       generator: softClusters },     // +  Done
+    { id: 25, name: 'Linked Clusters', category: 'Dynamic',     generator: linkedClusters },   // +  Done
+    { id: 26, name: 'Orbital Belts', category: 'Dynamic',       generator: orbitalBelts },     // +++  Done
+    { id: 27, name: 'Braided Belts', category: 'Dynamic',       generator: braidedBelts },     // +++  Done
 ] as const
 
-export const POSITION_OPTIONS: PositionOption[] = POSITIONS.map(({ id, name }) => ({ id, name }))
+export const POSITION_OPTIONS: PositionOption[] = POSITIONS.map(({ id, name, category }) => ({ id, name, category }))
 
 export function generatePositions(optionID: number, NUM_PARTICLES: number, NUM_TYPES: number, SIM_WIDTH: number, SIM_HEIGHT: number): ParticlesArray {
     const entry = POSITIONS.find(p => p.id === optionID)

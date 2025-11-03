@@ -1,4 +1,4 @@
-export interface RuleOption { id: number; name: string }
+export interface RuleOption { id: number; name: string; category?: string }
 export type Matrix = number[][]
 
 export function makeRandomRulesMatrix(NUM_TYPES: number): Matrix {
@@ -474,41 +474,41 @@ export function driftedPatchworkGenerator(NUM_TYPES: number): Matrix {
     return m
 }
 
-const RULES: { id: number; name: string; generator: (n: number) => Matrix }[] = [
-    { id: 0, name: 'Random', generator: makeRandomRulesMatrix },
-    { id: 1, name: 'Symmetric', generator: symmetricGenerator },
-    { id: 2, name: 'Snake', generator: snakeGenerator },
-    { id: 3, name: 'Chains 1', generator: chains1Generator },
-    { id: 4, name: 'Chains 2', generator: chains2Generator },
-    { id: 5, name: 'Chains 3', generator: chains3Generator },
-    { id: 6, name: 'Rock–Paper–Scissors', generator: rockPaperScissorsGenerator },
-    { id: 7, name: 'Bipartite Alliances', generator: bipartiteGenerator },
-    { id: 8, name: 'Hub and Spokes', generator: hubAndSpokesGenerator },
-    { id: 9, name: 'Concentric Shells', generator: concentricShellsGenerator },
-    { id: 10, name: 'Anti-symmetric Swirl', generator: antiSymmetricSwirlGenerator },
-    { id: 11, name: 'Checker Offsets', generator: checkerOffsetsGenerator },
-    { id: 12, name: 'Dimers & Chains', generator: dimersAndChainsGenerator },
-    { id: 13, name: 'Triad Flocks', generator: triadFlocksGenerator },
-    { id: 14, name: 'Spiral Conveyor', generator: spiralConveyorGenerator },
-    { id: 15, name: 'Patchwork', generator: patchworkGenerator },
-    { id: 16, name: 'Wavefield', generator: wavefieldGenerator },
-    { id: 17, name: 'Chiral Bandpass', generator: chiralBandpassGenerator },
-    { id: 18, name: 'Rotating Conveyor', generator: rotatingConveyorGenerator },
-    { id: 19, name: 'Prime Hop', generator: primeHopGenerator },
-    { id: 20, name: 'Parity Vortex', generator: parityVortexGenerator },
-    { id: 21, name: 'Helical Ladder', generator: helicalLadderGenerator },
-    { id: 22, name: 'Biased Wave', generator: biasedWaveGenerator },
-    { id: 23, name: 'Modular Triads', generator: modularTriadsGenerator },
-    { id: 24, name: 'Skipped Pursuit', generator: skippedPursuitGenerator },
-    { id: 25, name: 'Blue-Noise Conveyor', generator: blueNoiseConveyorGenerator },
-    { id: 26, name: 'Offset Phasefield', generator: offsetPhasefieldGenerator },
-    { id: 27, name: 'Ring Road', generator: ringRoadGenerator },
-    { id: 28, name: 'Tri-Spiral', generator: triSpiralGenerator },
-    { id: 29, name: 'Vortex–Antivortex Lattice', generator: vortexAntivortexGenerator },
-    { id: 30, name: 'Drifted Patchwork', generator: driftedPatchworkGenerator },
+const RULES: { id: number; name: string; category?: string; generator: (n: number) => Matrix }[] = [
+    { id: 0, name: 'Random', category: 'Default', generator: makeRandomRulesMatrix },
+    { id: 1, name: 'Symmetric', category: 'Experimental', generator: symmetricGenerator },
+    { id: 2, name: 'Snake', category: 'Experimental', generator: snakeGenerator },
+    { id: 3, name: 'Chains 1', category: 'Experimental', generator: chains1Generator },
+    { id: 4, name: 'Chains 2', category: 'Experimental', generator: chains2Generator },
+    { id: 5, name: 'Chains 3', category: 'Experimental', generator: chains3Generator },
+    { id: 6, name: 'Rock–Paper–Scissors', category: 'Experimental', generator: rockPaperScissorsGenerator },
+    { id: 7, name: 'Bipartite Alliances', category: 'Experimental', generator: bipartiteGenerator },
+    { id: 8, name: 'Hub and Spokes', category: 'Experimental', generator: hubAndSpokesGenerator },
+    { id: 9, name: 'Concentric Shells', category: 'Experimental', generator: concentricShellsGenerator },
+    { id: 10, name: 'Anti-symmetric Swirl', category: 'Experimental', generator: antiSymmetricSwirlGenerator },
+    { id: 11, name: 'Checker Offsets', category: 'Experimental', generator: checkerOffsetsGenerator },
+    { id: 12, name: 'Dimers & Chains', category: 'Experimental', generator: dimersAndChainsGenerator },
+    { id: 13, name: 'Triad Flocks', category: 'Experimental', generator: triadFlocksGenerator },
+    { id: 14, name: 'Spiral Conveyor', category: 'Experimental', generator: spiralConveyorGenerator },
+    { id: 15, name: 'Patchwork', category: 'Experimental', generator: patchworkGenerator },
+    { id: 16, name: 'Wavefield', category: 'Experimental', generator: wavefieldGenerator },
+    { id: 17, name: 'Chiral Bandpass', category: 'Experimental', generator: chiralBandpassGenerator },
+    { id: 18, name: 'Rotating Conveyor', category: 'Experimental', generator: rotatingConveyorGenerator },
+    { id: 19, name: 'Prime Hop', category: 'Experimental', generator: primeHopGenerator },
+    { id: 20, name: 'Parity Vortex', category: 'Experimental', generator: parityVortexGenerator },
+    { id: 21, name: 'Helical Ladder', category: 'Experimental', generator: helicalLadderGenerator },
+    { id: 22, name: 'Biased Wave', category: 'Experimental', generator: biasedWaveGenerator },
+    { id: 23, name: 'Modular Triads', category: 'Experimental', generator: modularTriadsGenerator },
+    { id: 24, name: 'Skipped Pursuit', category: 'Experimental', generator: skippedPursuitGenerator },
+    { id: 25, name: 'Blue-Noise Conveyor', category: 'Experimental', generator: blueNoiseConveyorGenerator },
+    { id: 26, name: 'Offset Phasefield', category: 'Experimental', generator: offsetPhasefieldGenerator },
+    { id: 27, name: 'Ring Road', category: 'Experimental', generator: ringRoadGenerator },
+    { id: 28, name: 'Tri-Spiral', category: 'Experimental', generator: triSpiralGenerator },
+    { id: 29, name: 'Vortex–Antivortex Lattice', category: 'Experimental', generator: vortexAntivortexGenerator },
+    { id: 30, name: 'Drifted Patchwork', category: 'Experimental', generator: driftedPatchworkGenerator },
 ]
 
-export const RULES_OPTIONS: RuleOption[] = RULES.map(({ id, name }) => ({ id, name }))
+export const RULES_OPTIONS: RuleOption[] = RULES.map(({ id, name, category }) => ({ id, name, category }))
 
 export function generateRules(optionID: number, NUM_TYPES: number): Matrix {
     if (NUM_TYPES <= 0) return []

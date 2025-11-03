@@ -1,4 +1,4 @@
-export interface PaletteOption { id: number; name: string }
+export interface PaletteOption { id: number; name: string; category?: string }
 export type Colors = Float32Array
 type KeyColor = { t: number; r: number; g: number; b: number }
 
@@ -707,49 +707,49 @@ export function solarizedDriftGenerator(NUM_TYPES:number): Colors {
 // ---------------------------------------------------------------------------------------------------------------------
 // === Registry & API ==================================================================================================
 // ---------------------------------------------------------------------------------------------------------------------
-const PALETTES: { id: number; name: string; generator: (n: number) => Colors }[] = [
-    { id: 0, name: 'Random', generator: randomGenerator },                       // +++ GENERATIVE   DONE
-    { id: 1, name: 'Rainbow', generator: rainbow },                              // +++ STATIC   DONE
-    { id: 2, name: 'Neon Warm', generator: neonWarm },                           // +++ STATIC   DONE
-    { id: 3, name: 'Heatmap Classic', generator: heatmapClassic },               // +++ STATIC   DONE
-    { id: 4, name: 'Heatmap Cool', generator: heatmapCool },                     // ++  STATIC   DONE
-    { id: 5, name: 'Heatmap Warm', generator: heatmapWarm },                     // ++  STATIC   DONE
-    { id: 6, name: 'Pastel', generator: pastel },                                // +++ STATIC   DONE
-    { id: 7, name: 'Cold Blue', generator: coldBlue },                           // +   STATIC   DONE
-    { id: 8, name: 'Sci-Fi Spectrum', generator: sciFiSpectrum },                // ++  STATIC   DONE
-    { id: 9, name: 'Thermal Glow', generator: thermalGlow },                     // +   STATIC   DONE
-    { id: 10, name: 'Crimson Flame', generator: crimsonFlame },                  // +++ STATIC   DONE
-    { id: 11, name: 'Fire', generator: fire },                                   // +++ STATIC   DONE
-    { id: 12, name: 'Violet Fade', generator: violetFade },                      // +++ STATIC   DONE
-    { id: 13, name: 'Grayscale', generator: grayscale },                         // +++ STATIC   DONE
-    { id: 14, name: 'Desert Warm', generator: desertWarm },                      // +   STATIC   DONE
+const PALETTES: { id: number; name: string; category?: string; generator: (n: number) => Colors }[] = [
+    { id: 0, name: 'Random', category: 'Default', generator: randomGenerator },                       // +++ GENERATIVE   DONE
+    { id: 1, name: 'Rainbow', category: 'Static', generator: rainbow },                              // +++ STATIC   DONE
+    { id: 2, name: 'Neon Warm', category: 'Static', generator: neonWarm },                           // +++ STATIC   DONE
+    { id: 3, name: 'Heatmap Classic', category: 'Static', generator: heatmapClassic },               // +++ STATIC   DONE
+    { id: 4, name: 'Heatmap Cool', category: 'Static', generator: heatmapCool },                     // ++  STATIC   DONE
+    { id: 5, name: 'Heatmap Warm', category: 'Static', generator: heatmapWarm },                     // ++  STATIC   DONE
+    { id: 6, name: 'Pastel', category: 'Static', generator: pastel },                                // +++ STATIC   DONE
+    { id: 7, name: 'Cold Blue', category: 'Static', generator: coldBlue },                           // +   STATIC   DONE
+    { id: 8, name: 'Sci-Fi Spectrum', category: 'Static', generator: sciFiSpectrum },                // ++  STATIC   DONE
+    { id: 9, name: 'Thermal Glow', category: 'Static', generator: thermalGlow },                     // +   STATIC   DONE
+    { id: 10, name: 'Crimson Flame', category: 'Static', generator: crimsonFlame },                  // +++ STATIC   DONE
+    { id: 11, name: 'Fire', category: 'Static', generator: fire },                                   // +++ STATIC   DONE
+    { id: 12, name: 'Violet Fade', category: 'Static', generator: violetFade },                      // +++ STATIC   DONE
+    { id: 13, name: 'Grayscale', category: 'Static', generator: grayscale },                         // +++ STATIC   DONE
+    { id: 14, name: 'Desert Warm', category: 'Static', generator: desertWarm },                      // +   STATIC   DONE
 
-    { id: 15, name: 'Dual Gradient', generator: dualGradientGenerator },         // +++ GENERATIVE   NEED OPTIMIZATION
-    { id: 16, name: 'Candy', generator: candyGenerator },                        // +++ GENERATIVE   NEED OPTIMIZATION
-    { id: 17, name: 'Organic Flow', generator: organicFlowGenerator },           // +   GENERATIVE   NEED OPTIMIZATION
-    { id: 18, name: 'Earth Flow', generator: earthFlowGenerator },               // ++  GENERATIVE   DONE
-    { id: 19, name: 'Game Boy DMG', generator: gameboyDMGGenerator },            // ++  GENERATIVE   DONE
-    { id: 20, name: 'Paper & Ink', generator: paperInkGenerator },               // +++ GENERATIVE   NEED OPTIMIZATION
-    { id: 21, name: 'Fluoro Sport', generator: fluoroSportGenerator },           // ++  GENERATIVE   NEED OPTIMIZATION
-    { id: 22, name: 'Midnight Circuit', generator: midnightCircuitGenerator },   // ++  GENERATIVE   DONE
-    { id: 23, name: 'BioLuminescent Abyss', generator: biolumAbyssGenerator },   // +   GENERATIVE   DONE
-    { id: 24, name: 'Blueprint', generator: blueprintGenerator },                // +   GENERATIVE   DONE
-    { id: 25, name: 'Cyber Dark', generator: cyberDarkGenerator },               // +   GENERATIVE   DONE
+    { id: 15, name: 'Dual Gradient', category: 'Generative', generator: dualGradientGenerator },         // +++ GENERATIVE   NEED OPTIMIZATION
+    { id: 16, name: 'Candy', category: 'Generative', generator: candyGenerator },                        // +++ GENERATIVE   NEED OPTIMIZATION
+    { id: 17, name: 'Organic Flow', category: 'Generative', generator: organicFlowGenerator },           // +   GENERATIVE   NEED OPTIMIZATION
+    { id: 18, name: 'Earth Flow', category: 'Generative', generator: earthFlowGenerator },               // ++  GENERATIVE   DONE
+    { id: 19, name: 'Game Boy DMG', category: 'Generative', generator: gameboyDMGGenerator },            // ++  GENERATIVE   DONE
+    { id: 20, name: 'Paper & Ink', category: 'Generative', generator: paperInkGenerator },               // +++ GENERATIVE   NEED OPTIMIZATION
+    { id: 21, name: 'Fluoro Sport', category: 'Generative', generator: fluoroSportGenerator },           // ++  GENERATIVE   NEED OPTIMIZATION
+    { id: 22, name: 'Midnight Circuit', category: 'Generative', generator: midnightCircuitGenerator },   // ++  GENERATIVE   DONE
+    { id: 23, name: 'BioLuminescent Abyss', category: 'Generative', generator: biolumAbyssGenerator },   // +   GENERATIVE   DONE
+    { id: 24, name: 'Blueprint', category: 'Generative', generator: blueprintGenerator },                // +   GENERATIVE   DONE
+    { id: 25, name: 'Cyber Dark', category: 'Generative', generator: cyberDarkGenerator },               // +   GENERATIVE   DONE
 
-    { id: 26, name: 'Holographic Foil', generator: holoFoilGenerator },          // +   GENERATIVE
-    { id: 36, name: 'Holographic Foil 2', generator: holoFoilGenerator1 },       // +   GENERATIVE
-    { id: 27, name: 'Mineral Gemstones', generator: gemstonesGenerator },        // ++  GENERATIVE
-    { id: 28, name: 'Vaporwave Pastel', generator: vaporwavePastelGenerator },   // +   GENERATIVE pastel neon rose/violet/cyan
-    { id: 29, name: 'Solarized Drift', generator: solarizedDriftGenerator },     // ++  GENERATIVE Encore une sorte de random pastel
-    { id: 30, name: 'Aurora', generator: auroraGenerator },                      // ++  GENERATIVE toDo: description
-    { id: 31, name: 'Cyber Neon', generator: cyberNeonGenerator },               // ++  GENERATIVE
-    { id: 32, name: 'Golden Angle Jitter', generator: goldenAngleJitterGenerator }, // ++  GENERATIVE toDo: description
-    { id: 33, name: 'CMYK Misregister', generator: cmykMisregisterGenerator },   // +  Bleu, Magenta, Jaune, Noir avec legeres variations
-    { id: 34, name: 'Anodized Metal', generator: anodizedMetalGenerator },       // ~~ Des bleu et rose/violet metallique
-    { id: 35, name: 'Ink Bleed Watercolor', generator: inkBleedWatercolorGenerator }, // ~~
+    { id: 26, name: 'Holographic Foil', category: 'Experimental', generator: holoFoilGenerator },          // +   GENERATIVE
+    { id: 36, name: 'Holographic Foil 2', category: 'Experimental', generator: holoFoilGenerator1 },       // +   GENERATIVE
+    { id: 27, name: 'Mineral Gemstones', category: 'Experimental', generator: gemstonesGenerator },        // ++  GENERATIVE
+    { id: 28, name: 'Vaporwave Pastel', category: 'Experimental', generator: vaporwavePastelGenerator },   // +   GENERATIVE pastel neon rose/violet/cyan
+    { id: 29, name: 'Solarized Drift', category: 'Experimental', generator: solarizedDriftGenerator },     // ++  GENERATIVE Encore une sorte de random pastel
+    { id: 30, name: 'Aurora', category: 'Experimental', generator: auroraGenerator },                      // ++  GENERATIVE toDo: description
+    { id: 31, name: 'Cyber Neon', category: 'Experimental', generator: cyberNeonGenerator },               // ++  GENERATIVE
+    { id: 32, name: 'Golden Angle Jitter', category: 'Experimental', generator: goldenAngleJitterGenerator }, // ++  GENERATIVE toDo: description
+    { id: 33, name: 'CMYK Misregister', category: 'Experimental', generator: cmykMisregisterGenerator },   // +  Bleu, Magenta, Jaune, Noir avec legeres variations
+    { id: 34, name: 'Anodized Metal', category: 'Experimental', generator: anodizedMetalGenerator },       // ~~ Des bleu et rose/violet metallique
+    { id: 35, name: 'Ink Bleed Watercolor', category: 'Experimental', generator: inkBleedWatercolorGenerator }, // ~~
 ]
 
-export const PALETTE_OPTIONS: PaletteOption[] = PALETTES.map(({ id, name }) => ({ id, name }))
+export const PALETTE_OPTIONS: PaletteOption[] = PALETTES.map(({ id, name, category }) => ({ id, name, category }))
 
 export function generateColors(optionID: number, NUM_TYPES: number): Colors {
     if (NUM_TYPES <= 0) return new Float32Array(0)
