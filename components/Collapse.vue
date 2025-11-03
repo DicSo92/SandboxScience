@@ -15,7 +15,7 @@
         </div>
 
         <transition name="collapse">
-            <div v-show="isOpen" class="content bg-slate-700/30" p-2 rounded-b-lg relative z-40>
+            <div v-show="isOpen" class="content bg-slate-700/30" p-2 rounded-b-lg>
                 <slot></slot>
             </div>
         </transition>

@@ -17,42 +17,67 @@
                     </div>
                     <hr border-slate-500>
                     <div overflow-auto flex-1 mt-2 class="scrollableArea">
-                        <section mb-4>
-                            <div flex gap-2>
-                                <SelectInput class="w-8/12" v-model="particleLife.selectedColorPaletteOption" :options="paletteOptions"></SelectInput>
-                                <div grid grid-cols-2 gap-1 class="w-4/12">
-                                    <button @click="updateColors" type="button" btn px-3 rounded-full flex justify-center items-center bg="slate-800/80 hover:slate-800/50">
-                                        <span i-tabler-reload></span>
-                                    </button>
-                                    <button @click="updateColors(true)" type="button" btn px-3 rounded-full flex justify-center items-center bg="cyan-900/80 hover:cyan-900/50">
-                                        <span i-game-icons-perspective-dice-six-faces-random></span>
-                                    </button>
+                        <Collapse label="Presets" icon="i-tabler-sparkles text-amber-500"
+                                  tooltip="Choose predefined configurations to quickly set up your simulation.">
+                            <div>
+                                <div class="flex items-center text-2sm mb-1">
+                                    <div class="i-tabler-palette text-emerald-500 text-md"></div>
+                                    <span mx-1>Color Scheme</span>
+                                    <TooltipInfo container="#mainContainer" tooltip="Sets neighbor tiles count for Edges mode (grayscale)." />
+                                </div>
+                                <div flex gap-2>
+<!--                                    <SelectInput class="w-8/12" border-color="border-emerald-800/80" v-model="particleLife.selectedColorPaletteOption" :options="paletteOptions"></SelectInput>-->
+                                    <SelectInput class="w-8/12" v-model="particleLife.selectedColorPaletteOption" :options="paletteOptions"></SelectInput>
+                                    <div grid grid-cols-2 gap-1 class="w-4/12">
+                                        <button @click="updateColors" type="button" btn px-3 rounded-full flex justify-center items-center bg="slate-800/80 hover:slate-800/50">
+                                            <span i-tabler-reload></span>
+                                        </button>
+                                        <button @click="updateColors(true)" type="button" btn px-3 rounded-full flex justify-center items-center bg="cyan-900/80 hover:cyan-900/50">
+                                            <span i-game-icons-perspective-dice-six-faces-random></span>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                            <div flex gap-2 mt-2>
-                                <SelectInput class="w-8/12" v-model="particleLife.selectedRulesOption" :options="rulesOptions"></SelectInput>
-                                <div grid grid-cols-2 gap-1 class="w-4/12">
-                                    <button @click="updateRulesMatrix" type="button" btn px-3 rounded-full flex justify-center items-center bg="slate-800/80 hover:slate-800/50">
-                                        <span i-tabler-reload></span>
-                                    </button>
-                                    <button @click="updateRulesMatrix(true)" type="button" btn px-3 rounded-full flex justify-center items-center bg="cyan-900/80 hover:cyan-900/50">
-                                        <span i-game-icons-perspective-dice-six-faces-random></span>
-                                    </button>
+                            <div mt-2>
+                                <div class="flex items-center text-2sm mb-1">
+                                    <div class="i-tabler-grid-4x4 text-indigo-500 text-md"></div>
+                                    <span mx-1>Interaction Matrix</span>
+                                    <TooltipInfo container="#mainContainer" tooltip="Sets neighbor tiles count for Edges mode (grayscale)." />
+                                </div>
+                                <div flex gap-2>
+<!--                                    <SelectInput class="w-8/12" border-color="border-indigo-800/80" v-model="particleLife.selectedRulesOption" :options="rulesOptions"></SelectInput>-->
+                                    <SelectInput class="w-8/12" v-model="particleLife.selectedRulesOption" :options="rulesOptions"></SelectInput>
+                                    <div grid grid-cols-2 gap-1 class="w-4/12">
+                                        <button @click="updateRulesMatrix" type="button" btn px-3 rounded-full flex justify-center items-center bg="slate-800/80 hover:slate-800/50">
+                                            <span i-tabler-reload></span>
+                                        </button>
+                                        <button @click="updateRulesMatrix(true)" type="button" btn px-3 rounded-full flex justify-center items-center bg="cyan-900/80 hover:cyan-900/50">
+                                            <span i-game-icons-perspective-dice-six-faces-random></span>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                            <div flex gap-2 mt-2>
-                                <SelectInput class="w-8/12" v-model="particleLife.selectedSpawnPositionOption" :options="positionOptions"></SelectInput>
-                                <div grid grid-cols-2 gap-1 class="w-4/12">
-                                    <button @click="updateParticlePositions" type="button" btn px-3 rounded-full flex justify-center items-center bg="slate-800/80 hover:slate-800/50">
-                                        <span i-tabler-reload></span>
-                                    </button>
-                                    <button @click="updateParticlePositions(true)" type="button" btn px-3 rounded-full flex justify-center items-center bg="cyan-900/80 hover:cyan-900/50">
-                                        <span i-game-icons-perspective-dice-six-faces-random></span>
-                                    </button>
+                            <div mt-2>
+                                <div class="flex items-center text-2sm mb-1">
+                                    <div class="i-tabler-spiral text-cyan-500 text-md"></div>
+                                    <span mx-1>Particle Distribution</span>
+                                    <TooltipInfo container="#mainContainer" tooltip="Sets neighbor tiles count for Edges mode (grayscale)." />
+                                </div>
+                                <div flex gap-2>
+<!--                                    <SelectInput class="w-8/12" border-color="border-cyan-800/80" v-model="particleLife.selectedSpawnPositionOption" :options="positionOptions"></SelectInput>-->
+                                    <SelectInput class="w-8/12" v-model="particleLife.selectedSpawnPositionOption" :options="positionOptions"></SelectInput>
+                                    <div grid grid-cols-2 gap-1 class="w-4/12">
+                                        <button @click="updateParticlePositions" type="button" btn px-3 rounded-full flex justify-center items-center bg="slate-800/80 hover:slate-800/50">
+                                            <span i-tabler-reload></span>
+                                        </button>
+                                        <button @click="updateParticlePositions(true)" type="button" btn px-3 rounded-full flex justify-center items-center bg="cyan-900/80 hover:cyan-900/50">
+                                            <span i-game-icons-perspective-dice-six-faces-random></span>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                        </section>
-                        <Collapse label="Matrix Settings" icon="i-tabler-grid-4x4 text-indigo-500"
+                        </Collapse>
+                        <Collapse label="Matrix Settings" icon="i-tabler-grid-4x4 text-indigo-500" mt-2
                                   tooltip="Modify matrix values by clicking on cells in the grid. <br>
                                   Adjust individual cell values with the slider, or click and drag to change them directly. <br>
                                   Use Ctrl + Click to select multiple cells for group adjustments. <br>
