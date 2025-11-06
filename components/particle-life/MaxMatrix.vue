@@ -180,7 +180,8 @@ export default defineComponent({
                 // if (event.movementX === 0 || Math.abs(event.movementX) > 16) return // Prevent movementX error with pointer lock
                 const i = selectedCell.value![0]
                 const j = selectedCell.value![1]
-                const value = particleLife.maxRadiusMatrix[i][j] + event.movementX
+                const delta = Math.max(-2, Math.min(2, event.movementX))
+                const value = particleLife.maxRadiusMatrix[i][j] + delta
                 updateMatrixForSelectedCells(value)
             }
         }
