@@ -66,7 +66,8 @@ export default defineComponent({
         const noSelectionValue = ref<number>(40)
 
         const neutralColor = [12, 12, 12]
-        const targetColor = [12, 116, 137] // blue cerulean
+        // const targetColor = [12, 116, 137] // blue cerulean
+        const targetColor = [6, 182, 212] // #06b6d4 cyan-500
 
         let dragging = false
         let wasDragging = false
@@ -180,7 +181,8 @@ export default defineComponent({
                 // if (event.movementX === 0 || Math.abs(event.movementX) > 16) return // Prevent movementX error with pointer lock
                 const i = selectedCell.value![0]
                 const j = selectedCell.value![1]
-                const value = particleLife.minRadiusMatrix[i][j] + event.movementX
+                const delta = Math.max(-2, Math.min(2, event.movementX))
+                const value = particleLife.minRadiusMatrix[i][j] + delta
                 updateMatrixForSelectedCells(value)
             }
         }

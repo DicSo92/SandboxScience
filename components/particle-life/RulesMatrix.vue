@@ -65,9 +65,55 @@ export default defineComponent({
         const selectedCells = ref<[number, number][] | null>(null)
         const noSelectionValue = ref<number>(0)
 
+        // const repulsionColor = [214, 40, 57]
+        // const attractionColor = [137, 189, 158]
+        // const neutralColor = [12, 12, 12]
+
+        // ++++
+        // const repulsionColor = [214, 40, 57]
+        // const attractionColor = [59, 130, 246] // #3B82F6 blue-500
+        // const neutralColor = [9, 13, 22] // #090D16 navy très sombre
+
+        // ++++
         const repulsionColor = [214, 40, 57]
-        const attractionColor = [137, 189, 158]
-        const neutralColor = [12, 12, 12]
+        const attractionColor = [6, 182, 212] // #06b6d4 cyan-500
+        const neutralColor = [9, 13, 22] // #090D16 slate-950-ish
+
+
+        // // 1) Classic Red ↔ Blue +
+        // const repulsionColor = [239, 68, 68] // #EF4444 red-500
+        // const attractionColor = [59, 130, 246] // #3B82F6 blue-500
+        // const neutralColor = [10, 14, 24] // #0A0E18 slate-950-ish
+
+        // 2) Magenta ↔ Cyan ++++
+        // const repulsionColor = [225, 29, 72] // #E11D48 rose-600
+        // const attractionColor = [34, 211, 238] // #22D3EE cyan-400
+        // const neutralColor = [9, 13, 22] // #090D16 slate-950-ish
+
+        // 3) Scarlet ↔ Royal +++
+        // const repulsionColor = [220, 38, 38] // #DC2626 red-600
+        // const attractionColor = [37, 99, 235] // #2563EB blue-600
+        // const neutralColor = [10, 14, 24] // #0A0E18 slate-950-ish
+
+        // 6) Crimson ↔ Azure +
+        // const repulsionColor = [190, 18, 60] // #BE123C rose-700
+        // const attractionColor = [96, 165, 250] // #60A5FA blue-400
+        // const neutralColor = [11, 16, 28] // #0B101C slate-950-ish
+
+        // 8) Vermilion ↔ Cerulean ++
+        // const repulsionColor = [244, 63, 94] // #F43F5E rose-500
+        // const attractionColor = [56, 189, 248] // #38BDF8 sky-400
+        // const neutralColor = [9, 13, 22] // #090D16 slate-950-ish
+
+        // 9) Brick ↔ Sky +
+        // const repulsionColor = [185, 28, 28] // #B91C1C red-700
+        // const attractionColor = [14, 165, 233] // #0EA5E9 sky-500
+        // const neutralColor = [9, 12, 20] // #090C14 slate-950-ish
+
+        // 10) Ruby ↔ Electric Blue +++
+        // const repulsionColor = [225, 29, 72] // #E11D48 rose-600
+        // const attractionColor = [99, 102, 241] // #6366F1 indigo-500 (blue-violet)
+        // const neutralColor = [8, 12, 18] // #080C12 slate-950-ish
 
         let dragging = false
         let wasDragging = false
@@ -218,7 +264,6 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         function updateMatrixForAllCells(value: number = 0) {
             value = Math.max(-1, Math.min(1, value))
-            value = Number(value.toFixed(4))
             for (let i = 0; i < particleLife.numColors; i++) {
                 for (let j = 0; j < particleLife.numColors; j++) {
                     emit('update', i, j, value)
@@ -227,7 +272,6 @@ export default defineComponent({
         }
         function updateMatrixForSelectedCells(value: number) {
             value = Math.max(-1, Math.min(1, value))
-            value = Number(value.toFixed(4))
             for (let i = 0; i < selectedCells.value!.length; i++) {
                 const [x, y] = selectedCells.value![i]
                 emit('update', x, y, value)
