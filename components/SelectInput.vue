@@ -1,14 +1,14 @@
 <template>
     <div ref="container" class="relative inline-block w-full max-w-64">
-        <button type="button" class="flex items-center gap-2 w-full select-none rounded-lg border bg-slate-800/80 px-3 py-1 text-left text-sm shadow-sm outline-none disabled:cursor-not-allowed disabled:opacity-60"
-                @click="toggle()" :aria-expanded="isOpen" aria-haspopup="listbox" :aria-controls="`listbox-${name}`" :disabled="disabled" :class="borderColor">
+        <button type="button" class="flex items-center gap-2 w-full select-none rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-1 text-left text-sm shadow-sm outline-none disabled:cursor-not-allowed disabled:opacity-60"
+                @click="toggle()" :aria-expanded="isOpen" aria-haspopup="listbox" :aria-controls="`listbox-${name}`" :disabled="disabled">
                 <span v-if="selectedOption?.icon" :class="`i-${selectedOption.icon}`"></span>
                 <span class="truncate" v-text="selectedOption ? selectedOption.name : placeholder"/>
                 <span class="ml-auto i-tabler-chevron-up transition-transform" :class="!isOpen && 'rotate-180'" />
         </button>
 
         <transition name="fade" appear>
-            <div v-if="isOpen" class="absolute z-100 mt-2 w-full overflow-hidden rounded-lg border bg-slate-800/90 backdrop-blur-sm shadow-lg" :class="borderColor">
+            <div v-if="isOpen" class="absolute z-100 mt-2 w-full overflow-hidden rounded-lg border border-slate-700 bg-slate-800/90 backdrop-blur-sm shadow-lg">
                 <ul :id="`listbox-${name}`" role="listbox" tabindex="-1" ref="listboxEl" @keydown.esc.prevent="close()"
                     class="max-h-128 overflow-auto py-1 text-sm outline-none">
                     <template v-for="(group, groupId) in groupedOptions" :key="groupId">
@@ -68,10 +68,6 @@ export default defineComponent({
         name: {
             type: String,
             default: 'select-input',
-        },
-        borderColor: {
-            type: String,
-            default: 'border-slate-700',
         },
     },
     emits: ['update:modelValue', 'change'],

@@ -23,10 +23,9 @@
                                 <div class="flex items-center text-2sm mb-1">
                                     <div class="i-tabler-palette text-emerald-500 text-md"></div>
                                     <span mx-1>Color Scheme</span>
-                                    <TooltipInfo container="#mainContainer" tooltip="Sets neighbor tiles count for Edges mode (grayscale)." />
+                                    <TooltipInfo container="#mainContainer" tooltip="Choose from static or generative color palette generators. <br> <b>Static</b> palettes are fixed, while <b>generative</b> ones produce new themed variations each time." />
                                 </div>
                                 <div flex gap-2>
-<!--                                    <SelectInput class="w-8/12" border-color="border-emerald-800/80" v-model="particleLife.selectedColorPaletteOption" :options="paletteOptions"></SelectInput>-->
                                     <SelectInput class="w-8/12" v-model="particleLife.selectedColorPaletteOption" :options="paletteOptions"></SelectInput>
                                     <div grid grid-cols-2 gap-1 class="w-4/12">
                                         <button @click="updateColors" type="button" btn px-3 rounded-full flex justify-center items-center bg="slate-800/80 hover:slate-800/50">
@@ -42,10 +41,9 @@
                                 <div class="flex items-center text-2sm mb-1">
                                     <div class="i-tabler-grid-4x4 text-indigo-500 text-md"></div>
                                     <span mx-1>Interaction Matrix</span>
-                                    <TooltipInfo container="#mainContainer" tooltip="Sets neighbor tiles count for Edges mode (grayscale)." />
+                                    <TooltipInfo container="#mainContainer" tooltip="Choose from different force matrix generators. <br> These are experimental and may produce unpredictable or unbalanced results." />
                                 </div>
                                 <div flex gap-2>
-<!--                                    <SelectInput class="w-8/12" border-color="border-indigo-800/80" v-model="particleLife.selectedRulesOption" :options="rulesOptions"></SelectInput>-->
                                     <SelectInput class="w-8/12" v-model="particleLife.selectedRulesOption" :options="rulesOptions"></SelectInput>
                                     <div grid grid-cols-2 gap-1 class="w-4/12">
                                         <button @click="updateRulesMatrix" type="button" btn px-3 rounded-full flex justify-center items-center bg="slate-800/80 hover:slate-800/50">
@@ -61,10 +59,9 @@
                                 <div class="flex items-center text-2sm mb-1">
                                     <div class="i-tabler-spiral text-cyan-500 text-md"></div>
                                     <span mx-1>Particle Distribution</span>
-                                    <TooltipInfo container="#mainContainer" tooltip="Sets neighbor tiles count for Edges mode (grayscale)." />
+                                    <TooltipInfo container="#mainContainer" tooltip="Choose from different particle distribution generators. <br> Each defines how particles are initially placed, affecting the simulation’s early motion and structure." />
                                 </div>
                                 <div flex gap-2>
-<!--                                    <SelectInput class="w-8/12" border-color="border-cyan-800/80" v-model="particleLife.selectedSpawnPositionOption" :options="positionOptions"></SelectInput>-->
                                     <SelectInput class="w-8/12" v-model="particleLife.selectedSpawnPositionOption" :options="positionOptions"></SelectInput>
                                     <div grid grid-cols-2 gap-1 class="w-4/12">
                                         <button @click="updateParticlePositions" type="button" btn px-3 rounded-full flex justify-center items-center bg="slate-800/80 hover:slate-800/50">
