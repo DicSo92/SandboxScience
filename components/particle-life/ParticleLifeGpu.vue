@@ -221,6 +221,9 @@
                             <hr border-gray-500 my-2>
                             <ToggleSwitch inactive-label="BruteForce" label="SpatialHash" colorful-label v-model="particleLife.useSpatialHash" />
                         </Collapse>
+                        <Collapse label="Save & Share" icon="i-carbon-save text-yellow-500" mt-2 mb-12>
+                            <SaveOptions :store="particleLife"></SaveOptions>
+                        </Collapse>
                     </div>
                     <div absolute bottom-2 right-0 z-100 class="-mr-px">
                         <button rounded-l-lg border border-slate-600 flex items-center p-1 bg="slate-900/85 hover:slate-950/85" @click="particleLife.sidebarLeftOpen = false">
@@ -287,6 +290,7 @@ import WallStateSelection from "~/components/particle-life/WallStateSelection.vu
 import WrapModeSelection from "~/components/particle-life/WrapModeSelection.vue";
 import MatrixSettings from "~/components/particle-life/MatrixSettings.vue";
 import BrushSettings from "~/components/particle-life/BrushSettings.vue";
+import SaveOptions from "~/components/particle-life/SaveOptions.vue";
 import { RULES_OPTIONS, generateRules } from '~/helpers/utils/rulesGenerator';
 import { PALETTE_OPTIONS, generateColors } from "~/helpers/utils/colorsGenerator";
 import { POSITION_OPTIONS, generatePositions } from "~/helpers/utils/positionsGenerator";
@@ -318,7 +322,7 @@ import renderBinsShaderCode from 'assets/particle-life-gpu/shaders/render/render
 
 export default defineComponent({
     name: 'ParticleLifeGpu',
-    components: { BrushSettings, MatrixSettings, WallStateSelection, WrapModeSelection },
+    components: {SaveOptions, BrushSettings, MatrixSettings, WallStateSelection, WrapModeSelection },
     setup() {
         // Define refs and variables
         const mainContainer = ref<HTMLElement | null>(null)
