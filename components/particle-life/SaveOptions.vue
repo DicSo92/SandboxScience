@@ -36,11 +36,95 @@
                 Save
             </button>
         </div>
+        <div mt-4>
+            <p underline text-gray-300 class="-mt-0.5" mb-2>Saved Presets :</p>
+
+            <div v-if="Object.keys(savedPresets).length > 0" mb-3>
+                <span text-xs text-gray-300 underline mb-1>Sort by type:</span>
+
+                <div flex items-center gap-1 text-xs>
+                    <button type="button" v-for="meta in PRESET_TYPE_META" :key="meta.id"
+                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-500"
+                            :class="activeTypeFilters.includes(meta.id) ? meta.color : 'bg-slate-800/60 text-gray-300'"
+                            @click="toggleTypeFilter(meta.id)"
+                    >
+                        <span v-if="meta.icon" :class="meta.icon" text-sm></span>
+                        <span>{{ meta.label }}</span>
+                    </button>
+                </div>
+
+            </div>
+
+            <div v-if="Object.keys(savedPresets).length === 0" text-sm text-gray-400 italic>
+                No presets saved yet.
+            </div>
+            <div v-else flex flex-col gap-2>
+                <div v-for="(preset, id) in filteredPresets" :key="id" p-2 rounded-lg flex justify-between items-center class="bg-slate-700/30">
+                    <div flex-1 min-w-0 pr-2>
+                        <p font-bold text-slate-200 text-sm truncate capitalize>{{ preset.meta.name }}</p>
+                    </div>
+                    <div flex items-center gap-2 flex-shrink-0>
+                        <div flex gap-1>
+                            <span v-for="meta in PRESET_TYPE_META" :key="meta.id"
+                                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-500 text-slate-50"
+                                  :class="preset.types.includes(meta.id) ? meta.color : 'bg-slate-600/40 opacity-60'"
+                            >
+                                <span v-if="meta.icon" :class="meta.icon" text-sm></span>
+                            </span>
+                        </div>
+                        <div w-px h-5 bg-slate-700></div>
+
+                        <VDropdown placement="right-start" popperClass="dropdownPresetOptions" :arrowPadding="10" instant-move>
+                            <div flex items-center>
+                                <button type="button" i-tabler-dots-vertical text-slate-100 text-center></button>
+                            </div>
+
+                            <template #popper>
+                                <div flex flex-col class="bg-slate-800/70 backdrop-blur-sm rounded-md shadow-md">
+                                    <button type="button" text-sm text-slate-100 class="rounded-t hover:bg-slate-500/50 px-4 py-2">
+                                        <span i-tabler-copy></span>
+                                        Copy JSON
+                                    </button>
+                                    <button type="button" text-sm text-slate-100 class="hover:bg-slate-500/50 px-4 py-2">
+                                        Download JSON
+                                    </button>
+                                    <hr>
+                                    <button type="button" @click="removePreset(id)" text-sm text-slate-100 class="rounded-b bg-red-700/30 hover:bg-red-700/60 px-4 py-2">
+                                        Delete
+                                    </button>
+                                </div>
+                            </template>
+                        </VDropdown>
+                    </div>
+                </div>
+            </div>
+        </div>
     </section>
 </template>
 
 <script lang="ts">
 import {defineComponent} from "vue";
+
+type Preset = {
+    v: number
+    meta: {
+        name: string
+        description: string | null
+    }
+    types: string[]
+    settings?: {
+        species: number
+        numParticles: number
+        frictionFactor: number
+        forceFactor: number
+    }
+    matrices?: {
+        forces: number[][]
+        minRadius?: number[][]
+        maxRadius?: number[][]
+    }
+    colors?: string[]
+}
 
 export default defineComponent({
     name: 'SaveOptions',
@@ -52,6 +136,7 @@ export default defineComponent({
     },
     setup(props, { emit }) {
         const particleLife = props.store
+        const savedPresets = ref<Record<string, Preset>>({})
 
         const name = ref<string>("")
         const description = ref<string>("")
@@ -60,9 +145,53 @@ export default defineComponent({
         const colors = ref<boolean>(false)
         const generalSettings = ref<boolean>(false)
 
+        const PRESET_TYPE_META: { id: string; label: string; color: string; icon?: string }[] = [
+            { id: "forces",   label: "Forces",   color: "bg-sky-700/60",     icon: "i-tabler-arrows-random" },
+            { id: "radii",    label: "Radii",    color: "bg-purple-700/60",  icon: "i-tabler-circles" },
+            { id: "colors",   label: "Colors",   color: "bg-amber-700/60",   icon: "i-tabler-palette" },
+            { id: "settings", label: "Settings", color: "bg-emerald-700/60", icon: "i-tabler-adjustments" },
+        ]
+
+        const activeTypeFilters = ref<string[]>([])
+
+        const filteredPresets = computed(() => {
+            const filters = activeTypeFilters.value
+            if (filters.length === 0) return savedPresets.value
+
+            const result: Record<string, Preset> = {}
+            for (const [id, preset] of Object.entries(savedPresets.value)) {
+                // contient TOUS les types sélectionnés:
+                const matchesAll = filters.every(t => preset.types.includes(t))
+                // pour "au moins un", utiliser à la place:
+                // const matchesAll = filters.some(t => preset.types.includes(t))
+                if (matchesAll) {
+                    result[id] = preset
+                }
+            }
+            return result
+        })
+
+        const toggleTypeFilter = (typeId: string) => {
+            const idx = activeTypeFilters.value.indexOf(typeId)
+            if (idx === -1) {
+                activeTypeFilters.value.push(typeId)
+            } else {
+                activeTypeFilters.value.splice(idx, 1)
+            }
+        }
+
         const canSave = computed(() => {
             return forceMatrix.value || radiusMatrices.value || colors.value || generalSettings.value || name.value.trim().length > 0
         })
+
+        onMounted(() => {
+            getSavedPresets()
+        })
+        const getSavedPresets = () => {
+            // Load existing presets from localStorage
+            const localPresets = localStorage.getItem("particleLife.presets")
+            savedPresets.value = localPresets ? JSON.parse(localPresets) as Record<string, Preset> : {}
+        }
 
         const save = () => {
             const presetData: any = {
@@ -105,6 +234,18 @@ export default defineComponent({
 
             // IndexedDB or localStorage saving logic goes here
             console.log("Saving preset:", presetData)
+
+            getSavedPresets()
+            const id = crypto.randomUUID?.() ?? `pl-${Date.now()}-${Math.random().toString(36).slice(2)}`
+            savedPresets.value[id] = presetData
+            localStorage.setItem("particleLife.presets", JSON.stringify(savedPresets.value))
+
+        }
+        const removePreset = (id: string) => {
+            if (savedPresets.value[id]) {
+                delete savedPresets.value[id]
+                localStorage.setItem("particleLife.presets", JSON.stringify(savedPresets.value))
+            }
         }
 
         const flatRgbaToHexList = (flatRgba: number[]): string[] => {
@@ -169,14 +310,24 @@ export default defineComponent({
         })
 
         return {
-            name, description,
-            forceMatrix, radiusMatrices, colors, generalSettings,
-            canSave, save
+            name, description, forceMatrix, radiusMatrices, colors, generalSettings,
+            savedPresets, PRESET_TYPE_META, canSave,
+            activeTypeFilters, filteredPresets,
+            toggleTypeFilter, removePreset, save
         }
     },
 })
 </script>
 
-<style scoped>
-
+<style>
+.dropdownPresetOptions {
+    transition: none !important;
+    .v-popper__inner {
+        background: none !important;
+        @apply border-slate-400;
+    }
+    .v-popper__arrow-outer, .v-popper__arrow-inner {
+        @apply border-slate-300;
+    }
+}
 </style>
