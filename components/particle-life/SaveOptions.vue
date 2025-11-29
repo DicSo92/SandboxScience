@@ -26,10 +26,14 @@
                           tooltip="Save simulation settings such as particle count, friction, and global forces.">
             </ToggleSwitch>
         </div>
-        <div flex gap-2 justify-end mt-2>
-            <button type="button" :disabled="!canSave" btn px-3 rounded-full flex justify-center items-center bg="slate-800/80 hover:slate-800/50 disabled:slate-800/30" class="disabled:cursor-not-allowed">
-                <span i-tabler-copy></span>
+        <div flex gap-2 justify-end text-sm mt-2>
+            <button type="button" @click="copyToClipboard()" :disabled="!canSave" btn px-3 rounded-full flex justify-center items-center bg="slate-800/80 hover:slate-800/50 disabled:slate-800/30" class="disabled:cursor-not-allowed">
+                <span i-tabler-copy mr-1></span>
                 Copy
+            </button>
+            <button type="button" :disabled="!canSave" btn px-3 rounded-full flex justify-center items-center bg="slate-800/80 hover:slate-800/50 disabled:slate-800/30" class="disabled:cursor-not-allowed">
+                <span i-tabler-download mr-1></span>
+                Download
             </button>
             <button type="button" @click="save" :disabled="!canSave" btn px-3 rounded-full flex justify-center items-center bg="cyan-900/80 hover:cyan-900/50 disabled:cyan-900/30" class="disabled:cursor-not-allowed">
                 <span i-carbon-save mr-1></span>
@@ -81,7 +85,7 @@
 
                             <template #popper>
                                 <div flex flex-col class="bg-slate-800/70 backdrop-blur-sm rounded-md shadow-md">
-                                    <button type="button" text-sm text-slate-100 class="rounded-t hover:bg-slate-500/50 px-4 py-2">
+                                    <button type="button" @click="copyToClipboard(id)" text-sm text-slate-100 class="rounded-t hover:bg-slate-500/50 px-4 py-2">
                                         <span i-tabler-copy></span>
                                         Copy JSON
                                     </button>
@@ -145,6 +149,8 @@ export default defineComponent({
         const colors = ref<boolean>(false)
         const generalSettings = ref<boolean>(false)
 
+        const activeTypeFilters = ref<string[]>([])
+
         const PRESET_TYPE_META: { id: string; label: string; color: string; icon?: string }[] = [
             { id: "forces",   label: "Forces",   color: "bg-sky-700/60",     icon: "i-tabler-arrows-random" },
             { id: "radii",    label: "Radii",    color: "bg-purple-700/60",  icon: "i-tabler-circles" },
@@ -152,7 +158,13 @@ export default defineComponent({
             { id: "settings", label: "Settings", color: "bg-emerald-700/60", icon: "i-tabler-adjustments" },
         ]
 
-        const activeTypeFilters = ref<string[]>([])
+        onMounted(() => {
+            getSavedPresets()
+        })
+
+        const canSave = computed(() => {
+            return forceMatrix.value || radiusMatrices.value || colors.value || generalSettings.value || name.value.trim().length > 0
+        })
 
         const filteredPresets = computed(() => {
             const filters = activeTypeFilters.value
@@ -160,10 +172,7 @@ export default defineComponent({
 
             const result: Record<string, Preset> = {}
             for (const [id, preset] of Object.entries(savedPresets.value)) {
-                // contient TOUS les types sélectionnés:
                 const matchesAll = filters.every(t => preset.types.includes(t))
-                // pour "au moins un", utiliser à la place:
-                // const matchesAll = filters.some(t => preset.types.includes(t))
                 if (matchesAll) {
                     result[id] = preset
                 }
@@ -171,6 +180,9 @@ export default defineComponent({
             return result
         })
 
+        // -------------------------------------------------------------------------------------------------------------
+        // --- Preset management ---------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
         const toggleTypeFilter = (typeId: string) => {
             const idx = activeTypeFilters.value.indexOf(typeId)
             if (idx === -1) {
@@ -180,21 +192,14 @@ export default defineComponent({
             }
         }
 
-        const canSave = computed(() => {
-            return forceMatrix.value || radiusMatrices.value || colors.value || generalSettings.value || name.value.trim().length > 0
-        })
-
-        onMounted(() => {
-            getSavedPresets()
-        })
         const getSavedPresets = () => {
             // Load existing presets from localStorage
             const localPresets = localStorage.getItem("particleLife.presets")
             savedPresets.value = localPresets ? JSON.parse(localPresets) as Record<string, Preset> : {}
         }
 
-        const save = () => {
-            const presetData: any = {
+        const buildPresetData = (): Preset => {
+            const presetData: Preset = {
                 v: 1,
                 meta: {
                     name: name.value.trim() || "Untitled preset",
@@ -214,8 +219,8 @@ export default defineComponent({
             }
 
             if (forceMatrix.value || radiusMatrices.value) {
-                presetData.matrices = {}
-                // presetData.matrices = { size: particleLife.numColors }
+                presetData.matrices = { forces: [] }
+                // presetData.matrices = { size: particleLife.numColors, forces: [] }
 
                 presetData.matrices.forces = clone2D(particleLife.rulesMatrix)
                 presetData.types.push("forces")
@@ -232,10 +237,55 @@ export default defineComponent({
                 presetData.types.push("colors")
             }
 
-            // IndexedDB or localStorage saving logic goes here
-            console.log("Saving preset:", presetData)
+            return presetData
+        }
 
+        const copyToClipboard = (presetID?: string) => {
+            let presetData: Preset | undefined;
+            // If presetID is provided, copy that preset; otherwise, build from current settings
+            if (presetID) {
+                getSavedPresets()
+                presetData = savedPresets.value[presetID]
+                if (!presetData) return
+            } else {
+                presetData = buildPresetData()
+            }
+
+            // Convert preset data to formatted JSON string
+            let formattedJson = JSON.stringify(presetData, null, 2)
+
+            // Match simple JSON arrays (no nested [ ]) on multiple lines
+            const arrayBlockRegex = /\[(?:[^\[\]]|\n|\r)*?]/g
+            formattedJson = formattedJson.replace(arrayBlockRegex, (match) => {
+                try {
+                    const parsed = JSON.parse(match)
+
+                    // Skip if not an array
+                    if (!Array.isArray(parsed)) return match
+
+                    // Only compact flat arrays of primitives: string | number | boolean | null
+                    const isSimple = parsed.length === 0 || parsed.every(v => v === null || ["string", "number", "boolean"].includes(typeof v))
+
+                    if (!isSimple) return match
+
+                    // One-line array with a space after commas: ["a", "b", "c"]
+                    const inner = parsed.map(v => JSON.stringify(v)).join(", ")
+                    return `[${inner}]`
+                } catch {
+                    return match // On parse error, keep original block
+                }
+            })
+
+            // Write the formatted text to clipboard
+            navigator.clipboard.writeText(formattedJson).then(() => {
+                console.log('Preset copied to clipboard');
+            }).catch(err => {
+                console.error('Could not copy preset: ', err);
+            });
+        }
+        const save = () => {
             getSavedPresets()
+            const presetData = buildPresetData()
             const id = crypto.randomUUID?.() ?? `pl-${Date.now()}-${Math.random().toString(36).slice(2)}`
             savedPresets.value[id] = presetData
             localStorage.setItem("particleLife.presets", JSON.stringify(savedPresets.value))
@@ -247,6 +297,11 @@ export default defineComponent({
                 localStorage.setItem("particleLife.presets", JSON.stringify(savedPresets.value))
             }
         }
+        // -------------------------------------------------------------------------------------------------------------
+        // --- Utility functions ---------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
+        const clone2D = (m: number[][]) => m.map(row => [...row])
+        const clone1D = <T>(arr: T[]) => [...arr]
 
         const flatRgbaToHexList = (flatRgba: number[]): string[] => {
             const colors: string[] = []
@@ -299,9 +354,10 @@ export default defineComponent({
             }
             return result
         }
-        const clone2D = (m: number[][]) => m.map(row => [...row])
-        const clone1D = <T>(arr: T[]) => [...arr]
 
+        // -------------------------------------------------------------------------------------------------------------
+        // --- Watchers ------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
         watch(forceMatrix, (newVal) => {
             if (!newVal) radiusMatrices.value = false
         })
@@ -313,7 +369,7 @@ export default defineComponent({
             name, description, forceMatrix, radiusMatrices, colors, generalSettings,
             savedPresets, PRESET_TYPE_META, canSave,
             activeTypeFilters, filteredPresets,
-            toggleTypeFilter, removePreset, save
+            toggleTypeFilter, copyToClipboard, save, removePreset,
         }
     },
 })
