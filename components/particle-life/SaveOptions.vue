@@ -31,7 +31,7 @@
                 <span i-tabler-copy mr-1></span>
                 Copy
             </button>
-            <button type="button" :disabled="!canSave" btn px-3 rounded-full flex justify-center items-center bg="slate-800/80 hover:slate-800/50 disabled:slate-800/30" class="disabled:cursor-not-allowed">
+            <button type="button" @click="download()" :disabled="!canSave" btn px-3 rounded-full flex justify-center items-center bg="slate-800/80 hover:slate-800/50 disabled:slate-800/30" class="disabled:cursor-not-allowed">
                 <span i-tabler-download mr-1></span>
                 Download
             </button>
@@ -89,7 +89,7 @@
                                         <span i-tabler-copy></span>
                                         Copy JSON
                                     </button>
-                                    <button type="button" text-sm text-slate-100 class="hover:bg-slate-500/50 px-4 py-2">
+                                    <button type="button" @click="download(id)" text-sm text-slate-100 class="hover:bg-slate-500/50 px-4 py-2">
                                         Download JSON
                                     </button>
                                     <hr>
@@ -251,30 +251,7 @@ export default defineComponent({
                 presetData = buildPresetData()
             }
 
-            // Convert preset data to formatted JSON string
-            let formattedJson = JSON.stringify(presetData, null, 2)
-
-            // Match simple JSON arrays (no nested [ ]) on multiple lines
-            const arrayBlockRegex = /\[(?:[^\[\]]|\n|\r)*?]/g
-            formattedJson = formattedJson.replace(arrayBlockRegex, (match) => {
-                try {
-                    const parsed = JSON.parse(match)
-
-                    // Skip if not an array
-                    if (!Array.isArray(parsed)) return match
-
-                    // Only compact flat arrays of primitives: string | number | boolean | null
-                    const isSimple = parsed.length === 0 || parsed.every(v => v === null || ["string", "number", "boolean"].includes(typeof v))
-
-                    if (!isSimple) return match
-
-                    // One-line array with a space after commas: ["a", "b", "c"]
-                    const inner = parsed.map(v => JSON.stringify(v)).join(", ")
-                    return `[${inner}]`
-                } catch {
-                    return match // On parse error, keep original block
-                }
-            })
+            const formattedJson = formatPresetJson(presetData)
 
             // Write the formatted text to clipboard
             navigator.clipboard.writeText(formattedJson).then(() => {
@@ -282,6 +259,41 @@ export default defineComponent({
             }).catch(err => {
                 console.error('Could not copy preset: ', err);
             });
+        }
+        const download = (presetID?: string) => {
+            let presetData: Preset | undefined;
+            // If presetID is provided, copy that preset; otherwise, build from current settings
+            if (presetID) {
+                getSavedPresets()
+                presetData = savedPresets.value[presetID]
+                if (!presetData) return
+            } else {
+                presetData = buildPresetData()
+            }
+
+            const formattedJson = formatPresetJson(presetData)
+
+            // Build a filename from the preset name (fallback if empty)
+            const baseName = (presetData.meta?.name || "preset")
+                .trim()
+                .toLowerCase()
+                .replace(/[^a-z0-9\-]+/g, "-")
+                .replace(/^-+|-+$/g, "")
+
+            const fileName = `${baseName}.json`
+
+            // Create a Blob and a temporary download link
+            const blob = new Blob([formattedJson], { type: "application/json;charset=utf-8" })
+            const url = URL.createObjectURL(blob)
+
+            const a = document.createElement("a")
+            a.href = url
+            a.download = fileName
+            a.style.display = "none"
+            document.body.appendChild(a)
+            a.click()
+            document.body.removeChild(a)
+            URL.revokeObjectURL(url)
         }
         const save = () => {
             getSavedPresets()
@@ -300,6 +312,36 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         // --- Utility functions ---------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
+        const formatPresetJson = (presetData: Preset): string => {
+            // Convert preset data to formatted JSON string
+            let formattedJson = JSON.stringify(presetData, null, 2)
+
+            // Match simple JSON arrays (no nested [ ]) on multiple lines
+            const arrayBlockRegex = /\[(?:[^\[\]]|\n|\r)*?]/g
+            formattedJson = formattedJson.replace(arrayBlockRegex, (match) => {
+                try {
+                    const parsed = JSON.parse(match)
+
+                    // Skip if not an array
+                    if (!Array.isArray(parsed)) return match
+
+                    // Only compact flat arrays of primitives: string | number | boolean | null
+                    const isSimple =
+                        parsed.length === 0 ||
+                        parsed.every(v => v === null || ["string", "number", "boolean"].includes(typeof v))
+
+                    if (!isSimple) return match
+
+                    // One-line array with a space after commas
+                    const inner = parsed.map(v => JSON.stringify(v)).join(", ")
+                    return `[${inner}]`
+                } catch {
+                    return match
+                }
+            })
+
+            return formattedJson
+        }
         const clone2D = (m: number[][]) => m.map(row => [...row])
         const clone1D = <T>(arr: T[]) => [...arr]
 
@@ -369,7 +411,7 @@ export default defineComponent({
             name, description, forceMatrix, radiusMatrices, colors, generalSettings,
             savedPresets, PRESET_TYPE_META, canSave,
             activeTypeFilters, filteredPresets,
-            toggleTypeFilter, copyToClipboard, save, removePreset,
+            toggleTypeFilter, copyToClipboard, download, save, removePreset,
         }
     },
 })
