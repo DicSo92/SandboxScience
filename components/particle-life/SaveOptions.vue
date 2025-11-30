@@ -107,7 +107,8 @@
 </template>
 
 <script lang="ts">
-import {defineComponent} from "vue";
+import { defineComponent } from "vue";
+import { hideAllPoppers } from 'floating-vue'
 
 type Preset = {
     v: number
@@ -139,6 +140,7 @@ export default defineComponent({
         }
     },
     setup(props, { emit }) {
+        const { success, error } = useToasts()
         const particleLife = props.store
         const savedPresets = ref<Record<string, Preset>>({})
 
@@ -246,7 +248,11 @@ export default defineComponent({
             if (presetID) {
                 getSavedPresets()
                 presetData = savedPresets.value[presetID]
-                if (!presetData) return
+                if (!presetData) {
+                    error('Preset not found.')
+                    hideAllPoppers()
+                    return
+                }
             } else {
                 presetData = buildPresetData()
             }
@@ -255,10 +261,14 @@ export default defineComponent({
 
             // Write the formatted text to clipboard
             navigator.clipboard.writeText(formattedJson).then(() => {
-                console.log('Preset copied to clipboard');
+                console.log('Preset copied to clipboard')
+                success('Preset copied to clipboard.')
+                hideAllPoppers()
             }).catch(err => {
-                console.error('Could not copy preset: ', err);
-            });
+                console.error('Could not copy preset: ', err)
+                error('Error copying preset to clipboard.')
+                hideAllPoppers()
+            })
         }
         const download = (presetID?: string) => {
             let presetData: Preset | undefined;
@@ -266,7 +276,11 @@ export default defineComponent({
             if (presetID) {
                 getSavedPresets()
                 presetData = savedPresets.value[presetID]
-                if (!presetData) return
+                if (!presetData) {
+                    error('Preset not found.')
+                    hideAllPoppers()
+                    return
+                }
             } else {
                 presetData = buildPresetData()
             }
@@ -280,7 +294,7 @@ export default defineComponent({
                 .replace(/[^a-z0-9\-]+/g, "-")
                 .replace(/^-+|-+$/g, "")
 
-            const fileName = `${baseName}.json`
+            const fileName = `${baseName || "preset"}.json`
 
             // Create a Blob and a temporary download link
             const blob = new Blob([formattedJson], { type: "application/json;charset=utf-8" })
@@ -294,6 +308,8 @@ export default defineComponent({
             a.click()
             document.body.removeChild(a)
             URL.revokeObjectURL(url)
+            success("Preset downloaded.")
+            hideAllPoppers()
         }
         const save = () => {
             getSavedPresets()
@@ -301,12 +317,18 @@ export default defineComponent({
             const id = crypto.randomUUID?.() ?? `pl-${Date.now()}-${Math.random().toString(36).slice(2)}`
             savedPresets.value[id] = presetData
             localStorage.setItem("particleLife.presets", JSON.stringify(savedPresets.value))
-
+            success("Preset saved.")
+            hideAllPoppers()
         }
         const removePreset = (id: string) => {
             if (savedPresets.value[id]) {
                 delete savedPresets.value[id]
                 localStorage.setItem("particleLife.presets", JSON.stringify(savedPresets.value))
+                success("Preset deleted.")
+                hideAllPoppers()
+            } else {
+                error("Preset not found.")
+                hideAllPoppers()
             }
         }
         // -------------------------------------------------------------------------------------------------------------
