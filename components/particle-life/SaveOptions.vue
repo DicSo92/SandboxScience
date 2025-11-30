@@ -41,7 +41,15 @@
             </button>
         </div>
         <div mt-4>
-            <p underline text-gray-300 class="-mt-0.5" mb-2>Saved Presets :</p>
+            <div flex justify-between>
+                <p underline text-gray-300 class="-mt-0.5" mb-2>Saved Presets :</p>
+                <button type="button" @click="matchPresetCount = !matchPresetCount" text-xs btn px-2 rounded-full flex justify-center items-center
+                        :class="matchPresetCount ? 'bg-red-800/80 hover:bg-red-800/60' : 'bg-slate-700/80 hover:bg-slate-700/50'">
+                    <span i-tabler-lock mr-1></span>
+                    Species
+                </button>
+            </div>
+
 
             <div v-if="Object.keys(savedPresets).length > 0" mb-3>
                 <span text-xs text-gray-300 underline mb-1>Sort by type:</span>
@@ -63,7 +71,7 @@
                 No presets saved yet.
             </div>
             <div v-else flex flex-col gap-2>
-                <div v-for="(preset, id) in filteredPresets" :key="id" p-2 rounded-lg flex justify-between items-center class="bg-slate-700/30">
+                <div v-for="(preset, id) in filteredPresets" :key="id" @click="loadPreset(id)" p-2 rounded-lg flex justify-between items-center class="bg-slate-700/30">
                     <div flex-1 min-w-0 pr-2>
                         <p font-bold text-slate-200 text-sm truncate capitalize>{{ preset.meta.name }}</p>
                     </div>
@@ -152,6 +160,7 @@ export default defineComponent({
         const generalSettings = ref<boolean>(false)
 
         const activeTypeFilters = ref<string[]>([])
+        const matchPresetCount = ref<boolean>(false)
 
         const PRESET_TYPE_META: { id: string; label: string; color: string; icon?: string }[] = [
             { id: "forces",   label: "Forces",   color: "bg-sky-700/60",     icon: "i-tabler-arrows-random" },
@@ -331,6 +340,39 @@ export default defineComponent({
                 safeHideAllPoppers()
             }
         }
+        const loadPreset = (id: string) => {
+            getSavedPresets()
+            const preset = savedPresets.value[id]
+            if (!preset) {
+                error("Preset not found.")
+                return
+            }
+
+            // if (preset.settings) {
+            //     particleLife.numColors = preset.settings.species
+            //     particleLife.numParticles = preset.settings.numParticles
+            //     particleLife.frictionFactor = preset.settings.frictionFactor
+            //     particleLife.forceFactor = preset.settings.forceFactor
+            // }
+            // if (preset.matrices) {
+            //     if (preset.matrices.forces) {
+            //         particleLife.rulesMatrix = clone2D(preset.matrices.forces)
+            //     }
+            //     if (preset.matrices.minRadius) {
+            //         particleLife.minRadiusMatrix = clone2D(preset.matrices.minRadius)
+            //     }
+            //     if (preset.matrices.maxRadius) {
+            //         particleLife.maxRadiusMatrix = clone2D(preset.matrices.maxRadius)
+            //     }
+            // }
+
+            if (preset.colors) {
+                const colors: Float32Array = hexListToFlatRgba(preset.colors)
+                emit("loadColors", colors, matchPresetCount)
+            }
+
+            success("Preset loaded.")
+        }
         // -------------------------------------------------------------------------------------------------------------
         // --- Utility functions ---------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -389,20 +431,20 @@ export default defineComponent({
 
             return colors
         }
-        const hexListToFlatRgba = (hexList: string[]): number[] => {
-            const flat: number[] = []
+        const hexListToFlatRgba = (hexList: string[]): Float32Array => {
+            const flat = new Float32Array(hexList.length * 4)
 
-            for (const hex of hexList) {
+            for (let i = 0; i < hexList.length; i++) {
+                const hex = hexList[i]
                 const clean = hex.replace("#", "").trim()
                 const full = clean.length === 3
                     ? clean.split("").map(c => c + c).join("") // ex: f0a → ff00aa
                     : clean
 
-                const r = parseInt(full.substring(0, 2), 16) / 255
-                const g = parseInt(full.substring(2, 4), 16) / 255
-                const b = parseInt(full.substring(4, 6), 16) / 255
-
-                flat.push(r, g, b, 1)
+                flat[i * 4]     = parseInt(full.substring(0, 2), 16) / 255
+                flat[i * 4 + 1] = parseInt(full.substring(2, 4), 16) / 255
+                flat[i * 4 + 2] = parseInt(full.substring(4, 6), 16) / 255
+                flat[i * 4 + 3] = 1
             }
             return flat
         }
@@ -440,8 +482,8 @@ export default defineComponent({
         return {
             name, description, forceMatrix, radiusMatrices, colors, generalSettings,
             savedPresets, PRESET_TYPE_META, canSave,
-            activeTypeFilters, filteredPresets,
-            toggleTypeFilter, copyToClipboard, download, save, removePreset,
+            activeTypeFilters, filteredPresets, matchPresetCount,
+            toggleTypeFilter, copyToClipboard, download, save, removePreset, loadPreset,
         }
     },
 })

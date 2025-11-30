@@ -16,7 +16,7 @@
 <!--                        <ToggleSwitch inactive-label="2D" label="3D" colorful-label v-model="particleLife.is3D" />-->
                     </div>
                     <hr border-slate-500>
-                    <div overflow-auto flex-1 mt-2 class="scrollableArea">
+                    <div overflow-auto flex-1 flex flex-col gap-2 mt-2 pb-12 class="scrollableArea">
                         <Collapse label="Presets" icon="i-tabler-sparkles text-amber-500"
                                   tooltip="Choose predefined configurations to quickly set up your simulation.">
                             <div>
@@ -74,7 +74,10 @@
                                 </div>
                             </div>
                         </Collapse>
-                        <Collapse label="Matrix Settings" icon="i-tabler-grid-4x4 text-indigo-500" mt-2
+                        <Collapse label="Save & Share" icon="i-carbon-save text-yellow-500">
+                            <SaveOptions :store="particleLife" @loadColors="loadColorsFromPreset"></SaveOptions>
+                        </Collapse>
+                        <Collapse label="Matrix Settings" icon="i-tabler-grid-4x4 text-indigo-500"
                                   tooltip="Modify matrix values by clicking on cells in the grid. <br>
                                   Adjust individual cell values with the slider, or click and drag to change them directly. <br>
                                   Use Ctrl + Click to select multiple cells for group adjustments. <br>
@@ -86,7 +89,7 @@
                                             @updateMaxMatrix="updateMaxMatrixValue">
                             </MatrixSettings>
                         </Collapse>
-                        <Collapse label="World Settings" icon="i-tabler-world-cog text-cyan-500" opened mt-2>
+                        <Collapse label="World Settings" icon="i-tabler-world-cog text-cyan-500" opened>
                             <RangeInput input label="Particle Count"
                                         tooltip="Adjust the total number of particles. <br> More particles may reveal complex interactions but can increase computational demand."
                                         :min="16" :max="1048576" :step="16" v-model="particleLife.numParticles" @update:modelValue="setNewNumParticles">
@@ -130,7 +133,7 @@
                                 </div>
                             </div>
                         </Collapse>
-                        <Collapse label="Physics Settings" icon="i-tabler-atom text-fuchsia-500" opened mt-2>
+                        <Collapse label="Physics Settings" icon="i-tabler-atom text-fuchsia-500" opened>
                             <RangeInput input label="Repel Force"
                                         tooltip="Adjust the force that repels particles from each other. <br> Higher values increase the separation distance."
                                         :min="0.01" :max="4" :step="0.01" v-model="particleLife.repel">
@@ -144,7 +147,7 @@
                                         :min="0" :max="1" :step="0.01" v-model="particleLife.frictionFactor" mt-2>
                             </RangeInput>
                         </Collapse>
-                        <Collapse label="Randomizer Settings" icon="i-game-icons-perspective-dice-six-faces-random text-teal-500" mt-2
+                        <Collapse label="Randomizer Settings" icon="i-game-icons-perspective-dice-six-faces-random text-teal-500"
                                   tooltip="Adjust the parameters for randomizing particle attributes. <br> Configure the ranges for minimum and maximum interaction radii.">
                             <RangeInputMinMax input label="Min. Radius"
                                               tooltip="Set the range for generating minimum interaction radii. <br> This determines the range of possible values for the minimum distance at which particles begin to interact."
@@ -155,7 +158,7 @@
                                               :min="0" :max="256" :step="1" v-model="particleLife.maxRadiusRange">
                             </RangeInputMinMax>
                         </Collapse>
-                        <Collapse label="Graphics Settings" icon="i-tabler-photo-cog text-emerald-500" mt-2>
+                        <Collapse label="Graphics Settings" icon="i-tabler-photo-cog text-emerald-500">
                             <RangeInput input label="Particle Size"
                                         tooltip="Controls the overall size of the particles in the simulation, allowing you to make them larger or smaller depending on your preference. This setting does not impact performance."
                                         :min="0.1" :max="6" :step="0.1" v-model="particleLife.particleSize">
@@ -194,7 +197,7 @@
                                         :min="0" :max="12" :step="1" v-model="particleLife.glowSteepness" mt-2>
                             </RangeInput>
                         </Collapse>
-                        <Collapse label="Camera Settings" icon="i-tabler-camera-cog text-violet-500" mt-2>
+                        <Collapse label="Camera Settings" icon="i-tabler-camera-cog text-violet-500">
                             <RangeInput input label="Zoom Smoothing"
                                         tooltip="Adjusts the smoothness of the zoom. <br> Lower values result in a slower, more fluid zoom, while higher values make it faster and more abrupt."
                                         :min="0.01" :max="0.5" :step="0.01" v-model="particleLife.zoomSmoothing">
@@ -204,7 +207,7 @@
                                         :min="0.01" :max="0.5" :step="0.01" v-model="particleLife.panSmoothing" mt-2>
                             </RangeInput>
                         </Collapse>
-                        <Collapse label="Debug Tools" icon="i-tabler-bug text-rose-500" mt-2
+                        <Collapse label="Debug Tools" icon="i-tabler-bug text-rose-500"
                                   tooltip="Provides tools for visualizing the simulation's internal state. <br> Toggle the grid view to see spatial bins or activate a heatmap to analyze particle density. <br> These features are useful for debugging and performance tuning.">
                             <div flex>
                                 <ToggleSwitch label="Show Bins" colorful-label v-model="particleLife.isDebugBinsActive" mr-4
@@ -220,9 +223,6 @@
                             </RangeInput>
                             <hr border-gray-500 my-2>
                             <ToggleSwitch inactive-label="BruteForce" label="SpatialHash" colorful-label v-model="particleLife.useSpatialHash" />
-                        </Collapse>
-                        <Collapse label="Save & Share" icon="i-carbon-save text-yellow-500" mt-2 mb-12>
-                            <SaveOptions :store="particleLife"></SaveOptions>
                         </Collapse>
                     </div>
                     <div absolute bottom-2 right-0 z-100 class="-mr-px">
@@ -2447,6 +2447,88 @@ export default defineComponent({
                 isUpdateNumTypesPending = NEW_NUM_TYPES !== NUM_TYPES
             }
         }
+        const loadColorsFromPreset = async (presetColors: Float32Array, matchPresetCount: boolean = false) => {
+            if (isUpdatingParticles) return
+            isUpdatingParticles = true
+            await device.queue.onSubmittedWorkDone()
+
+            try {
+                const numTypesInPreset = Math.floor(presetColors.length / 4)
+                if (numTypesInPreset === 0) return
+
+                if (!matchPresetCount) {
+                    const typesToUpdate = Math.min(NUM_TYPES, numTypesInPreset)
+                    const newColors = new Float32Array(NUM_TYPES * 4)
+
+                    newColors.set(colors)
+                    for (let i = 0; i < typesToUpdate; i++) {
+                        const idx = i * 4
+                        newColors[idx]     = presetColors[idx]
+                        newColors[idx + 1] = presetColors[idx + 1]
+                        newColors[idx + 2] = presetColors[idx + 2]
+                        newColors[idx + 3] = presetColors[idx + 3]
+                    }
+
+                    colors = newColors
+                    particleLife.currentColors = colors // Ensure the store is updated with the new colors
+                } else {
+                    const newNumTypes = numTypesInPreset
+
+                    const particleDataBuffer = await readBufferFromGPU(particleBuffer!, NUM_PARTICLES * 5 * 4)
+                    const particles = new Float32Array(particleDataBuffer)
+
+                    if (newNumTypes < NUM_TYPES) {
+                        for (let i = 0; i < NUM_PARTICLES; i++) {
+                            const typeIndex = i * 5 + 4
+                            if (particles[typeIndex] >= newNumTypes) {
+                                particles[typeIndex] = Math.floor(Math.random() * newNumTypes)
+                            }
+                        }
+                    } else if (newNumTypes > NUM_TYPES) {
+                        for (let i = 0; i < NUM_PARTICLES; i++) {
+                            if (Math.random() < (newNumTypes - NUM_TYPES) / newNumTypes) {
+                                const typeIndex = i * 5 + 4;
+                                particles[typeIndex] = NUM_TYPES + Math.floor(Math.random() * (newNumTypes - NUM_TYPES))
+                            }
+                        }
+                    }
+
+                    const newColors = new Float32Array(newNumTypes * 4)
+                    newColors.set(presetColors.subarray(0, newNumTypes * 4))
+                    colors = newColors
+                    particleLife.currentColors = colors
+
+                    const oldNumTypes = NUM_TYPES
+                    NUM_TYPES = newNumTypes
+
+                    setRulesMatrix(resizeMatrix(rulesMatrix, oldNumTypes, newNumTypes, () => {
+                        return Math.round((Math.random() * 2 - 1) * 100) / 100
+                    }))
+                    setMinRadiusMatrix(resizeMatrix(minRadiusMatrix, oldNumTypes, newNumTypes, () => {
+                        return Math.floor(Math.random() * (particleLife.minRadiusRange[1] - particleLife.minRadiusRange[0] + 1) + particleLife.minRadiusRange[0])
+                    }))
+                    setMaxRadiusMatrix(resizeMatrix(maxRadiusMatrix, oldNumTypes, newNumTypes, () => {
+                        return Math.floor(Math.random() * (particleLife.maxRadiusRange[1] - particleLife.maxRadiusRange[0] + 1) + particleLife.maxRadiusRange[0])
+                    }))
+
+                    device.queue.writeBuffer(particleBuffer!, 0, particles)
+                    updateInteractionMatrixBuffer()
+                    updateSimOptionsBuffer()
+                }
+
+                const paddedSize = Math.ceil(colors.byteLength / 16) * 16
+                if (!colorBuffer || colorBuffer.size !== paddedSize) {
+                    updateColorBuffer()
+                    updateParticleBindGroups()
+                } else {
+                    const paddedColors = new Float32Array(paddedSize / 4)
+                    paddedColors.set(colors)
+                    device.queue.writeBuffer(colorBuffer!, 0, paddedColors)
+                }
+            } finally {
+                isUpdatingParticles = false
+            }
+        }
         // -------------------------------------------------------------------------------------------------------------
         async function readBufferFromGPU(buffer: GPUBuffer, size: number): Promise<ArrayBuffer> {
             const readBuffer = device.createBuffer({
@@ -2874,7 +2956,8 @@ export default defineComponent({
             handleZoom, toggleFullscreen, isFullscreen, regenerateLife, step,
             updateSimWidth, updateSimHeight, updateNumParticles, setNewNumParticles,
             updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, newRandomRulesMatrix,
-            updateRulesMatrix, updateParticlePositions, updateColors, rulesOptions, paletteOptions, positionOptions
+            updateRulesMatrix, updateParticlePositions, updateColors, loadColorsFromPreset,
+            rulesOptions, paletteOptions, positionOptions
         }
     }
 });
