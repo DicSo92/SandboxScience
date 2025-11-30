@@ -250,7 +250,7 @@ export default defineComponent({
                 presetData = savedPresets.value[presetID]
                 if (!presetData) {
                     error('Preset not found.')
-                    hideAllPoppers()
+                    safeHideAllPoppers()
                     return
                 }
             } else {
@@ -263,11 +263,11 @@ export default defineComponent({
             navigator.clipboard.writeText(formattedJson).then(() => {
                 console.log('Preset copied to clipboard')
                 success('Preset copied to clipboard.')
-                hideAllPoppers()
+                safeHideAllPoppers()
             }).catch(err => {
                 console.error('Could not copy preset: ', err)
                 error('Error copying preset to clipboard.')
-                hideAllPoppers()
+                safeHideAllPoppers()
             })
         }
         const download = (presetID?: string) => {
@@ -278,7 +278,7 @@ export default defineComponent({
                 presetData = savedPresets.value[presetID]
                 if (!presetData) {
                     error('Preset not found.')
-                    hideAllPoppers()
+                    safeHideAllPoppers()
                     return
                 }
             } else {
@@ -309,7 +309,7 @@ export default defineComponent({
             document.body.removeChild(a)
             URL.revokeObjectURL(url)
             success("Preset downloaded.")
-            hideAllPoppers()
+            safeHideAllPoppers()
         }
         const save = () => {
             getSavedPresets()
@@ -318,22 +318,30 @@ export default defineComponent({
             savedPresets.value[id] = presetData
             localStorage.setItem("particleLife.presets", JSON.stringify(savedPresets.value))
             success("Preset saved.")
-            hideAllPoppers()
+            safeHideAllPoppers()
         }
         const removePreset = (id: string) => {
             if (savedPresets.value[id]) {
                 delete savedPresets.value[id]
                 localStorage.setItem("particleLife.presets", JSON.stringify(savedPresets.value))
                 success("Preset deleted.")
-                hideAllPoppers()
+                safeHideAllPoppers()
             } else {
                 error("Preset not found.")
-                hideAllPoppers()
+                safeHideAllPoppers()
             }
         }
         // -------------------------------------------------------------------------------------------------------------
         // --- Utility functions ---------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
+        const safeHideAllPoppers = () => {
+            // Blur any active element inside a preset dropdown to prevent focus issues on hide
+            const active = document.activeElement as HTMLElement | null;
+            if (active && active.closest(".dropdownPresetOptions")) {
+                active.blur()
+            }
+            hideAllPoppers()
+        }
         const formatPresetJson = (presetData: Preset): string => {
             // Convert preset data to formatted JSON string
             let formattedJson = JSON.stringify(presetData, null, 2)
