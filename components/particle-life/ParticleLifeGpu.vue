@@ -96,7 +96,7 @@
                             </RangeInput>
                             <RangeInput input label="Species Count"
                                         tooltip="Specify the number of particle colors. <br> Each color interacts with all others, with distinct forces and interaction ranges."
-                                        :min="1" :max="16" :step="1" v-model="particleLife.numColors" mt-2>
+                                        :min="1" :max="16" :step="1" v-model="particleLife.numColors" @update:modelValue="setNewNumTypes" mt-2>
                             </RangeInput>
                             <div flex items-center class="mt-0.5">
                                 <p class="w-2/3 text-2sm mt-1">
@@ -2370,6 +2370,10 @@ export default defineComponent({
                 isUpdateNumParticlesPending = NEW_NUM_PARTICLES !== NUM_PARTICLES
             }
         }
+        const setNewNumTypes = (newNumTypes: number) => {
+            NEW_NUM_TYPES = newNumTypes
+            isUpdateNumTypesPending = true
+        }
         const updateNumTypes = async (newNumTypes: number) => {
             if (isUpdatingParticles || newNumTypes === NUM_TYPES) {
                 isUpdateNumTypesPending = false
@@ -2500,6 +2504,7 @@ export default defineComponent({
 
                     const oldNumTypes = NUM_TYPES
                     NUM_TYPES = newNumTypes
+                    particleLife.numColors = NUM_TYPES
 
                     setRulesMatrix(resizeMatrix(rulesMatrix, oldNumTypes, newNumTypes, () => {
                         return Math.round((Math.random() * 2 - 1) * 100) / 100
@@ -2732,7 +2737,6 @@ export default defineComponent({
                 updateGlowOptionsBuffer()
             })
         }
-        watch(() => particleLife.numColors, (value: number) => { NEW_NUM_TYPES = value; isUpdateNumTypesPending = true; })
         watch(() => particleLife.isRunning, (value: boolean) => isRunning = value)
         watch(() => particleLife.useSpatialHash, (value: boolean) => useSpatialHash = value)
         watch(() => particleLife.isParticleGlow, (value: boolean) => isParticleGlow = value)
@@ -2954,7 +2958,7 @@ export default defineComponent({
         return {
             particleLife, canvasRef, fps, executionTime, colorRgbStrings,
             handleZoom, toggleFullscreen, isFullscreen, regenerateLife, step,
-            updateSimWidth, updateSimHeight, updateNumParticles, setNewNumParticles,
+            updateSimWidth, updateSimHeight, updateNumParticles, setNewNumParticles, setNewNumTypes,
             updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, newRandomRulesMatrix,
             updateRulesMatrix, updateParticlePositions, updateColors, loadColorsFromPreset,
             rulesOptions, paletteOptions, positionOptions
