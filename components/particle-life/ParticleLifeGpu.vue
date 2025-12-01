@@ -2337,7 +2337,7 @@ export default defineComponent({
                     initialParticles.set(oldParticles)
                     for (let i = oldCount; i < newCount; i++) {
                         const baseIndex = i * 5
-                        initialParticles[baseIndex] = Math.random() * SIM_WIDTH      // x
+                        initialParticles[baseIndex]     = Math.random() * SIM_WIDTH  // x
                         initialParticles[baseIndex + 1] = Math.random() * SIM_HEIGHT // y
                         initialParticles[baseIndex + 4] = Math.floor(Math.random() * NUM_TYPES) // type
                     }
@@ -2348,7 +2348,7 @@ export default defineComponent({
                         if (j < newCount) {
                             const oldStartIndex = i * 5
                             const newIndex = j * 5
-                            initialParticles[newIndex] = oldParticles[oldStartIndex]         // x
+                            initialParticles[newIndex]     = oldParticles[oldStartIndex]     // x
                             initialParticles[newIndex + 1] = oldParticles[oldStartIndex + 1] // y
                             initialParticles[newIndex + 2] = oldParticles[oldStartIndex + 2] // vx
                             initialParticles[newIndex + 3] = oldParticles[oldStartIndex + 3] // vy
@@ -2390,12 +2390,12 @@ export default defineComponent({
                 const oldColors = colors
                 for (let i = 0; i < newNumTypes; i++) {
                     if (i < NUM_TYPES) {
-                        newColors[i * 4] = oldColors[i * 4] ?? Math.random()
+                        newColors[i * 4]     = oldColors[i * 4] ?? Math.random()
                         newColors[i * 4 + 1] = oldColors[i * 4 + 1] ?? Math.random()
                         newColors[i * 4 + 2] = oldColors[i * 4 + 2] ?? Math.random()
                         newColors[i * 4 + 3] = 1
                     } else {
-                        newColors[i * 4] = Math.random()
+                        newColors[i * 4]     = Math.random()
                         newColors[i * 4 + 1] = Math.random()
                         newColors[i * 4 + 2] = Math.random()
                         newColors[i * 4 + 3] = 1
@@ -2431,10 +2431,10 @@ export default defineComponent({
                     newColors.set(colors)
                     for (let i = 0; i < typesToUpdate; i++) {
                         const idx = i * 4
-                        newColors[idx]     = presetColors[idx]
-                        newColors[idx + 1] = presetColors[idx + 1]
-                        newColors[idx + 2] = presetColors[idx + 2]
-                        newColors[idx + 3] = presetColors[idx + 3]
+                        newColors[idx]     = presetColors[idx]     // R
+                        newColors[idx + 1] = presetColors[idx + 1] // G
+                        newColors[idx + 2] = presetColors[idx + 2] // B
+                        newColors[idx + 3] = presetColors[idx + 3] // A
                     }
 
                     colors = newColors
