@@ -2497,9 +2497,7 @@ export default defineComponent({
                         }
                     }
 
-                    const newColors = new Float32Array(newNumTypes * 4)
-                    newColors.set(presetColors.subarray(0, newNumTypes * 4))
-                    colors = newColors
+                    colors = presetColors
                     particleLife.currentColors = colors
 
                     const oldNumTypes = NUM_TYPES
@@ -2607,14 +2605,9 @@ export default defineComponent({
             particleLife.currentColors = colors
 
             const paddedSize = Math.ceil(colors.byteLength / 16) * 16
-            if (!colorBuffer || colorBuffer.size !== paddedSize) {
-                updateColorBuffer()
-                updateParticleBindGroups()
-            } else {
-                const paddedColors = new Float32Array(paddedSize / 4)
-                paddedColors.set(colors)
-                device.queue.writeBuffer(colorBuffer!, 0, paddedColors)
-            }
+            const paddedColors = new Float32Array(paddedSize / 4)
+            paddedColors.set(colors)
+            device.queue.writeBuffer(colorBuffer!, 0, paddedColors)
         }
         const updateRulesMatrix = async (useRandomGenerator: boolean | Event = false) => {
             const shouldRandom = typeof useRandomGenerator === 'boolean' ? useRandomGenerator : false
