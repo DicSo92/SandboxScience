@@ -2383,24 +2383,8 @@ export default defineComponent({
             await device.queue.onSubmittedWorkDone()
 
             try {
-                const particleDataBuffer = await readBufferFromGPU(particleBuffer!, NUM_PARTICLES * 5 * 4)
-                const particles = new Float32Array(particleDataBuffer)
-
-                if (newNumTypes < NUM_TYPES) {
-                    for (let i = 0; i < NUM_PARTICLES; i++) {
-                        const typeIndex = i * 5 + 4;
-                        if (particles[typeIndex] >= newNumTypes) {
-                            particles[typeIndex] = Math.floor(Math.random() * newNumTypes)
-                        }
-                    }
-                } else if (newNumTypes > NUM_TYPES) {
-                    for (let i = 0; i < NUM_PARTICLES; i++) {
-                        if (Math.random() < (newNumTypes - NUM_TYPES) / newNumTypes) {
-                            const typeIndex = i * 5 + 4;
-                            particles[typeIndex] = NUM_TYPES + Math.floor(Math.random() * (newNumTypes - NUM_TYPES))
-                        }
-                    }
-                }
+                const oldNumTypes = NUM_TYPES
+                NUM_TYPES = newNumTypes
 
                 const newColors = new Float32Array(newNumTypes * 4)
                 const oldColors = colors
@@ -2420,32 +2404,12 @@ export default defineComponent({
                 colors = newColors
                 particleLife.currentColors = colors // Ensure the store is updated with the new colors
 
-                const oldNumTypes = NUM_TYPES
-                NUM_TYPES = newNumTypes
+                await adjustParticleTypes(oldNumTypes, newNumTypes)
+                await adjustMatrices(oldNumTypes, newNumTypes)
 
-                setRulesMatrix(resizeMatrix(rulesMatrix, oldNumTypes, newNumTypes, () => {
-                    return Math.round((Math.random() * 2 - 1) * 100) / 100
-                }))
-                setMinRadiusMatrix(resizeMatrix(minRadiusMatrix, oldNumTypes, newNumTypes, () => {
-                    return Math.floor(Math.random() * (particleLife.minRadiusRange[1] - particleLife.minRadiusRange[0] + 1) + particleLife.minRadiusRange[0])
-                }))
-                setMaxRadiusMatrix(resizeMatrix(maxRadiusMatrix, oldNumTypes, newNumTypes, () => {
-                    return Math.floor(Math.random() * (particleLife.maxRadiusRange[1] - particleLife.maxRadiusRange[0] + 1) + particleLife.maxRadiusRange[0])
-                }))
-
-                device.queue.writeBuffer(particleBuffer!, 0, particles)
-                updateInteractionMatrixBuffer()
                 updateSimOptionsBuffer()
-
-                const paddedSize = Math.ceil(colors.byteLength / 16) * 16
-                if (!colorBuffer || colorBuffer.size !== paddedSize) {
-                    updateColorBuffer()
-                    updateParticleBindGroups()
-                } else {
-                    const paddedColors = new Float32Array(paddedSize / 4)
-                    paddedColors.set(colors)
-                    device.queue.writeBuffer(colorBuffer!, 0, paddedColors)
-                }
+                updateColorBuffer()
+                updateParticleBindGroups()
             } finally {
                 isUpdatingParticles = false
                 isUpdateNumTypesPending = NEW_NUM_TYPES !== NUM_TYPES
@@ -2476,46 +2440,17 @@ export default defineComponent({
                     colors = newColors
                     particleLife.currentColors = colors // Ensure the store is updated with the new colors
                 } else {
+                    const oldNumTypes = NUM_TYPES
                     const newNumTypes = numTypesInPreset
-
-                    const particleDataBuffer = await readBufferFromGPU(particleBuffer!, NUM_PARTICLES * 5 * 4)
-                    const particles = new Float32Array(particleDataBuffer)
-
-                    if (newNumTypes < NUM_TYPES) {
-                        for (let i = 0; i < NUM_PARTICLES; i++) {
-                            const typeIndex = i * 5 + 4
-                            if (particles[typeIndex] >= newNumTypes) {
-                                particles[typeIndex] = Math.floor(Math.random() * newNumTypes)
-                            }
-                        }
-                    } else if (newNumTypes > NUM_TYPES) {
-                        for (let i = 0; i < NUM_PARTICLES; i++) {
-                            if (Math.random() < (newNumTypes - NUM_TYPES) / newNumTypes) {
-                                const typeIndex = i * 5 + 4;
-                                particles[typeIndex] = NUM_TYPES + Math.floor(Math.random() * (newNumTypes - NUM_TYPES))
-                            }
-                        }
-                    }
+                    NUM_TYPES = newNumTypes
 
                     colors = presetColors
                     particleLife.currentColors = colors
-
-                    const oldNumTypes = NUM_TYPES
-                    NUM_TYPES = newNumTypes
                     particleLife.numColors = NUM_TYPES
 
-                    setRulesMatrix(resizeMatrix(rulesMatrix, oldNumTypes, newNumTypes, () => {
-                        return Math.round((Math.random() * 2 - 1) * 100) / 100
-                    }))
-                    setMinRadiusMatrix(resizeMatrix(minRadiusMatrix, oldNumTypes, newNumTypes, () => {
-                        return Math.floor(Math.random() * (particleLife.minRadiusRange[1] - particleLife.minRadiusRange[0] + 1) + particleLife.minRadiusRange[0])
-                    }))
-                    setMaxRadiusMatrix(resizeMatrix(maxRadiusMatrix, oldNumTypes, newNumTypes, () => {
-                        return Math.floor(Math.random() * (particleLife.maxRadiusRange[1] - particleLife.maxRadiusRange[0] + 1) + particleLife.maxRadiusRange[0])
-                    }))
+                    await adjustParticleTypes(oldNumTypes, newNumTypes)
+                    await adjustMatrices(oldNumTypes, newNumTypes)
 
-                    device.queue.writeBuffer(particleBuffer!, 0, particles)
-                    updateInteractionMatrixBuffer()
                     updateSimOptionsBuffer()
                 }
 
@@ -2531,6 +2466,40 @@ export default defineComponent({
             } finally {
                 isUpdatingParticles = false
             }
+        }
+        const adjustParticleTypes = async (oldNumTypes: number, newNumTypes: number) => {
+            const particleDataBuffer = await readBufferFromGPU(particleBuffer!, NUM_PARTICLES * 5 * 4)
+            const particles = new Float32Array(particleDataBuffer)
+
+            if (newNumTypes < oldNumTypes) {
+                for (let i = 0; i < NUM_PARTICLES; i++) {
+                    const typeIndex = i * 5 + 4
+                    if (particles[typeIndex] >= newNumTypes) {
+                        particles[typeIndex] = Math.floor(Math.random() * newNumTypes)
+                    }
+                }
+            } else if (newNumTypes > oldNumTypes) {
+                for (let i = 0; i < NUM_PARTICLES; i++) {
+                    if (Math.random() < (newNumTypes - oldNumTypes) / newNumTypes) {
+                        const typeIndex = i * 5 + 4
+                        particles[typeIndex] = oldNumTypes + Math.floor(Math.random() * (newNumTypes - oldNumTypes))
+                    }
+                }
+            }
+            device.queue.writeBuffer(particleBuffer!, 0, particles)
+        }
+        const adjustMatrices = async (oldNumTypes: number, newNumTypes: number) => {
+            setRulesMatrix(resizeMatrix(rulesMatrix, oldNumTypes, newNumTypes, () => {
+                return Math.round((Math.random() * 2 - 1) * 100) / 100
+            }))
+            setMinRadiusMatrix(resizeMatrix(minRadiusMatrix, oldNumTypes, newNumTypes, () => {
+                return Math.floor(Math.random() * (particleLife.minRadiusRange[1] - particleLife.minRadiusRange[0] + 1) + particleLife.minRadiusRange[0])
+            }))
+            setMaxRadiusMatrix(resizeMatrix(maxRadiusMatrix, oldNumTypes, newNumTypes, () => {
+                return Math.floor(Math.random() * (particleLife.maxRadiusRange[1] - particleLife.maxRadiusRange[0] + 1) + particleLife.maxRadiusRange[0])
+            }))
+
+            updateInteractionMatrixBuffer()
         }
         // -------------------------------------------------------------------------------------------------------------
         async function readBufferFromGPU(buffer: GPUBuffer, size: number): Promise<ArrayBuffer> {
