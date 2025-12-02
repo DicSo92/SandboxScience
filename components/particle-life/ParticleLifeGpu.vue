@@ -2388,17 +2388,7 @@ export default defineComponent({
                 const oldNumTypes = NUM_TYPES
                 NUM_TYPES = newNumTypes
 
-                const newColors = new Float32Array(newNumTypes * 4)
-                const oldColors = colors
-                for (let i = 0; i < newNumTypes; i++) {
-                    newColors[i * 4]     = oldColors[i * 4] ?? Math.random()
-                    newColors[i * 4 + 1] = oldColors[i * 4 + 1] ?? Math.random()
-                    newColors[i * 4 + 2] = oldColors[i * 4 + 2] ?? Math.random()
-                    newColors[i * 4 + 3] = 1
-                }
-                colors = newColors
-                particleLife.currentColors = colors // Ensure the store is updated with the new colors
-
+                await adjustColors(colors, oldNumTypes, newNumTypes)
                 await adjustParticleTypes(oldNumTypes, newNumTypes)
                 await adjustMatrices(oldNumTypes, newNumTypes)
 
@@ -2421,19 +2411,8 @@ export default defineComponent({
 
                 if (!matchPresetCount) {
                     const typesToUpdate = Math.min(NUM_TYPES, numTypesInPreset)
-                    const newColors = new Float32Array(NUM_TYPES * 4)
-
-                    newColors.set(colors)
-                    for (let i = 0; i < typesToUpdate; i++) {
-                        const idx = i * 4
-                        newColors[idx]     = presetColors[idx]     // R
-                        newColors[idx + 1] = presetColors[idx + 1] // G
-                        newColors[idx + 2] = presetColors[idx + 2] // B
-                        newColors[idx + 3] = presetColors[idx + 3] // A
-                    }
-
-                    colors = newColors
-                    particleLife.currentColors = colors // Ensure the store is updated with the new colors
+                    // Update only the colors that fit within the current NUM_TYPES
+                    await adjustColors(presetColors, NUM_TYPES, typesToUpdate, true)
                 } else {
                     const oldNumTypes = NUM_TYPES
                     const newNumTypes = numTypesInPreset
@@ -2494,17 +2473,7 @@ export default defineComponent({
                         NUM_TYPES = newNumTypes
                         particleLife.numColors = NUM_TYPES
 
-                        const newColors = new Float32Array(newNumTypes * 4)
-                        const oldColors = colors
-                        for (let i = 0; i < newNumTypes; i++) {
-                            newColors[i * 4]     = oldColors[i * 4] ?? Math.random()
-                            newColors[i * 4 + 1] = oldColors[i * 4 + 1] ?? Math.random()
-                            newColors[i * 4 + 2] = oldColors[i * 4 + 2] ?? Math.random()
-                            newColors[i * 4 + 3] = 1
-                        }
-                        colors = newColors
-                        particleLife.currentColors = colors // Ensure the store is updated with the new colors
-
+                        await adjustColors(colors, oldNumTypes, newNumTypes)
                         await adjustParticleTypes(oldNumTypes, newNumTypes)
 
                         setRulesMatrix(presetRules)
@@ -2527,6 +2496,20 @@ export default defineComponent({
             } finally {
                 isUpdatingParticles = false
             }
+        }
+        const adjustColors = async (oldColors: Float32Array, oldNumTypes: number, newNumTypes: number, keepExtraColors: boolean = false) => {
+            const newColors = new Float32Array((keepExtraColors ? oldNumTypes : newNumTypes) * 4)
+            if (keepExtraColors) newColors.set(colors)
+
+            for (let i = 0; i < newNumTypes; i++) {
+                const idx = i * 4
+                newColors[idx]     = oldColors[idx]     ?? Math.random()
+                newColors[idx + 1] = oldColors[idx + 1] ?? Math.random()
+                newColors[idx + 2] = oldColors[idx + 2] ?? Math.random()
+                newColors[idx + 3] = oldColors[idx + 3] ?? 1
+            }
+            colors = newColors
+            particleLife.currentColors = colors // Ensure the store is updated with the new colors
         }
         const adjustParticleTypes = async (oldNumTypes: number, newNumTypes: number) => {
             const particleDataBuffer = await readBufferFromGPU(particleBuffer!, NUM_PARTICLES * 5 * 4)
