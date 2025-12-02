@@ -24,8 +24,7 @@
             <button type="button" title="Brush Settings" aria-label="Brush Settings" btn w-8 aspect-square rounded-full p1 flex items-center justify-center backdrop-blur-sm bg="slate-800/80 hover:slate-700/80">
                 <span i-tabler-settings text-sm></span>
             </button>
-            <div class="settings-panel absolute pr-1 right-full top-0 transition-all duration-200 ease-in-out delay-300
-                opacity-0 invisible group-hover:opacity-100 group-hover:visible group-hover:translate-x-0 group-hover:transition-delay-0">
+            <div class="settings-panel absolute pr-1 right-full top-0 transition-all duration-200 ease-in-out delay-300 invisible group-hover:visible group-hover:transition-delay-0">
                 <div p-3 pl-4 w-64 rounded-lg text-left backdrop-blur-sm class="bg-slate-800/80">
                     <p underline mb-2>Brush Settings :</p>
                     <div text-gray-300>
