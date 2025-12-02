@@ -75,7 +75,9 @@
                             </div>
                         </Collapse>
                         <Collapse label="Save & Share" icon="i-carbon-save text-yellow-500">
-                            <SaveOptions :store="particleLife" @loadColors="loadColorsFromPreset"></SaveOptions>
+                            <SaveOptions :store="particleLife"
+                                         @loadColors="loadColorsFromPreset" @loadMatrices="loadMatricesFromPreset">
+                            </SaveOptions>
                         </Collapse>
                         <Collapse label="Matrix Settings" icon="i-tabler-grid-4x4 text-indigo-500"
                                   tooltip="Modify matrix values by clicking on cells in the grid. <br>
@@ -2389,17 +2391,10 @@ export default defineComponent({
                 const newColors = new Float32Array(newNumTypes * 4)
                 const oldColors = colors
                 for (let i = 0; i < newNumTypes; i++) {
-                    if (i < NUM_TYPES) {
-                        newColors[i * 4]     = oldColors[i * 4] ?? Math.random()
-                        newColors[i * 4 + 1] = oldColors[i * 4 + 1] ?? Math.random()
-                        newColors[i * 4 + 2] = oldColors[i * 4 + 2] ?? Math.random()
-                        newColors[i * 4 + 3] = 1
-                    } else {
-                        newColors[i * 4]     = Math.random()
-                        newColors[i * 4 + 1] = Math.random()
-                        newColors[i * 4 + 2] = Math.random()
-                        newColors[i * 4 + 3] = 1
-                    }
+                    newColors[i * 4]     = oldColors[i * 4] ?? Math.random()
+                    newColors[i * 4 + 1] = oldColors[i * 4 + 1] ?? Math.random()
+                    newColors[i * 4 + 2] = oldColors[i * 4 + 2] ?? Math.random()
+                    newColors[i * 4 + 3] = 1
                 }
                 colors = newColors
                 particleLife.currentColors = colors // Ensure the store is updated with the new colors
@@ -2464,6 +2459,70 @@ export default defineComponent({
                     const paddedColors = new Float32Array(paddedSize / 4)
                     paddedColors.set(colors)
                     device.queue.writeBuffer(colorBuffer!, 0, paddedColors)
+                }
+            } finally {
+                isUpdatingParticles = false
+            }
+        }
+        const loadMatricesFromPreset = async (presetRules: number[][], matchPresetCount: boolean = false) => {
+            if (isUpdatingParticles) return
+            isUpdatingParticles = true
+            await device.queue.onSubmittedWorkDone()
+
+            try {
+                const numTypesInPreset = presetRules.length
+                if (numTypesInPreset === 0) return
+
+                if (!matchPresetCount) {
+                    const typesToUpdate = Math.min(NUM_TYPES, numTypesInPreset)
+                    let newRulesMatrix: number[][] = rulesMatrix.map(row => row.slice()) // Deep copy
+
+                    for (let i = 0; i < NUM_TYPES; i++) {
+                        for (let j = 0; j < NUM_TYPES; j++) {
+                            if (i < typesToUpdate && j < typesToUpdate) {
+                                newRulesMatrix[i][j] = presetRules[i][j]
+                            }
+                        }
+                    }
+                    setRulesMatrix(newRulesMatrix)
+                    updateInteractionMatrixBuffer()
+                } else {
+                    const oldNumTypes = NUM_TYPES
+                    const newNumTypes = numTypesInPreset
+
+                    if (newNumTypes !== oldNumTypes) {
+                        NUM_TYPES = newNumTypes
+                        particleLife.numColors = NUM_TYPES
+
+                        const newColors = new Float32Array(newNumTypes * 4)
+                        const oldColors = colors
+                        for (let i = 0; i < newNumTypes; i++) {
+                            newColors[i * 4]     = oldColors[i * 4] ?? Math.random()
+                            newColors[i * 4 + 1] = oldColors[i * 4 + 1] ?? Math.random()
+                            newColors[i * 4 + 2] = oldColors[i * 4 + 2] ?? Math.random()
+                            newColors[i * 4 + 3] = 1
+                        }
+                        colors = newColors
+                        particleLife.currentColors = colors // Ensure the store is updated with the new colors
+
+                        await adjustParticleTypes(oldNumTypes, newNumTypes)
+
+                        setRulesMatrix(presetRules)
+                        setMinRadiusMatrix(resizeMatrix(minRadiusMatrix, oldNumTypes, newNumTypes, () => {
+                            return Math.floor(Math.random() * (particleLife.minRadiusRange[1] - particleLife.minRadiusRange[0] + 1) + particleLife.minRadiusRange[0])
+                        }))
+                        setMaxRadiusMatrix(resizeMatrix(maxRadiusMatrix, oldNumTypes, newNumTypes, () => {
+                            return Math.floor(Math.random() * (particleLife.maxRadiusRange[1] - particleLife.maxRadiusRange[0] + 1) + particleLife.maxRadiusRange[0])
+                        }))
+                        updateInteractionMatrixBuffer()
+
+                        updateSimOptionsBuffer()
+                        updateColorBuffer()
+                        updateParticleBindGroups()
+                    } else {
+                        setRulesMatrix(presetRules)
+                        updateInteractionMatrixBuffer()
+                    }
                 }
             } finally {
                 isUpdatingParticles = false
@@ -2924,7 +2983,7 @@ export default defineComponent({
             handleZoom, toggleFullscreen, isFullscreen, regenerateLife, step,
             updateSimWidth, updateSimHeight, updateNumParticles, setNewNumParticles, setNewNumTypes,
             updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, newRandomRulesMatrix,
-            updateRulesMatrix, updateParticlePositions, updateColors, loadColorsFromPreset,
+            updateRulesMatrix, updateParticlePositions, updateColors, loadColorsFromPreset, loadMatricesFromPreset,
             rulesOptions, paletteOptions, positionOptions
         }
     }

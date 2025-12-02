@@ -369,6 +369,8 @@ export default defineComponent({
             if (preset.colors) {
                 const colors: Float32Array = hexListToFlatRgba(preset.colors)
                 emit("loadColors", colors, matchPresetCount.value)
+            } else if (preset.matrices) {
+                emit("loadMatrices", clone2D(preset.matrices.forces), matchPresetCount.value)
             }
 
             success("Preset loaded.")
