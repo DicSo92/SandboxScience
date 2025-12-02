@@ -2446,12 +2446,14 @@ export default defineComponent({
 
                     colors = presetColors
                     particleLife.currentColors = colors
-                    particleLife.numColors = NUM_TYPES
 
-                    await adjustParticleTypes(oldNumTypes, newNumTypes)
-                    await adjustMatrices(oldNumTypes, newNumTypes)
+                    if (newNumTypes !== oldNumTypes) {
+                        particleLife.numColors = NUM_TYPES
+                        await adjustParticleTypes(oldNumTypes, newNumTypes)
+                        await adjustMatrices(oldNumTypes, newNumTypes)
 
-                    updateSimOptionsBuffer()
+                        updateSimOptionsBuffer()
+                    }
                 }
 
                 const paddedSize = Math.ceil(colors.byteLength / 16) * 16
