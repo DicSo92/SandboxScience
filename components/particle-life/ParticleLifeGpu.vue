@@ -1157,15 +1157,21 @@ export default defineComponent({
             })
         }
         const updateColorBuffer = () => {
-            if (colorBuffer) colorBuffer?.destroy(); colorBuffer = undefined;
             const paddedSize = Math.ceil(colors.byteLength / 16) * 16 // Ensure padded to 16 bytes
-            colorBuffer = device.createBuffer({
-                size: paddedSize,
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-                mappedAtCreation: true
-            })
-            new Float32Array(colorBuffer.getMappedRange()).set(colors)
-            colorBuffer.unmap()
+            if (!colorBuffer || colorBuffer.size !== paddedSize) {
+                if (colorBuffer) colorBuffer?.destroy(); colorBuffer = undefined;
+                colorBuffer = device.createBuffer({
+                    size: paddedSize,
+                    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+                    mappedAtCreation: true
+                })
+                new Float32Array(colorBuffer.getMappedRange()).set(colors)
+                colorBuffer.unmap()
+            } else {
+                const paddedColors = new Float32Array(paddedSize / 4)
+                paddedColors.set(colors)
+                device.queue.writeBuffer(colorBuffer!, 0, paddedColors)
+            }
         }
         const updateParticleBuffers = (hasInitialParticles: boolean = false) => {
             if (particleBuffer) particleBuffer?.destroy(); particleBuffer = undefined;
@@ -2388,8 +2394,18 @@ export default defineComponent({
 
                 await adjustColors(colors, oldNumTypes, newNumTypes)
                 await adjustParticleTypes(oldNumTypes, newNumTypes)
-                await adjustMatrices(oldNumTypes, newNumTypes)
 
+                setRulesMatrix(resizeMatrix(rulesMatrix, oldNumTypes, newNumTypes, () => {
+                    return Math.round((Math.random() * 2 - 1) * 100) / 100
+                }))
+                setMinRadiusMatrix(resizeMatrix(minRadiusMatrix, oldNumTypes, newNumTypes, () => {
+                    return Math.floor(Math.random() * (particleLife.minRadiusRange[1] - particleLife.minRadiusRange[0] + 1) + particleLife.minRadiusRange[0])
+                }))
+                setMaxRadiusMatrix(resizeMatrix(maxRadiusMatrix, oldNumTypes, newNumTypes, () => {
+                    return Math.floor(Math.random() * (particleLife.maxRadiusRange[1] - particleLife.maxRadiusRange[0] + 1) + particleLife.maxRadiusRange[0])
+                }))
+
+                updateInteractionMatrixBuffer()
                 updateSimOptionsBuffer()
                 updateColorBuffer()
                 updateParticleBindGroups()
@@ -2398,9 +2414,8 @@ export default defineComponent({
                 isUpdateNumTypesPending = NEW_NUM_TYPES !== NUM_TYPES
             }
         }
-        const loadPreset = async (options: { presetRules?: number[][], presetColors?: Float32Array }, matchPresetCount: boolean) => {
-            const { presetRules, presetColors } = options
-            if (!presetRules && !presetColors) return
+        const loadPreset = async (options: { presetRules?: number[][], presetMinRadius?: number[][], presetMaxRadius?: number[][], presetColors?: Float32Array }, presetTypeCount: number, matchPresetCount: boolean) => {
+            const { presetRules, presetMinRadius, presetMaxRadius, presetColors } = options
 
             if (isUpdatingParticles) return
             isUpdatingParticles = true
@@ -2408,35 +2423,21 @@ export default defineComponent({
 
             try {
                 const oldNumTypes = NUM_TYPES
-                const newNumTypes = presetRules?.length || (presetColors ? Math.floor(presetColors?.length / 4) : NUM_TYPES)
+                const newNumTypes = presetTypeCount
                 if (newNumTypes === 0) return
 
                 if (!matchPresetCount) {
                     const typesToUpdate = Math.min(NUM_TYPES, newNumTypes)
-                    if (presetColors) {
-                        // Update only the colors that fit within the current NUM_TYPES
-                        await adjustColors(presetColors, NUM_TYPES, typesToUpdate, true)
-                    }
-                    if (presetRules) {
-                        let newRulesMatrix: number[][] = rulesMatrix.map(row => row.slice()) // Deep copy
-                        for (let i = 0; i < NUM_TYPES; i++) {
-                            for (let j = 0; j < NUM_TYPES; j++) {
-                                if (i < typesToUpdate && j < typesToUpdate) {
-                                    newRulesMatrix[i][j] = presetRules[i][j]
-                                }
-                            }
-                        }
-                        setRulesMatrix(newRulesMatrix)
-                        updateInteractionMatrixBuffer()
-                    }
+                    if (presetColors) await adjustColors(presetColors, NUM_TYPES, typesToUpdate, true) // Update only the colors that fit within the current NUM_TYPES
+                    if (presetRules) setRulesMatrix(applyPresetSubMatrix(rulesMatrix, presetRules, NUM_TYPES, typesToUpdate))
+                    if (presetMinRadius) setMinRadiusMatrix(applyPresetSubMatrix(minRadiusMatrix, presetMinRadius, NUM_TYPES, typesToUpdate))
+                    if (presetMaxRadius) setMaxRadiusMatrix(applyPresetSubMatrix(maxRadiusMatrix, presetMaxRadius, NUM_TYPES, typesToUpdate))
                 } else {
                     if (presetColors) {
                         colors = presetColors
                         particleLife.currentColors = colors
-                    } else {
-                        if (newNumTypes !== oldNumTypes) {
-                            await adjustColors(colors, oldNumTypes, newNumTypes)
-                        }
+                    } else if (newNumTypes !== oldNumTypes) {
+                        await adjustColors(colors, oldNumTypes, newNumTypes)
                     }
 
                     if (newNumTypes !== oldNumTypes) {
@@ -2445,42 +2446,44 @@ export default defineComponent({
 
                         await adjustParticleTypes(oldNumTypes, newNumTypes)
 
-                        if (presetRules) {
-                            setRulesMatrix(presetRules)
-                        } else {
-                            setRulesMatrix(resizeMatrix(rulesMatrix, oldNumTypes, newNumTypes, () => {
-                                return Math.round((Math.random() * 2 - 1) * 100) / 100
-                            }))
-                        }
-                        setMinRadiusMatrix(resizeMatrix(minRadiusMatrix, oldNumTypes, newNumTypes, () => {
+                        if (presetRules) setRulesMatrix(presetRules)
+                        else setRulesMatrix(resizeMatrix(rulesMatrix, oldNumTypes, newNumTypes, () => {
+                            return Math.round((Math.random() * 2 - 1) * 100) / 100
+                        }))
+                        if (presetMinRadius) setMinRadiusMatrix(presetMinRadius)
+                        else setMinRadiusMatrix(resizeMatrix(minRadiusMatrix, oldNumTypes, newNumTypes, () => {
                             return Math.floor(Math.random() * (particleLife.minRadiusRange[1] - particleLife.minRadiusRange[0] + 1) + particleLife.minRadiusRange[0])
                         }))
-                        setMaxRadiusMatrix(resizeMatrix(maxRadiusMatrix, oldNumTypes, newNumTypes, () => {
+                        if (presetMaxRadius) setMaxRadiusMatrix(presetMaxRadius)
+                        else setMaxRadiusMatrix(resizeMatrix(maxRadiusMatrix, oldNumTypes, newNumTypes, () => {
                             return Math.floor(Math.random() * (particleLife.maxRadiusRange[1] - particleLife.maxRadiusRange[0] + 1) + particleLife.maxRadiusRange[0])
                         }))
-                        updateInteractionMatrixBuffer()
 
                         updateSimOptionsBuffer()
                     } else {
-                        if (presetRules) {
-                            setRulesMatrix(presetRules)
-                            updateInteractionMatrixBuffer()
-                        }
+                        if (presetRules) setRulesMatrix(presetRules)
+                        if (presetMinRadius) setMinRadiusMatrix(presetMinRadius)
+                        if (presetMaxRadius) setMaxRadiusMatrix(presetMaxRadius)
                     }
                 }
 
-                const paddedSize = Math.ceil(colors.byteLength / 16) * 16
-                if (!colorBuffer || colorBuffer.size !== paddedSize) {
-                    updateColorBuffer()
-                    updateParticleBindGroups()
-                } else {
-                    const paddedColors = new Float32Array(paddedSize / 4)
-                    paddedColors.set(colors)
-                    device.queue.writeBuffer(colorBuffer!, 0, paddedColors)
-                }
+                updateColorBuffer()
+                updateInteractionMatrixBuffer()
+                if (matchPresetCount && (newNumTypes !== oldNumTypes)) updateParticleBindGroups()
             } finally {
                 isUpdatingParticles = false
             }
+        }
+        const applyPresetSubMatrix = (current: number[][], preset: number[][], numTypes: number, typesToUpdate: number,): number[][] => {
+            const result = current.map(row => row.slice())
+            for (let i = 0; i < numTypes; i++) {
+                for (let j = 0; j < numTypes; j++) {
+                    if (i < typesToUpdate && j < typesToUpdate) {
+                        result[i][j] = preset[i][j]
+                    }
+                }
+            }
+            return result
         }
         const adjustColors = async (oldColors: Float32Array, oldNumTypes: number, newNumTypes: number, keepExtraColors: boolean = false) => {
             const newColors = new Float32Array((keepExtraColors ? oldNumTypes : newNumTypes) * 4)
@@ -2516,19 +2519,6 @@ export default defineComponent({
                 }
             }
             device.queue.writeBuffer(particleBuffer!, 0, particles)
-        }
-        const adjustMatrices = async (oldNumTypes: number, newNumTypes: number) => {
-            setRulesMatrix(resizeMatrix(rulesMatrix, oldNumTypes, newNumTypes, () => {
-                return Math.round((Math.random() * 2 - 1) * 100) / 100
-            }))
-            setMinRadiusMatrix(resizeMatrix(minRadiusMatrix, oldNumTypes, newNumTypes, () => {
-                return Math.floor(Math.random() * (particleLife.minRadiusRange[1] - particleLife.minRadiusRange[0] + 1) + particleLife.minRadiusRange[0])
-            }))
-            setMaxRadiusMatrix(resizeMatrix(maxRadiusMatrix, oldNumTypes, newNumTypes, () => {
-                return Math.floor(Math.random() * (particleLife.maxRadiusRange[1] - particleLife.maxRadiusRange[0] + 1) + particleLife.maxRadiusRange[0])
-            }))
-
-            updateInteractionMatrixBuffer()
         }
         // -------------------------------------------------------------------------------------------------------------
         async function readBufferFromGPU(buffer: GPUBuffer, size: number): Promise<ArrayBuffer> {
@@ -2601,11 +2591,7 @@ export default defineComponent({
 
             colors = generateColors(particleLife.selectedColorPaletteOption, NUM_TYPES)
             particleLife.currentColors = colors
-
-            const paddedSize = Math.ceil(colors.byteLength / 16) * 16
-            const paddedColors = new Float32Array(paddedSize / 4)
-            paddedColors.set(colors)
-            device.queue.writeBuffer(colorBuffer!, 0, paddedColors)
+            updateColorBuffer()
         }
         const updateRulesMatrix = async (useRandomGenerator: boolean | Event = false) => {
             const shouldRandom = typeof useRandomGenerator === 'boolean' ? useRandomGenerator : false

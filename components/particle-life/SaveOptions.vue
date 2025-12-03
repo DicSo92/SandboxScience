@@ -348,36 +348,36 @@ export default defineComponent({
                 return
             }
 
-            // if (preset.settings) {
-            //     particleLife.numColors = preset.settings.species
-            //     particleLife.numParticles = preset.settings.numParticles
-            //     particleLife.frictionFactor = preset.settings.frictionFactor
-            //     particleLife.forceFactor = preset.settings.forceFactor
-            // }
-            // if (preset.matrices) {
-            //     if (preset.matrices.forces) {
-            //         particleLife.rulesMatrix = clone2D(preset.matrices.forces)
-            //     }
-            //     if (preset.matrices.minRadius) {
-            //         particleLife.minRadiusMatrix = clone2D(preset.matrices.minRadius)
-            //     }
-            //     if (preset.matrices.maxRadius) {
-            //         particleLife.maxRadiusMatrix = clone2D(preset.matrices.maxRadius)
-            //     }
-            // }
-
             const options: {
                 presetRules?: number[][],
+                presetMinRadius?: number[][],
+                presetMaxRadius?: number[][],
                 presetColors?: Float32Array
             } = {}
             if (preset.colors) {
                 options.presetColors = hexListToFlatRgba(preset.colors)
             }
             if (preset.matrices) {
-                options.presetRules = clone2D(preset.matrices.forces)
+                if (preset.matrices.forces) {
+                    options.presetRules = clone2D(preset.matrices.forces)
+                }
+                if (preset.matrices.minRadius && preset.matrices.maxRadius) {
+                    options.presetMinRadius = clone2D(preset.matrices.minRadius)
+                    options.presetMaxRadius = clone2D(preset.matrices.maxRadius)
+                }
             }
-            emit("loadPreset", options, matchPresetCount.value)
+            let presetTypeCount: number = particleLife.numColors
+            if (options.presetRules && options.presetRules.length > 0) {
+                presetTypeCount = options.presetRules.length
+            } else if (options.presetMinRadius && options.presetMinRadius.length > 0) {
+                presetTypeCount = options.presetMinRadius.length
+            } else if (options.presetMaxRadius && options.presetMaxRadius.length > 0) {
+                presetTypeCount = options.presetMaxRadius.length
+            } else if (options.presetColors && options.presetColors.length > 0 && options.presetColors.length % 4 === 0) {
+                presetTypeCount = options.presetColors.length / 4
+            }
 
+            emit("loadPreset", options, presetTypeCount, matchPresetCount.value)
             success("Preset loaded.")
         }
         // -------------------------------------------------------------------------------------------------------------
