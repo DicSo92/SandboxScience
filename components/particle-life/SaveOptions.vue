@@ -366,12 +366,17 @@ export default defineComponent({
             //     }
             // }
 
+            const options: {
+                presetRules?: number[][],
+                presetColors?: Float32Array
+            } = {}
             if (preset.colors) {
-                const colors: Float32Array = hexListToFlatRgba(preset.colors)
-                emit("loadColors", colors, matchPresetCount.value)
-            } else if (preset.matrices) {
-                emit("loadMatrices", clone2D(preset.matrices.forces), matchPresetCount.value)
+                options.presetColors = hexListToFlatRgba(preset.colors)
             }
+            if (preset.matrices) {
+                options.presetRules = clone2D(preset.matrices.forces)
+            }
+            emit("loadPreset", options, matchPresetCount.value)
 
             success("Preset loaded.")
         }

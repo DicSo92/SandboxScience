@@ -75,9 +75,7 @@
                             </div>
                         </Collapse>
                         <Collapse label="Save & Share" icon="i-carbon-save text-yellow-500">
-                            <SaveOptions :store="particleLife"
-                                         @loadColors="loadColorsFromPreset" @loadMatrices="loadMatricesFromPreset">
-                            </SaveOptions>
+                            <SaveOptions :store="particleLife" @loadPreset="loadPreset"></SaveOptions>
                         </Collapse>
                         <Collapse label="Matrix Settings" icon="i-tabler-grid-4x4 text-indigo-500"
                                   tooltip="Modify matrix values by clicking on cells in the grid. <br>
@@ -2400,33 +2398,74 @@ export default defineComponent({
                 isUpdateNumTypesPending = NEW_NUM_TYPES !== NUM_TYPES
             }
         }
-        const loadColorsFromPreset = async (presetColors: Float32Array, matchPresetCount: boolean = false) => {
+        const loadPreset = async (options: { presetRules?: number[][], presetColors?: Float32Array }, matchPresetCount: boolean) => {
+            const { presetRules, presetColors } = options
+            if (!presetRules && !presetColors) return
+
             if (isUpdatingParticles) return
             isUpdatingParticles = true
             await device.queue.onSubmittedWorkDone()
 
             try {
-                const numTypesInPreset = Math.floor(presetColors.length / 4)
-                if (numTypesInPreset === 0) return
+                const oldNumTypes = NUM_TYPES
+                const newNumTypes = presetRules?.length || (presetColors ? Math.floor(presetColors?.length / 4) : NUM_TYPES)
+                if (newNumTypes === 0) return
 
                 if (!matchPresetCount) {
-                    const typesToUpdate = Math.min(NUM_TYPES, numTypesInPreset)
-                    // Update only the colors that fit within the current NUM_TYPES
-                    await adjustColors(presetColors, NUM_TYPES, typesToUpdate, true)
+                    const typesToUpdate = Math.min(NUM_TYPES, newNumTypes)
+                    if (presetColors) {
+                        // Update only the colors that fit within the current NUM_TYPES
+                        await adjustColors(presetColors, NUM_TYPES, typesToUpdate, true)
+                    }
+                    if (presetRules) {
+                        let newRulesMatrix: number[][] = rulesMatrix.map(row => row.slice()) // Deep copy
+                        for (let i = 0; i < NUM_TYPES; i++) {
+                            for (let j = 0; j < NUM_TYPES; j++) {
+                                if (i < typesToUpdate && j < typesToUpdate) {
+                                    newRulesMatrix[i][j] = presetRules[i][j]
+                                }
+                            }
+                        }
+                        setRulesMatrix(newRulesMatrix)
+                        updateInteractionMatrixBuffer()
+                    }
                 } else {
-                    const oldNumTypes = NUM_TYPES
-                    const newNumTypes = numTypesInPreset
-                    NUM_TYPES = newNumTypes
-
-                    colors = presetColors
-                    particleLife.currentColors = colors
+                    if (presetColors) {
+                        colors = presetColors
+                        particleLife.currentColors = colors
+                    } else {
+                        if (newNumTypes !== oldNumTypes) {
+                            await adjustColors(colors, oldNumTypes, newNumTypes)
+                        }
+                    }
 
                     if (newNumTypes !== oldNumTypes) {
+                        NUM_TYPES = newNumTypes
                         particleLife.numColors = NUM_TYPES
+
                         await adjustParticleTypes(oldNumTypes, newNumTypes)
-                        await adjustMatrices(oldNumTypes, newNumTypes)
+
+                        if (presetRules) {
+                            setRulesMatrix(presetRules)
+                        } else {
+                            setRulesMatrix(resizeMatrix(rulesMatrix, oldNumTypes, newNumTypes, () => {
+                                return Math.round((Math.random() * 2 - 1) * 100) / 100
+                            }))
+                        }
+                        setMinRadiusMatrix(resizeMatrix(minRadiusMatrix, oldNumTypes, newNumTypes, () => {
+                            return Math.floor(Math.random() * (particleLife.minRadiusRange[1] - particleLife.minRadiusRange[0] + 1) + particleLife.minRadiusRange[0])
+                        }))
+                        setMaxRadiusMatrix(resizeMatrix(maxRadiusMatrix, oldNumTypes, newNumTypes, () => {
+                            return Math.floor(Math.random() * (particleLife.maxRadiusRange[1] - particleLife.maxRadiusRange[0] + 1) + particleLife.maxRadiusRange[0])
+                        }))
+                        updateInteractionMatrixBuffer()
 
                         updateSimOptionsBuffer()
+                    } else {
+                        if (presetRules) {
+                            setRulesMatrix(presetRules)
+                            updateInteractionMatrixBuffer()
+                        }
                     }
                 }
 
@@ -2438,60 +2477,6 @@ export default defineComponent({
                     const paddedColors = new Float32Array(paddedSize / 4)
                     paddedColors.set(colors)
                     device.queue.writeBuffer(colorBuffer!, 0, paddedColors)
-                }
-            } finally {
-                isUpdatingParticles = false
-            }
-        }
-        const loadMatricesFromPreset = async (presetRules: number[][], matchPresetCount: boolean = false) => {
-            if (isUpdatingParticles) return
-            isUpdatingParticles = true
-            await device.queue.onSubmittedWorkDone()
-
-            try {
-                const numTypesInPreset = presetRules.length
-                if (numTypesInPreset === 0) return
-
-                if (!matchPresetCount) {
-                    const typesToUpdate = Math.min(NUM_TYPES, numTypesInPreset)
-                    let newRulesMatrix: number[][] = rulesMatrix.map(row => row.slice()) // Deep copy
-
-                    for (let i = 0; i < NUM_TYPES; i++) {
-                        for (let j = 0; j < NUM_TYPES; j++) {
-                            if (i < typesToUpdate && j < typesToUpdate) {
-                                newRulesMatrix[i][j] = presetRules[i][j]
-                            }
-                        }
-                    }
-                    setRulesMatrix(newRulesMatrix)
-                    updateInteractionMatrixBuffer()
-                } else {
-                    const oldNumTypes = NUM_TYPES
-                    const newNumTypes = numTypesInPreset
-
-                    if (newNumTypes !== oldNumTypes) {
-                        NUM_TYPES = newNumTypes
-                        particleLife.numColors = NUM_TYPES
-
-                        await adjustColors(colors, oldNumTypes, newNumTypes)
-                        await adjustParticleTypes(oldNumTypes, newNumTypes)
-
-                        setRulesMatrix(presetRules)
-                        setMinRadiusMatrix(resizeMatrix(minRadiusMatrix, oldNumTypes, newNumTypes, () => {
-                            return Math.floor(Math.random() * (particleLife.minRadiusRange[1] - particleLife.minRadiusRange[0] + 1) + particleLife.minRadiusRange[0])
-                        }))
-                        setMaxRadiusMatrix(resizeMatrix(maxRadiusMatrix, oldNumTypes, newNumTypes, () => {
-                            return Math.floor(Math.random() * (particleLife.maxRadiusRange[1] - particleLife.maxRadiusRange[0] + 1) + particleLife.maxRadiusRange[0])
-                        }))
-                        updateInteractionMatrixBuffer()
-
-                        updateSimOptionsBuffer()
-                        updateColorBuffer()
-                        updateParticleBindGroups()
-                    } else {
-                        setRulesMatrix(presetRules)
-                        updateInteractionMatrixBuffer()
-                    }
                 }
             } finally {
                 isUpdatingParticles = false
@@ -2966,7 +2951,7 @@ export default defineComponent({
             handleZoom, toggleFullscreen, isFullscreen, regenerateLife, step,
             updateSimWidth, updateSimHeight, updateNumParticles, setNewNumParticles, setNewNumTypes,
             updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, newRandomRulesMatrix,
-            updateRulesMatrix, updateParticlePositions, updateColors, loadColorsFromPreset, loadMatricesFromPreset,
+            updateRulesMatrix, updateParticlePositions, updateColors, loadPreset,
             rulesOptions, paletteOptions, positionOptions
         }
     }
