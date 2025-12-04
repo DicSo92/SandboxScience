@@ -30,6 +30,41 @@ function hsvToRgb(h: number, s: number, v: number): [number, number, number] {
     const m = v - c
     return [r + m, g + m, b + m]
 }
+export function float32ArrayToHsl(colors: Float32Array): number[][] {
+    const out: number[][] = []
+    for (let i = 0; i < colors.length; i += 4) {
+        const r = clamp(colors[i], 0, 1)
+        const g = clamp(colors[i + 1], 0, 1)
+        const b = clamp(colors[i + 2], 0, 1)
+
+        const max = Math.max(r, g, b)
+        const min = Math.min(r, g, b)
+        const d = max - min
+
+        let h = 0
+        let s = 0
+        const l = (max + min) / 2 // Lightness
+
+        if (d !== 0) {
+            // Hue
+            if (max === r) h = ((g - b) / d) % 6
+            else if (max === g) h = ((b - r) / d) + 2
+            else h = ((r - g) / d) + 4
+            h = h * 60
+            if (h < 0) h += 360
+
+            // Saturation (HSL)
+            s = d / (1 - Math.abs(2 * l - 1))
+        } else {
+            h = 0
+            s = 0
+        }
+
+        // push [h (deg), s (%), l (%)]
+        out.push([h, s * 100, l * 100])
+    }
+    return out
+}
 function gradientPalette(NUM_TYPES: number, keyColors: KeyColor[]): Colors {
     const colors = new Float32Array(NUM_TYPES * 4)
     if (NUM_TYPES <= 0) return colors
@@ -756,4 +791,11 @@ export function generateColors(optionID: number, NUM_TYPES: number): Colors {
     const palette = PALETTES.find(p => p.id === optionID)
     const generator = palette?.generator ?? randomGenerator
     return generator(NUM_TYPES)
+}
+export function generateHSLColors(optionID: number, NUM_TYPES: number): number[][] {
+    if (NUM_TYPES <= 0) return []
+    const palette = PALETTES.find(p => p.id === optionID)
+    const generator = palette?.generator ?? randomGenerator
+    const newPalette = generator(NUM_TYPES)
+    return float32ArrayToHsl(newPalette)
 }
