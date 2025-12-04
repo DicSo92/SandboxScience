@@ -633,6 +633,7 @@ export default defineComponent({
             if (shouldRandom) particleLife.selectedColorPaletteOption = paletteOptions[Math.floor(Math.random() * paletteOptions.length)].id
 
             setColors(generateHSLColors(particleLife.selectedColorPaletteOption, numColors))
+            if (!isRunning) simpleDrawParticles() // Redraw the particles if the game is not running
         }
         const updateRulesMatrix = async (useRandomGenerator: boolean | Event = false) => {
             const shouldRandom = typeof useRandomGenerator === 'boolean' ? useRandomGenerator : false
