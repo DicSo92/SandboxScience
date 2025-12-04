@@ -113,7 +113,7 @@ export default defineComponent({
                 return result
             }
             // Normal Array of HSL values
-            return Array.from(colors).map(color => `hsl(${color}, 100%, 50%, 1)`)
+            return (colors as number[][]).map((color: number[]) => `hsl(${color[0]}, ${color[1]}%, ${color[2]}%, 1)`)
         })
 
         function toggleBrushType(brushType: number) {

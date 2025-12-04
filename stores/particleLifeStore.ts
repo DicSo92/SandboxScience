@@ -13,7 +13,7 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
     const repulseForce = ref<number>(10) // Repulse force for the brush
     const wallRepelForce = ref<number>(1.8) // Repulse force for the walls (velocity will be multiplied by this value negative)
 
-    const currentColors = ref<number[]>([]) // Current colors for the particles
+    const currentColors = ref<number[][]>([]) // Current colors for the particles
     const rulesMatrix = ref<number[][]>([]) // Rules matrix for each color
     const minRadiusMatrix = ref<number[][]>([]) // Min radius matrix for each color
     const maxRadiusMatrix = ref<number[][]>([]) // Max radius matrix for each color
@@ -60,6 +60,10 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
     const isCapturingGIF = ref<boolean>(false) // Start capturing GIF frames
     const isShareOptionsOpen = ref<boolean>(false) // Is controls canvas open
 
+    // const selectedSpawnPositionOption = ref<number>(0) // Default to 'random'
+    const selectedRulesOption = ref<number>(0) // Default to 'random'
+    const selectedColorPaletteOption = ref<number>(0) // Default to 'random'
+
     function $reset() {
         sidebarLeftOpen.value = false
         currentMaxRadius.value = 0 // Prevent watcher from not triggering when page is reloaded (!important)
@@ -75,7 +79,7 @@ export const useParticleLifeStore = defineStore('particleLife', () => {
         minRadiusRange, maxRadiusRange, currentMaxRadius,
         repel, forceFactor, frictionFactor,
         cellGroupSize, cellSizeFactor,
-        captureType, isCapturingGIF, isShareOptionsOpen,
+        captureType, isCapturingGIF, isShareOptionsOpen, selectedRulesOption, selectedColorPaletteOption,
         $reset
     }
 })
