@@ -19,60 +19,12 @@
                     <div overflow-auto flex-1 flex flex-col gap-2 mt-2 pb-12 class="scrollableArea">
                         <Collapse label="Presets" icon="i-tabler-sparkles text-amber-500"
                                   tooltip="Choose predefined configurations to quickly set up your simulation.">
-                            <div>
-                                <div class="flex items-center text-2sm mb-1">
-                                    <div class="i-tabler-palette text-emerald-500 text-md"></div>
-                                    <span mx-1>Color Scheme</span>
-                                    <TooltipInfo container="#mainContainer" tooltip="Choose from static or generative color palette generators. <br> <b>Static</b> palettes are fixed, while <b>generative</b> ones produce new themed variations each time." />
-                                </div>
-                                <div flex gap-2>
-                                    <SelectInput class="w-8/12" v-model="particleLife.selectedColorPaletteOption" :options="paletteOptions"></SelectInput>
-                                    <div grid grid-cols-2 gap-1 class="w-4/12">
-                                        <button @click="updateColors" type="button" btn px-3 rounded-full flex justify-center items-center bg="slate-800/80 hover:slate-800/50">
-                                            <span i-tabler-reload></span>
-                                        </button>
-                                        <button @click="updateColors(true)" type="button" btn px-3 rounded-full flex justify-center items-center bg="cyan-900/80 hover:cyan-900/50">
-                                            <span i-game-icons-perspective-dice-six-faces-random></span>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            <div mt-2>
-                                <div class="flex items-center text-2sm mb-1">
-                                    <div class="i-tabler-grid-4x4 text-indigo-500 text-md"></div>
-                                    <span mx-1>Interaction Matrix</span>
-                                    <TooltipInfo container="#mainContainer" tooltip="Choose from different force matrix generators. <br> These are experimental and may produce unpredictable or unbalanced results." />
-                                </div>
-                                <div flex gap-2>
-                                    <SelectInput class="w-8/12" v-model="particleLife.selectedRulesOption" :options="rulesOptions"></SelectInput>
-                                    <div grid grid-cols-2 gap-1 class="w-4/12">
-                                        <button @click="updateRulesMatrix" type="button" btn px-3 rounded-full flex justify-center items-center bg="slate-800/80 hover:slate-800/50">
-                                            <span i-tabler-reload></span>
-                                        </button>
-                                        <button @click="updateRulesMatrix(true)" type="button" btn px-3 rounded-full flex justify-center items-center bg="cyan-900/80 hover:cyan-900/50">
-                                            <span i-game-icons-perspective-dice-six-faces-random></span>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            <div mt-2>
-                                <div class="flex items-center text-2sm mb-1">
-                                    <div class="i-tabler-spiral text-cyan-500 text-md"></div>
-                                    <span mx-1>Particle Distribution</span>
-                                    <TooltipInfo container="#mainContainer" tooltip="Choose from different particle distribution generators. <br> Each defines how particles are initially placed, affecting the simulation’s early motion and structure." />
-                                </div>
-                                <div flex gap-2>
-                                    <SelectInput class="w-8/12" v-model="particleLife.selectedSpawnPositionOption" :options="positionOptions"></SelectInput>
-                                    <div grid grid-cols-2 gap-1 class="w-4/12">
-                                        <button @click="updateParticlePositions" type="button" btn px-3 rounded-full flex justify-center items-center bg="slate-800/80 hover:slate-800/50">
-                                            <span i-tabler-reload></span>
-                                        </button>
-                                        <button @click="updateParticlePositions(true)" type="button" btn px-3 rounded-full flex justify-center items-center bg="cyan-900/80 hover:cyan-900/50">
-                                            <span i-game-icons-perspective-dice-six-faces-random></span>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
+                            <PresetPanel :store="particleLife"
+                                         @updateColors="updateColors"
+                                         @updateRulesMatrix="updateRulesMatrix"
+                                         @updateParticlePositions="updateParticlePositions"
+                                         @loadPreset="loadPreset">
+                            </PresetPanel>
                         </Collapse>
                         <Collapse label="Save & Share" icon="i-carbon-save text-yellow-500">
                             <SaveOptions :store="particleLife" @loadPreset="loadPreset"></SaveOptions>
@@ -291,6 +243,7 @@ import WrapModeSelection from "~/components/particle-life/WrapModeSelection.vue"
 import MatrixSettings from "~/components/particle-life/MatrixSettings.vue";
 import BrushSettings from "~/components/particle-life/BrushSettings.vue";
 import SaveOptions from "~/components/particle-life/SaveOptions.vue";
+import PresetPanel from "~/components/particle-life/PresetPanel.vue";
 import { RULES_OPTIONS, generateRules } from '~/helpers/utils/rulesGenerator';
 import { PALETTE_OPTIONS, generateColors } from "~/helpers/utils/colorsGenerator";
 import { POSITION_OPTIONS, generatePositions } from "~/helpers/utils/positionsGenerator";
@@ -322,7 +275,7 @@ import renderBinsShaderCode from 'assets/particle-life-gpu/shaders/render/render
 
 export default defineComponent({
     name: 'ParticleLifeGpu',
-    components: {SaveOptions, BrushSettings, MatrixSettings, WallStateSelection, WrapModeSelection },
+    components: { PresetPanel, SaveOptions, BrushSettings, MatrixSettings, WallStateSelection, WrapModeSelection },
     setup() {
         // Define refs and variables
         const mainContainer = ref<HTMLElement | null>(null)
