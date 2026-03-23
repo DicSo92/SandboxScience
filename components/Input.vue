@@ -28,6 +28,7 @@ export default defineComponent({
             default: 750
         }
     },
+    emits: ['change', 'update:modelValue'],
     setup(props, { emit }) {
         const inputTextUpdate = useDebounceFn((value: number) => {
             emit("change", Number(value))
