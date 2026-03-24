@@ -75,7 +75,7 @@
             </div>
             <div flex items-center text-start text-xs pl-3 pr-2 py-0.5 rounded-bl-xl mt-px gap-3.5 class="bg-slate-800/60" style="opacity: 65%">
                 <div flex>{{ game.cols }}×{{ game.rows }}</div>
-                <div flex>Cell: <div ml-1 font-mono>{{ game.size }}px</div></div>
+<!--                <div flex>Cell: <div ml-1 font-mono>{{ game.size }}px</div></div>-->
             </div>
         </div>
 
