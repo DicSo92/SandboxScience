@@ -56,6 +56,26 @@ export default defineComponent({
         watch(() => game.themeId, (newValue, prevValue) => {
             initThemeAndRules(prevValue)
         })
+        watch(() => game.aliveSteps, (newSteps) => {
+            // Prevent cells from having more steps than the new aliveSteps value
+            for (let x = 0; x < cellsArray.length; x++) {
+                for (let y = 0; y < cellsArray[x].length; y++) {
+                    if (cellsArray[x][y] > newSteps) cellsArray[x][y] = newSteps
+                    if (cellsArrayNext[x][y] > newSteps) cellsArrayNext[x][y] = newSteps
+                }
+            }
+            initThemeAndRules()
+        })
+        watch(() => game.deadSteps, (newSteps) => {
+            // Prevent cells from having more steps than the new deadSteps value
+            for (let x = 0; x < cellsArray.length; x++) {
+                for (let y = 0; y < cellsArray[x].length; y++) {
+                    if (cellsArray[x][y] < -newSteps) cellsArray[x][y] = -newSteps
+                    if (cellsArrayNext[x][y] < -newSteps) cellsArrayNext[x][y] = -newSteps
+                }
+            }
+            initThemeAndRules()
+        })
         // -------------------------------------------------------------------------------------------------------------
         function toggleCell(cursorX: number, cursorY: number, type?: "draw" | "erase" | "toggle") {
             const cell: { x: number, y: number } = pixelToCell(cursorX, cursorY, colx, rowx, game.size) // get the cell x and y from the cursor position

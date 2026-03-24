@@ -19,16 +19,44 @@
                     </div>
                     <hr border-slate-500>
                     <div overflow-auto flex-1 flex flex-col gap-2 mt-2 pb-12 class="scrollableArea">
+                        <Collapse label="Rules" icon="i-tabler-dna text-rose-400" opened>
+                            <SelectInput name="rule-preset" :modelValue="currentPresetId" @change="applyPreset" :options="rulePresetOptions" />
+                            <p class="text-2sm text-slate-300 mt-3 mb-1.5">
+                                Born - <span font-mono text-white>B{{ game.BORN.join('') }}</span>
+                                <TooltipInfo container="#mainContainer" tooltip="A dead cell becomes alive if it has exactly this many alive neighbors." />
+                            </p>
+                            <div class="flex flex-wrap gap-1">
+                                <ToggleChip v-for="n in 9" :key="'born-'+(n-1)"
+                                    :label="String(n-1)"
+                                    :modelValue="game.BORN.includes(n-1)"
+                                    @update:modelValue="toggleBorn(n-1)" />
+                            </div>
+                            <p class="text-2sm text-slate-300 mt-3 mb-1.5">
+                                Survives - <span font-mono text-white>S{{ game.SURVIVES.join('') }}</span>
+                                <TooltipInfo container="#mainContainer" tooltip="A living cell stays alive if it has exactly this many alive neighbors." />
+                            </p>
+                            <div class="flex flex-wrap gap-1">
+                                <ToggleChip v-for="n in 9" :key="'survives-'+(n-1)"
+                                    :label="String(n-1)"
+                                    :modelValue="game.SURVIVES.includes(n-1)"
+                                    @update:modelValue="toggleSurvives(n-1)" />
+                            </div>
+                        </Collapse>
                         <Collapse label="World Settings" icon="i-tabler-world-cog text-cyan-500" opened>
                             <SelectInput name="edge-mode" v-model="game.EDGEMODE" :options="[
-                                { name: 'Mirror Edges', icon: 'tabler-arrows-right-left', id: 2},
-                                { name: 'Dead Edges', icon: 'tabler-border-none', id: 0},
-                                { name: 'Alive Edges', icon: 'tabler-border-all', id: 1}]">
+                                { name: 'Mirror Edges', icon: 'i-tabler-arrows-right-left', id: 2, category: 'Edge Mode'},
+                                { name: 'Dead Edges', icon: 'i-tabler-border-none', id: 0, category: 'Edge Mode'},
+                                { name: 'Alive Edges', icon: 'i-tabler-border-all', id: 1, category: 'Edge Mode'}]">
                             </SelectInput>
+                            <ToggleSwitch label="Show Grid" :modelValue="game.grid" @update:modelValue="naiveCanvas.toggleGrid()" mt-2 />
                             <RangeInput input label="Speed (ms)" v-model="game.SPEED" tooltip="Delay in milliseconds between each generation." :min="1" :max="1000" :step="1" mt-2></RangeInput>
                         </Collapse>
                         <Collapse label="Theme" icon="i-tabler-palette text-amber-500" opened>
-                            <SelectInput name="theme" v-model="game.themeId" :options="themes.map((theme, index) => ({ name: theme.name, icon: 'tabler-paint', id: index }))"></SelectInput>
+                            <SelectInput name="theme" v-model="game.themeId" :options="themes.map((t, i) => ({ id: i, name: t.name, icon: t.icon, category: t.category }))"></SelectInput>
+                            <template v-if="isHistoryTheme">
+                                <RangeInput input label="Alive Steps" tooltip="Number of color gradient steps for alive cells aging." :min="2" :max="128" :step="1" v-model="game.aliveSteps" mt-2 />
+                                <RangeInput input label="Dead Steps" tooltip="Number of color gradient steps for dead cells fading." :min="2" :max="128" :step="1" v-model="game.deadSteps" mt-2 />
+                            </template>
                         </Collapse>
                     </div>
                     <div absolute bottom-2 right-0 z-100 class="-mr-px">
@@ -131,24 +159,34 @@ export default defineComponent({
         const ctrlKey = keys['Ctrl']
         const wheelClick = ref(false)
         const cursor = computed(() => ctrlKey.value ? 'all-scroll' : wheelClick.value ? 'grabbing' : 'crosshair')
+        
+        const rulePresets = [
+            { id: 'life',       name: "Conway's Life (B3/S23)",       icon: 'i-tabler-heart',            born: [3],             survives: [2, 3],          category: 'Classic' },
+            { id: 'highlife',   name: 'HighLife (B36/S23)',           icon: 'i-tabler-star',             born: [3, 6],          survives: [2, 3],          category: 'Classic' },
+            { id: 'seeds',      name: 'Seeds (B2/S)',                 icon: 'i-tabler-plant',            born: [2],             survives: [],              category: 'Chaotic' },
+            { id: 'replicator', name: 'Replicator (B1357/S1357)',     icon: 'i-tabler-copy',             born: [1, 3, 5, 7],    survives: [1, 3, 5, 7],    category: 'Chaotic' },
+            { id: 'daynight',   name: 'Day & Night (B3678/S34678)',   icon: 'i-tabler-sun-moon',         born: [3, 6, 7, 8],    survives: [3, 4, 6, 7, 8], category: 'Exotic' },
+            { id: 'diamoeba',   name: 'Diamoeba (B35678/S5678)',      icon: 'i-tabler-diamond',          born: [3, 5, 6, 7, 8], survives: [5, 6, 7, 8],    category: 'Exotic' },
+            { id: 'morley',     name: 'Morley (B368/S245)',           icon: 'i-tabler-arrows-shuffle',   born: [3, 6, 8],       survives: [2, 4, 5],       category: 'Exotic' },
+            { id: 'anneal',     name: 'Anneal (B4678/S35678)',        icon: 'i-tabler-flame',            born: [4, 6, 7, 8],    survives: [3, 5, 6, 7, 8], category: 'Exotic' },
+        ]
+        // -------------------------------------------------------------------------------------------------------------
+        const isHistoryTheme = computed(() => themes[game.themeId]?.type === 'history')
 
-        watch(ctrlKey, (isPressed) => {
-            if (!isPressed) game.hoveredSide = null
-            else naiveCanvas.value!.handleSideHover(pointerX.value, pointerY.value)
+        const currentPresetId = computed(() => {
+            return rulePresets.find(preset =>
+                preset.born.length === game.BORN.length && preset.born.every((v, i) => v === game.BORN[i]) &&
+                preset.survives.length === game.SURVIVES.length && preset.survives.every((v, i) => v === game.SURVIVES[i])
+            )?.id || 'custom'
         })
-        watch(cursor, (value) => {
-            naiveCanvas.value!.overlayCanvas.style.cursor = value
+        const rulePresetOptions = computed(() => {
+            const options = rulePresets.map(p => ({ id: p.id, name: p.name, icon: p.icon, category: p.category }))
+            if (currentPresetId.value === 'custom') {
+                options.unshift({ id: 'custom', name: `Custom (B${game.BORN.join('')}/S${game.SURVIVES.join('')})`, icon: 'i-tabler-settings', category: 'Custom' })
+            }
+            return options
         })
-        watch(() => game.hoveredSide, (val) => {
-            if (val === null) naiveCanvas.value.overlayCanvas.style.cursor = ctrlKey.value ? "all-scroll" : "crosshair"
-            else if (val === 1 || val === 2) naiveCanvas.value.overlayCanvas.style.cursor = "row-resize"
-            else if (val === 3 || val === 4) naiveCanvas.value.overlayCanvas.style.cursor = "col-resize"
-            naiveCanvas.value!.drawOverlayGrid(game.cols, game.rows, game.size)
-        })
-
-        onBeforeRouteLeave(() => {
-            game.$reset()
-        })
+        // -------------------------------------------------------------------------------------------------------------
         onMounted(() => {
             useEventListener('resize', naiveCanvas.value.handleResize)
             useEventListener(naiveCanvas, ['mousemove'], (e) => {
@@ -251,7 +289,7 @@ export default defineComponent({
                 lastTime = currentTime - (elapsedTime % game.SPEED)
                 totalExecutionTime += executionTime.value
                 totalCycles++
-                console.log(`Execution Time : ${executionTime.value} ms`)
+                // console.log(`Execution Time : ${executionTime.value} ms`)
             }
 
             // timer.value = setTimeout(() => animate(startExecutionTime), game.SPEED)
@@ -297,29 +335,60 @@ export default defineComponent({
             averageExecutionTime.value = Math.floor(totalExecutionTime / totalCycles)
         }
         // -------------------------------------------------------------------------------------------------------------
+        function applyPreset(id: string) {
+            const preset = rulePresets.find(p => p.id === id)
+            if (!preset) return
+            game.BORN = [...preset.born]
+            game.SURVIVES = [...preset.survives]
+        }
+        function toggleBorn(value: number) {
+            if (game.BORN.includes(value)) game.BORN = game.BORN.filter(v => v !== value)
+            else game.BORN = [...game.BORN, value].sort((a, b) => a - b)
+        }
+        function toggleSurvives(value: number) {
+            if (game.SURVIVES.includes(value)) game.SURVIVES = game.SURVIVES.filter(v => v !== value)
+            else game.SURVIVES = [...game.SURVIVES, value].sort((a, b) => a - b)
+        }
+        // -------------------------------------------------------------------------------------------------------------
         function placeInitialPattern() {
-            // Acorn pattern
             const acorn: [number, number][] = [
                 [1, 0],
                 [3, 1],
                 [0, 2], [1, 2], [4, 2], [5, 2], [6, 2]
             ]
-
             // Place at grid center
             const cx = Math.floor(game.cols / 2) - 3
             const cy = Math.floor(game.rows / 2) - 1
             for (const [x, y] of acorn) {
                 naiveCanvas.value.setCell(cx + x, cy + y, 1)
             }
-
             naiveCanvas.value.drawCellsFromCellsArray()
         }
+        // -------------------------------------------------------------------------------------------------------------
+        watch(ctrlKey, (isPressed) => {
+            if (!isPressed) game.hoveredSide = null
+            else naiveCanvas.value!.handleSideHover(pointerX.value, pointerY.value)
+        })
+        watch(cursor, (value) => {
+            naiveCanvas.value!.overlayCanvas.style.cursor = value
+        })
+        watch(() => game.hoveredSide, (val) => {
+            if (val === null) naiveCanvas.value.overlayCanvas.style.cursor = ctrlKey.value ? "all-scroll" : "crosshair"
+            else if (val === 1 || val === 2) naiveCanvas.value.overlayCanvas.style.cursor = "row-resize"
+            else if (val === 3 || val === 4) naiveCanvas.value.overlayCanvas.style.cursor = "col-resize"
+            naiveCanvas.value!.drawOverlayGrid(game.cols, game.rows, game.size)
+        })
+
+        onBeforeRouteLeave(() => {
+            game.$reset()
+        })
         // -------------------------------------------------------------------------------------------------------------
         return {
             game, averageExecutionTime, executionTime, SPEED, sliderMin, sliderMax,
             naiveCanvas, mainContainer, isFullscreen, toggleFullscreen,
             pointerX, pointerY, sidebarLeftOpen, sidebarRightOpen, themes,
-            randomCells, clearCells, toggleIsRunning, startLoop, pause, getExecutionAverage
+            randomCells, clearCells, toggleIsRunning, startLoop, pause, getExecutionAverage,
+            currentPresetId, rulePresetOptions, applyPreset, toggleBorn, toggleSurvives, isHistoryTheme
         }
     }
 })

@@ -46,21 +46,27 @@ function generateColorRange(color1: string, color2: string, steps: number) {
 const themes = [
     {
         name: 'Mono',
-        type:  'simple',
+        type: 'simple',
+        icon: 'i-tabler-contrast',
+        category: 'Simple',
         BACKGROUND: '#000000',
         ALIVE: '#ffffff',
         DEAD: '#000000'
     },
     {
         name: 'Inverse',
-        type:  'simple',
+        type: 'simple',
+        icon: 'i-tabler-contrast-filled',
+        category: 'Simple',
         BACKGROUND: '#000000',
         ALIVE: '#000000',
         DEAD: '#ffffff'
     },
     {
-        name : 'Blues',
+        name: 'Blues',
         type: 'history',
+        icon: 'i-tabler-droplet-filled',
+        category: 'History',
         BACKGROUND: '#000000',
         ALIVE: '#00ffff',
         ALIVERAMP: '#ffffff',
@@ -70,6 +76,8 @@ const themes = [
     {
         name: 'Fire',
         type: 'history',
+        icon: 'i-tabler-flame',
+        category: 'History',
         BACKGROUND: '#000000',
         ALIVE: '#ff9000',
         ALIVERAMP: '#ffff00',
@@ -79,6 +87,8 @@ const themes = [
     {
         name: 'Poison',
         type: 'history',
+        icon: 'i-tabler-skull',
+        category: 'History',
         BACKGROUND: '#000000',
         ALIVE: '#00ffff',
         ALIVERAMP: '#ffffff',
@@ -88,6 +98,8 @@ const themes = [
     {
         name: 'Yellow',
         type: 'history',
+        icon: 'i-tabler-sun-filled',
+        category: 'History',
         BACKGROUND: '#002080',
         ALIVE: '#ffff00',
         ALIVERAMP: '#ffffff',

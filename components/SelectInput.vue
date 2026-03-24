@@ -2,7 +2,7 @@
     <div ref="container" class="relative inline-block w-full max-w-64">
         <button type="button" class="flex items-center gap-2 w-full select-none rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-1 text-left text-sm shadow-sm outline-none disabled:cursor-not-allowed disabled:opacity-60"
                 @click="toggle()" :aria-expanded="isOpen" aria-haspopup="listbox" :aria-controls="`listbox-${name}`" :disabled="disabled">
-                <span v-if="selectedOption?.icon" :class="`i-${selectedOption.icon}`"></span>
+                <span v-if="selectedOption?.icon" :class="selectedOption.icon"></span>
                 <span class="truncate" v-text="selectedOption ? selectedOption.name : placeholder"/>
                 <span class="ml-auto i-tabler-chevron-up transition-transform" :class="!isOpen && 'rotate-180'" />
         </button>
@@ -19,7 +19,7 @@
                             :data-index="option.id" :aria-selected="isSelected(option.id)" @click="select(option)"
                             class="cursor-pointer select-none px-3 py-2 flex items-center gap-2 hover:bg-slate-700"
                             :class="[isSelected(option.id) && 'font-medium bg-slate-600']">
-                            <span v-if="option.icon" :class="`i-${option.icon}`"></span>
+                            <span v-if="option.icon" :class="option.icon"></span>
                             <span class="truncate">{{ option.name }}</span>
                             <span v-if="isSelected(option.id)" class="ml-auto i-tabler-check" aria-hidden="true" />
                         </li>
