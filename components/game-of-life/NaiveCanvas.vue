@@ -324,7 +324,7 @@ export default defineComponent({
                     }
                 }
             }
-            ctx!.strokeStyle = '#707070'
+            ctx!.strokeStyle = '#252525'
             ctx!.stroke()
         }
         function drawOverlayGrid(cols: number, rows: number, size: number) {

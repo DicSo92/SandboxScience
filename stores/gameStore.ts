@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 export const useGameStore = defineStore('game', () => {
-    const size = ref<number>(16) // the size of every cell
+    const size = ref<number>(12) // the size of every cell
     const rows = ref<number>(256) // number of rows
     const cols = ref<number>(256) // number of columns
 
@@ -9,7 +9,7 @@ export const useGameStore = defineStore('game', () => {
     const hoveredSide = ref<number | null>(null)
 
     const SPEED = ref<number>(1) // the speed of the animation (ms)
-    const EDGEMODE = ref<number>(2) // dead, alive, mirror
+    const EDGEMODE = ref<number>(0) // dead, alive, mirror
     const BORN = shallowRef<number[]>([3]) // the number of neighbours for a dead cell to born
     const SURVIVES =  shallowRef<number[]>([2, 3]) // the number of neighbours for a living cell to survive
 
@@ -33,14 +33,14 @@ export const useGameStore = defineStore('game', () => {
     const multiStateTheme = ref({})
 
     function $reset() {
-        size.value = 16
+        size.value = 12
         rows.value = 256
         cols.value = 256
         isRunning.value = false
         wasRunning.value = false
         hoveredSide.value = null
         SPEED.value = 1
-        EDGEMODE.value = 2
+        EDGEMODE.value = 0
         BORN.value = [3]
         SURVIVES.value = [2, 3]
         sliderMin.value = 1000

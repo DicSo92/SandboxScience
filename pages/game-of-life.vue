@@ -215,6 +215,9 @@ export default defineComponent({
                     naiveCanvas.value.handleSideHover(pointerX.value, pointerY.value)
                 }
             })
+
+            placeInitialPattern()
+            startLoop()
         })
         // -------------------------------------------------------------------------------------------------------------
         const toggleIsRunning = () => game.isRunning ? pause() : startLoop()
@@ -292,6 +295,24 @@ export default defineComponent({
         }
         const getExecutionAverage = () => {
             averageExecutionTime.value = Math.floor(totalExecutionTime / totalCycles)
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        function placeInitialPattern() {
+            // Acorn pattern
+            const acorn: [number, number][] = [
+                [1, 0],
+                [3, 1],
+                [0, 2], [1, 2], [4, 2], [5, 2], [6, 2]
+            ]
+
+            // Place at grid center
+            const cx = Math.floor(game.cols / 2) - 3
+            const cy = Math.floor(game.rows / 2) - 1
+            for (const [x, y] of acorn) {
+                naiveCanvas.value.setCell(cx + x, cy + y, 1)
+            }
+
+            naiveCanvas.value.drawCellsFromCellsArray()
         }
         // -------------------------------------------------------------------------------------------------------------
         return {
