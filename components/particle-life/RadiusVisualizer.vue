@@ -202,7 +202,7 @@ const targetRenderMax = ref(256)
 const renderMax = ref(256)
 
 let animating = false
-let alive = true
+let animationFrameId: number | null = null
 let frozenPxPerUnit = 0 // Ensures scale stays stable while dragging
 // ---------------------------------------------------------------------------------------------------------------------
 // ---------------------------------------------------------------------------------------------------------------------
@@ -294,21 +294,21 @@ const niceStep = (max: number): number => {
     return 10 * mag
 }
 const tickRenderMax = () => {
-    if (!alive) return
     const diff = targetRenderMax.value - renderMax.value
     if (Math.abs(diff) < 0.3) {
         renderMax.value = targetRenderMax.value
         animating = false
+        cancelAnimationLoop()
         return
     }
     renderMax.value += diff * LERP_SPEED
-    requestAnimationFrame(tickRenderMax)
+    animationFrameId = requestAnimationFrame(tickRenderMax)
 }
 const setRenderMax = (newMax: number) => {
     targetRenderMax.value = newMax
     if (!animating) {
         animating = true
-        requestAnimationFrame(tickRenderMax)
+        animationFrameId = requestAnimationFrame(tickRenderMax)
     }
 }
 // ---------------------------------------------------------------------------------------------------------------------
@@ -398,13 +398,20 @@ const onUp = () => {
     setRenderMax(displayMax.value)
 }
 // ---------------------------------------------------------------------------------------------------------------------
+const cancelAnimationLoop = () => {
+    if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId)
+        animationFrameId = null
+    }
+}
+// ---------------------------------------------------------------------------------------------------------------------
 
 watch(displayMax, (value) => {
     if (!dragging.value) setRenderMax(value)
 }, { immediate: true })
 
 // ---------------------------------------------------------------------------------------------------------------------
-onUnmounted(() => { alive = false })
+onUnmounted(() => cancelAnimationLoop())
 // ---------------------------------------------------------------------------------------------------------------------
 </script>
 

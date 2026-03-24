@@ -10,15 +10,13 @@
                         <TooltipInfo v-if="tooltip" container="#mainContainer" :tooltip="tooltip" ml-1 />
                     </p>
                 </div>
-                <div :class="isOpen && 'rotate-180'" class="icon i-tabler-caret-up-filled" text-2xl></div>
+                <div :class="isOpen && 'rotate-180'" class="i-tabler-caret-up-filled transition-transform duration-300" text-2xl></div>
             </div>
         </div>
 
-        <transition name="collapse">
-            <div v-show="isOpen" class="content bg-slate-700/30" p-2 rounded-b-lg>
-                <slot></slot>
-            </div>
-        </transition>
+        <div v-if="isOpen" class="bg-slate-700/30" p-2 rounded-b-lg>
+            <slot></slot>
+        </div>
     </section>
 </template>
 
@@ -61,10 +59,5 @@ export default defineComponent({
 </script>
 
 <style scoped>
-.icon {
-    transition: transform 0.3s;
-}
-.content {
 
-}
 </style>
