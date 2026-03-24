@@ -1,5 +1,5 @@
 <template>
-    <section h-screen flex flex-col justify-center overflow-hidden relative>
+    <section h-screen flex flex-col justify-center overflow-hidden relative ref="mainContainer" id="mainContainer">
 <!--        <SidebarRight v-model="sidebarRightOpen">-->
 <!--            <template #controls>&lt;!&ndash; Some other controls &ndash;&gt;</template>-->
 <!--            <template #default>-->
@@ -11,62 +11,81 @@
             </template>
             <template #default>
                 <div h-full px-2 flex flex-col>
-                    <p>Settings</p>
-                    <hr>
-                    <div flex items-center justify-between>
-                        <SelectMenu label="Edge Mode :"
-                                    :options="[
-                                            { name: 'Mirror Edges', icon: 'i-carbon-compare', id: 2},
-                                            { name: 'Dead Edges', icon: 'i-carbon-compare', id: 0},
-                                            { name: 'Alive Edges', icon: 'i-carbon-compare', id: 1}]"
-                                    :selected="game.EDGEMODE"
-                                    @selected="(id) => game.EDGEMODE = id"
-                        />
-<!--                        <ToggleSwitch />-->
+                    <div flex justify-between items-end mb-2 px-1>
+                        <div flex items-center class="-mb-0.5">
+                            <div i-tabler-grid-dots text-2xl mr-2 class="text-emerald-400 -mt-0.5"></div>
+                            <h1 font-800 text-lg tracking-widest class="text-[#dff6f3] drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Game of Life</h1>
+                        </div>
                     </div>
-                    <SelectMenu label="Theme :"
-                                :options="themes.map((theme, index) => ({ name: theme.name, icon: 'i-carbon-compare', id: index }))"
-                                :selected="game.themeId"
-                                @selected="(id) => game.themeId = id"
-                    />
-<!--                    <RangeInputMinMax :min="100" :max="10000" :step="100" v-model:min-value="sliderMin" v-model:max-value="sliderMax"/>-->
+                    <hr border-slate-500>
+                    <div overflow-auto flex-1 flex flex-col gap-2 mt-2 pb-12 class="scrollableArea">
+                        <Collapse label="World Settings" icon="i-tabler-world-cog text-cyan-500" opened>
+                            <SelectInput name="edge-mode" v-model="game.EDGEMODE" :options="[
+                                { name: 'Mirror Edges', icon: 'tabler-arrows-right-left', id: 2},
+                                { name: 'Dead Edges', icon: 'tabler-border-none', id: 0},
+                                { name: 'Alive Edges', icon: 'tabler-border-all', id: 1}]">
+                            </SelectInput>
+                            <RangeInput input label="Speed (ms)" v-model="game.SPEED" tooltip="Delay in milliseconds between each generation." :min="1" :max="1000" :step="1" mt-2></RangeInput>
+                        </Collapse>
+                        <Collapse label="Theme" icon="i-tabler-palette text-amber-500" opened>
+                            <SelectInput name="theme" v-model="game.themeId" :options="themes.map((theme, index) => ({ name: theme.name, icon: 'tabler-paint', id: index }))"></SelectInput>
+                        </Collapse>
+                    </div>
+                    <div absolute bottom-2 right-0 z-100 class="-mr-px">
+                        <button rounded-l-lg border border-slate-600 flex items-center p-1 bg="slate-900/85 hover:slate-950/85" @click="sidebarLeftOpen = false">
+                            <span i-tabler-chevron-left text-2xl></span>
+                        </button>
+                    </div>
+                </div>
+            </template>
+            <template #bottom-actions>
+                <button type="button" name="Toggle Grid" aria-label="Toggle Grid" title="Toggle Grid"
+                        btn rounded-full flex items-center justify-center p-2 pointer-events-auto
+                        backdrop-blur-sm bg="slate-800/80 hover:slate-700/80"
+                        @click="naiveCanvas.toggleGrid">
+                    <span :class="game.grid ? 'i-tabler-grid-4x4' : 'i-tabler-square'"></span>
+                </button>
+                <button type="button" name="Clear" aria-label="Clear" title="Clear all cells"
+                        btn rounded-full flex items-center justify-center p-2 pointer-events-auto
+                        backdrop-blur-sm bg="rose-800/80 hover:rose-700/80"
+                        @click="clearCells">
+                    <span i-tabler-trash></span>
+                </button>
+                <button type="button" name="Randomize" aria-label="Randomize" title="Randomize 10% of dead cells"
+                        btn rounded-full flex items-center justify-center p-2 pointer-events-auto
+                        class="backdrop-blur-sm bg-[#094F5D]/90 hover:bg-[#0B5F6F]/90"
+                        @click="randomCells(10)">
+                    <span i-game-icons-perspective-dice-six-faces-random text-2xl></span>
+                </button>
+                <div class="flex items-center pointer-events-auto rounded-full py-1.5 px-3 backdrop-blur-sm bg-slate-800/80 min-w-44">
+                    <span i-tabler-clock-play text-sm class="text-slate-300 shrink-0 mr-1.5"></span>
+                    <RangeInput v-if="SPEED" :min="1" :max="1000" :step="1" v-model="SPEED" flex-1 />
+                    <span class="text-xs font-mono text-slate-400 min-w-8 text-right shrink-0 -ml-1">{{ game.SPEED }}ms</span>
                 </div>
             </template>
         </SidebarLeft>
 
         <GameOfLifeNaiveCanvas ref="naiveCanvas" />
 
-        <div flex flex-col absolute bottom-2 right-2 text-right z-3>
-            <div>Population: {{ game.population }}</div>
-            <div>Generation: {{ game.generation }}</div>
-            <div>Execution Time: {{ Math.round(executionTime) }} ms ({{ averageExecutionTime }}ms)</div>
-            <div class="flex">
-                <div mr-2>Rows: {{ game.rows }}</div>
-                <div mx-2>Cols: {{ game.cols }}</div>
-                <div mx-2>Cell Size: {{ game.size }}</div>
+        <div absolute top-0 right-0 flex flex-col items-end text-right pointer-events-none z-3>
+            <div flex items-center text-start text-xs pl-3.5 pr-2 py-0.5 bg-slate-800 rounded-bl-xl style="opacity: 75%" gap-3>
+                <div flex>Pop: <div ml-1 min-w-10 font-mono>{{ game.population }}</div></div>
+                <div flex>Gen: <div ml-1 min-w-10 font-mono>{{ game.generation }}</div></div>
+                <div flex>Time: <div ml-1 min-w-12 font-mono>{{ Math.round(executionTime) }}ms</div></div>
+            </div>
+            <div flex items-center text-start text-xs pl-3 pr-2 py-0.5 rounded-bl-xl mt-px gap-3.5 class="bg-slate-800/60" style="opacity: 65%">
+                <div flex>{{ game.cols }}×{{ game.rows }}</div>
+                <div flex>Cell: <div ml-1 font-mono>{{ game.size }}px</div></div>
             </div>
         </div>
 
-        <div absolute w-full text-center transform top-2 class="-translate-x-1/2 left-1/2">x: {{ pointerX }} - y: {{ pointerY }}</div>
+        <GameOfLifeControls :naiveCanvas="naiveCanvas"
+                            :isFullscreen="isFullscreen"
+                            @toggleIsRunning="toggleIsRunning"
+                            @toggleFullscreen="toggleFullscreen">
+        </GameOfLifeControls>
 
-        <GameOfLifeControls class="absolute bottom-0 mb-2 z-4"
-                  :naiveCanvas="naiveCanvas"
-                  @getExecutionAverage="getExecutionAverage"
-                  @randomCells="randomCells"
-                  @clearCells="clearCells"
-                  @toggleIsRunning="toggleIsRunning"
-        />
-
-        <div class="absolute bottom-0 left-0">
-            <div class="ml-2 mb-1">
-                <div>Speed: {{ game.SPEED }}ms/gen</div>
-            </div>
-
-            <div class="p-2 flex items-center bg-gray-600 border-t-1 border-r-1 border-gray rounded-tr-2xl min-w-48">
-                <div class="block text-sm font-medium leading-6 mr-1">Speed</div>
-                <RangeInput v-if="SPEED" :min="1" :max="1000" :step="1" v-model="SPEED" flex-1 />
-            </div>
-        </div>
+        <SocialLinks />
     </section>
 </template>
 
@@ -91,6 +110,8 @@ export default defineComponent({
 
         const game = useGameStore()
         const naiveCanvas = ref( )
+        const mainContainer = ref<HTMLElement | null>(null)
+        const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(mainContainer)
 
         const pointerX = ref(0)
         const pointerY = ref(0)
@@ -275,7 +296,8 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         return {
             game, averageExecutionTime, executionTime, SPEED, sliderMin, sliderMax,
-            naiveCanvas, pointerX, pointerY, sidebarLeftOpen, sidebarRightOpen, themes,
+            naiveCanvas, mainContainer, isFullscreen, toggleFullscreen,
+            pointerX, pointerY, sidebarLeftOpen, sidebarRightOpen, themes,
             randomCells, clearCells, toggleIsRunning, startLoop, pause, getExecutionAverage
         }
     }
@@ -284,7 +306,5 @@ export default defineComponent({
 </script>
 
 <style scoped>
-canvas {
-    background-color: midnightblue;
-}
+
 </style>
