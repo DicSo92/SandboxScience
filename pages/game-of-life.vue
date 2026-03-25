@@ -77,7 +77,29 @@
                             <ToggleSwitch label="Show Grid" :modelValue="game.grid" @update:modelValue="naiveCanvas.toggleGrid()" mt-2 />
                         </Collapse>
                         <Collapse label="Theme" icon="i-tabler-palette text-amber-500" opened>
-                            <SelectInput name="theme" v-model="game.themeId" :options="themes.map((t, i) => ({ id: i, name: t.name, icon: t.icon, category: t.category }))"></SelectInput>
+                            <div class="flex gap-2">
+                                <SelectInput name="theme" v-model="game.themeId" :options="themes.map((t, i) => ({ id: i, name: t.name, icon: t.icon, category: t.category }))" max-w-full />
+                                <button @click="randomizeTheme" type="button" title="Random theme" aria-label="Random theme" btn px-3 rounded-full flex justify-center items-center bg="cyan-900/80 hover:cyan-900/50">
+                                    <span i-game-icons-perspective-dice-six-faces-random></span>
+                                </button>
+                            </div>
+                            <div class="mt-2">
+                                <div flex h-4 rounded-lg overflow-hidden border border-slate-700>
+                                    <div flex-1 :style="{ background: isHistoryTheme
+                                        ? `linear-gradient(to right, ${themes[game.themeId].DEADRAMP}, ${themes[game.themeId].DEAD})`
+                                        : themes[game.themeId].DEAD }">
+                                    </div>
+                                    <div w-4 border-x border-slate-700 :style="{ background: themes[game.themeId].BACKGROUND }"></div>
+                                    <div flex-1 :style="{ background: isHistoryTheme
+                                        ? `linear-gradient(to right, ${themes[game.themeId].ALIVE}, ${themes[game.themeId].ALIVERAMP})`
+                                        : themes[game.themeId].ALIVE }">
+                                    </div>
+                                </div>
+                                <div flex justify-between text-xs text-slate-500 mt-0.5 px-0.5>
+                                    <span>Dead</span>
+                                    <span>Alive</span>
+                                </div>
+                            </div>
                             <template v-if="isHistoryTheme">
                                 <RangeInput input label="Alive Steps" tooltip="Number of color gradient steps for alive cells aging." :min="2" :max="128" :step="1" v-model="game.aliveSteps" mt-2 />
                                 <RangeInput input label="Dead Steps" tooltip="Number of color gradient steps for dead cells fading." :min="2" :max="128" :step="1" v-model="game.deadSteps" mt-2 />
@@ -145,6 +167,7 @@
 <script lang="ts">
 import { defineComponent } from 'vue'
 import { themes } from "~/helpers/utils/themes";
+// Icons: i-tabler-contrast | i-tabler-contrast-filled | i-tabler-droplet-filled | i-tabler-flame | i-tabler-skull | i-tabler-wand
 
 export default defineComponent({
     setup() {
@@ -400,6 +423,10 @@ export default defineComponent({
             game.BORN = prevRule.born
             game.SURVIVES = prevRule.survives
         }
+        function randomizeTheme() {
+            const offset = 1 + Math.floor(Math.random() * (themes.length - 1))
+            game.themeId = (game.themeId + offset) % themes.length
+        }
         // -------------------------------------------------------------------------------------------------------------
         function onColsChange(value: number) {
             naiveCanvas.value.updateCols(value)
@@ -448,7 +475,7 @@ export default defineComponent({
             naiveCanvas, mainContainer, isFullscreen, toggleFullscreen,
             pointerX, pointerY, sidebarLeftOpen, sidebarRightOpen, themes,
             randomCells, clearCells, toggleIsRunning, startLoop, pause, getExecutionAverage,
-            currentPresetId, rulePresetOptions, applyPreset, toggleBorn, toggleSurvives, randomizeRules, undoRules, rulesHistory, isHistoryTheme,
+            currentPresetId, rulePresetOptions, applyPreset, toggleBorn, toggleSurvives, randomizeRules, undoRules, rulesHistory, isHistoryTheme, randomizeTheme,
             onColsChange, onRowsChange,
         }
     }

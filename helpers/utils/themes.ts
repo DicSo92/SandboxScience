@@ -58,9 +58,9 @@ const themes = [
         type: 'simple',
         icon: 'i-tabler-contrast-filled',
         category: 'Simple',
-        BACKGROUND: '#000000',
+        BACKGROUND: '#dddddd',
         ALIVE: '#000000',
-        DEAD: '#ffffff'
+        DEAD: '#dddddd'
     },
     {
         name: 'Blues',
@@ -96,9 +96,9 @@ const themes = [
         DEADRAMP: '#001800'
     },
     {
-        name: 'Yellow',
+        name: 'Arcane',
         type: 'history',
-        icon: 'i-tabler-sun-filled',
+        icon: 'i-tabler-wand',
         category: 'History',
         BACKGROUND: '#002080',
         ALIVE: '#ffff00',
