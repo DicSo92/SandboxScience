@@ -32,7 +32,7 @@
                                 </div>
                             </div>
 
-                            <p class="text-2sm text-slate-300 mt-3 mb-1.5">
+                            <p class="text-2sm text-slate-300 mt-2 mb-1">
                                 Born - <span font-mono text-white>B{{ game.BORN.join('') }}</span>
                                 <TooltipInfo ml-1 container="#mainContainer" tooltip="A dead cell becomes alive if it has exactly this many alive neighbors." />
                             </p>
@@ -43,7 +43,7 @@
                                 </button>
                             </div>
 
-                            <p class="text-2sm text-slate-300 mt-3 mb-1.5">
+                            <p class="text-2sm text-slate-300 mt-2 mb-1">
                                 Survives - <span font-mono text-white>S{{ game.SURVIVES.join('') }}</span>
                                 <TooltipInfo ml-1 container="#mainContainer" tooltip="A living cell stays alive if it has exactly this many alive neighbors." />
                             </p>
@@ -55,11 +55,12 @@
                             </div>
                         </Collapse>
                         <Collapse label="World Settings" icon="i-tabler-world-cog text-cyan-500" opened>
-                            <SelectInput name="edge-mode" v-model="game.EDGEMODE" :options="[
-                                { name: 'Mirror Edges', icon: 'i-tabler-arrows-right-left', id: 2, category: 'Edge Mode'},
-                                { name: 'Dead Edges', icon: 'i-tabler-border-none', id: 0, category: 'Edge Mode'},
-                                { name: 'Alive Edges', icon: 'i-tabler-border-all', id: 1, category: 'Edge Mode'}]">
-                            </SelectInput>
+                            <hr border-gray-500 mt-1 mb-1.5>
+                            <p underline text-gray-300 mb-2>Edge Behavior :</p>
+                            <OptionBar name="edge-mode" v-model="game.EDGEMODE" :options="[
+                                { id: 0, label: 'Dead' },
+                                { id: 1, label: 'Alive' },
+                                { id: 2, label: 'Mirror' }]" />
                             <ToggleSwitch label="Show Grid" :modelValue="game.grid" @update:modelValue="naiveCanvas.toggleGrid()" mt-2 />
                             <RangeInput input label="Speed (ms)" v-model="game.SPEED" tooltip="Delay in milliseconds between each generation." :min="1" :max="1000" :step="1" mt-2></RangeInput>
                         </Collapse>
