@@ -207,8 +207,8 @@ export default defineComponent({
 
         const keys = useMagicKeys()
         const ctrlKey = keys['Ctrl']
-        const wheelClick = ref(false)
-        const cursor = computed(() => ctrlKey.value ? 'all-scroll' : wheelClick.value ? 'grabbing' : 'crosshair')
+        const rightClick = ref(false)
+        const cursor = computed(() => ctrlKey.value ? 'all-scroll' : rightClick.value ? 'grabbing' : 'crosshair')
         
         const rulePresets = [
             { id: 'life',       name: "Conway's Life (B3/S23)",       icon: 'i-tabler-heart',            born: [3],             survives: [2, 3],          category: 'Classic' },
@@ -261,7 +261,7 @@ export default defineComponent({
                         if (!game.wasRunning) game.wasRunning = game.isRunning // store the running state
                         game.isRunning = false // pause the game
                         naiveCanvas.value.toggleCell(pointerX.value, pointerY.value, 'draw') // add cell at cursor position
-                    } else if (e.buttons === 4) { // if wheel button is pressed
+                    } else if (e.buttons === 2) { // if right button is pressed
                         naiveCanvas.value.handleMove(e)
                     }
                 }
@@ -290,13 +290,13 @@ export default defineComponent({
                 }
             })
             useEventListener(naiveCanvas, 'mousedown', (e) => {
-                if (e.button === 1) { // if wheel button is pressed
-                    wheelClick.value = true
+                if (e.button === 2) { // if right button is pressed
+                    rightClick.value = true
                 }
             })
             useEventListener(naiveCanvas, 'mouseup', (e) => {
-                if (e.button === 1) { // if wheel button is pressed
-                    wheelClick.value = false
+                if (e.button === 2) { // if right button is released
+                    rightClick.value = false
                 }
                 if (e.button === 0 && game.hoveredSide && isDragging.value) { // if primary button is released
                     isDragging.value = false
