@@ -19,27 +19,39 @@
                     </div>
                     <hr border-slate-500>
                     <div overflow-auto flex-1 flex flex-col gap-2 mt-2 pb-12 class="scrollableArea">
-                        <Collapse label="Rules" icon="i-tabler-dna text-rose-400" opened>
-                            <SelectInput name="rule-preset" :modelValue="currentPresetId" @change="applyPreset" :options="rulePresetOptions" />
+                        <Collapse label="Rules" icon="i-tabler-dna text-rose-400" opened tooltip="Configure the birth and survival rules.">
+                            <div class="flex gap-2">
+                                <SelectInput name="rule-preset" :modelValue="currentPresetId" @change="applyPreset" :options="rulePresetOptions" />
+                                <div grid grid-cols-2 gap-1 class="w-4/12">
+                                    <button @click="undoRules" type="button" title="Undo rules" aria-label="Undo rules" :disabled="!rulesHistory.length" btn px-3 rounded-full flex justify-center items-center bg="slate-800/80 hover:slate-800/50">
+                                        <span i-tabler-arrow-back-up></span>
+                                    </button>
+                                    <button @click="randomizeRules" type="button" title="Randomize rules" aria-label="Randomize rules" btn px-3 rounded-full flex justify-center items-center bg="cyan-900/80 hover:cyan-900/50">
+                                        <span i-game-icons-perspective-dice-six-faces-random></span>
+                                    </button>
+                                </div>
+                            </div>
+
                             <p class="text-2sm text-slate-300 mt-3 mb-1.5">
                                 Born - <span font-mono text-white>B{{ game.BORN.join('') }}</span>
-                                <TooltipInfo container="#mainContainer" tooltip="A dead cell becomes alive if it has exactly this many alive neighbors." />
+                                <TooltipInfo ml-1 container="#mainContainer" tooltip="A dead cell becomes alive if it has exactly this many alive neighbors." />
                             </p>
-                            <div class="flex flex-wrap gap-1">
-                                <ToggleChip v-for="n in 9" :key="'born-'+(n-1)"
-                                    :label="String(n-1)"
-                                    :modelValue="game.BORN.includes(n-1)"
-                                    @update:modelValue="toggleBorn(n-1)" />
+                            <div class="grid grid-cols-9 gap-1">
+                                <button v-for="n in 9" :key="'born-'+(n-1)" type="button" @click="toggleBorn(n-1)" class="py-1.5 rounded-lg text-xs font-mono font-medium border transition-colors"
+                                    :class="game.BORN.includes(n-1) ? 'border-sky-600 bg-sky-600/20 text-sky-100' : 'border-slate-600 bg-slate-800/80 text-slate-300 hover:bg-slate-900/50'">
+                                    {{ n-1 }}
+                                </button>
                             </div>
+
                             <p class="text-2sm text-slate-300 mt-3 mb-1.5">
                                 Survives - <span font-mono text-white>S{{ game.SURVIVES.join('') }}</span>
-                                <TooltipInfo container="#mainContainer" tooltip="A living cell stays alive if it has exactly this many alive neighbors." />
+                                <TooltipInfo ml-1 container="#mainContainer" tooltip="A living cell stays alive if it has exactly this many alive neighbors." />
                             </p>
-                            <div class="flex flex-wrap gap-1">
-                                <ToggleChip v-for="n in 9" :key="'survives-'+(n-1)"
-                                    :label="String(n-1)"
-                                    :modelValue="game.SURVIVES.includes(n-1)"
-                                    @update:modelValue="toggleSurvives(n-1)" />
+                            <div class="grid grid-cols-9 gap-1">
+                                <button v-for="n in 9" :key="'survives-'+(n-1)" type="button" @click="toggleSurvives(n-1)" class="py-1.5 rounded-lg text-xs font-mono font-medium border transition-colors"
+                                    :class="game.SURVIVES.includes(n-1) ? 'border-sky-600 bg-sky-600/20 text-sky-100' : 'border-slate-600 bg-slate-800/80 text-slate-300 hover:bg-slate-900/50'">
+                                    {{ n-1 }}
+                                </button>
                             </div>
                         </Collapse>
                         <Collapse label="World Settings" icon="i-tabler-world-cog text-cyan-500" opened>
@@ -144,6 +156,8 @@ export default defineComponent({
         const pointerX = ref(0)
         const pointerY = ref(0)
         const isDragging = ref(false)
+
+        const rulesHistory = ref<{ born: number[], survives: number[] }[]>([])
 
         const averageExecutionTime = ref(0)
         const executionTime = ref<number>(0) // cycle execution time
@@ -338,16 +352,40 @@ export default defineComponent({
         function applyPreset(id: string) {
             const preset = rulePresets.find(p => p.id === id)
             if (!preset) return
+            saveRulesToHistory()
             game.BORN = [...preset.born]
             game.SURVIVES = [...preset.survives]
         }
         function toggleBorn(value: number) {
+            saveRulesToHistory()
             if (game.BORN.includes(value)) game.BORN = game.BORN.filter(v => v !== value)
             else game.BORN = [...game.BORN, value].sort((a, b) => a - b)
         }
         function toggleSurvives(value: number) {
+            saveRulesToHistory()
             if (game.SURVIVES.includes(value)) game.SURVIVES = game.SURVIVES.filter(v => v !== value)
             else game.SURVIVES = [...game.SURVIVES, value].sort((a, b) => a - b)
+        }
+        function randomizeRules() {
+            saveRulesToHistory()
+            const newBorn: number[] = []
+            const newSurvives: number[] = []
+            for (let i = 0; i < 9; i++) {
+                if (Math.random() < 0.3) newBorn.push(i)
+                if (Math.random() < 0.3) newSurvives.push(i)
+            }
+            game.BORN = newBorn
+            game.SURVIVES = newSurvives
+        }
+        function saveRulesToHistory() {
+            rulesHistory.value.push({ born: [...game.BORN], survives: [...game.SURVIVES] })
+            if (rulesHistory.value.length > 50) rulesHistory.value.shift()
+        }
+        function undoRules() {
+            const prevRule = rulesHistory.value.pop()
+            if (!prevRule) return
+            game.BORN = prevRule.born
+            game.SURVIVES = prevRule.survives
         }
         // -------------------------------------------------------------------------------------------------------------
         function placeInitialPattern() {
@@ -388,7 +426,7 @@ export default defineComponent({
             naiveCanvas, mainContainer, isFullscreen, toggleFullscreen,
             pointerX, pointerY, sidebarLeftOpen, sidebarRightOpen, themes,
             randomCells, clearCells, toggleIsRunning, startLoop, pause, getExecutionAverage,
-            currentPresetId, rulePresetOptions, applyPreset, toggleBorn, toggleSurvives, isHistoryTheme
+                currentPresetId, rulePresetOptions, applyPreset, toggleBorn, toggleSurvives, randomizeRules, undoRules, rulesHistory, isHistoryTheme
         }
     }
 })
