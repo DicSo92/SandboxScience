@@ -118,7 +118,7 @@
                         btn rounded-full flex items-center justify-center p-2 pointer-events-auto
                         backdrop-blur-sm bg="slate-800/80 hover:slate-700/80"
                         @click="naiveCanvas.toggleGrid">
-                    <span :class="game.grid ? 'i-tabler-grid-4x4' : 'i-tabler-square'"></span>
+                    <span :class="game.grid ? 'i-tabler-border-all' : 'i-tabler-border-none'"></span>
                 </button>
                 <button type="button" name="Clear" aria-label="Clear" title="Clear all cells"
                         btn rounded-full flex items-center justify-center p-2 pointer-events-auto
