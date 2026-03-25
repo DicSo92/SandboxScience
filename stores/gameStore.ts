@@ -14,6 +14,7 @@ export const useGameStore = defineStore('game', () => {
     const SURVIVES =  shallowRef<number[]>([2, 3]) // the number of neighbours for a living cell to survive
 
     const grid = ref<boolean>(true)
+    const linkProportions = ref<boolean>(true)
     const themeId = ref<number>(0) // the theme id
     const aliveSteps = ref<number>(48)
     const deadSteps = ref<number>(48)
@@ -52,7 +53,7 @@ export const useGameStore = defineStore('game', () => {
         size, rows, cols,
         isRunning, wasRunning, hoveredSide,
         SPEED, EDGEMODE, BORN, SURVIVES,
-        grid, themeId, aliveSteps, deadSteps,
+        grid, themeId, linkProportions, aliveSteps, deadSteps,
         population, generation, sidebarLeftOpen, sidebarRightOpen,
         maxNeighbours, $reset,
         sliderMin, sliderMax,

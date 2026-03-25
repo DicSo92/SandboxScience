@@ -450,10 +450,26 @@ export default defineComponent({
             }
         }
         // -------------------------------------------------------------------------------------------------------------
+        function updateCols(value: number) {
+            const diff = Math.max(1, Math.round(value)) - game.cols
+            const halfLeft = Math.floor(diff / 2)
+            const halfRight = diff - halfLeft
+            if (halfLeft !== 0) expandGrid('left', halfLeft)
+            if (halfRight !== 0) expandGrid('right', halfRight)
+        }
+        function updateRows(value: number) {
+            const diff = Math.max(1, Math.round(value)) - game.rows
+            const halfTop = Math.floor(diff / 2)
+            const halfBottom = diff - halfTop
+            if (halfTop !== 0) expandGrid('top', halfTop)
+            if (halfBottom !== 0) expandGrid('bottom', halfBottom)
+        }
+        // -------------------------------------------------------------------------------------------------------------
         return { canvas, ctx, prevChangedCell, overlayCanvas,
             handleSideHover, handleZoom, handleResize, handleGridResize, handleMove,
             drawOverlayGrid, expandGrid, toggleGrid, toggleCell, setCell,
-            newCycle, drawCellsFromCellsArray, getCellsArray
+            newCycle, drawCellsFromCellsArray, getCellsArray,
+            updateCols, updateRows
         }
     }
 })

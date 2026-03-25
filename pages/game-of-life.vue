@@ -37,7 +37,7 @@
                                 <TooltipInfo ml-1 container="#mainContainer" tooltip="A dead cell becomes alive if it has exactly this many alive neighbors." />
                             </p>
                             <div class="grid grid-cols-9 gap-1">
-                                <button v-for="n in 9" :key="'born-'+(n-1)" type="button" @click="toggleBorn(n-1)" class="py-1.5 rounded-lg text-xs font-mono font-medium border transition-colors"
+                                <button v-for="n in 9" :key="'born-'+(n-1)" type="button" @click="toggleBorn(n-1)" class="py-1.5 rounded-lg text-xs font-mono font-medium border"
                                     :class="game.BORN.includes(n-1) ? 'border-sky-600 bg-sky-600/20 text-sky-100' : 'border-slate-600 bg-slate-800/80 text-slate-300 hover:bg-slate-900/50'">
                                     {{ n-1 }}
                                 </button>
@@ -48,21 +48,33 @@
                                 <TooltipInfo ml-1 container="#mainContainer" tooltip="A living cell stays alive if it has exactly this many alive neighbors." />
                             </p>
                             <div class="grid grid-cols-9 gap-1">
-                                <button v-for="n in 9" :key="'survives-'+(n-1)" type="button" @click="toggleSurvives(n-1)" class="py-1.5 rounded-lg text-xs font-mono font-medium border transition-colors"
+                                <button v-for="n in 9" :key="'survives-'+(n-1)" type="button" @click="toggleSurvives(n-1)" class="py-1.5 rounded-lg text-xs font-mono font-medium border"
                                     :class="game.SURVIVES.includes(n-1) ? 'border-sky-600 bg-sky-600/20 text-sky-100' : 'border-slate-600 bg-slate-800/80 text-slate-300 hover:bg-slate-900/50'">
                                     {{ n-1 }}
                                 </button>
                             </div>
                         </Collapse>
                         <Collapse label="World Settings" icon="i-tabler-world-cog text-cyan-500" opened>
+                            <div flex items-center>
+                                <p class="w-2/3 text-2sm">
+                                    World Size
+                                    <TooltipInfo ml-1 container="#mainContainer" tooltip="Number of columns and rows in the grid." />
+                                </p>
+                                <Input label="x" :modelValue="game.cols" @change="onColsChange" mr-2 />
+                                <Input label="y" :modelValue="game.rows" @change="onRowsChange" />
+                                <button type="button" btn rounded-full p-1.5 mx-1 flex items-center bg="slate-950/90 hover:slate-950/50" @click="game.linkProportions = !game.linkProportions">
+                                    <span :class="game.linkProportions ? 'i-tabler-link' : 'i-tabler-unlink'" text-sm></span>
+                                </button>
+                            </div>
+                            <RangeInput input label="Speed (ms)" v-model="game.SPEED" tooltip="Delay in milliseconds between each generation." :min="1" :max="1000" :step="1" mt-1.5></RangeInput>
                             <hr border-gray-500 mt-1 mb-1.5>
                             <p underline text-gray-300 mb-2>Edge Behavior :</p>
                             <OptionBar name="edge-mode" v-model="game.EDGEMODE" :options="[
                                 { id: 0, label: 'Dead' },
                                 { id: 1, label: 'Alive' },
-                                { id: 2, label: 'Mirror' }]" />
+                                { id: 2, label: 'Mirror' }]">
+                            </OptionBar>
                             <ToggleSwitch label="Show Grid" :modelValue="game.grid" @update:modelValue="naiveCanvas.toggleGrid()" mt-2 />
-                            <RangeInput input label="Speed (ms)" v-model="game.SPEED" tooltip="Delay in milliseconds between each generation." :min="1" :max="1000" :step="1" mt-2></RangeInput>
                         </Collapse>
                         <Collapse label="Theme" icon="i-tabler-palette text-amber-500" opened>
                             <SelectInput name="theme" v-model="game.themeId" :options="themes.map((t, i) => ({ id: i, name: t.name, icon: t.icon, category: t.category }))"></SelectInput>
@@ -389,6 +401,15 @@ export default defineComponent({
             game.SURVIVES = prevRule.survives
         }
         // -------------------------------------------------------------------------------------------------------------
+        function onColsChange(value: number) {
+            naiveCanvas.value.updateCols(value)
+            if (game.linkProportions) naiveCanvas.value.updateRows(value)
+        }
+        function onRowsChange(value: number) {
+            naiveCanvas.value.updateRows(value)
+            if (game.linkProportions) naiveCanvas.value.updateCols(value)
+        }
+        // -------------------------------------------------------------------------------------------------------------
         function placeInitialPattern() {
             const acorn: [number, number][] = [
                 [1, 0],
@@ -427,7 +448,8 @@ export default defineComponent({
             naiveCanvas, mainContainer, isFullscreen, toggleFullscreen,
             pointerX, pointerY, sidebarLeftOpen, sidebarRightOpen, themes,
             randomCells, clearCells, toggleIsRunning, startLoop, pause, getExecutionAverage,
-                currentPresetId, rulePresetOptions, applyPreset, toggleBorn, toggleSurvives, randomizeRules, undoRules, rulesHistory, isHistoryTheme
+            currentPresetId, rulePresetOptions, applyPreset, toggleBorn, toggleSurvives, randomizeRules, undoRules, rulesHistory, isHistoryTheme,
+            onColsChange, onRowsChange,
         }
     }
 })
