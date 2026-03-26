@@ -62,9 +62,13 @@
                                     <SelectButton :id="1" label="Circle" v-model="particleLife.wallShape" :disabled="particleLife.isWallWrap" />
                                 </div>
                             </div>
-                            <div mb-2>
-                                <WallStateSelection :store="particleLife" />
-                            </div>
+
+                            <OptionBar name="wallStateCPU" v-model="particleLife.wallState" mb-2 :options="[
+                                { id: 'none', label: 'None' },
+                                { id: 'repel', label: 'Repel' },
+                                { id: 'wrap', label: 'Wrap' }]">
+                            </OptionBar>
+
                             <div flex mb-1>
                                 <SelectButton :id="1" label="Screen" v-model="particleLife.screenMultiplierForGridSize" mr-1.5 />
                                 <SelectButton :id="1.5" label="x1.5" v-model="particleLife.screenMultiplierForGridSize" mr-1.5 />
@@ -256,7 +260,6 @@ import MatrixSettings from "~/components/particle-life/MatrixSettings.vue";
 import RulesMatrix from "~/components/particle-life/RulesMatrix.vue";
 import Memory from "~/components/particle-life/Memory.vue";
 import BrushSettings from "~/components/particle-life/BrushSettings.vue";
-import WallStateSelection from "~/components/particle-life/WallStateSelection.vue";
 import SidebarLeft from "~/components/SidebarLeft.vue";
 import PresetPanel from "~/components/particle-life/PresetPanel.vue";
 import SaveModal from "~/components/particle-life/SaveModal.vue";
@@ -264,7 +267,7 @@ import { RULES_OPTIONS, generateRules } from '~/helpers/utils/rulesGenerator';
 import { PALETTE_OPTIONS, generateHSLColors } from "~/helpers/utils/colorsGenerator";
 
 export default defineComponent({
-    components: { SaveModal, PresetPanel, MatrixSettings, RulesMatrix, Memory, BrushSettings, WallStateSelection, SidebarLeft },
+    components: { SaveModal, PresetPanel, MatrixSettings, RulesMatrix, Memory, BrushSettings, SidebarLeft },
     setup() {
         const particleLife = useParticleLifeStore()
         const rulesOptions = RULES_OPTIONS

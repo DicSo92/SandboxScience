@@ -62,7 +62,11 @@
                             <hr border-gray-500 mt-1 mb-2>
                             <p underline text-gray-300 class="-mt-0.5" mb-2>Boundary Settings :</p>
 
-                            <WallStateSelection :store="particleLife" mb-2 />
+                            <OptionBar name="wallStateGpu" v-model="particleLife.wallState" mb-2 :options="[
+                                { id: 'none', label: 'None' },
+                                { id: 'repel', label: 'Repel' },
+                                { id: 'wrap', label: 'Wrap' }]">
+                            </OptionBar>
 
                             <div flex justify-around mb-1>
                                 <div class="w-2/3 text-2sm mt-1">
@@ -314,7 +318,6 @@
 
 <script lang="ts">
 import { defineComponent, onMounted, ref } from 'vue';
-import WallStateSelection from "~/components/particle-life/WallStateSelection.vue";
 import WrapModeSelection from "~/components/particle-life/WrapModeSelection.vue";
 import MatrixSettings from "~/components/particle-life/MatrixSettings.vue";
 import BrushSettings from "~/components/particle-life/BrushSettings.vue";
@@ -357,7 +360,7 @@ import trackerCameraUpdateShaderCode from 'assets/particle-life-gpu/shaders/comp
 
 export default defineComponent({
     name: 'ParticleLifeGpu',
-    components: { PresetPanel, SaveModal, BrushSettings, MatrixSettings, WallStateSelection, WrapModeSelection, TrackerOverlay, TrackerToggle, RadiusVisualizer },
+    components: { PresetPanel, SaveModal, BrushSettings, MatrixSettings, WrapModeSelection, TrackerOverlay, TrackerToggle, RadiusVisualizer },
     setup() {
         // Define refs and variables
         const mainContainer = ref<HTMLElement | null>(null)
