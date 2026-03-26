@@ -167,7 +167,10 @@
 <script lang="ts">
 import { defineComponent } from 'vue'
 import { themes } from "~/helpers/utils/themes";
-// Icons: i-tabler-contrast | i-tabler-contrast-filled | i-tabler-droplet-filled | i-tabler-flame | i-tabler-skull | i-tabler-wand
+// Themes Icons:
+// i-tabler-contrast | i-tabler-contrast-filled | i-tabler-droplet-filled | i-tabler-flame | i-tabler-skull | i-tabler-wand
+// i-tabler-binary-tree | i-tabler-ruler-2 | i-tabler-lamp | i-tabler-sunset-2 | i-tabler-wave-sine | i-tabler-tree
+// i-tabler-rosette | i-tabler-snowflake | i-tabler-diamond | i-tabler-bolt | i-tabler-mountain | i-tabler-moon-stars | i-tabler-seeding
 
 export default defineComponent({
     setup() {
