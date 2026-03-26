@@ -204,6 +204,7 @@ export default defineComponent({
         let totalCycles: number = 0 // for calculating total cycles
         let startExecutionTime: number // for calculating execution time
         let lastTime: number | null // for calculating elapsed time
+        let animationFrameId: number | null = null // for cancelling the animation loop
 
         const { SPEED, sliderMin, sliderMax, sidebarLeftOpen, sidebarRightOpen } = storeToRefs(useGameStore())
         const timer = ref()
@@ -328,7 +329,7 @@ export default defineComponent({
             totalCycles = 0
             game.isRunning = true
 
-            requestAnimationFrame(animate)
+            animationFrameId = requestAnimationFrame(animate)
             // animate(startExecutionTime)
         }
         function animate(currentTime: number) {
@@ -346,7 +347,7 @@ export default defineComponent({
             }
 
             // timer.value = setTimeout(() => animate(startExecutionTime), game.SPEED)
-            requestAnimationFrame(animate)
+            animationFrameId = requestAnimationFrame(animate)
         }
         // -------------------------------------------------------------------------------------------------------------
 
@@ -467,6 +468,13 @@ export default defineComponent({
             else if (val === 1 || val === 2) naiveCanvas.value.overlayCanvas.style.cursor = "row-resize"
             else if (val === 3 || val === 4) naiveCanvas.value.overlayCanvas.style.cursor = "col-resize"
             naiveCanvas.value!.drawOverlayGrid(game.cols, game.rows, game.size)
+        })
+
+        onBeforeUnmount(() => {
+            if (animationFrameId !== null) {
+                cancelAnimationFrame(animationFrameId)
+                animationFrameId = null
+            }
         })
 
         onBeforeRouteLeave(() => {
