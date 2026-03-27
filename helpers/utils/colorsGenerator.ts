@@ -1,11 +1,19 @@
+import { clamp, hsvToRgb, rgbFloatToHsl } from './colorConversion'
+
 export interface PaletteOption { id: number; name: string; category?: string }
 export type Colors = Float32Array
 type KeyColor = { t: number; r: number; g: number; b: number }
 
+export function float32ArrayToHsl(colors: Float32Array): number[][] {
+    const out: number[][] = []
+    for (let i = 0; i < colors.length; i += 4) {
+        out.push(rgbFloatToHsl(colors[i], colors[i + 1], colors[i + 2]))
+    }
+    return out
+}
 // ---------------------------------------------------------------------------------------------------------------------
 // ==== HELPERS ========================================================================================================
 // ---------------------------------------------------------------------------------------------------------------------
-const clamp = (x: number, a = 0, b = 1) => Math.max(a, Math.min(b, x))
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 const randRange = (a: number, b: number) => lerp(a, b, Math.random())
 const randN = (mu = 0, sigma = 1) => { // Box–Muller
@@ -13,57 +21,6 @@ const randN = (mu = 0, sigma = 1) => { // Box–Muller
     while (u === 0) u = Math.random()
     while (v === 0) v = Math.random()
     return mu + sigma * Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2 * Math.PI * v)
-}
-function hsvToRgb(h: number, s: number, v: number): [number, number, number] {
-    const c = v * s
-    const hp = h / 60
-    const x = c * (1 - Math.abs((hp % 2) - 1))
-    let [r, g, b] = [0, 0, 0]
-
-    if (hp >= 0 && hp < 1) [r, g, b] = [c, x, 0]
-    else if (hp < 2) [r, g, b] = [x, c, 0]
-    else if (hp < 3) [r, g, b] = [0, c, x]
-    else if (hp < 4) [r, g, b] = [0, x, c]
-    else if (hp < 5) [r, g, b] = [x, 0, c]
-    else [r, g, b] = [c, 0, x]
-
-    const m = v - c
-    return [r + m, g + m, b + m]
-}
-export function float32ArrayToHsl(colors: Float32Array): number[][] {
-    const out: number[][] = []
-    for (let i = 0; i < colors.length; i += 4) {
-        const r = clamp(colors[i], 0, 1)
-        const g = clamp(colors[i + 1], 0, 1)
-        const b = clamp(colors[i + 2], 0, 1)
-
-        const max = Math.max(r, g, b)
-        const min = Math.min(r, g, b)
-        const d = max - min
-
-        let h = 0
-        let s = 0
-        const l = (max + min) / 2 // Lightness
-
-        if (d !== 0) {
-            // Hue
-            if (max === r) h = ((g - b) / d) % 6
-            else if (max === g) h = ((b - r) / d) + 2
-            else h = ((r - g) / d) + 4
-            h = h * 60
-            if (h < 0) h += 360
-
-            // Saturation (HSL)
-            s = d / (1 - Math.abs(2 * l - 1))
-        } else {
-            h = 0
-            s = 0
-        }
-
-        // push [h (deg), s (%), l (%)]
-        out.push([h, s * 100, l * 100])
-    }
-    return out
 }
 function gradientPalette(NUM_TYPES: number, keyColors: KeyColor[]): Colors {
     const colors = new Float32Array(NUM_TYPES * 4)
