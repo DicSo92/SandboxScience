@@ -61,6 +61,31 @@
                        @keydown.enter="applyHexInput" @blur="applyHexInput">
             </div>
         </div>
+
+        <div grid grid-cols-10 gap-1 mt-2>
+            <button v-for="color in defaultPalette" :key="color" @click="selectColor(color)"
+                    aspect-square rounded-md border border-gray-600 hover:border-gray-300 cursor-pointer
+                    :style="{ backgroundColor: color }">
+            </button>
+
+            <template v-if="savedColors.length">
+                <hr col-span-10 border-gray-600>
+
+                <button v-for="(color, i) in savedColors" :key="'s' + i"
+                        relative aspect-square rounded-md border border-gray-600 hover:border-gray-300 cursor-pointer group
+                        :style="{ backgroundColor: color }"
+                        @click="selectColor(color)"
+                        @contextmenu.prevent="savedColors.splice(i, 1)">
+                    <div absolute inset-0 rounded-md flex items-center justify-center
+                         class="opacity-0 group-hover:opacity-100 bg-black/50 text-white text-[8px] leading-none">✕</div>
+                </button>
+            </template>
+
+            <button title="Save current color" @click="saveCurrentColor"
+                    aspect-square rounded-md border border-dashed border-gray-500 hover:border-gray-300 cursor-pointer flex items-center justify-center leading-none>
+                <span i-tabler-plus text-gray-400 class="hover:text-gray-300 text-[0.8rem]"></span>
+            </button>
+        </div>
     </div>
 </template>
 
@@ -68,6 +93,9 @@
 import { clamp, hsvToRgb, rgbToHex, hexToRgb, rgbToHsv, hsvToHsl, hslToHsv } from '~/helpers/utils/colorConversion'
 
 // ---------------------------------------------------------------------------------------------------------------------
+const props = defineProps<{
+    storageKey?: string
+}>()
 const model = defineModel<string>({ default: '#FF0000' })
 // ---------------------------------------------------------------------------------------------------------------------
 const hue = ref(0)              // 0 – 360
@@ -79,6 +107,12 @@ const inputMode = ref<'rgb' | 'hsl'>('rgb')
 const colorPanel = ref<HTMLElement>()
 const hueSlider = ref<HTMLElement>()
 
+// ---------------------------------------------------------------------------------------------------------------------
+const defaultPalette = [
+    '#EF4444', '#F97316', '#EAB308', '#22C55E', '#14B8A6',
+    '#06B6D4', '#3B82F6', '#6366F1', '#A855F7', '#EC4899',
+]
+const savedColors = useLocalStorage<string[]>(`picker-palette:${props.storageKey ?? 'default'}`, [])
 // ---------------------------------------------------------------------------------------------------------------------
 setHsvFromHex(model.value)
 
@@ -181,6 +215,15 @@ function updateHue(e: PointerEvent) {
     const rect = hueSlider.value!.getBoundingClientRect()
     hue.value = clamp((e.clientX - rect.left) / rect.width) * 360
     emitColor()
+}
+// ---------------------------------------------------------------------------------------------------------------------
+function selectColor(hex: string) {
+    setHsvFromHex(hex)
+    emitColor()
+}
+function saveCurrentColor() {
+    const hex = hexColor.value
+    if (!savedColors.value.includes(hex)) savedColors.value.push(hex)
 }
 // ---------------------------------------------------------------------------------------------------------------------
 watch(() => model.value, (hex) => {
