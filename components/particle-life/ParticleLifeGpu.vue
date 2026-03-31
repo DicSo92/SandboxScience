@@ -85,9 +85,11 @@
                                     <SelectButton :id="9" label="3x3" v-model="particleLife.mirrorWrapCount" :disabled="!particleLife.isMirrorWrap" />
                                 </div>
                             </div>
-                            <div w-64 mt-2 p-3 border border-slate-500 rounded-xl>
-                                <ColorPicker :value="particleLife.selectedColor" @change="particleLife.selectedColor = $event" storage-key="particle-life"></ColorPicker>
-                            </div>
+                            <ColorPickerPopup :value="particleLife.selectedColor" @change="particleLife.selectedColor = $event" storage-key="particle-life" placement="right">
+                                <div w-8 h-8 mt-2 rounded-lg border border-slate-500 cursor-pointer hover:border-slate-300 transition-colors
+                                     :style="{ backgroundColor: particleLife.selectedColor }">
+                                </div>
+                            </ColorPickerPopup>
                         </Collapse>
                         <Collapse label="Physics Settings" icon="i-tabler-atom text-fuchsia-500" opened>
                             <RangeInput input label="Repel Force"
