@@ -1,6 +1,6 @@
 <template>
     <div ref="triggerRef" :class="triggerClass" @click.stop="toggle">
-        <slot />
+        <slot :is-open="isOpen" />
     </div>
 
     <Teleport to="body">
@@ -14,16 +14,22 @@
 <script setup lang="ts">
 import { onClickOutside } from '@vueuse/core'
 
+type Placement =
+    | 'bottom' | 'bottom-start' | 'bottom-end'
+    | 'top' | 'top-start' | 'top-end'
+    | 'left' | 'left-start' | 'left-end'
+    | 'right' | 'right-start' | 'right-end'
+
 const props = withDefaults(defineProps<{
     value: string
     storageKey?: string
-    placement?: 'bottom' | 'top' | 'left' | 'right'
+    placement?: Placement
     offset?: number
     triggerClass?: string
 }>(), {
     storageKey: 'default',
     placement: 'bottom',
-    offset: 8,
+    offset: 6,
     triggerClass: 'inline-block',
 })
 
@@ -67,16 +73,51 @@ function updatePosition() {
             top = rect.bottom + offset
             left = rect.left + rect.width / 2 - popupW / 2
             break
+        case 'bottom-start':
+            top = rect.bottom + offset
+            left = rect.left
+            break
+        case 'bottom-end':
+            top = rect.bottom + offset
+            left = rect.right - popupW
+            break
+
         case 'top':
             top = rect.top - popupH - offset
             left = rect.left + rect.width / 2 - popupW / 2
             break
+        case 'top-start':
+            top = rect.top - popupH - offset
+            left = rect.left
+            break
+        case 'top-end':
+            top = rect.top - popupH - offset
+            left = rect.right - popupW
+            break
+
         case 'right':
             top = rect.top + rect.height / 2 - popupH / 2
             left = rect.right + offset
             break
+        case 'right-start':
+            top = rect.top
+            left = rect.right + offset
+            break
+        case 'right-end':
+            top = rect.bottom - popupH
+            left = rect.right + offset
+            break
+
         case 'left':
             top = rect.top + rect.height / 2 - popupH / 2
+            left = rect.left - popupW - offset
+            break
+        case 'left-start':
+            top = rect.top
+            left = rect.left - popupW - offset
+            break
+        case 'left-end':
+            top = rect.bottom - popupH
             left = rect.left - popupW - offset
             break
     }

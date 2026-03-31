@@ -8,19 +8,27 @@
                             <div bg-black w-full h-full rounded-full></div>
                         </div>
                         <div v-else-if="i === 0 && j > 0" h-full w-full class="pp-6">
-                            <ColorPickerPopup :value="getColorHexById(j-1)" @change="onColorChange(j-1, $event)" storage-key="particle-life" placement="bottom" trigger-class="block w-full h-full rounded-full">
-                                <button relative rounded-full w-full h-full cursor-pointer flex items-center justify-center class="group hover:ring-1.5 hover:ring-gray-200/80" :style="`background-color: ${getColorStyleById(j-1)}`">
-                                    <div class="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/35" />
-                                    <div i-tabler-color-picker text-white relative class="w-3/5 h-3/5 max-h-7 max-w-7 -mr-px opacity-0 group-hover:opacity-80" />
-                                </button>
+                            <ColorPickerPopup :value="getColorHexById(j-1)" @change="onColorChange(j-1, $event)" storage-key="particle-life" placement="bottom-start" trigger-class="block w-full h-full rounded-full">
+                                <template #default="{ isOpen: pickerOpen }">
+                                    <button relative rounded-full w-full h-full cursor-pointer flex items-center justify-center
+                                            class="group hover:ring-1 hover:ring-slate-300/80" :class="pickerOpen && 'ring-1 ring-slate-300/80'"
+                                            :style="{ backgroundColor: getColorStyleById(j-1) }">
+                                        <div absolute inset-0 rounded-full class="bg-black/0 group-hover:bg-black/35" />
+                                        <div i-tabler-color-picker text-white relative class="w-3/5 h-3/5 max-h-7 max-w-7 -mr-px opacity-0 group-hover:opacity-80" />
+                                    </button>
+                                </template>
                             </ColorPickerPopup>
                         </div>
                         <div v-else-if="j === 0 && i > 0" h-full w-full class="pp-6">
-                            <ColorPickerPopup :value="getColorHexById(i-1)" @change="onColorChange(i-1, $event)" storage-key="particle-life" placement="right" trigger-class="block w-full h-full rounded-full">
-                                <button relative rounded-full w-full h-full cursor-pointer flex items-center justify-center class="group hover:ring-1.5 hover:ring-gray-200/80" :style="`background-color: ${getColorStyleById(i-1)}`">
-                                    <div class="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/35" />
-                                    <div i-tabler-color-picker text-white relative class="w-3/5 h-3/5 max-h-7 max-w-7 -mr-px opacity-0 group-hover:opacity-80" />
-                                </button>
+                            <ColorPickerPopup :value="getColorHexById(i-1)" @change="onColorChange(i-1, $event)" storage-key="particle-life" placement="right-start" trigger-class="block w-full h-full rounded-full">
+                                <template #default="{ isOpen: pickerOpen }">
+                                    <button relative rounded-full w-full h-full cursor-pointer flex items-center justify-center
+                                            class="group hover:ring-1 hover:ring-slate-300/80" :class="pickerOpen && 'ring-1 ring-slate-300/80'"
+                                            :style="{ backgroundColor: getColorStyleById(i-1) }">
+                                        <div absolute inset-0 rounded-full class="bg-black/0 group-hover:bg-black/35" />
+                                        <div i-tabler-color-picker text-white relative class="w-3/5 h-3/5 max-h-7 max-w-7 -mr-px opacity-0 group-hover:opacity-80" />
+                                    </button>
+                                </template>
                             </ColorPickerPopup>
                         </div>
                         <div v-else h-full w-full relative cursor-ew-resize select-none
