@@ -8,10 +8,20 @@
                             <div bg-black w-full h-full rounded-full></div>
                         </div>
                         <div v-else-if="i === 0 && j > 0" h-full w-full class="pp-6">
-                            <div rounded-full w-full h-full :style="`background-color: ${getColorStyleById(j-1)}`"></div>
+                            <ColorPickerPopup :value="getColorHexById(j-1)" @change="onColorChange(j-1, $event)" storage-key="particle-life" placement="bottom" trigger-class="block w-full h-full rounded-full">
+                                <button relative rounded-full w-full h-full cursor-pointer flex items-center justify-center class="group hover:ring-1.5 hover:ring-gray-200/80" :style="`background-color: ${getColorStyleById(j-1)}`">
+                                    <div class="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/35" />
+                                    <div i-tabler-color-picker text-white relative class="w-3/5 h-3/5 max-h-7 max-w-7 -mr-px opacity-0 group-hover:opacity-80" />
+                                </button>
+                            </ColorPickerPopup>
                         </div>
                         <div v-else-if="j === 0 && i > 0" h-full w-full class="pp-6">
-                            <div rounded-full w-full h-full :style="`background-color: ${getColorStyleById(i-1)}`"></div>
+                            <ColorPickerPopup :value="getColorHexById(i-1)" @change="onColorChange(i-1, $event)" storage-key="particle-life" placement="right" trigger-class="block w-full h-full rounded-full">
+                                <button relative rounded-full w-full h-full cursor-pointer flex items-center justify-center class="group hover:ring-1.5 hover:ring-gray-200/80" :style="`background-color: ${getColorStyleById(i-1)}`">
+                                    <div class="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/35" />
+                                    <div i-tabler-color-picker text-white relative class="w-3/5 h-3/5 max-h-7 max-w-7 -mr-px opacity-0 group-hover:opacity-80" />
+                                </button>
+                            </ColorPickerPopup>
                         </div>
                         <div v-else h-full w-full relative cursor-ew-resize select-none
                              :class="(isHoveredCell(i-1, j-1) || isCellSelected(i-1, j-1)) && 'hovered-cell'"
@@ -51,6 +61,7 @@
 
 <script lang="ts">
 import { defineComponent } from "vue";
+import { hslToRgb, rgbToHex } from '~/helpers/utils/colorConversion'
 export default defineComponent({
     props: {
         store: {
@@ -273,11 +284,25 @@ export default defineComponent({
             // Normal Array of HSL values
             return colors[id] ? `hsl(${colors[id][0]}, ${colors[id][1]}%, ${colors[id][2]}%)` : "hsl(0, 0%, 5%)"
         }
+        function getColorHexById(id: number): string {
+            const colors = particleLife.currentColors
+            if (!colors) return '#0C0C0C'
+            if (colors instanceof Float32Array) {
+                const i = id * 4
+                return rgbToHex(Math.round(colors[i] * 255), Math.round(colors[i + 1] * 255), Math.round(colors[i + 2] * 255))
+            }
+            const [h, s, l] = colors[id]
+            const [r, g, b] = hslToRgb(h, s, l)
+            return rgbToHex(Math.round(r * 255), Math.round(g * 255), Math.round(b * 255))
+        }
+        function onColorChange(colorId: number, hex: string) {
+            emit('updateColor', colorId, hex)
+        }
         // -------------------------------------------------------------------------------------------------------------
         return {
             particleLife, cellRowCount, selectedValue, selectedCell, selectedCells, hasSameValues,
             mousedown, mouseenter, mouseleave,
-            interpolateColor, isCellSelected, isHoveredCell, getColorStyleById
+            interpolateColor, isCellSelected, isHoveredCell, getColorStyleById, getColorHexById, onColorChange
         }
     }
 })

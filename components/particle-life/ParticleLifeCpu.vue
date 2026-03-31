@@ -38,7 +38,8 @@
                                 @updateRulesMatrix="updateRulesMatrixValue"
                                 @randomRulesMatrix="newRandomRulesMatrix"
                                 @updateMinMatrix="updateMinMatrixValue"
-                                @updateMaxMatrix="updateMaxMatrixValue">
+                                @updateMaxMatrix="updateMaxMatrixValue"
+                                @updateColor="updateSingleColor">
                             </MatrixSettings>
                         </Collapse>
                         <Collapse label="World Settings" icon="i-tabler-world-cog text-cyan-500" opened mt-2>
@@ -265,6 +266,7 @@ import PresetPanel from "~/components/particle-life/PresetPanel.vue";
 import SaveModal from "~/components/particle-life/SaveModal.vue";
 import { RULES_OPTIONS, generateRules } from '~/helpers/utils/rulesGenerator';
 import { PALETTE_OPTIONS, generateHSLColors } from "~/helpers/utils/colorsGenerator";
+import { hexToRgb, rgbFloatToHsl } from '~/helpers/utils/colorConversion'
 
 export default defineComponent({
     components: { SaveModal, PresetPanel, MatrixSettings, RulesMatrix, Memory, BrushSettings, SidebarLeft },
@@ -1717,6 +1719,14 @@ export default defineComponent({
             particleLife.currentColors = currentColors
             particleLife.brushes = []
         }
+        function updateSingleColor(colorId: number, hex: string) {
+            const rgb = hexToRgb(hex)
+            if (!rgb) return
+            const [h, s, l] = rgbFloatToHsl(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255)
+            currentColors[colorId] = [h, s, l]
+            particleLife.currentColors = [...currentColors]
+            if (!isRunning) simpleDrawParticles()
+        }
         function setRulesMatrix(newRules: number[][]) {
             rulesMatrix = newRules
             particleLife.rulesMatrix = rulesMatrix
@@ -1885,7 +1895,7 @@ export default defineComponent({
             fps, cellCount, executionTime, step, newRandomRulesMatrix, handleZoom, updateGridWidth, updateGridHeight,
             updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, regenerateLife,
             shareOptions, rulesOptions, paletteOptions,
-            updateColors, updateRulesMatrix, loadPreset, setNewNumTypes
+            updateColors, updateRulesMatrix, loadPreset, setNewNumTypes, updateSingleColor
         }
     }
 })

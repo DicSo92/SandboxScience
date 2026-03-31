@@ -1,5 +1,5 @@
 <template>
-    <div ref="triggerRef" class="inline-block" @click.stop="toggle">
+    <div ref="triggerRef" :class="triggerClass" @click.stop="toggle">
         <slot />
     </div>
 
@@ -19,10 +19,12 @@ const props = withDefaults(defineProps<{
     storageKey?: string
     placement?: 'bottom' | 'top' | 'left' | 'right'
     offset?: number
+    triggerClass?: string
 }>(), {
     storageKey: 'default',
     placement: 'bottom',
     offset: 8,
+    triggerClass: 'inline-block',
 })
 
 const emit = defineEmits<{

@@ -35,7 +35,8 @@
                                             @updateRulesMatrix="updateRulesMatrixValue"
                                             @randomRulesMatrix="newRandomRulesMatrix"
                                             @updateMinMatrix="updateMinMatrixValue"
-                                            @updateMaxMatrix="updateMaxMatrixValue">
+                                            @updateMaxMatrix="updateMaxMatrixValue"
+                                            @updateColor="updateSingleColor">
                             </MatrixSettings>
                         </Collapse>
                         <Collapse label="World Settings" icon="i-tabler-world-cog text-cyan-500" opened>
@@ -86,7 +87,7 @@
                                 </div>
                             </div>
                             <ColorPickerPopup :value="particleLife.selectedColor" @change="particleLife.selectedColor = $event" storage-key="particle-life" placement="right">
-                                <div w-8 h-8 mt-2 rounded-lg border border-slate-500 cursor-pointer hover:border-slate-300 transition-colors
+                                <div w-8 h-8 mt-2 rounded-lg border border-slate-500 cursor-pointer hover:border-slate-300
                                      :style="{ backgroundColor: particleLife.selectedColor }">
                                 </div>
                             </ColorPickerPopup>
@@ -334,6 +335,7 @@ import RadiusVisualizer from "~/components/particle-life/RadiusVisualizer.vue";
 import { RULES_OPTIONS, generateRules } from '~/helpers/utils/rulesGenerator';
 import { PALETTE_OPTIONS, generateColors } from "~/helpers/utils/colorsGenerator";
 import { POSITION_OPTIONS, generatePositions } from "~/helpers/utils/positionsGenerator";
+import { hexToRgb } from '~/helpers/utils/colorConversion';
 
 import heatmapImage from 'assets/particle-life-gpu/images/heatmap_red4x_256x1.png';
 
@@ -3221,6 +3223,17 @@ export default defineComponent({
             return result
         })
         // -------------------------------------------------------------------------------------------------------------
+        const updateSingleColor = (colorId: number, hex: string) => {
+            const rgb = hexToRgb(hex)
+            if (!rgb) return
+            const idx = colorId * 4
+            colors[idx]     = rgb[0] / 255
+            colors[idx + 1] = rgb[1] / 255
+            colors[idx + 2] = rgb[2] / 255
+            particleLife.currentColors = new Float32Array(colors) // New reference to trigger reactivity
+            updateColorBuffer()
+        }
+        // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         function watchAndUpdateSimOptions(effect: any, callback: any) {
@@ -3502,7 +3515,7 @@ export default defineComponent({
             handleZoom, toggleFullscreen, isFullscreen, regenerateLife, step,
             updateSimWidth, updateSimHeight, updateNumParticles, setNewNumParticles, setNewNumTypes,
             updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, newRandomRulesMatrix,
-            updateRulesMatrix, updateParticlePositions, updateColors, loadPreset,
+            updateRulesMatrix, updateParticlePositions, updateColors, loadPreset, updateSingleColor,
             startTrackerSelection, cancelTrackerSelection, stopTracker, onTrackerZoneSelected,
             rulesOptions, paletteOptions, positionOptions
         }
