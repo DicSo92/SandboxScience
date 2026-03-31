@@ -86,7 +86,7 @@
                                 </div>
                             </div>
                             <div w-64 mt-2 p-3 border border-slate-500 rounded-xl>
-                                <ColorPicker v-model="particleLife.selectedColor"></ColorPicker>
+                                <ColorPicker :value="particleLife.selectedColor" @change="particleLife.selectedColor = $event" storage-key="particle-life"></ColorPicker>
                             </div>
                         </Collapse>
                         <Collapse label="Physics Settings" icon="i-tabler-atom text-fuchsia-500" opened>

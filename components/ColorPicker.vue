@@ -94,14 +94,17 @@ import { clamp, hsvToRgb, rgbToHex, hexToRgb, rgbToHsv, hsvToHsl, hslToHsv } fro
 
 // ---------------------------------------------------------------------------------------------------------------------
 const props = defineProps<{
+    value: string
     storageKey?: string
 }>()
-const model = defineModel<string>({ default: '#FF0000' })
+const emit = defineEmits<{
+    change: [hex: string]
+}>()
 // ---------------------------------------------------------------------------------------------------------------------
 const hue = ref(0)              // 0 – 360
 const saturation = ref(1)       // 0 – 1
-const value = ref(1)            // 0 – 1
-const hexInput = ref(model.value.toUpperCase())
+const brightness = ref(1)       // 0 – 1
+const hexInput = ref(props.value.toUpperCase())
 const inputMode = ref<'rgb' | 'hsl'>('rgb')
 
 const colorPanel = ref<HTMLElement>()
@@ -114,23 +117,22 @@ const defaultPalette = [
 ]
 const savedColors = useLocalStorage<string[]>(`picker-palette:${props.storageKey ?? 'default'}`, [])
 // ---------------------------------------------------------------------------------------------------------------------
-setHsvFromHex(model.value)
-
+setHsvFromHex(props.value)
 // ---------------------------------------------------------------------------------------------------------------------
 const hexColor = computed(() => rgbToHex(rgbColor.value.r, rgbColor.value.g, rgbColor.value.b))
 const rgbColor = computed(() => {
-    const [r, g, b] = hsvToRgb(hue.value, saturation.value, value.value)
+    const [r, g, b] = hsvToRgb(hue.value, saturation.value, brightness.value)
     return { r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255) }
 })
 const hslColor = computed(() => {
-    const [h, s, l] = hsvToHsl(hue.value, saturation.value, value.value)
+    const [h, s, l] = hsvToHsl(hue.value, saturation.value, brightness.value)
     return { h: Math.round(h), s: Math.round(s), l: Math.round(l) }
 })
 
 const pureHueColor = computed(() => `hsl(${hue.value}, 100%, 50%)`)
 const panelThumbStyle = computed(() => ({
     left: `${saturation.value * 100}%`,
-    top: `${(1 - value.value) * 100}%`,
+    top: `${(1 - brightness.value) * 100}%`,
     backgroundColor: hexColor.value,
 }))
 const hueThumbStyle = computed(() => ({
@@ -147,7 +149,7 @@ function onRgbInput(channel: 'r' | 'g' | 'b', event: Event) {
     const hsv = rgbToHsv(r, g, b)
     if (hsv.s > 0 && hsv.v > 0) hue.value = hsv.h
     if (hsv.v > 0) saturation.value = hsv.s
-    value.value = hsv.v
+    brightness.value = hsv.v
     emitColor()
 }
 function onHslInput(channel: 'h' | 's' | 'l', event: Event) {
@@ -160,7 +162,7 @@ function onHslInput(channel: 'h' | 's' | 'l', event: Event) {
     if (channel === 'h') hue.value = h
     else if (hsv.s > 0 && hsv.v > 0) hue.value = hsv.h
     saturation.value = hsv.s
-    value.value = hsv.v
+    brightness.value = hsv.v
     emitColor()
 }
 function applyHexInput() {
@@ -181,11 +183,11 @@ function setHsvFromHex(hex: string) {
     const hsv = rgbToHsv(...rgb)
     if (hsv.s > 0 && hsv.v > 0) hue.value = hsv.h
     if (hsv.v > 0) saturation.value = hsv.s
-    value.value = hsv.v
+    brightness.value = hsv.v
 }
 function emitColor() {
     hexInput.value = hexColor.value
-    model.value = hexColor.value
+    emit('change', hexColor.value)
 }
 // ---------------------------------------------------------------------------------------------------------------------
 function startPanelDrag(e: PointerEvent) {
@@ -208,7 +210,7 @@ function onHueMove(e: PointerEvent) {
 function updatePanel(e: PointerEvent) {
     const rect = colorPanel.value!.getBoundingClientRect()
     saturation.value = clamp((e.clientX - rect.left) / rect.width)
-    value.value = 1 - clamp((e.clientY - rect.top) / rect.height)
+    brightness.value = 1 - clamp((e.clientY - rect.top) / rect.height)
     emitColor()
 }
 function updateHue(e: PointerEvent) {
@@ -226,7 +228,7 @@ function saveCurrentColor() {
     if (!savedColors.value.includes(hex)) savedColors.value.push(hex)
 }
 // ---------------------------------------------------------------------------------------------------------------------
-watch(() => model.value, (hex) => {
+watch(() => props.value, (hex) => {
     if (hex.toUpperCase() === hexColor.value) return
     setHsvFromHex(hex)
     hexInput.value = hex.toUpperCase()
