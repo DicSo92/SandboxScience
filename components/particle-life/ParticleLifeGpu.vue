@@ -3123,7 +3123,7 @@ export default defineComponent({
             if (shouldRandom) particleLife.selectedSpawnPositionOption = positionOptions[Math.floor(Math.random() * positionOptions.length)].id
 
             initialParticles = generatePositions(particleLife.selectedSpawnPositionOption, NUM_PARTICLES, NUM_TYPES, SIM_WIDTH, SIM_HEIGHT)
-            device.queue.writeBuffer(particleBuffer!, 0, initialParticles)
+            device.queue.writeBuffer(particleBuffer!, 0, initialParticles.buffer)
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
