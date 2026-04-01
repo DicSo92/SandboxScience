@@ -151,6 +151,24 @@
                     <Input :modelValue="maxRadiusRange[1]" @change="(val: number) => applyValue('maxB', val)"/>
                 </div>
             </div>
+            <hr border-slate-600>
+            <div flex gap-1.5>
+                <button @click="emit('randomizeRadius')" type="button" title="Randomize radius matrices with current range settings" aria-label="Randomize radius matrices"
+                        btn flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-2sm shadow-lg bg="slate-700/60 hover:slate-800/60">
+                    <span class="i-tabler-circles text-sm"/>
+                    <span>Radius</span>
+                </button>
+                <button @click="emit('randomizeRulesAndRadius')" type="button" title="Randomize rules and radius matrices (keep positions and colors)" aria-label="Randomize rules and radius"
+                        btn flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-2sm shadow-lg bg="slate-700/60 hover:slate-800/60">
+                    <span class="i-tabler-arrows-shuffle text-sm"/>
+                    <span>Rules + Radius</span>
+                </button>
+            </div>
+            <button @click="emit('randomizeAll')" type="button" title="Randomize everything (positions, colors, rules, radius)" aria-label="Randomize all"
+                    btn w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-2sm shadow-lg bg="cyan-900/80 hover:cyan-900/50">
+                <span class="i-game-icons-perspective-dice-six-faces-random text-sm"/>
+                <span>Randomize All</span>
+            </button>
         </div>
     </div>
 </template>
@@ -163,6 +181,9 @@ const props = defineProps<{
 const emit = defineEmits<{
     'update:minRadiusRange': [value: number[]]
     'update:maxRadiusRange': [value: number[]]
+    'randomizeRadius': []
+    'randomizeRulesAndRadius': []
+    'randomizeAll': []
 }>()
 // ---------------------------------------------------------------------------------------------------------------------
 const COLOR = {

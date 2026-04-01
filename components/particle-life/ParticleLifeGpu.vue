@@ -39,6 +39,15 @@
                                             @updateColor="updateSingleColor">
                             </MatrixSettings>
                         </Collapse>
+                        <Collapse label="Randomizer Settings" icon="i-game-icons-perspective-dice-six-faces-random text-teal-500"
+                                  tooltip="Adjust the parameters for randomizing particle attributes. <br> Configure the ranges for minimum and maximum interaction radii.">
+                            <RadiusVisualizer v-model:min-radius-range="particleLife.minRadiusRange"
+                                              v-model:max-radius-range="particleLife.maxRadiusRange"
+                                              @randomize-radius="randomizeRadius"
+                                              @randomize-rules-and-radius="randomizeRulesAndRadius"
+                                              @randomize-all="regenerateLife">
+                            </RadiusVisualizer>
+                        </Collapse>
                         <Collapse label="World Settings" icon="i-tabler-world-cog text-cyan-500" opened>
                             <RangeInput input label="Particle Count"
                                         tooltip="Adjust the total number of particles. <br> More particles may reveal complex interactions but can increase computational demand."
@@ -100,12 +109,6 @@
                                         tooltip="Controls how much friction slows particles down. <br> Higher values reduce speed and help stabilize the system."
                                         :min="0" :max="1" :step="0.01" v-model="particleLife.frictionFactor" mt-2>
                             </RangeInput>
-                        </Collapse>
-                        <Collapse label="Randomizer Settings" icon="i-game-icons-perspective-dice-six-faces-random text-teal-500"
-                                  tooltip="Adjust the parameters for randomizing particle attributes. <br> Configure the ranges for minimum and maximum interaction radii.">
-                            <RadiusVisualizer v-model:min-radius-range="particleLife.minRadiusRange"
-                                              v-model:max-radius-range="particleLife.maxRadiusRange">
-                            </RadiusVisualizer>
                         </Collapse>
                         <Collapse label="Graphics Settings" icon="i-tabler-photo-cog text-emerald-500">
                             <RangeInput input label="Particle Size"
@@ -3103,6 +3106,17 @@ export default defineComponent({
             }
             return matrix
         }
+        const randomizeRadius = () => {
+            setMinRadiusMatrix(makeRandomMinRadiusMatrix())
+            setMaxRadiusMatrix(makeRandomMaxRadiusMatrix())
+            updateInteractionMatrixBuffer()
+        }
+        const randomizeRulesAndRadius = () => {
+            setRulesMatrix(generateRules(0, NUM_TYPES))
+            setMinRadiusMatrix(makeRandomMinRadiusMatrix())
+            setMaxRadiusMatrix(makeRandomMaxRadiusMatrix())
+            updateInteractionMatrixBuffer()
+        }
         const updateColors = async (useRandomGenerator: boolean | Event = false) => {
             const shouldRandom = typeof useRandomGenerator === 'boolean' ? useRandomGenerator : false
             if (shouldRandom) particleLife.selectedColorPaletteOption = paletteOptions[Math.floor(Math.random() * paletteOptions.length)].id
@@ -3505,15 +3519,15 @@ export default defineComponent({
             // particleLife.$reset()
         })
 
-        return {
-            particleLife, canvasRef, fps, executionTime, colorRgbStrings,
-            handleZoom, toggleFullscreen, isFullscreen, regenerateLife, step,
-            updateSimWidth, updateSimHeight, updateNumParticles, setNewNumParticles, setNewNumTypes,
-            updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, newRandomRulesMatrix,
-            updateRulesMatrix, updateParticlePositions, updateColors, loadPreset, updateSingleColor,
-            startTrackerSelection, cancelTrackerSelection, stopTracker, onTrackerZoneSelected,
-            rulesOptions, paletteOptions, positionOptions
-        }
+            return {
+                particleLife, canvasRef, fps, executionTime, colorRgbStrings,
+                handleZoom, toggleFullscreen, isFullscreen, regenerateLife, step, randomizeRadius, randomizeRulesAndRadius,
+                updateSimWidth, updateSimHeight, updateNumParticles, setNewNumParticles, setNewNumTypes,
+                updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, newRandomRulesMatrix,
+                updateRulesMatrix, updateParticlePositions, updateColors, loadPreset, updateSingleColor,
+                startTrackerSelection, cancelTrackerSelection, stopTracker, onTrackerZoneSelected,
+                rulesOptions, paletteOptions, positionOptions
+            }
     }
 });
 </script>

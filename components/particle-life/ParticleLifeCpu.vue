@@ -42,6 +42,15 @@
                                 @updateColor="updateSingleColor">
                             </MatrixSettings>
                         </Collapse>
+                        <Collapse label="Randomizer Settings" icon="i-game-icons-perspective-dice-six-faces-random text-teal-500" mt-2
+                                  tooltip="Adjust the parameters for randomizing particle attributes. <br> Configure the ranges for minimum and maximum interaction radii.">
+                            <RadiusVisualizer v-model:min-radius-range="particleLife.minRadiusRange"
+                                              v-model:max-radius-range="particleLife.maxRadiusRange"
+                                              @randomize-radius="randomizeRadius"
+                                              @randomize-rules-and-radius="randomizeRulesAndRadius"
+                                              @randomize-all="regenerateLife">
+                            </RadiusVisualizer>
+                        </Collapse>
                         <Collapse label="World Settings" icon="i-tabler-world-cog text-cyan-500" opened mt-2>
                             <RangeInput input label="Particle Number"
                                         tooltip="Adjust the total number of particles. <br> More particles may reveal complex interactions but can increase computational demand."
@@ -112,12 +121,6 @@
                                         tooltip="Controls how much friction slows particles down. <br> Higher values reduce speed and help stabilize the system."
                                         :min="0" :max="1" :step="0.01" v-model="particleLife.frictionFactor" mt-2>
                             </RangeInput>
-                        </Collapse>
-                        <Collapse label="Randomizer Settings" icon="i-game-icons-perspective-dice-six-faces-random text-teal-500" mt-2
-                                  tooltip="Adjust the parameters for randomizing particle attributes. <br> Configure the ranges for minimum and maximum interaction radii.">
-                            <RadiusVisualizer v-model:min-radius-range="particleLife.minRadiusRange"
-                                              v-model:max-radius-range="particleLife.maxRadiusRange">
-                            </RadiusVisualizer>
                         </Collapse>
                         <Collapse label="Graphics Settings" icon="i-tabler-photo-cog text-emerald-500" mt-2>
                             <div flex items-center justify-between mb-2>
@@ -572,6 +575,17 @@ export default defineComponent({
                 }
             }
             return matrix
+        }
+        const randomizeRadius = () => {
+            setMinRadiusMatrix(makeRandomMinRadiusMatrix())
+            setMaxRadiusMatrix(makeRandomMaxRadiusMatrix())
+            if (!isRunning) simpleDrawParticles()
+        }
+        const randomizeRulesAndRadius = () => {
+            setRulesMatrix(generateRules(0, numColors))
+            setMinRadiusMatrix(makeRandomMinRadiusMatrix())
+            setMaxRadiusMatrix(makeRandomMaxRadiusMatrix())
+            if (!isRunning) simpleDrawParticles()
         }
         const updateColors = async (useRandomGenerator: boolean | Event = false) => {
             const shouldRandom = typeof useRandomGenerator === 'boolean' ? useRandomGenerator : false
@@ -1891,7 +1905,8 @@ export default defineComponent({
             fps, cellCount, executionTime, step, newRandomRulesMatrix, handleZoom, updateGridWidth, updateGridHeight,
             updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, regenerateLife,
             shareOptions, rulesOptions, paletteOptions,
-            updateColors, updateRulesMatrix, loadPreset, setNewNumTypes, updateSingleColor
+            updateColors, updateRulesMatrix, loadPreset, setNewNumTypes, updateSingleColor,
+            randomizeRadius, randomizeRulesAndRadius
         }
     }
 })
