@@ -30,7 +30,6 @@ export default defineComponent({
         let cellSize: number = Math.max(1, game.size.valueOf())
         let grid: boolean = true
 
-        const zoom = ref(0)
         const prevChangedCell = ref<{ x: number, y: number } | null>(null)
 
         let aliveSteps = 0
@@ -56,6 +55,26 @@ export default defineComponent({
         })
         watch(() => game.themeId, (newValue, prevValue) => {
             initThemeAndRules(prevValue)
+        })
+        watch(() => game.aliveSteps, (newSteps) => {
+            // Prevent cells from having more steps than the new aliveSteps value
+            for (let x = 0; x < cellsArray.length; x++) {
+                for (let y = 0; y < cellsArray[x].length; y++) {
+                    if (cellsArray[x][y] > newSteps) cellsArray[x][y] = newSteps
+                    if (cellsArrayNext[x][y] > newSteps) cellsArrayNext[x][y] = newSteps
+                }
+            }
+            initThemeAndRules()
+        })
+        watch(() => game.deadSteps, (newSteps) => {
+            // Prevent cells from having more steps than the new deadSteps value
+            for (let x = 0; x < cellsArray.length; x++) {
+                for (let y = 0; y < cellsArray[x].length; y++) {
+                    if (cellsArray[x][y] < -newSteps) cellsArray[x][y] = -newSteps
+                    if (cellsArrayNext[x][y] < -newSteps) cellsArrayNext[x][y] = -newSteps
+                }
+            }
+            initThemeAndRules()
         })
         // -------------------------------------------------------------------------------------------------------------
         function toggleCell(cursorX: number, cursorY: number, type?: "draw" | "erase" | "toggle") {
@@ -84,20 +103,21 @@ export default defineComponent({
             game.grid = grid
             drawCellsFromCellsArray()
         }
-        function handleZoom(zoomFactor: number, cursorX?: number, cursorY?: number) {
-            if (zoom.value + zoomFactor > 4 || zoom.value + zoomFactor < -8) return // Limit zoom
-            cursorX = cursorX || canvasWidth / 2 // if no x is provided, use the center of the canvas
-            cursorY = cursorY || canvasHeight / 2 // if no y is provided, use the center of the canvas
+        function handleZoom(delta: number, cursorX?: number, cursorY?: number) {
+            cursorX = cursorX || canvasWidth / 2
+            cursorY = cursorY || canvasHeight / 2
 
-            zoom.value += zoomFactor // Increase or decrease zoom
-            game.size *= Math.pow(2, zoomFactor) // Divide or multiply size by 2
-            cellSize = Math.max(1, game.size.valueOf()) // Set the new cellSize (non-reactive), but keep it at least 1 pixel
+            const oldSize = game.size
+            const zoomIntensity = 0.1
+            game.size = Math.max(0.25, Math.min(256, game.size * (1 + delta * zoomIntensity)))
+            cellSize = Math.max(1, game.size)
+
             // Adjust colx and rowx to keep the zoom centered on the pointer
-            colx = cursorX - (cursorX - colx) * Math.pow(2, zoomFactor)
-            rowx = cursorY - (cursorY - rowx) * Math.pow(2, zoomFactor)
+            const ratio = game.size / oldSize
+            colx = cursorX - (cursorX - colx) * ratio
+            rowx = cursorY - (cursorY - rowx) * ratio
 
             if (!game.isRunning) requestAnimationFrame(drawCellsFromCellsArray) // redraw
-
         }
         function handleMove(e: { movementY: number; movementX: number; }) {
             rowx += e.movementY
@@ -282,33 +302,22 @@ export default defineComponent({
                 fillSquare(x, y, size, colx, rowx, themeColors.deadColors![Math.abs(cellState) - 1])
             }
         }
-        function fillSquare(x: number, y: number, floatCellSize: number, colx: number, rowx: number, cellColor: number) { // fill a square by changing the imageDataArray values directly (faster than fillRect)
-            x = x * floatCellSize
-            y = y * floatCellSize
-            let width = cellSize
-            let height = cellSize
+        function fillSquare(cellX: number, cellY: number, floatCellSize: number, colx: number, rowx: number, cellColor: number) { // fill a square by changing the imageDataArray values directly (faster than fillRect)
+            let startX = Math.floor(colx + cellX * floatCellSize)
+            let endX = Math.floor(colx + (cellX + 1) * floatCellSize)
+            let startY = Math.floor(rowx + cellY * floatCellSize)
+            let endY = Math.floor(rowx + (cellY + 1) * floatCellSize)
 
-            if ((x + colx) < 0) { // if cell is outside the canvas on the left
-                width += (x + Math.floor(colx))
-                x = -Math.floor(colx)
-            }
-            else if ((x + colx) + width > canvasWidth) { // if cell is outside the canvas on the right
-                width = canvasWidth - (x + Math.floor(colx))
-            }
-            if (width < 0) return // if cell is outside the canvas horizontally (or too small)
+            if (startX < 0) startX = 0
+            if (endX > canvasWidth) endX = canvasWidth
+            if (startY < 0) startY = 0
+            if (endY > canvasHeight) endY = canvasHeight
 
-            if ((y + rowx) < 0) { // if cell is outside the canvas on the top
-                height += (y + Math.floor(rowx))
-                y = -Math.floor(rowx)
-            }
-            else if ((y + rowx) + height > canvasHeight) { // if cell is outside the canvas on the bottom
-                height = canvasHeight - (y + Math.floor(rowx))
-            }
-            if (height < 0) return // if cell is outside the canvas vertically (or too small)
+            const width = endX - startX
+            const height = endY - startY
+            if (width <= 0 || height <= 0) return // if cell is outside the canvas
 
-            let imageDataIndex = ((Math.floor(rowx) + Math.floor(y)) * canvasWidth) + (Math.floor(colx) + Math.floor(x)) // Get the index of the first pixel of the cell
-            width = Math.floor(width) // Make sure width is an integer
-            height = Math.floor(height) // Make sure height is an integer
+            let imageDataIndex = startY * canvasWidth + startX // Get the index of the first pixel of the cell
             const widthOffset = canvasWidth - width  // Offset to jump to the next row
             for (let i = 0; i < height; i++) {
                 for (let j = 0; j < width; j++) { // fill a row
@@ -335,7 +344,7 @@ export default defineComponent({
                     }
                 }
             }
-            ctx!.strokeStyle = '#707070'
+            ctx!.strokeStyle = '#252525'
             ctx!.stroke()
         }
         function drawOverlayGrid(cols: number, rows: number, size: number) {
@@ -358,18 +367,20 @@ export default defineComponent({
             }
         }
         function drawHorizontalLine(row: number, cols: number, size: number, ctx: CanvasRenderingContext2D | undefined) {
-            const x = colx + (cols * size)
-            const y = rowx + (size * row)
+            const x1 = Math.floor(colx) + 0.5
+            const x2 = Math.floor(colx + cols * size) + 0.5
+            const y = Math.floor(rowx + size * row) + 0.5
 
-            ctx!.moveTo(colx, y)
-            ctx!.lineTo(x, y)
+            ctx!.moveTo(x1, y)
+            ctx!.lineTo(x2, y)
         }
         function drawVerticalLine(col: number, rows: number, size: number, ctx: CanvasRenderingContext2D | undefined) {
-            const x = colx + (size * col)
-            const y = rowx + (rows * size)
+            const x = Math.floor(colx + size * col) + 0.5
+            const y1 = Math.floor(rowx) + 0.5
+            const y2 = Math.floor(rowx + rows * size) + 0.5
 
-            ctx!.moveTo(x, rowx)
-            ctx!.lineTo(x, y)
+            ctx!.moveTo(x, y1)
+            ctx!.lineTo(x, y2)
         }
         function expandGrid(side:  string, factor: number = 1) {
             const newCols = side === "left" || side === "right" ? game.cols.valueOf() + factor : game.cols.valueOf()
@@ -439,10 +450,26 @@ export default defineComponent({
             }
         }
         // -------------------------------------------------------------------------------------------------------------
+        function updateCols(value: number) {
+            const diff = Math.max(1, Math.round(value)) - game.cols
+            const halfLeft = Math.floor(diff / 2)
+            const halfRight = diff - halfLeft
+            if (halfLeft !== 0) expandGrid('left', halfLeft)
+            if (halfRight !== 0) expandGrid('right', halfRight)
+        }
+        function updateRows(value: number) {
+            const diff = Math.max(1, Math.round(value)) - game.rows
+            const halfTop = Math.floor(diff / 2)
+            const halfBottom = diff - halfTop
+            if (halfTop !== 0) expandGrid('top', halfTop)
+            if (halfBottom !== 0) expandGrid('bottom', halfBottom)
+        }
+        // -------------------------------------------------------------------------------------------------------------
         return { canvas, ctx, prevChangedCell, overlayCanvas,
             handleSideHover, handleZoom, handleResize, handleGridResize, handleMove,
             drawOverlayGrid, expandGrid, toggleGrid, toggleCell, setCell,
-            newCycle, drawCellsFromCellsArray, getCellsArray
+            newCycle, drawCellsFromCellsArray, getCellsArray,
+            updateCols, updateRows
         }
     }
 })

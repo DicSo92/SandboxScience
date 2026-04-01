@@ -27,19 +27,15 @@
 
         <div mt-2>
             <div v-if="openTab === 1" class="p-2 rounded-lg shadow-md bg-slate-700/40">
-                <RulesMatrix :store="particleLife" @update="(...args) => $emit('updateRulesMatrix', ...args)" />
-<!--                <button type="button" btn p2 mt-2 flex items-center rounded-xl bg="slate-700/40 hover:slate-700/40" @click="$emit('randomRulesMatrix')">-->
-<!--                    <span i-game-icons-perspective-dice-six-faces-random text-lg></span>-->
-<!--                    <span class="ml-2 mr-1 text-sm">Randomize</span>-->
-<!--                </button>-->
+                <RulesMatrix :store="particleLife" @update="(...args) => $emit('updateRulesMatrix', ...args)" @update-color="(...args) => $emit('updateColor', ...args)" />
             </div>
 
             <div v-if="openTab === 2" class="p-2 rounded-lg shadow-md bg-slate-700/40">
-                <MinMatrix :store="particleLife" @update="(...args) => $emit('updateMinMatrix', ...args)" />
+                <MinMatrix :store="particleLife" @update="(...args) => $emit('updateMinMatrix', ...args)" @update-color="(...args) => $emit('updateColor', ...args)" />
             </div>
 
             <div v-if="openTab === 3" class="p-2 rounded-lg shadow-md bg-slate-700/40">
-                <MaxMatrix :store="particleLife" @update="(...args) => $emit('updateMaxMatrix', ...args)" />
+                <MaxMatrix :store="particleLife" @update="(...args) => $emit('updateMaxMatrix', ...args)" @update-color="(...args) => $emit('updateColor', ...args)" />
             </div>
         </div>
     </div>
