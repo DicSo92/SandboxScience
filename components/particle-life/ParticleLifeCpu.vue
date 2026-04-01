@@ -115,14 +115,9 @@
                         </Collapse>
                         <Collapse label="Randomizer Settings" icon="i-game-icons-perspective-dice-six-faces-random text-teal-500" mt-2
                                   tooltip="Adjust the parameters for randomizing particle attributes. <br> Configure the ranges for minimum and maximum interaction radii.">
-                            <RangeInputMinMax input label="Min. Radius"
-                                              tooltip="Set the range for generating minimum interaction radii. <br> This determines the range of possible values for the minimum distance at which particles begin to interact."
-                                              :min="0" :max="100" :step="1" v-model="particleLife.minRadiusRange">
-                            </RangeInputMinMax>
-                            <RangeInputMinMax input label="Max. Radius"
-                                              tooltip="Set the range for generating maximum interaction radii. <br> This determines the range of possible values for the maximum interaction distance between particles."
-                                              :min="particleLife.minRadiusRange[1]" :max="300" :step="1" v-model="particleLife.maxRadiusRange">
-                            </RangeInputMinMax>
+                            <RadiusVisualizer v-model:min-radius-range="particleLife.minRadiusRange"
+                                              v-model:max-radius-range="particleLife.maxRadiusRange">
+                            </RadiusVisualizer>
                         </Collapse>
                         <Collapse label="Graphics Settings" icon="i-tabler-photo-cog text-emerald-500" mt-2>
                             <div flex items-center justify-between mb-2>
@@ -267,9 +262,10 @@ import SaveModal from "~/components/particle-life/SaveModal.vue";
 import { RULES_OPTIONS, generateRules } from '~/helpers/utils/rulesGenerator';
 import { PALETTE_OPTIONS, generateHSLColors } from "~/helpers/utils/colorsGenerator";
 import { hexToRgb, rgbFloatToHsl } from '~/helpers/utils/colorConversion'
+import RadiusVisualizer from "~/components/particle-life/RadiusVisualizer.vue";
 
 export default defineComponent({
-    components: { SaveModal, PresetPanel, MatrixSettings, RulesMatrix, Memory, BrushSettings, SidebarLeft },
+    components: {RadiusVisualizer, SaveModal, PresetPanel, MatrixSettings, RulesMatrix, Memory, BrushSettings, SidebarLeft },
     setup() {
         const particleLife = useParticleLifeStore()
         const rulesOptions = RULES_OPTIONS
