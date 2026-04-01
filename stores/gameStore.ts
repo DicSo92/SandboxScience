@@ -8,7 +8,7 @@ export const useGameStore = defineStore('game', () => {
     const wasRunning = ref<boolean>(false) // was the animation running? (used to pause the animation)
     const hoveredSide = ref<number | null>(null)
 
-    const SPEED = ref<number>(1) // the speed of the animation (ms)
+    const SPEED = ref<number>(16) // the speed of the animation (ms)
     const EDGEMODE = ref<number>(0) // dead, alive, mirror
     const BORN = shallowRef<number[]>([3]) // the number of neighbours for a dead cell to born
     const SURVIVES =  shallowRef<number[]>([2, 3]) // the number of neighbours for a living cell to survive
