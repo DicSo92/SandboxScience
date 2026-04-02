@@ -272,12 +272,11 @@
                 <TrackerToggle
                     @toggle="particleLife.isTrackerSelectionActive ? cancelTrackerSelection() : particleLife.isTrackerActive ? stopTracker() : startTrackerSelection()">
                 </TrackerToggle>
-                <button type="button" name="Center View" aria-label="Center View" title="Center View"
-                        btn rounded-full flex items-center justify-center p-2 pointer-events-auto
-                        class="backdrop-blur-sm bg-cyan-900/80 hover:bg-cyan-800/80"
-                        @click="smoothCenterView" :disabled="particleLife.isHudLocked">
-                    <span i-tabler-object-scan class="text-cyan-300"></span>
-                </button>
+                <CenterViewButton :disabled="particleLife.isHudLocked" 
+                                  @centerAll="smoothCenterView()" 
+                                  @centerPosition="smoothCenterView(true, false)"
+                                  @resetZoom="smoothCenterView(false, true)">
+                </CenterViewButton>
                 <button type="button" name="Randomize" aria-label="Randomize" title="Randomize simulation"
                         btn rounded-full flex items-center justify-center p-2 pointer-events-auto
                         class="backdrop-blur-sm bg-[#094F5D]/90 hover:bg-[#0B5F6F]/90"
@@ -335,6 +334,7 @@ import SaveModal from "~/components/particle-life/SaveModal.vue";
 import PresetPanel from "~/components/particle-life/PresetPanel.vue";
 import TrackerOverlay from "~/components/particle-life/TrackerOverlay.vue";
 import TrackerToggle from "~/components/particle-life/TrackerToggle.vue";
+import CenterViewButton from "~/components/particle-life/CenterViewButton.vue";
 import RadiusVisualizer from "~/components/particle-life/RadiusVisualizer.vue";
 import { RULES_OPTIONS, generateRules } from '~/helpers/utils/rulesGenerator';
 import { PALETTE_OPTIONS, generateColors } from "~/helpers/utils/colorsGenerator";
@@ -371,7 +371,7 @@ import trackerCameraUpdateShaderCode from 'assets/particle-life-gpu/shaders/comp
 
 export default defineComponent({
     name: 'ParticleLifeGpu',
-    components: { PresetPanel, SaveModal, BrushSettings, MatrixSettings, WrapModeSelection, TrackerOverlay, TrackerToggle, RadiusVisualizer },
+    components: { PresetPanel, SaveModal, BrushSettings, MatrixSettings, WrapModeSelection, TrackerOverlay, TrackerToggle, CenterViewButton, RadiusVisualizer },
     setup() {
         // Define refs and variables
         const mainContainer = ref<HTMLElement | null>(null)
@@ -769,11 +769,13 @@ export default defineComponent({
             cameraCenter = { x: SIM_WIDTH_HALF, y: SIM_HEIGHT_HALF }
             targetCameraCenter = { x: SIM_WIDTH_HALF, y: SIM_HEIGHT_HALF }
         }
-        function smoothCenterView() {
-            targetCameraCenter = { x: SIM_WIDTH_HALF, y: SIM_HEIGHT_HALF }
-            // targetZoomFactor = 1.0
-            // lastZoomPositionX = CANVAS_WIDTH / 2
-            // lastZoomPositionY = CANVAS_HEIGHT / 2
+        function smoothCenterView(position: boolean = true, zoom: boolean = true) {
+            if (position) targetCameraCenter = { x: SIM_WIDTH_HALF, y: SIM_HEIGHT_HALF }
+            if (zoom) {
+                targetZoomFactor = Math.min(CANVAS_WIDTH / SIM_WIDTH, CANVAS_HEIGHT / SIM_HEIGHT)
+                lastZoomPositionX = CANVAS_WIDTH / 2
+                lastZoomPositionY = CANVAS_HEIGHT / 2
+            }
         }
         function handleMove() {
             const dx = pointerX - lastPointerX
