@@ -210,7 +210,7 @@
                                         <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 ring-1 ring-rose-300/50 opacity-75"></span>
                                         <span class="relative inline-flex size-3 rounded-full bg-rose-400"></span>
                                     </span>
-                                    <span :class="particleLife.isTrackerSelectionActive ? 'i-tabler-marquee-2' : 'i-tabler-target'" text-xs mr-1></span>
+                                    <span :class="particleLife.isTrackerSelectionActive ? 'i-tabler-marquee-2' : 'i-tabler-current-location'" text-xs mr-1></span>
                                     {{ particleLife.isTrackerSelectionActive ? 'Selecting...' : particleLife.isTrackerActive ? 'Tracking...' : 'Select & Track' }}
                                 </button>
                             </div>
@@ -272,6 +272,12 @@
                 <TrackerToggle
                     @toggle="particleLife.isTrackerSelectionActive ? cancelTrackerSelection() : particleLife.isTrackerActive ? stopTracker() : startTrackerSelection()">
                 </TrackerToggle>
+                <button type="button" name="Center View" aria-label="Center View" title="Center View"
+                        btn rounded-full flex items-center justify-center p-2 pointer-events-auto
+                        class="backdrop-blur-sm bg-cyan-900/80 hover:bg-cyan-800/80"
+                        @click="smoothCenterView" :disabled="particleLife.isHudLocked">
+                    <span i-tabler-object-scan class="text-cyan-300"></span>
+                </button>
                 <button type="button" name="Randomize" aria-label="Randomize" title="Randomize simulation"
                         btn rounded-full flex items-center justify-center p-2 pointer-events-auto
                         class="backdrop-blur-sm bg-[#094F5D]/90 hover:bg-[#0B5F6F]/90"
@@ -762,6 +768,12 @@ export default defineComponent({
         function centerView() {
             cameraCenter = { x: SIM_WIDTH_HALF, y: SIM_HEIGHT_HALF }
             targetCameraCenter = { x: SIM_WIDTH_HALF, y: SIM_HEIGHT_HALF }
+        }
+        function smoothCenterView() {
+            targetCameraCenter = { x: SIM_WIDTH_HALF, y: SIM_HEIGHT_HALF }
+            // targetZoomFactor = 1.0
+            // lastZoomPositionX = CANVAS_WIDTH / 2
+            // lastZoomPositionY = CANVAS_HEIGHT / 2
         }
         function handleMove() {
             const dx = pointerX - lastPointerX
@@ -3521,7 +3533,7 @@ export default defineComponent({
 
             return {
                 particleLife, canvasRef, fps, executionTime, colorRgbStrings,
-                handleZoom, toggleFullscreen, isFullscreen, regenerateLife, step, randomizeRadius, randomizeRulesAndRadius,
+                handleZoom, toggleFullscreen, isFullscreen, smoothCenterView, regenerateLife, step, randomizeRadius, randomizeRulesAndRadius,
                 updateSimWidth, updateSimHeight, updateNumParticles, setNewNumParticles, setNewNumTypes,
                 updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, newRandomRulesMatrix,
                 updateRulesMatrix, updateParticlePositions, updateColors, loadPreset, updateSingleColor,
