@@ -38,8 +38,18 @@
                                 @updateRulesMatrix="updateRulesMatrixValue"
                                 @randomRulesMatrix="newRandomRulesMatrix"
                                 @updateMinMatrix="updateMinMatrixValue"
-                                @updateMaxMatrix="updateMaxMatrixValue">
+                                @updateMaxMatrix="updateMaxMatrixValue"
+                                @updateColor="updateSingleColor">
                             </MatrixSettings>
+                        </Collapse>
+                        <Collapse label="Randomizer Settings" icon="i-game-icons-perspective-dice-six-faces-random text-teal-500" mt-2
+                                  tooltip="Adjust the parameters for randomizing particle attributes. <br> Configure the ranges for minimum and maximum interaction radii.">
+                            <RadiusVisualizer v-model:min-radius-range="particleLife.minRadiusRange"
+                                              v-model:max-radius-range="particleLife.maxRadiusRange"
+                                              @randomize-radius="randomizeRadius"
+                                              @randomize-rules-and-radius="randomizeRulesAndRadius"
+                                              @randomize-all="regenerateLife">
+                            </RadiusVisualizer>
                         </Collapse>
                         <Collapse label="World Settings" icon="i-tabler-world-cog text-cyan-500" opened mt-2>
                             <RangeInput input label="Particle Number"
@@ -62,9 +72,13 @@
                                     <SelectButton :id="1" label="Circle" v-model="particleLife.wallShape" :disabled="particleLife.isWallWrap" />
                                 </div>
                             </div>
-                            <div mb-2>
-                                <WallStateSelection :store="particleLife" />
-                            </div>
+
+                            <OptionBar name="wallStateCPU" v-model="particleLife.wallState" mb-2 :options="[
+                                { id: 'none', label: 'None' },
+                                { id: 'repel', label: 'Repel' },
+                                { id: 'wrap', label: 'Wrap' }]">
+                            </OptionBar>
+
                             <div flex mb-1>
                                 <SelectButton :id="1" label="Screen" v-model="particleLife.screenMultiplierForGridSize" mr-1.5 />
                                 <SelectButton :id="1.5" label="x1.5" v-model="particleLife.screenMultiplierForGridSize" mr-1.5 />
@@ -107,17 +121,6 @@
                                         tooltip="Controls how much friction slows particles down. <br> Higher values reduce speed and help stabilize the system."
                                         :min="0" :max="1" :step="0.01" v-model="particleLife.frictionFactor" mt-2>
                             </RangeInput>
-                        </Collapse>
-                        <Collapse label="Randomizer Settings" icon="i-game-icons-perspective-dice-six-faces-random text-teal-500" mt-2
-                                  tooltip="Adjust the parameters for randomizing particle attributes. <br> Configure the ranges for minimum and maximum interaction radii.">
-                            <RangeInputMinMax input label="Min. Radius"
-                                              tooltip="Set the range for generating minimum interaction radii. <br> This determines the range of possible values for the minimum distance at which particles begin to interact."
-                                              :min="0" :max="100" :step="1" v-model="particleLife.minRadiusRange">
-                            </RangeInputMinMax>
-                            <RangeInputMinMax input label="Max. Radius"
-                                              tooltip="Set the range for generating maximum interaction radii. <br> This determines the range of possible values for the maximum interaction distance between particles."
-                                              :min="particleLife.minRadiusRange[1]" :max="300" :step="1" v-model="particleLife.maxRadiusRange">
-                            </RangeInputMinMax>
                         </Collapse>
                         <Collapse label="Graphics Settings" icon="i-tabler-photo-cog text-emerald-500" mt-2>
                             <div flex items-center justify-between mb-2>
@@ -246,22 +249,7 @@
                 <span :class="isFullscreen ? 'i-tabler-maximize-off' : 'i-tabler-maximize'"></span>
             </button>
         </div>
-        <section fixed z-10 bottom-2 right-2 flex items-end>
-            <button type="button" name="Donate" aria-label="Donate" title="Donate" @click="openDonationModal()"
-                    class="donation-glow group relative flex items-center mr-2 p-1.2 rounded-full backdrop-blur-sm transition-all duration-300 bg-rose-600/80 hover:bg-rose-500/90 border border-rose-400/50 hover:border-rose-300/70 text-white">
-                <span i-tabler-heart-filled class="animate-heartbeat"></span>
-            </button>
-            <NuxtLink to="https://github.com/DicSo92/SandboxScience" title="Github" aria-label="Github" target="_blank" flex items-center py-0 mr-2>
-                <button type="button" name="Github" aria-label="Github" class="bg-slate-900/80 ring-1 ring-zinc-4/50 rounded-lg p-1 backdrop-blur-sm" text="zinc-2 hover:zinc-4" flex>
-                    <span i-carbon-logo-github text-xl></span>
-                </button>
-            </NuxtLink>
-            <NuxtLink to="https://discord.com/invite/z5yuzkFpCA" title="Discord" aria-label="Discord" target="_blank" flex items-center py-0>
-                <button type="button" name="Discord" aria-label="Discord" class="text-zinc-2 bg-indigo-600/80 hover:bg-indigo-700/80 ring-1 ring-zinc-2/50 rounded-full p-2 backdrop-blur-sm" flex>
-                    <span i-carbon-logo-discord text-2xl></span>
-                </button>
-            </NuxtLink>
-        </section>
+        <SocialLinks />
     </section>
 </template>
 
@@ -271,15 +259,16 @@ import MatrixSettings from "~/components/particle-life/MatrixSettings.vue";
 import RulesMatrix from "~/components/particle-life/RulesMatrix.vue";
 import Memory from "~/components/particle-life/Memory.vue";
 import BrushSettings from "~/components/particle-life/BrushSettings.vue";
-import WallStateSelection from "~/components/particle-life/WallStateSelection.vue";
 import SidebarLeft from "~/components/SidebarLeft.vue";
 import PresetPanel from "~/components/particle-life/PresetPanel.vue";
 import SaveModal from "~/components/particle-life/SaveModal.vue";
 import { RULES_OPTIONS, generateRules } from '~/helpers/utils/rulesGenerator';
 import { PALETTE_OPTIONS, generateHSLColors } from "~/helpers/utils/colorsGenerator";
+import { hexToRgb, rgbFloatToHsl } from '~/helpers/utils/colorConversion'
+import RadiusVisualizer from "~/components/particle-life/RadiusVisualizer.vue";
 
 export default defineComponent({
-    components: { SaveModal, PresetPanel, MatrixSettings, RulesMatrix, Memory, BrushSettings, WallStateSelection, SidebarLeft },
+    components: {RadiusVisualizer, SaveModal, PresetPanel, MatrixSettings, RulesMatrix, Memory, BrushSettings, SidebarLeft },
     setup() {
         const particleLife = useParticleLifeStore()
         const rulesOptions = RULES_OPTIONS
@@ -288,7 +277,6 @@ export default defineComponent({
         const mainContainer = ref<HTMLElement | null>(null)
         const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(mainContainer)
         const { success } = useToasts()
-        const { open: openDonationModal } = useDonationModal()
 
         let customRulesMatrix: number[][] = [[0,1,0,1,0,0,0,0,0],[0,0,1,0,1,0,0,0,0],[1,0,0,0,0,1,0,0,0],[0,0,0,0,1,0,1,0,0],[0,0,0,0,0,1,0,1,0],[0,0,0,1,0,0,0,0,1],[1,0,0,0,0,0,0,1,0],[0,1,0,0,0,0,0,0,1],[0,0,1,0,0,0,1,0,0]]
 
@@ -587,6 +575,17 @@ export default defineComponent({
                 }
             }
             return matrix
+        }
+        const randomizeRadius = () => {
+            setMinRadiusMatrix(makeRandomMinRadiusMatrix())
+            setMaxRadiusMatrix(makeRandomMaxRadiusMatrix())
+            if (!isRunning) simpleDrawParticles()
+        }
+        const randomizeRulesAndRadius = () => {
+            setRulesMatrix(generateRules(0, numColors))
+            setMinRadiusMatrix(makeRandomMinRadiusMatrix())
+            setMaxRadiusMatrix(makeRandomMaxRadiusMatrix())
+            if (!isRunning) simpleDrawParticles()
         }
         const updateColors = async (useRandomGenerator: boolean | Event = false) => {
             const shouldRandom = typeof useRandomGenerator === 'boolean' ? useRandomGenerator : false
@@ -1730,6 +1729,14 @@ export default defineComponent({
             particleLife.currentColors = currentColors
             particleLife.brushes = []
         }
+        function updateSingleColor(colorId: number, hex: string) {
+            const rgb = hexToRgb(hex)
+            if (!rgb) return
+            const [h, s, l] = rgbFloatToHsl(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255)
+            currentColors[colorId] = [h, s, l]
+            particleLife.currentColors = [...currentColors]
+            if (!isRunning) simpleDrawParticles()
+        }
         function setRulesMatrix(newRules: number[][]) {
             rulesMatrix = newRules
             particleLife.rulesMatrix = rulesMatrix
@@ -1898,8 +1905,8 @@ export default defineComponent({
             fps, cellCount, executionTime, step, newRandomRulesMatrix, handleZoom, updateGridWidth, updateGridHeight,
             updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, regenerateLife,
             shareOptions, rulesOptions, paletteOptions,
-            updateColors, updateRulesMatrix, loadPreset, setNewNumTypes,
-            openDonationModal
+            updateColors, updateRulesMatrix, loadPreset, setNewNumTypes, updateSingleColor,
+            randomizeRadius, randomizeRulesAndRadius
         }
     }
 })

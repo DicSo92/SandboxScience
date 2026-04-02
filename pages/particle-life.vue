@@ -191,7 +191,7 @@ export default defineComponent({
             loader: () => import('~/components/particle-life/ParticleLifeGpu.vue'),
             suspensible: false
         })
-        const particleLifeComponent = shallowRef<any>(CpuComp)
+        const particleLifeComponent = shallowRef<any>(null)
         const currentRenderer = ref<'gpu' | 'cpu'>('cpu') // track active renderer
         const isWebGPUSupported = ref<boolean>(true)
         const isModalOpen = ref<boolean>(false)

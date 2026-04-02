@@ -1,4 +1,5 @@
-import { hideAllPoppers } from "floating-vue";
+﻿import { hideAllPoppers } from "floating-vue";
+import { clamp, rgbToHex, hslToRgb, hexToRgb } from "~/helpers/utils/colorConversion"
 const { success, error } = useToasts()
 
 import * as z from "zod/mini";
@@ -118,71 +119,35 @@ const safeHideAllPoppers = () => {
 }
 const clone1D = <T>(arr: T[]) => [...arr]
 const clone2D = (m: number[][]) => m.map(row => [...row])
-const flatRgbaToHexList = (flatRgba: number[]): string[] => {
+const flatRgbaToHexList = (flatRgba: Float32Array | number[]): string[] => {
     const colors: string[] = []
-
     for (let i = 0; i < flatRgba.length; i += 4) {
-        const r = Math.round(Math.min(Math.max(flatRgba[i], 0), 1) * 255)
-        const g = Math.round(Math.min(Math.max(flatRgba[i + 1], 0), 1) * 255)
-        const b = Math.round(Math.min(Math.max(flatRgba[i + 2], 0), 1) * 255)
-
-        const toHex = (n: number) => n.toString(16).padStart(2, "0").toUpperCase()
-        colors.push(`#${toHex(r)}${toHex(g)}${toHex(b)}`)
+        colors.push(rgbToHex(
+            Math.round(clamp(flatRgba[i], 0, 1) * 255),
+            Math.round(clamp(flatRgba[i + 1], 0, 1) * 255),
+            Math.round(clamp(flatRgba[i + 2], 0, 1) * 255),
+        ))
     }
-
     return colors
 }
 const hexListToFlatRgba = (hexList: string[]): Float32Array => {
     const flat = new Float32Array(hexList.length * 4)
-
     for (let i = 0; i < hexList.length; i++) {
-        const hex = hexList[i]
-        const clean = hex.replace("#", "").trim()
-        const full = clean.length === 3
-            ? clean.split("").map(c => c + c).join("") // ex: f0a → ff00aa
-            : clean
-
-        flat[i * 4]     = parseInt(full.substring(0, 2), 16) / 255
-        flat[i * 4 + 1] = parseInt(full.substring(2, 4), 16) / 255
-        flat[i * 4 + 2] = parseInt(full.substring(4, 6), 16) / 255
+        const rgb = hexToRgb(hexList[i])
+        if (!rgb) continue
+        flat[i * 4]     = rgb[0] / 255
+        flat[i * 4 + 1] = rgb[1] / 255
+        flat[i * 4 + 2] = rgb[2] / 255
         flat[i * 4 + 3] = 1
     }
     return flat
 }
 const hslArrayToHexList = (hslArray: number[][]): string[] => {
-    const hexList: string[] = []
-
-    for (const hsl of hslArray) {
-        const h = hsl[0] / 360
-        const s = hsl[1] / 100
-        const l = hsl[2] / 100
-
-        let r: number, g: number, b: number
-
-        if (s === 0) {
-            r = g = b = l // achromatic
-        } else {
-            const hue2rgb = (p: number, q: number, t: number) => {
-                if (t < 0) t += 1
-                if (t > 1) t -= 1
-                if (t < 1 / 6) return p + (q - p) * 6 * t
-                if (t < 1 / 2) return q
-                if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6
-                return p
-            }
-
-            const q = l < 0.5 ? l * (1 + s) : l + s - l * s
-            const p = 2 * l - q
-
-            r = hue2rgb(p, q, h + 1 / 3)
-            g = hue2rgb(p, q, h)
-            b = hue2rgb(p, q, h - 1 / 3)
-        }
-
-        const toHex = (n: number) => Math.round(n * 255).toString(16).padStart(2, "0").toUpperCase()
-        hexList.push(`#${toHex(r)}${toHex(g)}${toHex(b)}`)
-    }
-    return hexList
+    const toHex = (n: number) => Math.round(n * 255).toString(16).padStart(2, "0").toUpperCase()
+    return hslArray.map(([h, s, l]) => {
+        const [r, g, b] = hslToRgb(h, s, l)
+        return `#${toHex(r)}${toHex(g)}${toHex(b)}`
+    })
 }
 const flattenMatrix = (matrix: number[][]): number[] => {
     const size = matrix.length

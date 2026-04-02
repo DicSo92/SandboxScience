@@ -35,8 +35,18 @@
                                             @updateRulesMatrix="updateRulesMatrixValue"
                                             @randomRulesMatrix="newRandomRulesMatrix"
                                             @updateMinMatrix="updateMinMatrixValue"
-                                            @updateMaxMatrix="updateMaxMatrixValue">
+                                            @updateMaxMatrix="updateMaxMatrixValue"
+                                            @updateColor="updateSingleColor">
                             </MatrixSettings>
+                        </Collapse>
+                        <Collapse label="Randomizer Settings" icon="i-game-icons-perspective-dice-six-faces-random text-teal-500"
+                                  tooltip="Adjust the parameters for randomizing particle attributes. <br> Configure the ranges for minimum and maximum interaction radii.">
+                            <RadiusVisualizer v-model:min-radius-range="particleLife.minRadiusRange"
+                                              v-model:max-radius-range="particleLife.maxRadiusRange"
+                                              @randomize-radius="randomizeRadius"
+                                              @randomize-rules-and-radius="randomizeRulesAndRadius"
+                                              @randomize-all="regenerateLife">
+                            </RadiusVisualizer>
                         </Collapse>
                         <Collapse label="World Settings" icon="i-tabler-world-cog text-cyan-500" opened>
                             <RangeInput input label="Particle Count"
@@ -62,7 +72,11 @@
                             <hr border-gray-500 mt-1 mb-2>
                             <p underline text-gray-300 class="-mt-0.5" mb-2>Boundary Settings :</p>
 
-                            <WallStateSelection :store="particleLife" mb-2 />
+                            <OptionBar name="wallStateGpu" v-model="particleLife.wallState" mb-2 :options="[
+                                { id: 'none', label: 'None' },
+                                { id: 'repel', label: 'Repel' },
+                                { id: 'wrap', label: 'Wrap' }]">
+                            </OptionBar>
 
                             <div flex justify-around mb-1>
                                 <div class="w-2/3 text-2sm mt-1">
@@ -95,17 +109,6 @@
                                         tooltip="Controls how much friction slows particles down. <br> Higher values reduce speed and help stabilize the system."
                                         :min="0" :max="1" :step="0.01" v-model="particleLife.frictionFactor" mt-2>
                             </RangeInput>
-                        </Collapse>
-                        <Collapse label="Randomizer Settings" icon="i-game-icons-perspective-dice-six-faces-random text-teal-500"
-                                  tooltip="Adjust the parameters for randomizing particle attributes. <br> Configure the ranges for minimum and maximum interaction radii.">
-                            <RangeInputMinMax input label="Min. Radius"
-                                              tooltip="Set the range for generating minimum interaction radii. <br> This determines the range of possible values for the minimum distance at which particles begin to interact."
-                                              :min="0" :max="128" :step="1" v-model="particleLife.minRadiusRange">
-                            </RangeInputMinMax>
-                            <RangeInputMinMax input label="Max. Radius" mt-3
-                                              tooltip="Set the range for generating maximum interaction radii. <br> This determines the range of possible values for the maximum interaction distance between particles."
-                                              :min="0" :max="256" :step="1" v-model="particleLife.maxRadiusRange">
-                            </RangeInputMinMax>
                         </Collapse>
                         <Collapse label="Graphics Settings" icon="i-tabler-photo-cog text-emerald-500">
                             <RangeInput input label="Particle Size"
@@ -207,7 +210,7 @@
                                         <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 ring-1 ring-rose-300/50 opacity-75"></span>
                                         <span class="relative inline-flex size-3 rounded-full bg-rose-400"></span>
                                     </span>
-                                    <span :class="particleLife.isTrackerSelectionActive ? 'i-tabler-marquee-2' : 'i-tabler-target'" text-xs mr-1></span>
+                                    <span :class="particleLife.isTrackerSelectionActive ? 'i-tabler-marquee-2' : 'i-tabler-current-location'" text-xs mr-1></span>
                                     {{ particleLife.isTrackerSelectionActive ? 'Selecting...' : particleLife.isTrackerActive ? 'Tracking...' : 'Select & Track' }}
                                 </button>
                             </div>
@@ -269,6 +272,11 @@
                 <TrackerToggle
                     @toggle="particleLife.isTrackerSelectionActive ? cancelTrackerSelection() : particleLife.isTrackerActive ? stopTracker() : startTrackerSelection()">
                 </TrackerToggle>
+                <CenterViewButton :disabled="particleLife.isHudLocked" 
+                                  @centerAll="smoothCenterView()" 
+                                  @centerPosition="smoothCenterView(true, false)"
+                                  @resetZoom="smoothCenterView(false, true)">
+                </CenterViewButton>
                 <button type="button" name="Randomize" aria-label="Randomize" title="Randomize simulation"
                         btn rounded-full flex items-center justify-center p-2 pointer-events-auto
                         class="backdrop-blur-sm bg-[#094F5D]/90 hover:bg-[#0B5F6F]/90"
@@ -313,28 +321,12 @@
                 <span i-tabler-zoom-in></span>
             </button>
         </div>
-        <section fixed z-10 bottom-2 right-2 flex items-end>
-            <button type="button" name="Donate" aria-label="Donate" title="Donate" @click="openDonationModal()"
-                    class="donation-glow group relative flex items-center mr-2 p-1.2 rounded-full backdrop-blur-sm transition-all duration-300 bg-rose-600/80 hover:bg-rose-500/90 border border-rose-400/50 hover:border-rose-300/70 text-white">
-                <span i-tabler-heart-filled class="animate-heartbeat"></span>
-            </button>
-            <NuxtLink to="https://github.com/DicSo92/SandboxScience" title="Github" aria-label="Github" target="_blank" flex items-center py-0 mr-2>
-                <button type="button" name="Github" aria-label="Github" class="bg-slate-900/80 ring-1 ring-zinc-4/50 rounded-lg p-1 backdrop-blur-sm" text="zinc-2 hover:zinc-4" flex>
-                    <span i-carbon-logo-github text-xl></span>
-                </button>
-            </NuxtLink>
-            <NuxtLink to="https://discord.com/invite/z5yuzkFpCA" title="Discord" aria-label="Discord" target="_blank" flex items-center py-0>
-                <button type="button" name="Discord" aria-label="Discord" class="text-zinc-2 bg-indigo-600/80 hover:bg-indigo-700/80 ring-1 ring-zinc-2/50 rounded-full p-2 backdrop-blur-sm" flex>
-                    <span i-carbon-logo-discord text-2xl></span>
-                </button>
-            </NuxtLink>
-        </section>
+        <SocialLinks />
     </section>
 </template>
 
 <script lang="ts">
 import { defineComponent, onMounted, ref } from 'vue';
-import WallStateSelection from "~/components/particle-life/WallStateSelection.vue";
 import WrapModeSelection from "~/components/particle-life/WrapModeSelection.vue";
 import MatrixSettings from "~/components/particle-life/MatrixSettings.vue";
 import BrushSettings from "~/components/particle-life/BrushSettings.vue";
@@ -342,9 +334,12 @@ import SaveModal from "~/components/particle-life/SaveModal.vue";
 import PresetPanel from "~/components/particle-life/PresetPanel.vue";
 import TrackerOverlay from "~/components/particle-life/TrackerOverlay.vue";
 import TrackerToggle from "~/components/particle-life/TrackerToggle.vue";
+import CenterViewButton from "~/components/particle-life/CenterViewButton.vue";
+import RadiusVisualizer from "~/components/particle-life/RadiusVisualizer.vue";
 import { RULES_OPTIONS, generateRules } from '~/helpers/utils/rulesGenerator';
 import { PALETTE_OPTIONS, generateColors } from "~/helpers/utils/colorsGenerator";
 import { POSITION_OPTIONS, generatePositions } from "~/helpers/utils/positionsGenerator";
+import { hexToRgb } from '~/helpers/utils/colorConversion';
 
 import heatmapImage from 'assets/particle-life-gpu/images/heatmap_red4x_256x1.png';
 
@@ -376,13 +371,12 @@ import trackerCameraUpdateShaderCode from 'assets/particle-life-gpu/shaders/comp
 
 export default defineComponent({
     name: 'ParticleLifeGpu',
-    components: { PresetPanel, SaveModal, BrushSettings, MatrixSettings, WallStateSelection, WrapModeSelection, TrackerOverlay, TrackerToggle },
+    components: { PresetPanel, SaveModal, BrushSettings, MatrixSettings, WrapModeSelection, TrackerOverlay, TrackerToggle, CenterViewButton, RadiusVisualizer },
     setup() {
         // Define refs and variables
         const mainContainer = ref<HTMLElement | null>(null)
         const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(mainContainer)
         const { success, error } = useToasts()
-        const { open: openDonationModal } = useDonationModal()
         const particleLife = useParticleLifeGPUStore()
         const rulesOptions = RULES_OPTIONS
         const paletteOptions = PALETTE_OPTIONS
@@ -774,6 +768,14 @@ export default defineComponent({
         function centerView() {
             cameraCenter = { x: SIM_WIDTH_HALF, y: SIM_HEIGHT_HALF }
             targetCameraCenter = { x: SIM_WIDTH_HALF, y: SIM_HEIGHT_HALF }
+        }
+        function smoothCenterView(position: boolean = true, zoom: boolean = true) {
+            if (position) targetCameraCenter = { x: SIM_WIDTH_HALF, y: SIM_HEIGHT_HALF }
+            if (zoom) {
+                targetZoomFactor = Math.min(CANVAS_WIDTH / SIM_WIDTH, CANVAS_HEIGHT / SIM_HEIGHT)
+                lastZoomPositionX = CANVAS_WIDTH / 2
+                lastZoomPositionY = CANVAS_HEIGHT / 2
+            }
         }
         function handleMove() {
             const dx = pointerX - lastPointerX
@@ -3118,6 +3120,17 @@ export default defineComponent({
             }
             return matrix
         }
+        const randomizeRadius = () => {
+            setMinRadiusMatrix(makeRandomMinRadiusMatrix())
+            setMaxRadiusMatrix(makeRandomMaxRadiusMatrix())
+            updateInteractionMatrixBuffer()
+        }
+        const randomizeRulesAndRadius = () => {
+            setRulesMatrix(generateRules(0, NUM_TYPES))
+            setMinRadiusMatrix(makeRandomMinRadiusMatrix())
+            setMaxRadiusMatrix(makeRandomMaxRadiusMatrix())
+            updateInteractionMatrixBuffer()
+        }
         const updateColors = async (useRandomGenerator: boolean | Event = false) => {
             const shouldRandom = typeof useRandomGenerator === 'boolean' ? useRandomGenerator : false
             if (shouldRandom) particleLife.selectedColorPaletteOption = paletteOptions[Math.floor(Math.random() * paletteOptions.length)].id
@@ -3138,7 +3151,7 @@ export default defineComponent({
             if (shouldRandom) particleLife.selectedSpawnPositionOption = positionOptions[Math.floor(Math.random() * positionOptions.length)].id
 
             initialParticles = generatePositions(particleLife.selectedSpawnPositionOption, NUM_PARTICLES, NUM_TYPES, SIM_WIDTH, SIM_HEIGHT)
-            device.queue.writeBuffer(particleBuffer!, 0, initialParticles)
+            device.queue.writeBuffer(particleBuffer!, 0, initialParticles.buffer)
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -3232,6 +3245,17 @@ export default defineComponent({
             }
             return result
         })
+        // -------------------------------------------------------------------------------------------------------------
+        const updateSingleColor = (colorId: number, hex: string) => {
+            const rgb = hexToRgb(hex)
+            if (!rgb) return
+            const idx = colorId * 4
+            colors[idx]     = rgb[0] / 255
+            colors[idx + 1] = rgb[1] / 255
+            colors[idx + 2] = rgb[2] / 255
+            particleLife.currentColors = new Float32Array(colors) // New reference to trigger reactivity
+            updateColorBuffer()
+        }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -3509,16 +3533,15 @@ export default defineComponent({
             // particleLife.$reset()
         })
 
-        return {
-            particleLife, canvasRef, fps, executionTime, colorRgbStrings,
-            handleZoom, toggleFullscreen, isFullscreen, regenerateLife, step,
-            updateSimWidth, updateSimHeight, updateNumParticles, setNewNumParticles, setNewNumTypes,
-            updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, newRandomRulesMatrix,
-            updateRulesMatrix, updateParticlePositions, updateColors, loadPreset,
-            startTrackerSelection, cancelTrackerSelection, stopTracker, onTrackerZoneSelected,
-            rulesOptions, paletteOptions, positionOptions,
-            openDonationModal
-        }
+            return {
+                particleLife, canvasRef, fps, executionTime, colorRgbStrings,
+                handleZoom, toggleFullscreen, isFullscreen, smoothCenterView, regenerateLife, step, randomizeRadius, randomizeRulesAndRadius,
+                updateSimWidth, updateSimHeight, updateNumParticles, setNewNumParticles, setNewNumTypes,
+                updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, newRandomRulesMatrix,
+                updateRulesMatrix, updateParticlePositions, updateColors, loadPreset, updateSingleColor,
+                startTrackerSelection, cancelTrackerSelection, stopTracker, onTrackerZoneSelected,
+                rulesOptions, paletteOptions, positionOptions
+            }
     }
 });
 </script>

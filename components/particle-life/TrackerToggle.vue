@@ -10,7 +10,7 @@
                         ? 'bg-rose-600/90 hover:bg-rose-500/90'
                         : 'bg-rose-900/80 hover:bg-rose-800/80'"
                 @click="$emit('toggle')">
-            <span :class="particleLife.isTrackerSelectionActive ? 'i-tabler-marquee-2 text-white' : particleLife.isTrackerActive ? 'i-tabler-target text-white' : 'i-tabler-target text-rose-300'"></span>
+            <span :class="particleLife.isTrackerSelectionActive ? 'i-tabler-marquee-2 text-white' : particleLife.isTrackerActive ? 'i-tabler-current-location text-white' : 'i-tabler-current-location text-rose-300'"></span>
             <span v-if="particleLife.isTrackerActive && !particleLife.isTrackerSelectionActive" class="absolute -top-0.5 -right-0.5 flex size-3">
                 <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 ring-1 ring-rose-300/50 opacity-75"></span>
                 <span class="relative inline-flex size-3 rounded-full bg-rose-400"></span>

@@ -29,6 +29,13 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
     const isAdditiveBlending = ref<boolean>(true) // Enable additive blending for the particles
     const isWallRepel = ref<boolean>(false) // Enable walls X and Y for the particles
     const isWallWrap = ref<boolean>(false) // Enable wrapped particles
+    const wallState = computed({
+        get: () => isWallRepel.value ? 'repel' : isWallWrap.value ? 'wrap' : 'none',
+        set: (value: string) => {
+            isWallRepel.value = value === 'repel'
+            isWallWrap.value = value === 'wrap'
+        }
+    })
     const isMirrorWrap = ref<boolean>(false) // Enable mirrors for the particles (only works if isWallWrap is true)
     const isInfiniteMirrorWrap = ref<boolean>(false) // Enable infinite mirrors for the particles (only works if isWallWrap is true)
     const mirrorWrapCount = ref<number>(5) // Number of mirrors (5 or 9)
@@ -95,7 +102,7 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
         rulesMatrix, minRadiusMatrix, maxRadiusMatrix, currentColors,
         simWidth, simHeight, linkProportions,
         numParticles, particleSize, numColors, zoomSmoothing, panSmoothing,
-        is3D, isParticleGlow, isAdditiveBlending, isWallRepel, isWallWrap, isMirrorWrap, isInfiniteMirrorWrap, mirrorWrapCount, screenMultiplierForGridSize,
+        is3D, isParticleGlow, isAdditiveBlending, isWallRepel, isWallWrap, wallState, isMirrorWrap, isInfiniteMirrorWrap, mirrorWrapCount, screenMultiplierForGridSize,
         isDebugBinsActive, debugMaxParticleCount, isDebugHeatmapActive,
         isDriftCamActive, driftCamResetOnPan, driftCamSpeed, driftCamAmplitude, driftCamZoomRange,
         isTrackerActive, isTrackerSelectionActive, isTrackerCameraActive, isTrackerIndicatorVisible, trackerCameraSmoothing,
