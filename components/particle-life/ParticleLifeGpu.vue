@@ -1233,7 +1233,9 @@ export default defineComponent({
         const step = () => {
             const encoder = device.createCommandEncoder()
 
-            encoder.copyBufferToBuffer(particleBuffer!, 0, particleTempBuffer!, 0, particleBuffer!.size)
+            if (!useSpatialHash) {
+                encoder.copyBufferToBuffer(particleBuffer!, 0, particleTempBuffer!, 0, particleBuffer!.size)
+            }
             if (useSpatialHash) computeBinning(encoder)
             else computeBruteForce(encoder)
             computeAdvance(encoder)
@@ -3225,7 +3227,8 @@ export default defineComponent({
             if (currentMaxRadius === value) return
             currentMaxRadius = value
             particleLife.currentMaxRadius = value
-            CELL_SIZE = currentMaxRadius
+            // CELL_SIZE = currentMaxRadius
+            CELL_SIZE = Math.ceil(currentMaxRadius / 2)
 
             setSimSize()
             updateSimOptionsBuffer()
