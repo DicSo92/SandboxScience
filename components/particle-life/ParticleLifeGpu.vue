@@ -248,7 +248,11 @@
                                         :min="640" :max="16000" :step="16" v-model="particleLife.debugMaxParticleCount" mt-2>
                             </RangeInput>
                             <hr border-gray-500 my-2>
-                            <ToggleSwitch inactive-label="BruteForce" label="SpatialHash" colorful-label v-model="particleLife.useSpatialHash" />
+                            <RangeInput input label="Cell Subdivisions"
+                                        tooltip="Subdivides the interaction radius into smaller grid cells. <br> Default: 2 (fastest in most cases). <br> Increasing subdivisions can improve performance for simulations with very large radii."
+                                        :min="1" :max="5" :step="1" v-model="particleLife.cellSubdivisions">
+                            </RangeInput>
+                            <ToggleSwitch inactive-label="BruteForce" label="SpatialHash" colorful-label v-model="particleLife.useSpatialHash" mt-1.5 />
                         </Collapse>
                     </div>
                     <div absolute bottom-2 right-0 z-100 class="-mr-px">
@@ -403,6 +407,7 @@ export default defineComponent({
         let SIM_WIDTH_HALF: number = 0
         let SIM_HEIGHT_HALF: number = 0
         let CELL_SIZE: number = 0
+        let CELL_SUBDIVISIONS: number = particleLife.cellSubdivisions
         let baseSimWidth: number = 0
         let baseSimHeight: number = 0
         let GRID_WIDTH: number = 0
@@ -1725,7 +1730,7 @@ export default defineComponent({
             }
         }
         const updateSimOptionsBuffer = () => {
-            const simOptionsData = new ArrayBuffer(76)
+            const simOptionsData = new ArrayBuffer(80)
             const simOptionsView = new DataView(simOptionsData)
             simOptionsView.setFloat32(0, SIM_WIDTH, true)
             simOptionsView.setFloat32(4, SIM_HEIGHT, true)
@@ -1747,6 +1752,7 @@ export default defineComponent({
             simOptionsView.setUint32(64, GRID_OFFSET_X, true)
             simOptionsView.setUint32(68, GRID_OFFSET_Y, true)
             simOptionsView.setUint32(72, mirrorWrapCount, true)
+            simOptionsView.setUint32(76, CELL_SUBDIVISIONS, true)
 
             if (!simOptionsBuffer) {
                 simOptionsBuffer = device.createBuffer({
@@ -1759,7 +1765,7 @@ export default defineComponent({
             } else if (isEraseCompletionPending) {
                 // Skip writing numParticles during erase to avoid conflicts with GPU-side copyBufferToBuffer
                 device.queue.writeBuffer(simOptionsBuffer, 0, simOptionsData, 0, 20)
-                device.queue.writeBuffer(simOptionsBuffer, 24, simOptionsData, 24, 52)
+                device.queue.writeBuffer(simOptionsBuffer, 24, simOptionsData, 24, 56)
             } else {
                 device.queue.writeBuffer(simOptionsBuffer, 0, simOptionsData)
             }
@@ -3227,8 +3233,7 @@ export default defineComponent({
             if (currentMaxRadius === value) return
             currentMaxRadius = value
             particleLife.currentMaxRadius = value
-            // CELL_SIZE = currentMaxRadius
-            CELL_SIZE = Math.ceil(currentMaxRadius / 2)
+            CELL_SIZE = Math.max(1, Math.ceil(currentMaxRadius / CELL_SUBDIVISIONS))
 
             setSimSize()
             updateSimOptionsBuffer()
@@ -3348,6 +3353,12 @@ export default defineComponent({
             updateDebugOptionsBuffer()
         })
         watch(() => particleLife.debugMaxParticleCount, (value: number) => { debugMaxParticleCount = value; updateDebugOptionsBuffer(); })
+        watch(() => particleLife.cellSubdivisions, (value: number) => {
+            CELL_SUBDIVISIONS = value
+            CELL_SIZE = Math.ceil(currentMaxRadius / CELL_SUBDIVISIONS)
+            setSimSize()
+            updateSimOptionsBuffer()
+        })
 
         let isUpdatingWallState = false
         watch([

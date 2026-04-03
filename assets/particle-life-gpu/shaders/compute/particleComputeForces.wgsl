@@ -19,6 +19,7 @@ struct SimOptions {
     gridOffsetX: u32,
     gridOffsetY: u32,
     mirrorWrapCount: u32,
+    cellSubdivisions: u32,
 };
 struct Particle {
     x : f32,
@@ -75,17 +76,17 @@ fn computeForces(@builtin(global_invocation_id) id : vec3u) {
     let half_height = options.simHeight * 0.5;
     let is_wrapping = options.isWallWrap == 1u;
     let repelForce = options.repel;
-    let searchRange = 2;
+    let cellSubdivisions = i32(options.cellSubdivisions);
 
     var particle = particlesSource[id.x];
     let myType = u32(particle.particleType);
     let myTypeOffset = myType * options.numTypes;
     let binInfo = getBinInfo(vec2f(particle.x, particle.y), options);
 
-    var binXMin = binInfo.binId.x - searchRange;
-    var binYMin = binInfo.binId.y - searchRange;
-    var binXMax = binInfo.binId.x + searchRange;
-    var binYMax = binInfo.binId.y + searchRange;
+    var binXMin = binInfo.binId.x - cellSubdivisions;
+    var binYMin = binInfo.binId.y - cellSubdivisions;
+    var binXMax = binInfo.binId.x + cellSubdivisions;
+    var binYMax = binInfo.binId.y + cellSubdivisions;
 
     if (!is_wrapping) {
         binXMin = max(0, binXMin);
