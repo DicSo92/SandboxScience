@@ -235,24 +235,39 @@
                         </Collapse>
                         <Collapse label="Debug Tools" icon="i-tabler-bug text-rose-500"
                                   tooltip="Provides tools for visualizing the simulation's internal state. <br> Toggle the grid view to see spatial bins or activate a heatmap to analyze particle density. <br> These features are useful for debugging and performance tuning.">
-                            <div flex>
-                                <ToggleSwitch label="Show Bins" colorful-label v-model="particleLife.isDebugBinsActive" mr-4
-                                              tooltip="Displays the cells (bins) of the spatial partitioning system. <br> Each cell is drawn as a grid, which helps visualize how particles are grouped. <br> This is a useful debugging tool for optimizing performance.">
-                                </ToggleSwitch>
-                                <ToggleSwitch label="Show Heatmap" colorful-label v-model="particleLife.isDebugHeatmapActive"
-                                              tooltip="Enables a heatmap to visualize particle density. <br> Each grid cell is colored based on the number of particles it contains, following a gradient from blue (low density) to red (high density). <br> This helps identify areas of high concentration.">
-                                </ToggleSwitch>
+                            <div v-show="particleLife.useSpatialHash">
+                                <p text-gray-300 text-2sm underline mb-1 class="-mt-0.5">Spatial Bins Overlay :</p>
+                                <div flex items-center gap-2>
+                                    <SelectInput name="debug-bins-mode"
+                                                 :model-value="particleLife.isDebugHeatmapActive ? 'heatmap' : 'grid'"
+                                                 @update:model-value="particleLife.isDebugHeatmapActive = $event === 'heatmap'"
+                                                 :options="[
+                                                 { id: 'grid', name: 'Grid', icon: 'i-tabler-grid-dots', category: 'Display Mode' },
+                                                 { id: 'heatmap', name: 'Heatmap', icon: 'i-tabler-flame', category: 'Display Mode' }
+                                             ]">
+                                    </SelectInput>
+                                    <ToggleSwitch label="Active" colorful-label v-model="particleLife.isDebugBinsActive" />
+                                </div>
+                                <RangeInput v-show="particleLife.isDebugHeatmapActive" input label="Heatmap Scale"
+                                            tooltip="Sets the number of particles in a cell that maps to the highest value on the heatmap gradient. <br> Adjusting this value scales the density visualization, helping to fine-tune how particle concentrations are displayed."
+                                            :min="640" :max="16000" :step="16" v-model="particleLife.debugMaxParticleCount" mt-2>
+                                </RangeInput>
+                                <hr border-gray-500 my-2>
                             </div>
-                            <RangeInput input label="Heatmap Scale"
-                                        tooltip="Sets the number of particles in a cell that maps to the highest value on the heatmap gradient. <br> Adjusting this value scales the density visualization, helping to fine-tune how particle concentrations are displayed."
-                                        :min="640" :max="16000" :step="16" v-model="particleLife.debugMaxParticleCount" mt-2>
-                            </RangeInput>
-                            <hr border-gray-500 my-2>
-                            <RangeInput input label="Cell Subdivisions"
+
+                            <p text-gray-300 text-2sm underline mb-1 class="-mt-0.5">Neighbor Search :</p>
+                            <SelectInput name="algorithm-mode"
+                                         :model-value="particleLife.useSpatialHash ? 'spatial' : 'brute'"
+                                         @update:model-value="particleLife.useSpatialHash = $event === 'spatial'"
+                                         :options="[
+                                             { id: 'spatial', name: 'Spatial Hash', icon: 'i-tabler-topology-ring-3', category: 'Method' },
+                                             { id: 'brute', name: 'Brute Force', icon: 'i-tabler-cpu', category: 'Method' },
+                                         ]">
+                            </SelectInput>
+                            <RangeInput v-show="particleLife.useSpatialHash" input label="Cell Subdivisions" mt-2
                                         tooltip="Subdivides the interaction radius into smaller grid cells. <br> Default: 2 (fastest in most cases). <br> Increasing subdivisions can improve performance for simulations with very large radii."
                                         :min="1" :max="5" :step="1" v-model="particleLife.cellSubdivisions">
                             </RangeInput>
-                            <ToggleSwitch inactive-label="BruteForce" label="SpatialHash" colorful-label v-model="particleLife.useSpatialHash" mt-1.5 />
                         </Collapse>
                     </div>
                     <div absolute bottom-2 right-0 z-100 class="-mr-px">
@@ -3344,13 +3359,12 @@ export default defineComponent({
 
         watch(() => particleLife.isDebugBinsActive, (value: boolean) => {
             isDebugBinsActive = value
-            if (!isDebugBinsActive) particleLife.isDebugHeatmapActive = false
             if (!isRunning && isDebugBinsActive) step() // Force step for debug bins update
         })
         watch(() => particleLife.isDebugHeatmapActive, (value: boolean) => {
             isDebugHeatmapActive = value
-            if (isDebugHeatmapActive) particleLife.isDebugBinsActive = true
             updateDebugOptionsBuffer()
+            particleLife.isDebugBinsActive = true
         })
         watch(() => particleLife.debugMaxParticleCount, (value: number) => { debugMaxParticleCount = value; updateDebugOptionsBuffer(); })
         watch(() => particleLife.cellSubdivisions, (value: number) => {
