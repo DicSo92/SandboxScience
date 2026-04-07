@@ -26,6 +26,7 @@ struct SimOptions {
     gridOffsetX: u32,
     gridOffsetY: u32,
     mirrorWrapCount: u32,
+    cellSubdivisions: u32,
 }
 
 // Tracker state persisted across frames
@@ -79,7 +80,7 @@ fn accumulateParticles(@builtin(global_invocation_id) globalId: vec3u) {
     let tVx = trackerState.vx;
     let tVy = trackerState.vy;
 
-    let baseRadius = max(simOptions.cellSize * 0.8, MIN_RADIUS);
+    let baseRadius = max(simOptions.cellSize * f32(simOptions.cellSubdivisions) * 0.8, MIN_RADIUS);
     let baseRadiusSq = baseRadius * baseRadius;
     let baseRadiusInv = 1.0 / baseRadius;
 
@@ -137,7 +138,7 @@ fn accumulateParticles(@builtin(global_invocation_id) globalId: vec3u) {
 // Pass 2: Finalize tracker position using the most precise valid level
 @compute @workgroup_size(1)
 fn finalizeTracker() {
-    let baseRadius = max(simOptions.cellSize * 0.8, MIN_RADIUS);
+    let baseRadius = max(simOptions.cellSize * f32(simOptions.cellSubdivisions) * 0.8, MIN_RADIUS);
     let predFactor = (1.0 - simOptions.frictionFactor) * deltaTime;
     let expectedCount = trackerState.expectedCount;
 

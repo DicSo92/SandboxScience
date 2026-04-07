@@ -3,7 +3,7 @@
         <canvas id="trackerCanvas" @contextmenu.prevent w-full h-full cursor-crosshair></canvas>
 
         <div v-if="isSelecting" pointer-events-none class="absolute top-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-slate-900/90 backdrop-blur-sm ring-1 ring-amber-500/40 px-5 py-2.5 rounded-full text-sm animate-pulse">
-            <span i-tabler-target text-rose-400></span>
+            <span i-tabler-current-location text-rose-400></span>
             <span text-gray-200>Draw around a creature to start tracking</span>
         </div>
 

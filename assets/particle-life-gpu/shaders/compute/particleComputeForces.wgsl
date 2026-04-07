@@ -19,6 +19,7 @@ struct SimOptions {
     gridOffsetX: u32,
     gridOffsetY: u32,
     mirrorWrapCount: u32,
+    cellSubdivisions: u32,
 };
 struct Particle {
     x : f32,
@@ -53,7 +54,8 @@ fn getBinInfo(position: vec2f, options: SimOptions) -> BinInfo {
 }
 fn get_interaction(index: u32) -> vec3<f32> {
     let word = interactions.data[index];
-    let rule = (f32((word >> 0u) & 0xFFu) / 255.0) * 2.0 - 1.0;
+//    let rule = (f32((word >> 0u) & 0xFFu) / 255.0) * 2.0 - 1.0;
+    let rule = fma(f32((word >> 0u) & 0xFFu), 1.0 / 127.5, -1.0);
     let minR = f32((word >> 8u) & 0xFFu);
     let maxR = f32((word >> 16u) & 0xFFFFu);
     return vec3<f32>(rule, minR, maxR);
@@ -73,15 +75,18 @@ fn computeForces(@builtin(global_invocation_id) id : vec3u) {
     let half_width = options.simWidth * 0.5;
     let half_height = options.simHeight * 0.5;
     let is_wrapping = options.isWallWrap == 1u;
+    let repelForce = options.repel;
+    let cellSubdivisions = i32(options.cellSubdivisions);
 
     var particle = particlesSource[id.x];
     let myType = u32(particle.particleType);
+    let myTypeOffset = myType * options.numTypes;
     let binInfo = getBinInfo(vec2f(particle.x, particle.y), options);
 
-    var binXMin = binInfo.binId.x - 1;
-    var binYMin = binInfo.binId.y - 1;
-    var binXMax = binInfo.binId.x + 1;
-    var binYMax = binInfo.binId.y + 1;
+    var binXMin = binInfo.binId.x - cellSubdivisions;
+    var binYMin = binInfo.binId.y - cellSubdivisions;
+    var binXMax = binInfo.binId.x + cellSubdivisions;
+    var binYMax = binInfo.binId.y + cellSubdivisions;
 
     if (!is_wrapping) {
         binXMin = max(0, binXMin);
@@ -107,16 +112,12 @@ fn computeForces(@builtin(global_invocation_id) id : vec3u) {
             }
             let binIndex = u32(realBinY * binInfo.gridSize.x + realBinX);
             let binStart = binOffset[binIndex];
-            let binEnd = binOffset[binIndex + 1];
+            let binEnd = binOffset[binIndex + 1u];
 
-            for (var j = binStart; j < binEnd; j += 1) {
+            for (var j = binStart; j < binEnd; j += 1u) {
                 if (j == id.x) { continue; }
 
                 let other = particlesSource[j];
-                let otherType = u32(other.particleType);
-
-                let interactionIndex = myType * options.numTypes + otherType;
-                let interaction = get_interaction(interactionIndex);
 
                 var r = vec2f(other.x, other.y) - particlePosition;
 
@@ -125,47 +126,41 @@ fn computeForces(@builtin(global_invocation_id) id : vec3u) {
                     if (abs(r.y) >= half_height) { r.y -= sign(r.y) * options.simHeight; }
                 }
 
-                let maxR = interaction.z;
                 let distSquared = dot(r, r);
+                if (distSquared < 0.0001) { continue; }
 
-                if (distSquared > 0.0001 && distSquared < maxR * maxR) {
-                    let dist = sqrt(distSquared);
+                let otherType = u32(other.particleType);
+                let interaction = get_interaction(myTypeOffset + otherType);
+                let maxR = interaction.z;
+
+                if (distSquared < maxR * maxR) {
+                    let invDist = inverseSqrt(distSquared);
+                    let dist = distSquared * invDist;
                     let minR = interaction.y;
-                    var force = 0.0;
+                    var force : f32;
 
                     if (dist < minR) {
 //                        force = (options.repel / minR) * dist - options.repel;
 //                        force = (dist * (1.0 / minR) - 1.0) * options.repel;
 //                        force = (dist / minR - 1.0) * options.repel;
-                        force = fma(dist / minR, options.repel, -options.repel);
+                        force = fma(dist / minR, repelForce, -repelForce);
                     } else {
                         let rule = interaction.x;
                         let mid = (minR + maxR) * 0.5;
-                        let invSlopeDenom = 1.0 / (mid - minR);
-                        let slope = rule * invSlopeDenom;
-                        force = -(slope * abs(dist - mid)) + rule;
+                        let slope = rule / (mid - minR);
+                        force = fma(-slope, abs(dist - mid), rule);
                     }
-                    if (force != 0.0) {
-                        let invDist = 1.0 / dist;
-//                        totalForce += r * (force * invDist);
-                        let scaledForce = force * invDist;
-//                        totalForce.x += r.x * scaledForce;
-//                        totalForce.y += r.y * scaledForce;
-                        totalForce.x = fma(r.x, scaledForce, totalForce.x);
-                        totalForce.y = fma(r.y, scaledForce, totalForce.y);
-                    }
-//                    // Branchless version, avoiding divergence (slightly faster on some GPUs, slightly slower on others)
-//                    let invDist = 1.0 / dist;
-//                    let scaledForce = force * invDist;
-//                    totalForce.x = fma(r.x, scaledForce, totalForce.x);
-//                    totalForce.y = fma(r.y, scaledForce, totalForce.y);
+
+                    let scaledForce = force * invDist;
+                    totalForce.x = fma(r.x, scaledForce, totalForce.x);
+                    totalForce.y = fma(r.y, scaledForce, totalForce.y);
                 }
             }
         }
     }
 
-    particle.vx += totalForce.x * options.forceFactor;
-    particle.vy += totalForce.y * options.forceFactor;
+    particle.vx = fma(totalForce.x, options.forceFactor, particle.vx);
+    particle.vy = fma(totalForce.y, options.forceFactor, particle.vy);
 
     particlesDestination[id.x] = particle;
 }

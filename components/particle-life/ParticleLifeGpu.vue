@@ -210,7 +210,7 @@
                                         <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 ring-1 ring-rose-300/50 opacity-75"></span>
                                         <span class="relative inline-flex size-3 rounded-full bg-rose-400"></span>
                                     </span>
-                                    <span :class="particleLife.isTrackerSelectionActive ? 'i-tabler-marquee-2' : 'i-tabler-target'" text-xs mr-1></span>
+                                    <span :class="particleLife.isTrackerSelectionActive ? 'i-tabler-marquee-2' : 'i-tabler-current-location'" text-xs mr-1></span>
                                     {{ particleLife.isTrackerSelectionActive ? 'Selecting...' : particleLife.isTrackerActive ? 'Tracking...' : 'Select & Track' }}
                                 </button>
                             </div>
@@ -235,20 +235,39 @@
                         </Collapse>
                         <Collapse label="Debug Tools" icon="i-tabler-bug text-rose-500"
                                   tooltip="Provides tools for visualizing the simulation's internal state. <br> Toggle the grid view to see spatial bins or activate a heatmap to analyze particle density. <br> These features are useful for debugging and performance tuning.">
-                            <div flex>
-                                <ToggleSwitch label="Show Bins" colorful-label v-model="particleLife.isDebugBinsActive" mr-4
-                                              tooltip="Displays the cells (bins) of the spatial partitioning system. <br> Each cell is drawn as a grid, which helps visualize how particles are grouped. <br> This is a useful debugging tool for optimizing performance.">
-                                </ToggleSwitch>
-                                <ToggleSwitch label="Show Heatmap" colorful-label v-model="particleLife.isDebugHeatmapActive"
-                                              tooltip="Enables a heatmap to visualize particle density. <br> Each grid cell is colored based on the number of particles it contains, following a gradient from blue (low density) to red (high density). <br> This helps identify areas of high concentration.">
-                                </ToggleSwitch>
+                            <div v-show="particleLife.useSpatialHash">
+                                <p text-gray-300 text-2sm underline mb-1 class="-mt-0.5">Spatial Bins Overlay :</p>
+                                <div flex items-center gap-2>
+                                    <SelectInput name="debug-bins-mode"
+                                                 :model-value="particleLife.isDebugHeatmapActive ? 'heatmap' : 'grid'"
+                                                 @update:model-value="particleLife.isDebugHeatmapActive = $event === 'heatmap'"
+                                                 :options="[
+                                                 { id: 'grid', name: 'Grid', icon: 'i-tabler-grid-dots', category: 'Display Mode' },
+                                                 { id: 'heatmap', name: 'Heatmap', icon: 'i-tabler-flame', category: 'Display Mode' }
+                                             ]">
+                                    </SelectInput>
+                                    <ToggleSwitch label="Active" colorful-label v-model="particleLife.isDebugBinsActive" />
+                                </div>
+                                <RangeInput v-show="particleLife.isDebugHeatmapActive" input label="Heatmap Scale"
+                                            tooltip="Sets the number of particles in a cell that maps to the highest value on the heatmap gradient. <br> Adjusting this value scales the density visualization, helping to fine-tune how particle concentrations are displayed."
+                                            :min="640" :max="16000" :step="16" v-model="particleLife.debugMaxParticleCount" mt-2>
+                                </RangeInput>
+                                <hr border-gray-500 my-2>
                             </div>
-                            <RangeInput input label="Heatmap Scale"
-                                        tooltip="Sets the number of particles in a cell that maps to the highest value on the heatmap gradient. <br> Adjusting this value scales the density visualization, helping to fine-tune how particle concentrations are displayed."
-                                        :min="640" :max="16000" :step="16" v-model="particleLife.debugMaxParticleCount" mt-2>
+
+                            <p text-gray-300 text-2sm underline mb-1 class="-mt-0.5">Neighbor Search :</p>
+                            <SelectInput name="algorithm-mode"
+                                         :model-value="particleLife.useSpatialHash ? 'spatial' : 'brute'"
+                                         @update:model-value="particleLife.useSpatialHash = $event === 'spatial'"
+                                         :options="[
+                                             { id: 'spatial', name: 'Spatial Hash', icon: 'i-tabler-topology-ring-3', category: 'Method' },
+                                             { id: 'brute', name: 'Brute Force', icon: 'i-tabler-cpu', category: 'Method' },
+                                         ]">
+                            </SelectInput>
+                            <RangeInput v-show="particleLife.useSpatialHash" input label="Cell Subdivisions" mt-2
+                                        tooltip="Subdivides the interaction radius into smaller grid cells. <br> Default: 2 (fastest in most cases). <br> Increasing subdivisions can improve performance for simulations with very large radii."
+                                        :min="1" :max="5" :step="1" v-model="particleLife.cellSubdivisions">
                             </RangeInput>
-                            <hr border-gray-500 my-2>
-                            <ToggleSwitch inactive-label="BruteForce" label="SpatialHash" colorful-label v-model="particleLife.useSpatialHash" />
                         </Collapse>
                     </div>
                     <div absolute bottom-2 right-0 z-100 class="-mr-px">
@@ -272,6 +291,11 @@
                 <TrackerToggle
                     @toggle="particleLife.isTrackerSelectionActive ? cancelTrackerSelection() : particleLife.isTrackerActive ? stopTracker() : startTrackerSelection()">
                 </TrackerToggle>
+                <CenterViewButton :disabled="particleLife.isHudLocked" 
+                                  @centerAll="smoothCenterView()" 
+                                  @centerPosition="smoothCenterView(true, false)"
+                                  @resetZoom="smoothCenterView(false, true)">
+                </CenterViewButton>
                 <button type="button" name="Randomize" aria-label="Randomize" title="Randomize simulation"
                         btn rounded-full flex items-center justify-center p-2 pointer-events-auto
                         class="backdrop-blur-sm bg-[#094F5D]/90 hover:bg-[#0B5F6F]/90"
@@ -329,6 +353,7 @@ import SaveModal from "~/components/particle-life/SaveModal.vue";
 import PresetPanel from "~/components/particle-life/PresetPanel.vue";
 import TrackerOverlay from "~/components/particle-life/TrackerOverlay.vue";
 import TrackerToggle from "~/components/particle-life/TrackerToggle.vue";
+import CenterViewButton from "~/components/particle-life/CenterViewButton.vue";
 import RadiusVisualizer from "~/components/particle-life/RadiusVisualizer.vue";
 import { RULES_OPTIONS, generateRules } from '~/helpers/utils/rulesGenerator';
 import { PALETTE_OPTIONS, generateColors } from "~/helpers/utils/colorsGenerator";
@@ -365,7 +390,7 @@ import trackerCameraUpdateShaderCode from 'assets/particle-life-gpu/shaders/comp
 
 export default defineComponent({
     name: 'ParticleLifeGpu',
-    components: { PresetPanel, SaveModal, BrushSettings, MatrixSettings, WrapModeSelection, TrackerOverlay, TrackerToggle, RadiusVisualizer },
+    components: { PresetPanel, SaveModal, BrushSettings, MatrixSettings, WrapModeSelection, TrackerOverlay, TrackerToggle, CenterViewButton, RadiusVisualizer },
     setup() {
         // Define refs and variables
         const mainContainer = ref<HTMLElement | null>(null)
@@ -397,6 +422,7 @@ export default defineComponent({
         let SIM_WIDTH_HALF: number = 0
         let SIM_HEIGHT_HALF: number = 0
         let CELL_SIZE: number = 0
+        let CELL_SUBDIVISIONS: number = particleLife.cellSubdivisions
         let baseSimWidth: number = 0
         let baseSimHeight: number = 0
         let GRID_WIDTH: number = 0
@@ -762,6 +788,14 @@ export default defineComponent({
         function centerView() {
             cameraCenter = { x: SIM_WIDTH_HALF, y: SIM_HEIGHT_HALF }
             targetCameraCenter = { x: SIM_WIDTH_HALF, y: SIM_HEIGHT_HALF }
+        }
+        function smoothCenterView(position: boolean = true, zoom: boolean = true) {
+            if (position) targetCameraCenter = { x: SIM_WIDTH_HALF, y: SIM_HEIGHT_HALF }
+            if (zoom) {
+                targetZoomFactor = Math.min(CANVAS_WIDTH / SIM_WIDTH, CANVAS_HEIGHT / SIM_HEIGHT)
+                lastZoomPositionX = CANVAS_WIDTH / 2
+                lastZoomPositionY = CANVAS_HEIGHT / 2
+            }
         }
         function handleMove() {
             const dx = pointerX - lastPointerX
@@ -1219,7 +1253,9 @@ export default defineComponent({
         const step = () => {
             const encoder = device.createCommandEncoder()
 
-            encoder.copyBufferToBuffer(particleBuffer!, 0, particleTempBuffer!, 0, particleBuffer!.size)
+            if (!useSpatialHash) {
+                encoder.copyBufferToBuffer(particleBuffer!, 0, particleTempBuffer!, 0, particleBuffer!.size)
+            }
             if (useSpatialHash) computeBinning(encoder)
             else computeBruteForce(encoder)
             computeAdvance(encoder)
@@ -1709,7 +1745,7 @@ export default defineComponent({
             }
         }
         const updateSimOptionsBuffer = () => {
-            const simOptionsData = new ArrayBuffer(76)
+            const simOptionsData = new ArrayBuffer(80)
             const simOptionsView = new DataView(simOptionsData)
             simOptionsView.setFloat32(0, SIM_WIDTH, true)
             simOptionsView.setFloat32(4, SIM_HEIGHT, true)
@@ -1731,6 +1767,7 @@ export default defineComponent({
             simOptionsView.setUint32(64, GRID_OFFSET_X, true)
             simOptionsView.setUint32(68, GRID_OFFSET_Y, true)
             simOptionsView.setUint32(72, mirrorWrapCount, true)
+            simOptionsView.setUint32(76, CELL_SUBDIVISIONS, true)
 
             if (!simOptionsBuffer) {
                 simOptionsBuffer = device.createBuffer({
@@ -1743,7 +1780,7 @@ export default defineComponent({
             } else if (isEraseCompletionPending) {
                 // Skip writing numParticles during erase to avoid conflicts with GPU-side copyBufferToBuffer
                 device.queue.writeBuffer(simOptionsBuffer, 0, simOptionsData, 0, 20)
-                device.queue.writeBuffer(simOptionsBuffer, 24, simOptionsData, 24, 52)
+                device.queue.writeBuffer(simOptionsBuffer, 24, simOptionsData, 24, 56)
             } else {
                 device.queue.writeBuffer(simOptionsBuffer, 0, simOptionsData)
             }
@@ -3211,7 +3248,7 @@ export default defineComponent({
             if (currentMaxRadius === value) return
             currentMaxRadius = value
             particleLife.currentMaxRadius = value
-            CELL_SIZE = currentMaxRadius
+            CELL_SIZE = Math.max(1, Math.ceil(currentMaxRadius / CELL_SUBDIVISIONS))
 
             setSimSize()
             updateSimOptionsBuffer()
@@ -3322,15 +3359,20 @@ export default defineComponent({
 
         watch(() => particleLife.isDebugBinsActive, (value: boolean) => {
             isDebugBinsActive = value
-            if (!isDebugBinsActive) particleLife.isDebugHeatmapActive = false
             if (!isRunning && isDebugBinsActive) step() // Force step for debug bins update
         })
         watch(() => particleLife.isDebugHeatmapActive, (value: boolean) => {
             isDebugHeatmapActive = value
-            if (isDebugHeatmapActive) particleLife.isDebugBinsActive = true
             updateDebugOptionsBuffer()
+            particleLife.isDebugBinsActive = true
         })
         watch(() => particleLife.debugMaxParticleCount, (value: number) => { debugMaxParticleCount = value; updateDebugOptionsBuffer(); })
+        watch(() => particleLife.cellSubdivisions, (value: number) => {
+            CELL_SUBDIVISIONS = value
+            CELL_SIZE = Math.ceil(currentMaxRadius / CELL_SUBDIVISIONS)
+            setSimSize()
+            updateSimOptionsBuffer()
+        })
 
         let isUpdatingWallState = false
         watch([
@@ -3521,7 +3563,7 @@ export default defineComponent({
 
             return {
                 particleLife, canvasRef, fps, executionTime, colorRgbStrings,
-                handleZoom, toggleFullscreen, isFullscreen, regenerateLife, step, randomizeRadius, randomizeRulesAndRadius,
+                handleZoom, toggleFullscreen, isFullscreen, smoothCenterView, regenerateLife, step, randomizeRadius, randomizeRulesAndRadius,
                 updateSimWidth, updateSimHeight, updateNumParticles, setNewNumParticles, setNewNumTypes,
                 updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, newRandomRulesMatrix,
                 updateRulesMatrix, updateParticlePositions, updateColors, loadPreset, updateSingleColor,
