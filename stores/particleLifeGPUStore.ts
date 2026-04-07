@@ -43,6 +43,7 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
     const isDebugBinsActive = ref<boolean>(false) // Show bins for the particles
     const debugMaxParticleCount = ref<number>(1600) // Maximum number of particles for debugging purposes
     const isDebugHeatmapActive = ref<boolean>(true) // Enable debug heatmap for the particles
+    const cellSubdivisions = ref<number>(2) // Number of subdivisions of maxRadius per cell (CELL_SIZE = maxRadius / cellSubdivisions)
 
     const isDriftCamActive = ref<boolean>(false) // Enable drift camera mode (slow automatic movement)
     const driftCamResetOnPan = ref<boolean>(false) // Reset drift camera trajectory when the user pans/zoom
@@ -103,7 +104,7 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
         simWidth, simHeight, linkProportions,
         numParticles, particleSize, numColors, zoomSmoothing, panSmoothing,
         is3D, isParticleGlow, isAdditiveBlending, isWallRepel, isWallWrap, wallState, isMirrorWrap, isInfiniteMirrorWrap, mirrorWrapCount, screenMultiplierForGridSize,
-        isDebugBinsActive, debugMaxParticleCount, isDebugHeatmapActive,
+        isDebugBinsActive, debugMaxParticleCount, isDebugHeatmapActive, cellSubdivisions,
         isDriftCamActive, driftCamResetOnPan, driftCamSpeed, driftCamAmplitude, driftCamZoomRange,
         isTrackerActive, isTrackerSelectionActive, isTrackerCameraActive, isTrackerIndicatorVisible, trackerCameraSmoothing,
         minRadiusRange, maxRadiusRange, currentMaxRadius,
