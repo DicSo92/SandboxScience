@@ -144,7 +144,7 @@ export default defineComponent({
         const { getSavedPresets, getPresetByID, copyToClipboard, download, removePreset, hexListToFlatRgba, clone2D } = usePresetManager(particleLife)
 
         const activeTypeFilters = ref<string[]>([])
-        const matchPresetCount = ref<boolean>(false)
+        const matchPresetCount = ref<boolean>(true)
 
         const PRESET_TYPE_META: { id: string; label: string; color: string; icon?: string }[] = [
             {id: "forces", label: "Forces", color: "bg-sky-700/60 hover:bg-sky-700/75", icon: "i-tabler-arrows-random"},
