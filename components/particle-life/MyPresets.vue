@@ -73,12 +73,12 @@
 
         <div v-else ref="presetListRef" flex flex-col gap-1.5 overflow-y-auto pr-1 class="-mr-1 thin-scrollbar max-h-[39vh]">
             <div v-for="(preset, id) in filteredPresets" :key="id" @click="requestLoadPreset(id)"
-                 rounded-lg flex items-stretch cursor-pointer overflow-hidden shrink-0 transition-colors duration-250
+                 rounded-lg flex items-stretch cursor-pointer overflow-hidden shrink-0
                  class="bg-slate-700/30 hover:bg-slate-600/30 border" :class="pendingPresetId === id ? 'border-emerald-600/50' : 'border-slate-700/60'">
 
                 <div overflow-hidden transition-all duration-250 ease-out shrink-0 self-stretch :class="pendingPresetId === id ? 'max-w-15' : 'max-w-0'">
                     <button type="button" aria-label="Confirm load" @click.stop="confirmLoadPreset(id)"
-                            class="h-full flex flex-col items-center justify-center w-15 bg-emerald-700/90 text-emerald-100 whitespace-nowrap transition-all duration-200"
+                            class="h-full flex flex-col items-center justify-center w-15 bg-emerald-700/90 text-emerald-100 whitespace-nowrap transition-opacity duration-200"
                             :class="confirmReady ? 'hover:bg-emerald-600 cursor-pointer opacity-100' : 'opacity-50 cursor-not-allowed'">
                         <span i-tabler-check text-base></span>
                         <span font-semibold text-xs>Load</span>
