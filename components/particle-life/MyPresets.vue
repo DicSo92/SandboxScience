@@ -71,49 +71,63 @@
             </p>
         </div>
 
-        <div v-else flex flex-col gap-1.5 overflow-y-auto pr-1 class="-mr-1 thin-scrollbar max-h-[39vh]">
-            <div v-for="(preset, id) in filteredPresets" :key="id" @click="loadPreset(id)" py-2 pl-3 rounded-lg flex justify-between items-center cursor-pointer class="bg-slate-700/30 hover:bg-slate-600/30 border border-slate-700/60">
-                <div flex-1 min-w-0 pr-2>
-                    <p font-bold text-slate-200 text-sm truncate capitalize>{{ preset.meta.name }}</p>
-                    <p text-xs text-slate-400>{{ getPresetSpeciesCount(preset) }} species</p>
+        <div v-else ref="presetListRef" flex flex-col gap-1.5 overflow-y-auto pr-1 class="-mr-1 thin-scrollbar max-h-[39vh]">
+            <div v-for="(preset, id) in filteredPresets" :key="id" @click="requestLoadPreset(id)"
+                 rounded-lg flex items-stretch cursor-pointer overflow-hidden shrink-0 transition-colors duration-250
+                 class="bg-slate-700/30 hover:bg-slate-600/30 border" :class="pendingPresetId === id ? 'border-emerald-600/50' : 'border-slate-700/60'">
+
+                <div overflow-hidden transition-all duration-250 ease-out shrink-0 self-stretch :class="pendingPresetId === id ? 'max-w-15' : 'max-w-0'">
+                    <button type="button" aria-label="Confirm load" @click.stop="confirmLoadPreset(id)"
+                            class="h-full flex flex-col items-center justify-center w-15 bg-emerald-700/90 text-emerald-100 whitespace-nowrap transition-all duration-200"
+                            :class="confirmReady ? 'hover:bg-emerald-600 cursor-pointer opacity-100' : 'opacity-50 cursor-not-allowed'">
+                        <span i-tabler-check text-base></span>
+                        <span font-semibold text-xs>Load</span>
+                    </button>
                 </div>
-                <div flex items-center flex-shrink-0 self-stretch>
-                    <div flex gap-1>
-                        <span v-for="meta in PRESET_TYPE_META" :key="meta.id"
-                              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-500 text-slate-50"
-                              :class="preset.types.includes(meta.id) ? meta.color : 'bg-slate-600/40 opacity-60'"
-                        >
-                            <span v-if="meta.icon" :class="meta.icon" text-sm></span>
-                        </span>
+
+                <div shrink-0 w-full flex items-center py-2 pl-3>
+                    <div flex-1 min-w-0 pr-2>
+                        <p font-bold text-slate-200 text-sm truncate capitalize>{{ preset.meta.name }}</p>
+                        <p text-xs text-slate-400>{{ getPresetSpeciesCount(preset) }} species</p>
                     </div>
-                    <div w-px h-5 bg-slate-700 ml-2></div>
-
-                    <VDropdown placement="right-start" popperClass="dropdownPresetOptions" :arrowPadding="10" instant-move @click.stop self-stretch>
-                        <div flex items-center pl-2 pr-2.5 h-full text-slate-300 class="hover:text-slate-100">
-                            <button type="button" title="Preset Options" aria-label="Preset Options" i-tabler-dots-vertical text-center text-lg></button>
+                    <div flex items-center shrink-0 self-stretch>
+                        <div flex gap-1>
+                            <span v-for="meta in PRESET_TYPE_META" :key="meta.id"
+                                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-500 text-slate-50"
+                                  :class="preset.types.includes(meta.id) ? meta.color : 'bg-slate-600/40 opacity-60'"
+                            >
+                                <span v-if="meta.icon" :class="meta.icon" text-sm></span>
+                            </span>
                         </div>
+                        <div w-px h-5 bg-slate-700 ml-2></div>
 
-                        <template #popper>
-                            <div flex flex-col class="bg-slate-800/70 backdrop-blur-sm rounded-md shadow-md">
-                                <button type="button" aria-label="Copy preset JSON"
-                                        @click="copyToClipboard(getPresetByID(id))"
-                                        class="rounded-t hover:bg-slate-500/50 px-4 py-2" text-sm text-slate-100>
-                                    Copy JSON
-                                </button>
-                                <button type="button" aria-label="Download preset JSON"
-                                        @click="download(getPresetByID(id))"
-                                        class="hover:bg-slate-500/50 px-4 py-2" text-sm text-slate-100 >
-                                    Download JSON
-                                </button>
-                                <hr>
-                                <button type="button" aria-label="Delete preset"
-                                        @click="removePreset(id)"
-                                        class="rounded-b bg-red-700/30 hover:bg-red-700/60 px-4 py-2" text-sm text-slate-100>
-                                    Delete
-                                </button>
+                        <VDropdown placement="right-start" popperClass="dropdownPresetOptions" :arrowPadding="10" instant-move @click.stop self-stretch>
+                            <div flex items-center pl-2 pr-2.5 h-full text-slate-300 class="hover:text-slate-100">
+                                <button type="button" title="Preset Options" aria-label="Preset Options" i-tabler-dots-vertical text-center text-lg></button>
                             </div>
-                        </template>
-                    </VDropdown>
+
+                            <template #popper>
+                                <div flex flex-col class="bg-slate-800/70 backdrop-blur-sm rounded-md shadow-md">
+                                    <button type="button" aria-label="Copy preset JSON"
+                                            @click="copyToClipboard(getPresetByID(id))"
+                                            class="rounded-t hover:bg-slate-500/50 px-4 py-2" text-sm text-slate-100>
+                                        Copy JSON
+                                    </button>
+                                    <button type="button" aria-label="Download preset JSON"
+                                            @click="download(getPresetByID(id))"
+                                            class="hover:bg-slate-500/50 px-4 py-2" text-sm text-slate-100 >
+                                        Download JSON
+                                    </button>
+                                    <hr>
+                                    <button type="button" aria-label="Delete preset"
+                                            @click="removePreset(id)"
+                                            class="rounded-b bg-red-700/30 hover:bg-red-700/60 px-4 py-2" text-sm text-slate-100>
+                                        Delete
+                                    </button>
+                                </div>
+                            </template>
+                        </VDropdown>
+                    </div>
                 </div>
             </div>
         </div>
@@ -122,6 +136,7 @@
 
 <script lang="ts">
 import { defineComponent } from "vue";
+import { onClickOutside } from "@vueuse/core";
 import { usePresetManager } from "~/composables/usePresetManager";
 import type { Preset } from "~/composables/usePresetManager";
 import { float32ArrayToHsl } from "~/helpers/utils/colorsGenerator";
@@ -144,7 +159,7 @@ export default defineComponent({
         const { getSavedPresets, getPresetByID, copyToClipboard, download, removePreset, hexListToFlatRgba, clone2D } = usePresetManager(particleLife)
 
         const activeTypeFilters = ref<string[]>([])
-        const matchPresetCount = ref<boolean>(false)
+        const matchPresetCount = ref<boolean>(true)
 
         const PRESET_TYPE_META: { id: string; label: string; color: string; icon?: string }[] = [
             {id: "forces", label: "Forces", color: "bg-sky-700/60 hover:bg-sky-700/75", icon: "i-tabler-arrows-random"},
@@ -153,9 +168,7 @@ export default defineComponent({
             {id: "settings", label: "Settings", color: "bg-emerald-700/60 hover:bg-emerald-700/75", icon: "i-tabler-adjustments"},
         ]
 
-        onMounted(() => {
-            getSavedPresets()
-        })
+        onMounted(() => getSavedPresets())
 
         const hasPresets = computed(() => Object.keys(particleLife.savedPresets).length > 0)
 
@@ -185,7 +198,7 @@ export default defineComponent({
                 })
             )
         })
-
+        // -------------------------------------------------------------------------------------------------------------
         const getPresetSpeciesCount = (preset: Preset): number | undefined => {
             let typeCount: number | undefined = undefined
             if (preset.matrices) {
@@ -240,10 +253,60 @@ export default defineComponent({
 
             emit("loadPreset", options, presetTypeCount, matchPresetCount.value)
         }
+        // -------------------------------------------------------------------------------------------------------------
+        const presetListRef = ref<HTMLElement | null>(null)
+        const pendingPresetId = ref<string | null>(null)
+        const confirmReady = ref(false)
 
+        let autoCloseTimer: ReturnType<typeof setTimeout> | null = null
+        let stopClickOutside: (() => void) | null = null
+        const startClickOutside = () => {
+            if (stopClickOutside) return
+            stopClickOutside = onClickOutside(presetListRef, () => {
+                closeConfirmLoad()
+            })
+        }
+        const requestLoadPreset = (id: string) => {
+            if (pendingPresetId.value === id) {
+                closeConfirmLoad()
+                return
+            }
+            confirmReady.value = false
+            pendingPresetId.value = id
+            startClickOutside()
+
+            if (autoCloseTimer) clearTimeout(autoCloseTimer)
+            autoCloseTimer = setTimeout(() => closeConfirmLoad(), 4000)
+
+            setTimeout(() => {
+                if (pendingPresetId.value === id) {
+                    confirmReady.value = true
+                }
+            }, 500)
+        }
+        const confirmLoadPreset = (id: string) => {
+            if (!confirmReady.value) return
+            closeConfirmLoad()
+            loadPreset(id)
+        }
+        const closeConfirmLoad = () => {
+            pendingPresetId.value = null
+            confirmReady.value = false
+            stopClickOutside?.()
+            stopClickOutside = null
+            if (autoCloseTimer) {
+                clearTimeout(autoCloseTimer)
+                autoCloseTimer = null
+            }
+        }
+
+        onUnmounted(() => closeConfirmLoad())
+        // -------------------------------------------------------------------------------------------------------------
         return {
             particleLife, PRESET_TYPE_META,
             activeTypeFilters, filteredPresets, matchPresetCount, hasPresets,
+            pendingPresetId, confirmReady, presetListRef,
+            requestLoadPreset, confirmLoadPreset, closeConfirmLoad,
             getPresetSpeciesCount, toggleTypeFilter, getPresetByID,
             copyToClipboard, download, removePreset, loadPreset,
         }
