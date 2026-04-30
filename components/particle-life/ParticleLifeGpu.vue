@@ -96,6 +96,13 @@
                                 </div>
                             </div>
                         </Collapse>
+                        <Collapse label="Species Balance" icon="i-tabler-palette text-rose-400"
+                                  tooltip="Control the proportion of particles assigned to each species. <br> Drag bars to adjust percentages, then click Apply to redistribute particles.">
+                            <ColorDistribution :num-colors="particleLife.numColors"
+                                               :colors="colorRgbArrays"
+                                               @apply="redistributeParticles">
+                            </ColorDistribution>
+                        </Collapse>
                         <Collapse label="Physics Settings" icon="i-tabler-atom text-fuchsia-500" opened>
                             <RangeInput input label="Repel Force"
                                         tooltip="Adjust the force that repels particles from each other. <br> Higher values increase the separation distance."
@@ -355,6 +362,7 @@ import TrackerOverlay from "~/components/particle-life/TrackerOverlay.vue";
 import TrackerToggle from "~/components/particle-life/TrackerToggle.vue";
 import CenterViewButton from "~/components/particle-life/CenterViewButton.vue";
 import RadiusVisualizer from "~/components/particle-life/RadiusVisualizer.vue";
+import ColorDistribution from "~/components/particle-life/ColorDistribution.vue";
 import { RULES_OPTIONS, generateRules } from '~/helpers/utils/rulesGenerator';
 import { PALETTE_OPTIONS, generateColors } from "~/helpers/utils/colorsGenerator";
 import { POSITION_OPTIONS, generatePositions } from "~/helpers/utils/positionsGenerator";
@@ -390,7 +398,7 @@ import trackerCameraUpdateShaderCode from 'assets/particle-life-gpu/shaders/comp
 
 export default defineComponent({
     name: 'ParticleLifeGpu',
-    components: { PresetPanel, SaveModal, BrushSettings, MatrixSettings, WrapModeSelection, TrackerOverlay, TrackerToggle, CenterViewButton, RadiusVisualizer },
+    components: { PresetPanel, SaveModal, BrushSettings, MatrixSettings, WrapModeSelection, TrackerOverlay, TrackerToggle, CenterViewButton, RadiusVisualizer, ColorDistribution },
     setup() {
         // Define refs and variables
         const mainContainer = ref<HTMLElement | null>(null)
@@ -3077,6 +3085,61 @@ export default defineComponent({
             }
             device.queue.writeBuffer(particleBuffer!, 0, particles)
         }
+        const redistributeParticles = async (targetDistribution: number[]) => {
+            if (isUpdatingParticles) return
+            isUpdatingParticles = true
+            await device.queue.onSubmittedWorkDone()
+
+            try {
+                const particleDataBuffer = await readBufferFromGPU(particleBuffer!, NUM_PARTICLES * 5 * 4)
+                const particles = new Float32Array(particleDataBuffer)
+
+                // Convert each percentage into an integer particle count that sums to exactly NUM_PARTICLES.
+                // Floor every value, then hand out the leftover units to the types with the largest fractional parts (largest remainder method).
+                const rawCounts = targetDistribution.map(pct => NUM_PARTICLES * pct / 100)
+                const targetCounts = rawCounts.map(Math.floor)
+                let leftover = NUM_PARTICLES - targetCounts.reduce((sum, c) => sum + c, 0)
+                if (leftover > 0) {
+                    rawCounts
+                        .map((v, i) => ({ i, frac: v - Math.floor(v) }))
+                        .sort((a, b) => b.frac - a.frac)
+                        .slice(0, leftover)
+                        .forEach(({ i }) => targetCounts[i]++)
+                }
+
+                // Group every particle index by its current type.
+                const particlesByType: number[][] = Array.from({ length: NUM_TYPES }, () => [])
+                for (let i = 0; i < NUM_PARTICLES; i++) {
+                    const type = particles[i * 5 + 4] | 0
+                    particlesByType[type].push(i)
+                }
+
+                // Pick particles to reassign from over-represented types (random sampling).
+                const particlesToReassign: number[] = []
+                for (let t = 0; t < NUM_TYPES; t++) {
+                    const indices = particlesByType[t]
+                    const surplus = indices.length - targetCounts[t]
+                    for (let k = 0; k < surplus; k++) {
+                        const j = k + Math.floor(Math.random() * (indices.length - k))
+                        particlesToReassign.push(indices[j])
+                        indices[j] = indices[k]
+                    }
+                }
+
+                // Assign them to under-represented types until every target count is met.
+                let poolIndex = 0
+                for (let t = 0; t < NUM_TYPES; t++) {
+                    const missing = targetCounts[t] - particlesByType[t].length
+                    for (let n = 0; n < missing; n++) {
+                        particles[particlesToReassign[poolIndex++] * 5 + 4] = t
+                    }
+                }
+
+                device.queue.writeBuffer(particleBuffer!, 0, particles)
+            } finally {
+                isUpdatingParticles = false
+            }
+        }
         // -------------------------------------------------------------------------------------------------------------
         async function readBufferFromGPU(buffer: GPUBuffer, size: number): Promise<ArrayBuffer> {
             const readBuffer = device.createBuffer({
@@ -3256,15 +3319,15 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
-        const colorRgbStrings = computed(() => {
+        const colorRgbArrays = computed(() => {
             const arr = particleLife.currentColors
             if (!arr) return []
-            const result: string[] = []
+            const result: number[][] = []
             for (let i = 0; i < arr.length; i += 4) {
                 const r = Math.round(arr[i] * 255)
                 const g = Math.round(arr[i + 1] * 255)
                 const b = Math.round(arr[i + 2] * 255)
-                result.push(`rgb(${r}, ${g}, ${b})`)
+                result.push([r, g, b])
             }
             return result
         })
@@ -3562,12 +3625,13 @@ export default defineComponent({
         })
 
             return {
-                particleLife, canvasRef, fps, executionTime, colorRgbStrings,
+                particleLife, canvasRef, fps, executionTime, colorRgbArrays,
                 handleZoom, toggleFullscreen, isFullscreen, smoothCenterView, regenerateLife, step, randomizeRadius, randomizeRulesAndRadius,
                 updateSimWidth, updateSimHeight, updateNumParticles, setNewNumParticles, setNewNumTypes,
                 updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, newRandomRulesMatrix,
                 updateRulesMatrix, updateParticlePositions, updateColors, loadPreset, updateSingleColor,
                 startTrackerSelection, cancelTrackerSelection, stopTracker, onTrackerZoneSelected,
+                redistributeParticles,
                 rulesOptions, paletteOptions, positionOptions
             }
     }
