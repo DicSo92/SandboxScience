@@ -48,7 +48,23 @@
                                         tooltip="Specify the number of particle colors. <br> Each color interacts with all others, with distinct forces and interaction ranges."
                                         :min="1" :max="16" :step="1" v-model="particleLife.numColors" mt-2>
                             </RangeInput>
-                            <OptionBar name="wallStateGpu3D" v-model="particleLife.wallState" mb-2 :options="[
+                            <div flex items-center class="mt-0.5">
+                                <p class="w-2/3 text-2sm mt-1">
+                                    World Size
+                                    <TooltipInfo container="#mainContainer" tooltip="Adjust the size of the area where particles are contained." />
+                                </p>
+                                <Input label="x" v-model="particleLife.simWidth" @change="updateSimWidth" inputClass="w-12!" mr-2 />
+                                <Input label="y" v-model="particleLife.simHeight" @change="updateSimHeight" inputClass="w-12!" mr-2 />
+                                <Input label="z" v-model="particleLife.simDepth" @change="updateSimDepth" inputClass="w-12!" mr-2 />
+                                <button type="button" btn rounded-full p2 flex items-center bg="slate-950/90 hover:slate-950/50" @click="particleLife.linkProportions = !particleLife.linkProportions">
+                                    <span :class="particleLife.linkProportions ? 'i-tabler-link' : 'i-tabler-unlink'" text-sm></span>
+                                </button>
+                            </div>
+
+                            <hr border-gray-500 mt-1 mb-2>
+                            <p underline text-gray-300 class="-mt-0.5" mb-2>Boundary Settings :</p>
+
+                            <OptionBar name="wallStateGpu3D" v-model="particleLife.wallState" :options="[
                                 { id: 'none', label: 'None' },
                                 { id: 'repel', label: 'Repel' },
                                 { id: 'wrap', label: 'Wrap' }]">
@@ -614,6 +630,37 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
+        const updateSimWidth = (newWidth: number | Event) => {
+            if (typeof(newWidth) !== 'number') return // Prevent input event like unfocus
+            if (particleLife.linkProportions) {
+                particleLife.simHeight = SIM_HEIGHT = baseSimHeight = Math.round(SIM_HEIGHT * (newWidth / SIM_WIDTH))
+                particleLife.simDepth = SIM_DEPTH = baseSimDepth = Math.round(SIM_DEPTH * (newWidth / SIM_WIDTH))
+            }
+            particleLife.simWidth = SIM_WIDTH = baseSimWidth = newWidth
+            setSimSize()
+            regenerateLife()
+        }
+        const updateSimHeight = (newHeight: number | Event) => {
+            if (typeof(newHeight) !== 'number') return // Prevent input event like unfocus
+            if (particleLife.linkProportions) {
+                particleLife.simWidth = SIM_WIDTH = baseSimWidth = Math.round(SIM_WIDTH * (newHeight / SIM_HEIGHT))
+                particleLife.simDepth = SIM_DEPTH = baseSimDepth = Math.round(SIM_DEPTH * (newHeight / SIM_HEIGHT))
+            }
+            particleLife.simHeight = SIM_HEIGHT = baseSimHeight = newHeight
+            setSimSize()
+            regenerateLife()
+        }
+        const updateSimDepth = (newDepth: number | Event) => {
+            if (typeof(newDepth) !== 'number') return // Prevent input event like unfocus
+            if (particleLife.linkProportions) {
+                particleLife.simWidth = SIM_WIDTH = baseSimWidth = Math.round(SIM_WIDTH * (newDepth / SIM_DEPTH))
+                particleLife.simHeight = SIM_HEIGHT = baseSimHeight = Math.round(SIM_HEIGHT * (newDepth / SIM_DEPTH))
+            }
+            particleLife.simDepth = SIM_DEPTH = baseSimDepth = newDepth
+            setSimSize()
+            regenerateLife()
+        }
+        // -------------------------------------------------------------------------------------------------------------
         const updateRulesMatrixValue = (x: number, y: number, value: number) => {
             const roundedValue = Math.round(value * 100) / 100
             particleLife.rulesMatrix[x][y] = roundedValue
@@ -1099,6 +1146,7 @@ export default defineComponent({
         return {
             particleLife, canvasRef, fps, executionTime,
             handleZoom, toggleFullscreen, isFullscreen, regenerateLife, step,
+            updateSimWidth, updateSimHeight, updateSimDepth,
             updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, newRandomRulesMatrix, updateSingleColor,
             randomizeRadius, randomizeRulesAndRadius,
         }
