@@ -24,6 +24,15 @@
                                   If no cells are selected, the slider will adjust all values.">
                             <MatrixSettings :store="particleLife"></MatrixSettings>
                         </Collapse>
+                        <Collapse label="Randomizer Settings" icon="i-game-icons-perspective-dice-six-faces-random text-teal-500"
+                                  tooltip="Adjust the parameters for randomizing particle attributes. <br> Configure the ranges for minimum and maximum interaction radii.">
+                            <RadiusVisualizer v-model:min-radius-range="particleLife.minRadiusRange"
+                                              v-model:max-radius-range="particleLife.maxRadiusRange"
+                                              @randomize-radius="randomizeRadius"
+                                              @randomize-rules-and-radius="randomizeRulesAndRadius"
+                                              @randomize-all="regenerateLife">
+                            </RadiusVisualizer>
+                        </Collapse>
                         <Collapse label="World Settings" icon="i-tabler-world-cog text-cyan-500" opened>
                             <RangeInput input label="Particle Count"
                                         tooltip="Adjust the total number of particles. <br> More particles may reveal complex interactions but can increase computational demand."
@@ -113,10 +122,11 @@ import particleAdvanceShaderCode from 'assets/particle-life-gpu-3d/shaders/compu
 import renderShaderCode from 'assets/particle-life-gpu-3d/shaders/render/render_normal.wgsl?raw';
 import boxShaderCode from 'assets/particle-life-gpu-3d/shaders/render/render_box.wgsl?raw';
 import BrushSettings from "~/components/particle-life/BrushSettings.vue";
+import RadiusVisualizer from "~/components/particle-life/RadiusVisualizer.vue";
 
 export default defineComponent({
     name: 'ParticleLifeGpu',
-    components: {BrushSettings, MatrixSettings },
+    components: { RadiusVisualizer, BrushSettings, MatrixSettings },
     setup() {
         // Define refs and variables
         const mainContainer = ref<HTMLElement | null>(null)
@@ -551,7 +561,7 @@ export default defineComponent({
                 const baseIndex = i * 7
                 positions[baseIndex] = Math.random() * SIM_WIDTH
                 positions[baseIndex + 1] = Math.random() * SIM_HEIGHT
-                positions[baseIndex + 2] = Math.random() * SIM_HEIGHT // later a custom deepness
+                positions[baseIndex + 2] = Math.random() * SIM_DEPTH
                 positions[baseIndex + 6] = Math.floor(Math.random() * NUM_TYPES)
             }
             initialParticles = positions
@@ -582,6 +592,17 @@ export default defineComponent({
                 }
             }
             return matrix
+        }
+        const randomizeRadius = () => {
+            setMinRadiusMatrix(makeRandomMinRadiusMatrix())
+            setMaxRadiusMatrix(makeRandomMaxRadiusMatrix())
+            updateInteractionMatrixBuffer()
+        }
+        const randomizeRulesAndRadius = () => {
+            setRulesMatrix(generateRules(0, NUM_TYPES))
+            setMinRadiusMatrix(makeRandomMinRadiusMatrix())
+            setMaxRadiusMatrix(makeRandomMaxRadiusMatrix())
+            updateInteractionMatrixBuffer()
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -1028,6 +1049,7 @@ export default defineComponent({
         return {
             particleLife, canvasRef, fps, executionTime,
             handleZoom, toggleFullscreen, isFullscreen, regenerateLife, step,
+            randomizeRadius, randomizeRulesAndRadius,
         }
     }
 })
