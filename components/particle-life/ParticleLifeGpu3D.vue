@@ -218,7 +218,7 @@ export default defineComponent({
         let useSpatialHash: boolean = particleLife.useSpatialHash // Use spatial hash or brute force
         let isWallRepel: boolean = particleLife.isWallRepel // Enable walls X and Y for the particles
         let isWallWrap: boolean = particleLife.isWallWrap // Enable wrapping for the particles
-        let isBoxWireframeActive: boolean = particleLife.isBoxWireframeActive // Show box wireframe
+        let isBoundingBoxActive: boolean = particleLife.isBoundingBoxActive // Show box wireframe
 
         // Define GPU resources
         let device: GPUDevice
@@ -527,11 +527,11 @@ export default defineComponent({
             renderPass.setBindGroup(2, cameraBindGroup)
             renderPass.draw(4, NUM_PARTICLES)
 
-            if (isBoxWireframeActive) renderBoxWireframe(renderPass)
+            if (isBoundingBoxActive) renderBoundingBox(renderPass)
 
             renderPass.end()
         }
-        const renderBoxWireframe = (renderPass: GPURenderPassEncoder) => {
+        const renderBoundingBox = (renderPass: GPURenderPassEncoder) => {
             renderPass.setPipeline(boxRenderPipeline)
             renderPass.setBindGroup(0, simOptionsBindGroup)
             renderPass.setBindGroup(1, cameraBindGroup)

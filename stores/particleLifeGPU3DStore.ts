@@ -47,7 +47,7 @@ export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => 
     const currentMaxRadius = ref<number>(0) // Current max radius for the particles
 
     const useSpatialHash = ref<boolean>(false) // Use spatial hash for collision detection or brute force
-    const isBoxWireframeActive = ref<boolean>(true) // Show wireframe box for simulation boundaries
+    const isBoundingBoxActive = ref<boolean>(true) // Show wireframe box for simulation boundaries
 
     const selectedRulesOption = ref<number>(0) // Default to 'random'
     const selectedColorPaletteOption = ref<number>(0) // Default to 'random'
@@ -65,7 +65,7 @@ export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => 
         numParticles, particleSize, numColors, zoomSmoothing, panSmoothing,
         isWallRepel, isWallWrap, wallState,
         minRadiusRange, maxRadiusRange, currentMaxRadius,
-        repel, forceFactor, frictionFactor, useSpatialHash, isBoxWireframeActive,
+        repel, forceFactor, frictionFactor, useSpatialHash, isBoundingBoxActive,
         selectedRulesOption, selectedColorPaletteOption,
         $reset
     }
