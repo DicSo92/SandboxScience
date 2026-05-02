@@ -42,7 +42,7 @@
                         <Collapse label="World Settings" icon="i-tabler-world-cog text-cyan-500" opened>
                             <RangeInput input label="Particle Count"
                                         tooltip="Adjust the total number of particles. <br> More particles may reveal complex interactions but can increase computational demand."
-                                        :min="16" :max="1048576" :step="16" v-model="particleLife.numParticles">
+                                        :min="16" :max="1048576" :step="16" v-model="particleLife.numParticles" @update:modelValue="setNewNumParticles">
                             </RangeInput>
                             <RangeInput input label="Species Count"
                                         tooltip="Specify the number of particle colors. <br> Each color interacts with all others, with distinct forces and interaction ranges."
@@ -477,7 +477,8 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         const frame = async () => {
-            if (isUpdateNumTypesPending) await updateNumTypes(NEW_NUM_TYPES)
+            if (isUpdateNumParticlesPending) await updateNumParticles(NEW_NUM_PARTICLES)
+            else if (isUpdateNumTypesPending) await updateNumTypes(NEW_NUM_TYPES)
 
             const startExecutionTime = performance.now()
             if (isRunning) {
@@ -872,6 +873,61 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
+        const setNewNumParticles = (newCount: number) => {
+            NEW_NUM_PARTICLES = newCount
+            isUpdateNumParticlesPending = true
+        }
+        const updateNumParticles = async (newCount: number) => {
+            if (isUpdatingParticles || newCount === NUM_PARTICLES) {
+                isUpdateNumParticlesPending = false
+                return
+            }
+            isUpdatingParticles = true
+            await device.queue.onSubmittedWorkDone()
+
+            try {
+                const oldCount = NUM_PARTICLES
+                const oldParticlesData = await readBufferFromGPU(particleBuffer!, oldCount * 7 * 4)
+                const oldParticles = new Float32Array(oldParticlesData)
+                initialParticles = new Float32Array(newCount * 7)
+
+                if (newCount > oldCount) { // If increasing the number of particles
+                    initialParticles.set(oldParticles)
+                    for (let i = oldCount; i < newCount; i++) {
+                        const baseIndex = i * 7
+                        initialParticles[baseIndex]     = Math.random() * SIM_WIDTH  // x
+                        initialParticles[baseIndex + 1] = Math.random() * SIM_HEIGHT // y
+                        initialParticles[baseIndex + 2] = Math.random() * SIM_DEPTH  // z
+                        initialParticles[baseIndex + 6] = Math.floor(Math.random() * NUM_TYPES) // type
+                    }
+                } else { // If decreasing the number of particles
+                    initialParticles.set(oldParticles.subarray(0, newCount * 7))
+                    for (let i = newCount; i < oldCount; i++) {
+                        const j = Math.floor(Math.random() * (i + 1))
+                        if (j < newCount) {
+                            const oldStartIndex = i * 7
+                            const newIndex = j * 7
+                            initialParticles[newIndex]     = oldParticles[oldStartIndex]     // x
+                            initialParticles[newIndex + 1] = oldParticles[oldStartIndex + 1] // y
+                            initialParticles[newIndex + 2] = oldParticles[oldStartIndex + 2] // z
+                            initialParticles[newIndex + 3] = oldParticles[oldStartIndex + 3] // vx
+                            initialParticles[newIndex + 4] = oldParticles[oldStartIndex + 4] // vy
+                            initialParticles[newIndex + 5] = oldParticles[oldStartIndex + 5] // vz
+                            initialParticles[newIndex + 6] = oldParticles[oldStartIndex + 6] // type
+                        }
+                    }
+                }
+
+                NUM_PARTICLES = newCount
+                updateParticleBuffers(true) // Destroy and recreate particle buffers
+                updateParticleBindGroups() // Recreate bind groups that depend on particle buffers
+                updateSimOptionsBuffer() // Update simulation options buffer
+                hasUpdateNumParticles = true
+            } finally {
+                isUpdatingParticles = false
+                isUpdateNumParticlesPending = NEW_NUM_PARTICLES !== NUM_PARTICLES
+            }
+        }
         const setNewNumTypes = (newNumTypes: number) => {
             NEW_NUM_TYPES = newNumTypes
             isUpdateNumTypesPending = true
@@ -1258,7 +1314,7 @@ export default defineComponent({
             updateSimWidth, updateSimHeight, updateSimDepth,
             updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, newRandomRulesMatrix, updateSingleColor,
             randomizeRadius, randomizeRulesAndRadius,
-            setNewNumTypes,
+            setNewNumParticles, setNewNumTypes,
         }
     }
 })
