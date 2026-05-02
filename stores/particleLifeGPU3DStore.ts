@@ -20,6 +20,7 @@ export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => 
 
     const numParticles = ref<number>(32000) // Number of particles
     const particleSize = ref<number>(2.0) // Size of the particles at zoomFactor = 1
+    const particleOpacity = ref<number>(1.0) // Opacity of the particles (0 to 1)
     const numColors = ref<number>(7) // Number of colors to be used
 
     const zoomSmoothing = ref<number>(0.15) // Smoothing factor for zooming (0 to 1, where 1 is no smoothing)
@@ -62,7 +63,7 @@ export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => 
         isRunning,
         rulesMatrix, minRadiusMatrix, maxRadiusMatrix, currentColors,
         simWidth, simHeight, simDepth, linkProportions,
-        numParticles, particleSize, numColors, zoomSmoothing, panSmoothing,
+        numParticles, particleSize, particleOpacity, numColors, zoomSmoothing, panSmoothing,
         isWallRepel, isWallWrap, wallState,
         minRadiusRange, maxRadiusRange, currentMaxRadius,
         repel, forceFactor, frictionFactor, useSpatialHash, isBoundingBoxActive,

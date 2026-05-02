@@ -84,6 +84,16 @@
                                         :min="0" :max="1" :step="0.01" v-model="particleLife.frictionFactor" mt-2>
                             </RangeInput>
                         </Collapse>
+                        <Collapse label="Graphics Settings" icon="i-tabler-photo-cog text-emerald-500">
+                            <RangeInput input label="Particle Size"
+                                        tooltip="Controls the overall size of the particles in the simulation, allowing you to make them larger or smaller depending on your preference. This setting does not impact performance."
+                                        :min="0.1" :max="6" :step="0.1" v-model="particleLife.particleSize">
+                            </RangeInput>
+                            <RangeInput input label="Particle Opacity"
+                                        tooltip="Adjust the opacity of the particles in the simulation. <br> This setting allows you to control how transparent or opaque the particles appear."
+                                        :min="0" :max="1" :step="0.01" v-model="particleLife.particleOpacity" mt-2>
+                            </RangeInput>
+                        </Collapse>
                     </div>
                     <div absolute bottom-2 right-0 z-100 class="-mr-px">
                         <button rounded-l-lg border border-slate-600 flex items-center p-1 bg="slate-900/85 hover:slate-950/85" @click="particleLife.sidebarLeftOpen = false">
@@ -246,6 +256,7 @@ export default defineComponent({
         let NUM_PARTICLES: number = particleLife.numParticles
         let NEW_NUM_PARTICLES: number = NUM_PARTICLES
         let PARTICLE_SIZE: number = particleLife.particleSize
+        let PARTICLE_OPACITY: number = particleLife.particleOpacity
         let NUM_TYPES: number = particleLife.numColors
         let NEW_NUM_TYPES: number = NUM_TYPES
         let useSpatialHash: boolean = particleLife.useSpatialHash // Use spatial hash or brute force
@@ -778,7 +789,7 @@ export default defineComponent({
             simOptionsView.setUint32(28,  NUM_PARTICLES, true)
             simOptionsView.setUint32(32,  NUM_TYPES, true)
             simOptionsView.setFloat32(36, PARTICLE_SIZE, true)
-            simOptionsView.setFloat32(40, (particleLife as any).particleOpacity ?? 1, true)
+            simOptionsView.setFloat32(40, PARTICLE_OPACITY, true)
             simOptionsView.setUint32(44,  isWallRepel ? 1 : 0, true)
             simOptionsView.setUint32(48,  isWallWrap ? 1 : 0, true)
             simOptionsView.setFloat32(52, forceFactor, true)
@@ -1235,6 +1246,7 @@ export default defineComponent({
         watch(() => particleLife.useSpatialHash, (value: boolean) => useSpatialHash = value)
 
         watchAndUpdateSimOptions(() => particleLife.particleSize, (value: number) => PARTICLE_SIZE = value)
+        watchAndUpdateSimOptions(() => particleLife.particleOpacity, (value: number) => PARTICLE_OPACITY = value)
         watchAndUpdateSimOptions(() => particleLife.repel, (value: number) => repel = value)
         watchAndUpdateSimOptions(() => particleLife.forceFactor, (value: number) => forceFactor = value)
         watchAndUpdateSimOptions(() => particleLife.frictionFactor, (value: number) => frictionFactor = value)
