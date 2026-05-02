@@ -106,10 +106,12 @@ import { defineComponent, onMounted, ref } from 'vue';
 import MatrixSettings from "~/components/particle-life/MatrixSettings.vue";
 import { RULES_OPTIONS, generateRules } from '~/helpers/utils/rulesGenerator';
 import { PALETTE_OPTIONS, generateColors } from "~/helpers/utils/colorsGenerator";
+import { mat4Perspective, mat4LookAt, mat4Mul } from "~/helpers/utils/camera3D";
 
 import bruteForceShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/compute_bruteForce.wgsl?raw';
 import particleAdvanceShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/particleAdvance.wgsl?raw';
 import renderShaderCode from 'assets/particle-life-gpu-3d/shaders/render/render_normal.wgsl?raw';
+import boxShaderCode from 'assets/particle-life-gpu-3d/shaders/render/render_box.wgsl?raw';
 import BrushSettings from "~/components/particle-life/BrushSettings.vue";
 
 export default defineComponent({
@@ -125,7 +127,6 @@ export default defineComponent({
         const executionTime = ref<number>(0)
         const canvasRef = ref<HTMLCanvasElement | null>(null)
         let ctx: GPUCanvasContext
-        let DEVICE_PIXEL_RATIO: number = 1
         let animationFrameId: number | null = null
         let lastFrameTime: number = performance.now()
         let isRunning: boolean = particleLife.isRunning
@@ -138,6 +139,8 @@ export default defineComponent({
         let smoothedDeltaTime: number = 0.0083 // Initial value (1/120s)
         let CANVAS_WIDTH: number = 0
         let CANVAS_HEIGHT: number = 0
+        let DEVICE_PIXEL_RATIO: number = 1
+        let CANVAS_ASPECT_RATIO: number = 1
         let SIM_WIDTH: number = 0
         let SIM_HEIGHT: number = 0
         let SIM_DEPTH: number = 0
@@ -176,25 +179,32 @@ export default defineComponent({
         let colors: Float32Array // Particle colors
 
         // Define the properties for dragging and zooming
-        let zoomFactor: number = 1.0
-        let targetZoomFactor: number = 1.0 // Target zoom factor for smooth zooming
-        let zoomSmoothing: number = particleLife.zoomSmoothing // Smoothing factor for zooming
-        let panSmoothing: number = particleLife.panSmoothing // Smoothing factor for panning
-        let cameraCenter = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 }
-        let targetCameraCenter = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 } // Target camera center for smooth movement
-        let cameraScaleX: number = 1.0 // Scale factor for X axis
-        let cameraScaleY: number = 1.0 // Scale factor for Y axis
         let isDragging: boolean = false // Flag to check if the mouse is being dragged
-        let lastZoomPositionX: number = 0 // Last zoom position X for smooth zooming
-        let lastZoomPositionY: number = 0 // Last zoom position Y for smooth zooming
         let lastPointerX: number = 0 // For dragging
         let lastPointerY: number = 0 // For dragging
         let pointerX: number = 0 // Pointer X
         let pointerY: number = 0 // Pointer Y
-        let lastFramePointerX: number = 0
-        let lastFramePointerY: number = 0
         let cameraChanged: boolean = true
-        let infiniteTotalInstances: number = 0 // Total number of instances for infinite rendering
+
+        // Define camera properties
+        const FOV_Y: number = 60 * Math.PI / 180
+        const NEAR_PLANE: number = 0.05
+        const FAR_PLANE: number = 100.0
+
+        let zoomFactor: number = 1.5 // distance from focus point (zoom)
+        let cameraYaw: number = 0 // rotation around Y (horizontal)
+        let cameraPitch: number = 0 // rotation around X (vertical)
+        let cameraTarget: [number, number, number] = [0, 0, 0] // pan offset in normalized world space
+
+        const cameraRight: [number, number, number] = [1, 0, 0]
+        const cameraUp: [number, number, number]    = [0, 1, 0]
+        const cameraFwd: [number, number, number]   = [0, 0, -1]
+        let cameraRotationChanged: boolean = true
+
+        const CAMERA_BUFFER_SIZE = 80 // 80 bytes = 64 (mat4) + 16 (vec4 params), aligned to 16 (multiple of 16)
+        const cameraData = new Float32Array(CAMERA_BUFFER_SIZE / 4)
+        const cameraProjMatrix = new Float32Array(16)
+        const cameraViewMatrix = new Float32Array(16)
 
         // Define variables for the simulation
         let repel: number = particleLife.repel // Repel force between particles
@@ -208,6 +218,7 @@ export default defineComponent({
         let useSpatialHash: boolean = particleLife.useSpatialHash // Use spatial hash or brute force
         let isWallRepel: boolean = particleLife.isWallRepel // Enable walls X and Y for the particles
         let isWallWrap: boolean = particleLife.isWallWrap // Enable wrapping for the particles
+        let isBoxWireframeActive: boolean = particleLife.isBoxWireframeActive // Show box wireframe
 
         // Define GPU resources
         let device: GPUDevice
@@ -221,7 +232,6 @@ export default defineComponent({
         let cameraBuffer: GPUBuffer | undefined
         let interactionMatrixBuffer: GPUBuffer | undefined
         let simOptionsBuffer: GPUBuffer | undefined
-
         let particleBuffer: GPUBuffer | undefined
         let particleTempBuffer: GPUBuffer | undefined
 
@@ -243,8 +253,8 @@ export default defineComponent({
         let particleAdvancePipeline: GPUComputePipeline
 
         let renderPipeline: GPURenderPipeline
+        let boxRenderPipeline: GPURenderPipeline
 
-        // Depth attachment for 3D rendering (occlusion of billboards)
         let depthTexture: GPUTexture | undefined
         const DEPTH_FORMAT: GPUTextureFormat = 'depth24plus'
 
@@ -255,55 +265,135 @@ export default defineComponent({
             await initLife()
 
             useEventListener('resize', handleResize)
+            useEventListener(canvasRef.value, ['mousedown'], (e) => {
+                lastPointerX = (e.x - canvasRef.value!.getBoundingClientRect().left) * DEVICE_PIXEL_RATIO
+                lastPointerY = (e.y - canvasRef.value!.getBoundingClientRect().top) * DEVICE_PIXEL_RATIO
+            })
+            useEventListener(canvasRef.value, ['mousemove'], (e) => {
+                pointerX = (e.x - canvasRef.value!.getBoundingClientRect().left) * DEVICE_PIXEL_RATIO
+                pointerY = (e.y - canvasRef.value!.getBoundingClientRect().top) * DEVICE_PIXEL_RATIO
+
+                if (e.buttons > 0) { // if mouse is pressed
+                    if (e.buttons === 1) { // if primary button is pressed (left click) -> pan
+                        isDragging = true
+                        handleMove()
+                    }
+                    if (e.buttons === 2) { // if secondary button is pressed (right click) -> rotate
+                        isDragging = true
+                        handleRotate()
+                    }
+                }
+                else if (e.buttons === 0) {
+                    isDragging = false
+                }
+            })
+            useEventListener(canvasRef.value, ['mouseup'], () => {
+                isDragging = false
+            })
+            useEventListener(canvasRef.value, 'mouseleave', () => {
+                isDragging = false
+            })
+            useEventListener(canvasRef.value, 'wheel', (e) => {
+                e.preventDefault()
+                if (e.deltaY < 0) handleZoom(1) // Zoom in
+                else handleZoom(-1) // Zoom out
+            })
         })
-// -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         function handleResize() {
             DEVICE_PIXEL_RATIO = window.devicePixelRatio || 1
             CANVAS_WIDTH = canvasRef.value!.width = Math.round(canvasRef.value!.clientWidth * DEVICE_PIXEL_RATIO)
             CANVAS_HEIGHT = canvasRef.value!.height = Math.round(canvasRef.value!.clientHeight * DEVICE_PIXEL_RATIO)
-            updateCameraScaleFactors()
+            CANVAS_ASPECT_RATIO = (CANVAS_WIDTH > 0 && CANVAS_HEIGHT > 0) ? CANVAS_WIDTH / CANVAS_HEIGHT : 1
             updateDepthTexture()
             cameraChanged = true
-        }
-        function updateDepthTexture() {
-            if (!device || CANVAS_WIDTH <= 0 || CANVAS_HEIGHT <= 0) return
-            if (depthTexture) { depthTexture.destroy(); depthTexture = undefined }
-            depthTexture = device.createTexture({
-                size: [CANVAS_WIDTH, CANVAS_HEIGHT, 1],
-                format: DEPTH_FORMAT,
-                usage: GPUTextureUsage.RENDER_ATTACHMENT,
-            })
-        }
-        function updateCameraScaleFactors() {
-            cameraScaleY = zoomFactor * 2.0 / CANVAS_HEIGHT
-            cameraScaleX = cameraScaleY / (CANVAS_WIDTH / CANVAS_HEIGHT)
         }
         function setSimSizeBasedOnScreen() {
             particleLife.simWidth = SIM_WIDTH = baseSimWidth = CANVAS_WIDTH
             particleLife.simHeight = SIM_HEIGHT = baseSimHeight = CANVAS_HEIGHT
-            SIM_DEPTH = baseSimDepth = CANVAS_HEIGHT
+            particleLife.simDepth = SIM_DEPTH = baseSimDepth = CANVAS_HEIGHT
             SIM_WIDTH_HALF = SIM_WIDTH * 0.5
             SIM_HEIGHT_HALF = SIM_HEIGHT * 0.5
             SIM_DEPTH_HALF = SIM_DEPTH * 0.5
-            updateCameraScaleFactors()
         }
         function setSimSize() {
             SIM_WIDTH_HALF = SIM_WIDTH * 0.5
             SIM_HEIGHT_HALF = SIM_HEIGHT * 0.5
             SIM_DEPTH_HALF = SIM_DEPTH * 0.5
-            updateCameraScaleFactors()
         }
         function centerView() {
-            cameraCenter = { x: SIM_WIDTH_HALF, y: SIM_HEIGHT_HALF }
-            targetCameraCenter = { x: SIM_WIDTH_HALF, y: SIM_HEIGHT_HALF }
+            cameraYaw = 0
+            cameraPitch = 0
+            zoomFactor = 1.5
+            cameraTarget = [0, 0, 0]
+            cameraRotationChanged = true
+            cameraChanged = true
+        }
+        const handleMove = () => {
+            const dx = pointerX - lastPointerX
+            const dy = pointerY - lastPointerY
+            updateCameraAxes()
+            const speed = zoomFactor / Math.max(1, CANVAS_HEIGHT)
+            cameraTarget[0] += (-dx * cameraRight[0] + dy * cameraUp[0]) * speed
+            cameraTarget[1] += (-dx * cameraRight[1] + dy * cameraUp[1]) * speed
+            cameraTarget[2] += (-dx * cameraRight[2] + dy * cameraUp[2]) * speed
+
+            lastPointerX = pointerX
+            lastPointerY = pointerY
+            cameraChanged = true
+        }
+        const handleRotate = () => {
+            const dx = pointerX - lastPointerX
+            const dy = pointerY - lastPointerY
+            const radPerPixel = Math.PI / Math.max(1, CANVAS_HEIGHT)
+            cameraYaw -= dx * radPerPixel
+            cameraPitch += dy * radPerPixel
+            const lim = Math.PI * 0.5
+            if (cameraPitch > lim) cameraPitch = lim
+            if (cameraPitch < -lim) cameraPitch = -lim
+
+            lastPointerX = pointerX
+            lastPointerY = pointerY
+            cameraRotationChanged = true
+            cameraChanged = true
         }
         function handleZoom(delta: number, isCentered: boolean = false) {
-            // lastZoomPositionX = isCentered ? cameraCenter.x : pointerX
-            // lastZoomPositionY = isCentered ? cameraCenter.y : pointerY
-            // const zoomIntensity = 0.1
-            // const zoomDelta = delta * zoomIntensity
-            // targetZoomFactor = Math.max(0.15, Math.min(1000.0, targetZoomFactor * (1 + zoomDelta)))
+            const zoomIntensity = 0.15
+            zoomFactor = Math.max(0.2, Math.min(20.0, zoomFactor * (1 - delta * zoomIntensity)))
+            cameraChanged = true
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
+        function updateCameraAxes() {
+            if (!cameraRotationChanged) return
+            const cp = Math.cos(cameraPitch), sp = Math.sin(cameraPitch)
+            const cy = Math.cos(cameraYaw),   sy = Math.sin(cameraYaw)
+
+            const fx = -sy * cp, fy = -sp, fz = -cy * cp
+            let rx = -fz, rz = fx
+            const rl = Math.hypot(rx, rz) || 1
+            rx /= rl; rz /= rl
+
+            cameraRight[0] = rx; cameraRight[1] = 0; cameraRight[2] = rz
+            cameraUp[0] = -rz * fy; cameraUp[1] = rz * fx - rx * fz; cameraUp[2] = rx * fy
+            cameraFwd[0] = fx; cameraFwd[1] = fy; cameraFwd[2] = fz
+
+            cameraRotationChanged = false
+        }
+        function computeCameraEye(): [number, number, number] {
+            const cp = Math.cos(cameraPitch), sp = Math.sin(cameraPitch)
+            const cy = Math.cos(cameraYaw),   sy = Math.sin(cameraYaw)
+            // eye = target + R * (0,0,distance)
+            const dirX = sy * cp
+            const dirY = sp
+            const dirZ = cy * cp
+            return [
+                cameraTarget[0] + dirX * zoomFactor,
+                cameraTarget[1] + dirY * zoomFactor,
+                cameraTarget[2] + dirZ * zoomFactor
+            ]
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -369,6 +459,17 @@ export default defineComponent({
             animationFrameId = requestAnimationFrame(frame)
         }
         // -------------------------------------------------------------------------------------------------------------
+        const step = () => {
+            const encoder = device.createCommandEncoder()
+
+            encoder.copyBufferToBuffer(particleBuffer!, 0, particleTempBuffer!, 0, particleBuffer!.size)
+            computeBruteForce(encoder)
+            computeAdvance(encoder)
+            renderParticles(encoder)
+
+            device.queue.submit([encoder.finish()])
+        }
+        // -------------------------------------------------------------------------------------------------------------
         const handleDeltaTime = (startExecutionTime: number) => {
             const deltaTime = Math.min((startExecutionTime - lastFrameTime) / 1000, 0.1) // Cap deltaTime to avoid spikes
             lastFrameTime = startExecutionTime
@@ -379,18 +480,6 @@ export default defineComponent({
             if (Math.round(lastSmoothedDeltaTime * 1000) !== Math.round(smoothedDeltaTime * 1000)) {
                 device.queue.writeBuffer(deltaTimeBuffer!, 0, new Float32Array([smoothedDeltaTime]))
             }
-        }
-        // -------------------------------------------------------------------------------------------------------------
-        const step = () => {
-            const encoder = device.createCommandEncoder()
-
-            encoder.copyBufferToBuffer(particleBuffer!, 0, particleTempBuffer!, 0, particleBuffer!.size)
-            computeBruteForce(encoder)
-            computeAdvance(encoder)
-            
-            renderParticles(encoder)
-
-            device.queue.submit([encoder.finish()])
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -414,9 +503,7 @@ export default defineComponent({
         }
         const renderParticles = (encoder: GPUCommandEncoder) => {
             if (cameraChanged) {
-                // device.queue.writeBuffer(cameraBuffer!, 0, new Float32Array([
-                //     cameraCenter.x, cameraCenter.y, cameraScaleX, cameraScaleY
-                // ]))
+                updateCameraBuffer()
                 cameraChanged = false
             }
 
@@ -439,7 +526,16 @@ export default defineComponent({
             renderPass.setBindGroup(1, simOptionsBindGroup)
             renderPass.setBindGroup(2, cameraBindGroup)
             renderPass.draw(4, NUM_PARTICLES)
+
+            if (isBoxWireframeActive) renderBoxWireframe(renderPass)
+
             renderPass.end()
+        }
+        const renderBoxWireframe = (renderPass: GPURenderPassEncoder) => {
+            renderPass.setPipeline(boxRenderPipeline)
+            renderPass.setBindGroup(0, simOptionsBindGroup)
+            renderPass.setBindGroup(1, cameraBindGroup)
+            renderPass.draw(24, 1)
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -525,9 +621,31 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
+        function updateCameraBuffer() {
+            mat4Perspective(cameraProjMatrix, FOV_Y, CANVAS_ASPECT_RATIO, NEAR_PLANE, FAR_PLANE)
+            const eye = computeCameraEye()
+            mat4LookAt(cameraViewMatrix, eye, cameraTarget, [0, 1, 0])
+            mat4Mul(cameraData, cameraProjMatrix, cameraViewMatrix)
+
+            cameraData[16] = CANVAS_ASPECT_RATIO
+            cameraData[17] = FOV_Y
+            cameraData[18] = NEAR_PLANE
+            cameraData[19] = FAR_PLANE
+
+            if (!cameraBuffer) {
+                cameraBuffer = device.createBuffer({
+                    size: CAMERA_BUFFER_SIZE,
+                    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+                    mappedAtCreation: true
+                })
+                new Float32Array(cameraBuffer.getMappedRange()).set(cameraData)
+                cameraBuffer.unmap()
+            } else {
+                device.queue.writeBuffer(cameraBuffer, 0, cameraData)
+            }
+        }
         const updateSimOptionsBuffer = () => {
-            // Layout (WGSL SimOptions, scalars 4B, total 92B padded to 96B for uniform alignment)
-            const simOptionsData = new ArrayBuffer(96)
+            const simOptionsData = new ArrayBuffer(88)
             const simOptionsView = new DataView(simOptionsData)
             simOptionsView.setFloat32(0,  SIM_WIDTH, true)
             simOptionsView.setFloat32(4,  SIM_HEIGHT, true)
@@ -540,8 +658,8 @@ export default defineComponent({
             simOptionsView.setUint32(32,  NUM_TYPES, true)
             simOptionsView.setFloat32(36, PARTICLE_SIZE, true)
             simOptionsView.setFloat32(40, (particleLife as any).particleOpacity ?? 1, true)
-            simOptionsView.setUint32(44,  particleLife.isWallRepel ? 1 : 0, true)
-            simOptionsView.setUint32(48,  particleLife.isWallWrap ? 1 : 0, true)
+            simOptionsView.setUint32(44,  isWallRepel ? 1 : 0, true)
+            simOptionsView.setUint32(48,  isWallWrap ? 1 : 0, true)
             simOptionsView.setFloat32(52, forceFactor, true)
             simOptionsView.setFloat32(56, frictionFactor, true)
             simOptionsView.setFloat32(60, repel, true)
@@ -552,7 +670,6 @@ export default defineComponent({
             simOptionsView.setUint32(76,  GRID_OFFSET_X, true)
             simOptionsView.setUint32(80,  GRID_OFFSET_Y, true)
             simOptionsView.setUint32(84,  GRID_OFFSET_Z, true)
-            simOptionsView.setUint32(88,  (particleLife as any).mirrorWrapCount ?? 0, true)
 
             if (!simOptionsBuffer) {
                 simOptionsBuffer = device.createBuffer({
@@ -640,16 +757,8 @@ export default defineComponent({
             updateInteractionMatrixBuffer() // Set interaction matrices based on the store state
             updateParticleBuffers(true)
             updateColorBuffer()
+            updateCameraBuffer()
             // ----------------------------------------------------------------------------------------------
-            const cameraData = new Float32Array([cameraCenter.x, cameraCenter.y, cameraScaleX, cameraScaleY])
-            cameraBuffer = device.createBuffer({
-                size: cameraData.byteLength,
-                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
-                mappedAtCreation: true
-            });
-            new Float32Array(cameraBuffer.getMappedRange()).set(cameraData)
-            cameraBuffer.unmap()
-
             deltaTimeBuffer = device.createBuffer({
                 size: 4,
                 usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -798,6 +907,36 @@ export default defineComponent({
                     depthCompare: 'less',
                 },
             })
+
+            const boxShader = device.createShaderModule({ code: boxShaderCode })
+            boxRenderPipeline = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [simOptionsBindGroupLayout, cameraBindGroupLayout],
+                }),
+                vertex: { module: boxShader, entryPoint: 'vertexMain' },
+                fragment: {
+                    module: boxShader, entryPoint: 'fragmentMain', targets: [{
+                        format: navigator.gpu.getPreferredCanvasFormat(),
+                        blend: particleNormalBlending,
+                    }],
+                },
+                primitive: { topology: 'line-list' },
+                depthStencil: {
+                    format: DEPTH_FORMAT,
+                    depthWriteEnabled: false,
+                    depthCompare: 'less-equal',
+                },
+            })
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
+        function updateDepthTexture() {
+            if (depthTexture) depthTexture.destroy(); depthTexture = undefined;
+            depthTexture = device.createTexture({
+                size: [CANVAS_WIDTH, CANVAS_HEIGHT, 1],
+                format: DEPTH_FORMAT,
+                usage: GPUTextureUsage.RENDER_ATTACHMENT,
+            })
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -867,6 +1006,7 @@ export default defineComponent({
             bruteForceComputePipeline = undefined as any;
             particleAdvancePipeline = undefined as any;
             renderPipeline = undefined as any;
+            boxRenderPipeline = undefined as any;
 
             particleBufferReadOnlyBindGroup = undefined as any;
             bruteForceBindGroup = undefined as any;

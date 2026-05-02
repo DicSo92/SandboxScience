@@ -21,7 +21,6 @@ struct SimOptions {
     gridOffsetX: u32,
     gridOffsetY: u32,
     gridOffsetZ: u32,
-    mirrorWrapCount: u32,
 };
 struct Particle {
     x : f32,
@@ -31,7 +30,14 @@ struct Particle {
     vy : f32,
     vz : f32,
     particleType : f32,
-}
+};
+struct Camera {
+    viewProjMatrix: mat4x4<f32>,
+    aspectRatio: f32,
+    fovY: f32,
+    nearPlane: f32,
+    farPlane: f32,
+};
 
 const QUAD_VERTICES = array<vec2<f32>, 4>(
     vec2<f32>(-1.0, -1.0),
@@ -40,16 +46,10 @@ const QUAD_VERTICES = array<vec2<f32>, 4>(
     vec2<f32>( 1.0,  1.0)
 );
 
-// --- Fixed perspective projection (no controllable camera) ---
-// Camera looks down -Z, scene centered, pulled back by CAMERA_DISTANCE.
-const FOV_Y: f32 = 1.04719755;       // 60 degrees
-const CAMERA_DISTANCE: f32 = 2.2;    // distance from origin in normalized sim units
-const NEAR_PLANE: f32 = 0.1;
-const FAR_PLANE: f32  = 10.0;
-
 @group(0) @binding(0) var<storage, read> particles: array<Particle>;
 @group(0) @binding(1) var<storage, read> colors: array<vec4<f32>>;
 @group(1) @binding(0) var<uniform> options: SimOptions;
+@group(2) @binding(0) var<uniform> camera: Camera;
 
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
@@ -75,32 +75,29 @@ fn vertexMain(
     let halfSize = simSize * 0.5;
     let normScale = 1.0 / max(max(halfSize.x, halfSize.y), halfSize.z);
     let centered = vec3f(particle.x, particle.y, particle.z) - halfSize;
-    let worldPos = centered * normScale; // ~[-1, 1]
+    // Flip Y so the simulation Y axis (downwards on screen) maps to standard Y-up world space.
+    let worldPos = vec3f(centered.x, -centered.y, centered.z) * normScale;
 
-    // View: push the whole scene away from the camera along -Z.
-    let viewPos = vec3f(worldPos.x, -worldPos.y, -worldPos.z - CAMERA_DISTANCE);
+    // Apply view-projection from the controllable camera.
+    let centerClip = camera.viewProjMatrix * vec4f(worldPos, 1.0);
 
-    // Simple perspective projection (assume square viewport for simplicity).
-    let f = 1.0 / tan(FOV_Y * 0.5);
-    let zRange = NEAR_PLANE - FAR_PLANE;
-    let projX = viewPos.x * f;
-    let projY = viewPos.y * f;
-    let projZ = (FAR_PLANE + NEAR_PLANE) / zRange * viewPos.z
-              + (2.0 * FAR_PLANE * NEAR_PLANE) / zRange;
-    let projW = -viewPos.z;
+    // Billboard offset: keep the particle facing the camera by offsetting in clip space.
 
-    // Billboard offset (in clip space). Size shrinks with depth thanks to /projW done by the rasterizer,
-    // so we apply the offset before the perspective divide.
+    let aspect = camera.aspectRatio;
+    let fovY = camera.fovY;
+    let f = 1.0 / tan(fovY * 0.5);
     let quadOffset = QUAD_VERTICES[vertexIndex];
     let pixelSize = options.particleSize;
-    // Normalize particle radius into clip-space units (rough heuristic, no real screen size known here).
     let billboardRadius = pixelSize * normScale * f;
-    let offsetClip = vec2f(quadOffset.x, -quadOffset.y) * billboardRadius;
+    let offsetClip = vec2f(quadOffset.x / aspect, quadOffset.y) * billboardRadius;
 
-    let clipPos = vec4f(projX + offsetClip.x, projY + offsetClip.y, projZ, projW);
+    let clipPos = vec4f(centerClip.x + offsetClip.x,
+                        centerClip.y + offsetClip.y,
+                        centerClip.z,
+                        centerClip.w);
 
-    // Simple depth-based shading: closer = brighter.
-    let depthShade = clamp(1.0 - (-viewPos.z - (CAMERA_DISTANCE - 1.0)) * 0.35, 0.35, 1.0);
+    // Simple depth-based shading using clip-space w (≈ view-space distance).
+    let depthShade = clamp(1.0 - (centerClip.w - 1.0) * 0.35, 0.35, 1.0);
 
     return VertexOutput(
         clipPos,

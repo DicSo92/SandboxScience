@@ -15,6 +15,7 @@ export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => 
 
     const simWidth = ref<number>(0) // Grid width
     const simHeight = ref<number>(0) // Grid height
+    const simDepth = ref<number>(0) // Grid depth (for 3D)
     const linkProportions = ref<boolean>(false) // Constraint x y sim proportions
 
     const numParticles = ref<number>(32000) // Number of particles
@@ -46,6 +47,7 @@ export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => 
     const currentMaxRadius = ref<number>(0) // Current max radius for the particles
 
     const useSpatialHash = ref<boolean>(false) // Use spatial hash for collision detection or brute force
+    const isBoxWireframeActive = ref<boolean>(true) // Show wireframe box for simulation boundaries
 
     const selectedRulesOption = ref<number>(0) // Default to 'random'
     const selectedColorPaletteOption = ref<number>(0) // Default to 'random'
@@ -59,11 +61,11 @@ export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => 
         engineType, sidebarLeftOpen, isLockedPointer, isHudLocked,
         isRunning,
         rulesMatrix, minRadiusMatrix, maxRadiusMatrix, currentColors,
-        simWidth, simHeight, linkProportions,
+        simWidth, simHeight, simDepth, linkProportions,
         numParticles, particleSize, numColors, zoomSmoothing, panSmoothing,
         isWallRepel, isWallWrap, wallState,
         minRadiusRange, maxRadiusRange, currentMaxRadius,
-        repel, forceFactor, frictionFactor, useSpatialHash,
+        repel, forceFactor, frictionFactor, useSpatialHash, isBoxWireframeActive,
         selectedRulesOption, selectedColorPaletteOption,
         $reset
     }
