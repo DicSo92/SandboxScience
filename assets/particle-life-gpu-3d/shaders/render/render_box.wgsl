@@ -21,6 +21,7 @@ struct SimOptions {
     gridOffsetX: u32,
     gridOffsetY: u32,
     gridOffsetZ: u32,
+    cellSubdivisions: u32,
 };
 struct Camera {
     viewProjMatrix: mat4x4<f32>,

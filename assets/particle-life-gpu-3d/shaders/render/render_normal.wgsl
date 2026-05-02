@@ -21,6 +21,7 @@ struct SimOptions {
     gridOffsetX: u32,
     gridOffsetY: u32,
     gridOffsetZ: u32,
+    cellSubdivisions: u32,
 };
 struct Particle {
     x : f32,

@@ -94,6 +94,22 @@
                                         :min="0" :max="1" :step="0.01" v-model="particleLife.particleOpacity" mt-2>
                             </RangeInput>
                         </Collapse>
+                        <Collapse label="Debug Tools" icon="i-tabler-bug text-rose-500"
+                                  tooltip="Provides tools for visualizing the simulation's internal state. <br> Toggle the grid view to see spatial bins or activate a heatmap to analyze particle density. <br> These features are useful for debugging and performance tuning.">
+                            <p text-gray-300 text-2sm underline mb-1 class="-mt-0.5">Neighbor Search :</p>
+                            <SelectInput name="algorithm-mode"
+                                         :model-value="particleLife.useSpatialHash ? 'spatial' : 'brute'"
+                                         @update:model-value="particleLife.useSpatialHash = $event === 'spatial'"
+                                         :options="[
+                                             { id: 'spatial', name: 'Spatial Hash', icon: 'i-tabler-topology-ring-3', category: 'Method' },
+                                             { id: 'brute', name: 'Brute Force', icon: 'i-tabler-cpu', category: 'Method' },
+                                         ]">
+                            </SelectInput>
+                            <RangeInput v-show="particleLife.useSpatialHash" input label="Cell Subdivisions" mt-2
+                                        tooltip="Subdivides the interaction radius into smaller grid cells. <br> Default: 2 (fastest in most cases). <br> Increasing subdivisions can improve performance for simulations with very large radii."
+                                        :min="1" :max="5" :step="1" v-model="particleLife.cellSubdivisions">
+                            </RangeInput>
+                        </Collapse>
                     </div>
                     <div absolute bottom-2 right-0 z-100 class="-mr-px">
                         <button rounded-l-lg border border-slate-600 flex items-center p-1 bg="slate-900/85 hover:slate-950/85" @click="particleLife.sidebarLeftOpen = false">
@@ -191,7 +207,7 @@ export default defineComponent({
         let SIM_HEIGHT_HALF: number = 0
         let SIM_DEPTH_HALF: number = 0
         let CELL_SIZE: number = 0
-        // let CELL_SUBDIVISIONS: number = particleLife.cellSubdivisions
+        let CELL_SUBDIVISIONS: number = particleLife.cellSubdivisions
         let baseSimWidth: number = 0
         let baseSimHeight: number = 0
         let baseSimDepth: number = 0
@@ -777,7 +793,7 @@ export default defineComponent({
             }
         }
         const updateSimOptionsBuffer = () => {
-            const simOptionsData = new ArrayBuffer(88)
+            const simOptionsData = new ArrayBuffer(92)
             const simOptionsView = new DataView(simOptionsData)
             simOptionsView.setFloat32(0,  SIM_WIDTH, true)
             simOptionsView.setFloat32(4,  SIM_HEIGHT, true)
@@ -802,6 +818,7 @@ export default defineComponent({
             simOptionsView.setUint32(76,  GRID_OFFSET_X, true)
             simOptionsView.setUint32(80,  GRID_OFFSET_Y, true)
             simOptionsView.setUint32(84,  GRID_OFFSET_Z, true)
+            simOptionsView.setUint32(88,  CELL_SUBDIVISIONS, true)
 
             if (!simOptionsBuffer) {
                 simOptionsBuffer = device.createBuffer({
@@ -1263,6 +1280,12 @@ export default defineComponent({
         watch([() => particleLife.isWallRepel, () => particleLife.isWallWrap,], () => {
             isWallRepel = particleLife.isWallRepel
             isWallWrap = particleLife.isWallWrap
+            setSimSize()
+            updateSimOptionsBuffer()
+        })
+        watch(() => particleLife.cellSubdivisions, (value: number) => {
+            CELL_SUBDIVISIONS = value
+            CELL_SIZE = Math.ceil(currentMaxRadius / CELL_SUBDIVISIONS)
             setSimSize()
             updateSimOptionsBuffer()
         })

@@ -44,11 +44,12 @@ export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => 
     // Define properties for randomizing radius matrix
     const minRadiusRange = ref<number[]>([12, 24]) // Range for the random minRadius of each color
     const maxRadiusRange = ref<number[]>([32, 64]) // Range for the random maxRadius of each color
-
     const currentMaxRadius = ref<number>(0) // Current max radius for the particles
 
     const useSpatialHash = ref<boolean>(false) // Use spatial hash for collision detection or brute force
     const isBoundingBoxActive = ref<boolean>(true) // Show wireframe box for simulation boundaries
+
+    const cellSubdivisions = ref<number>(2) // Number of subdivisions of maxRadius per cell (CELL_SIZE = maxRadius / cellSubdivisions)
 
     const selectedRulesOption = ref<number>(0) // Default to 'random'
     const selectedColorPaletteOption = ref<number>(0) // Default to 'random'
@@ -68,6 +69,7 @@ export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => 
         minRadiusRange, maxRadiusRange, currentMaxRadius,
         repel, forceFactor, frictionFactor, useSpatialHash, isBoundingBoxActive,
         selectedRulesOption, selectedColorPaletteOption,
+        cellSubdivisions,
         $reset
     }
 })
