@@ -22,7 +22,13 @@
                                   Adjust individual cell values with the slider, or click and drag to change them directly. <br>
                                   Use Ctrl + Click to select multiple cells for group adjustments. <br>
                                   If no cells are selected, the slider will adjust all values.">
-                            <MatrixSettings :store="particleLife"></MatrixSettings>
+                            <MatrixSettings :store="particleLife"
+                                            @updateRulesMatrix="updateRulesMatrixValue"
+                                            @randomRulesMatrix="newRandomRulesMatrix"
+                                            @updateMinMatrix="updateMinMatrixValue"
+                                            @updateMaxMatrix="updateMaxMatrixValue"
+                                            @updateColor="updateSingleColor">
+                            </MatrixSettings>
                         </Collapse>
                         <Collapse label="Randomizer Settings" icon="i-game-icons-perspective-dice-six-faces-random text-teal-500"
                                   tooltip="Adjust the parameters for randomizing particle attributes. <br> Configure the ranges for minimum and maximum interaction radii.">
@@ -116,6 +122,7 @@ import MatrixSettings from "~/components/particle-life/MatrixSettings.vue";
 import { RULES_OPTIONS, generateRules } from '~/helpers/utils/rulesGenerator';
 import { PALETTE_OPTIONS, generateColors } from "~/helpers/utils/colorsGenerator";
 import { mat4Perspective, mat4LookAt, mat4Mul } from "~/helpers/utils/camera3D";
+import { hexToRgb } from '~/helpers/utils/colorConversion';
 
 import bruteForceShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/compute_bruteForce.wgsl?raw';
 import particleAdvanceShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/particleAdvance.wgsl?raw';
@@ -607,6 +614,49 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
+        const updateRulesMatrixValue = (x: number, y: number, value: number) => {
+            const roundedValue = Math.round(value * 100) / 100
+            particleLife.rulesMatrix[x][y] = roundedValue
+            rulesMatrix[x][y] = roundedValue
+            updateInteractionMatrixBuffer()
+        }
+        const updateMinMatrixValue = (x: number, y: number, value: number) => {
+            particleLife.minRadiusMatrix[x][y] = value
+            minRadiusMatrix[x][y] = value
+            if (value > particleLife.maxRadiusMatrix[x][y]) {
+                particleLife.maxRadiusMatrix[x][y] = value
+                maxRadiusMatrix[x][y] = value
+                setCurrentMaxRadius(getCurrentMaxRadius())
+            }
+            updateInteractionMatrixBuffer()
+        }
+        const updateMaxMatrixValue = (x: number, y: number, value: number) => {
+            particleLife.maxRadiusMatrix[x][y] = value
+            maxRadiusMatrix[x][y] = value
+            setCurrentMaxRadius(getCurrentMaxRadius())
+            if (value < particleLife.minRadiusMatrix[x][y]) {
+                particleLife.minRadiusMatrix[x][y] = value
+                minRadiusMatrix[x][y] = value
+            }
+            updateInteractionMatrixBuffer()
+        }
+        const newRandomRulesMatrix = () => {
+
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        const updateSingleColor = (colorId: number, hex: string) => {
+            const rgb = hexToRgb(hex)
+            if (!rgb) return
+            const idx = colorId * 4
+            colors[idx]     = rgb[0] / 255
+            colors[idx + 1] = rgb[1] / 255
+            colors[idx + 2] = rgb[2] / 255
+            particleLife.currentColors = new Float32Array(colors) // New reference to trigger reactivity
+            updateColorBuffer()
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
         function setRulesMatrix(newRules: number[][]) {
             rulesMatrix = newRules
             particleLife.rulesMatrix = rulesMatrix
@@ -1049,6 +1099,7 @@ export default defineComponent({
         return {
             particleLife, canvasRef, fps, executionTime,
             handleZoom, toggleFullscreen, isFullscreen, regenerateLife, step,
+            updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, newRandomRulesMatrix, updateSingleColor,
             randomizeRadius, randomizeRulesAndRadius,
         }
     }
