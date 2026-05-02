@@ -46,7 +46,7 @@
                             </RangeInput>
                             <RangeInput input label="Species Count"
                                         tooltip="Specify the number of particle colors. <br> Each color interacts with all others, with distinct forces and interaction ranges."
-                                        :min="1" :max="16" :step="1" v-model="particleLife.numColors" mt-2>
+                                        :min="1" :max="16" :step="1" v-model="particleLife.numColors" @update:modelValue="setNewNumTypes" mt-2>
                             </RangeInput>
                             <div flex items-center class="mt-0.5">
                                 <p class="w-2/3 text-2sm mt-1">
@@ -477,6 +477,8 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         const frame = async () => {
+            if (isUpdateNumTypesPending) await updateNumTypes(NEW_NUM_TYPES)
+
             const startExecutionTime = performance.now()
             if (isRunning) {
                 handleDeltaTime(startExecutionTime)
@@ -870,6 +872,113 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
+        const setNewNumTypes = (newNumTypes: number) => {
+            NEW_NUM_TYPES = newNumTypes
+            isUpdateNumTypesPending = true
+        }
+        const updateNumTypes = async (newNumTypes: number) => {
+            if (isUpdatingParticles || newNumTypes === NUM_TYPES) {
+                isUpdateNumTypesPending = false
+                return
+            }
+            isUpdatingParticles = true
+            await device.queue.onSubmittedWorkDone()
+
+            try {
+                const oldNumTypes = NUM_TYPES
+                NUM_TYPES = newNumTypes
+
+                await adjustColors(colors, oldNumTypes, newNumTypes)
+                await adjustParticleTypes(oldNumTypes, newNumTypes)
+
+                setRulesMatrix(resizeMatrix(rulesMatrix, oldNumTypes, newNumTypes, () => {
+                    return Math.round((Math.random() * 2 - 1) * 100) / 100
+                }))
+                setMinRadiusMatrix(resizeMatrix(minRadiusMatrix, oldNumTypes, newNumTypes, () => {
+                    return Math.floor(Math.random() * (particleLife.minRadiusRange[1] - particleLife.minRadiusRange[0] + 1) + particleLife.minRadiusRange[0])
+                }))
+                setMaxRadiusMatrix(resizeMatrix(maxRadiusMatrix, oldNumTypes, newNumTypes, () => {
+                    return Math.floor(Math.random() * (particleLife.maxRadiusRange[1] - particleLife.maxRadiusRange[0] + 1) + particleLife.maxRadiusRange[0])
+                }))
+
+                updateInteractionMatrixBuffer()
+                updateSimOptionsBuffer()
+                updateColorBuffer()
+                updateParticleBindGroups()
+            } finally {
+                isUpdatingParticles = false
+                isUpdateNumTypesPending = NEW_NUM_TYPES !== NUM_TYPES
+            }
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        const adjustColors = async (oldColors: Float32Array, oldNumTypes: number, newNumTypes: number, keepExtraColors: boolean = false) => {
+            const newColors = new Float32Array((keepExtraColors ? oldNumTypes : newNumTypes) * 4)
+            if (keepExtraColors) newColors.set(colors)
+
+            for (let i = 0; i < newNumTypes; i++) {
+                const idx = i * 4
+                newColors[idx]     = oldColors[idx]     ?? Math.random()
+                newColors[idx + 1] = oldColors[idx + 1] ?? Math.random()
+                newColors[idx + 2] = oldColors[idx + 2] ?? Math.random()
+                newColors[idx + 3] = oldColors[idx + 3] ?? 1
+            }
+            colors = newColors
+            particleLife.currentColors = colors // Ensure the store is updated with the new colors
+        }
+        const adjustParticleTypes = async (oldNumTypes: number, newNumTypes: number) => {
+            const particleDataBuffer = await readBufferFromGPU(particleBuffer!, NUM_PARTICLES * 7 * 4)
+            const particles = new Float32Array(particleDataBuffer)
+
+            if (newNumTypes < oldNumTypes) {
+                for (let i = 0; i < NUM_PARTICLES; i++) {
+                    const typeIndex = i * 7 + 6
+                    if (particles[typeIndex] >= newNumTypes) {
+                        particles[typeIndex] = Math.floor(Math.random() * newNumTypes)
+                    }
+                }
+            } else if (newNumTypes > oldNumTypes) {
+                for (let i = 0; i < NUM_PARTICLES; i++) {
+                    if (Math.random() < (newNumTypes - oldNumTypes) / newNumTypes) {
+                        const typeIndex = i * 7 + 6
+                        particles[typeIndex] = oldNumTypes + Math.floor(Math.random() * (newNumTypes - oldNumTypes))
+                    }
+                }
+            }
+            device.queue.writeBuffer(particleBuffer!, 0, particles)
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        async function readBufferFromGPU(buffer: GPUBuffer, size: number): Promise<ArrayBuffer> {
+            const readBuffer = device.createBuffer({
+                size,
+                usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+            })
+            const encoder = device.createCommandEncoder()
+            encoder.copyBufferToBuffer(buffer, 0, readBuffer, 0, size)
+            device.queue.submit([encoder.finish()])
+            await readBuffer.mapAsync(GPUMapMode.READ)
+            const arrayBuffer = readBuffer.getMappedRange().slice(0)
+            readBuffer.unmap()
+            readBuffer.destroy()
+            return arrayBuffer
+        }
+        function resizeMatrix(matrix: number[][], oldNumTypes: number, newNumTypes: number, randomFn: () => number) {
+            const newMatrix: number[][] = []
+            for (let i = 0; i < newNumTypes; i++) {
+                const row: number[] = []
+                for (let j = 0; j < newNumTypes; j++) {
+                    if (i < oldNumTypes && j < oldNumTypes) {
+                        row.push(matrix[i][j])
+                    } else {
+                        row.push(randomFn())
+                    }
+                }
+                newMatrix.push(row)
+            }
+            return newMatrix
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
         const createBuffers = () => {
             updateSimOptionsBuffer() // Set simulation options based on the store state
             updateInteractionMatrixBuffer() // Set interaction matrices based on the store state
@@ -1149,6 +1258,7 @@ export default defineComponent({
             updateSimWidth, updateSimHeight, updateSimDepth,
             updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, newRandomRulesMatrix, updateSingleColor,
             randomizeRadius, randomizeRulesAndRadius,
+            setNewNumTypes,
         }
     }
 })
