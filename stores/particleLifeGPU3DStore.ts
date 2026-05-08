@@ -18,7 +18,7 @@ export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => 
     const simDepth = ref<number>(0) // Grid depth (for 3D)
     const linkProportions = ref<boolean>(false) // Constraint x y sim proportions
 
-    const numParticles = ref<number>(96000) // Number of particles
+    const numParticles = ref<number>(640000) // Number of particles
     const particleSize = ref<number>(2.0) // Size of the particles at zoomFactor = 1
     const particleOpacity = ref<number>(1.0) // Opacity of the particles (0 to 1)
     const numColors = ref<number>(7) // Number of colors to be used
@@ -49,7 +49,7 @@ export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => 
     const useSpatialHash = ref<boolean>(true) // Use spatial hash for collision detection or brute force
     const isBoundingBoxActive = ref<boolean>(true) // Show wireframe box for simulation boundaries
 
-    const cellSubdivisions = ref<number>(2) // Number of subdivisions of maxRadius per cell (CELL_SIZE = maxRadius / cellSubdivisions)
+    const cellSubdivisions = ref<number>(1) // Number of subdivisions of maxRadius per cell (CELL_SIZE = maxRadius / cellSubdivisions)
 
     const selectedRulesOption = ref<number>(0) // Default to 'random'
     const selectedColorPaletteOption = ref<number>(0) // Default to 'random'

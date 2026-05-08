@@ -66,9 +66,10 @@ fn getBinInfo(position: vec3f, options: SimOptions) -> BinInfo {
 @group(1) @binding(0) var<uniform> options: SimOptions;
 
 @compute @workgroup_size(64)
-fn clearBinSize(@builtin(global_invocation_id) id : vec3u) {
-    if (id.x >= arrayLength(&binSize)) { return; }
-    atomicStore(&binSize[id.x], 0u);
+fn clearBinSize(@builtin(global_invocation_id) id : vec3u, @builtin(num_workgroups) numWg : vec3u) {
+    let idx = id.y * (numWg.x * 64u) + id.x;
+    if (idx >= arrayLength(&binSize)) { return; }
+    atomicStore(&binSize[idx], 0u);
 }
 
 @compute @workgroup_size(64)
