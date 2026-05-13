@@ -98,14 +98,21 @@
                                   tooltip="Provides tools for visualizing the simulation's internal state. <br> Toggle the grid view to see spatial bins or activate a heatmap to analyze particle density. <br> These features are useful for debugging and performance tuning.">
                             <p text-gray-300 text-2sm underline mb-1 class="-mt-0.5">Neighbor Search :</p>
                             <SelectInput name="algorithm-mode"
-                                         :model-value="particleLife.useSpatialHash ? 'spatial' : 'brute'"
-                                         @update:model-value="particleLife.useSpatialHash = $event === 'spatial'"
+                                         :model-value="particleLife.useBinning ? 'spatial' : 'brute'"
+                                         @update:model-value="particleLife.useBinning = $event === 'spatial'"
                                          :options="[
-                                             { id: 'spatial', name: 'Spatial Hash', icon: 'i-tabler-topology-ring-3', category: 'Method' },
+                                             { id: 'spatial', name: 'Spatial Binning', icon: 'i-tabler-topology-ring-3', category: 'Method' },
                                              { id: 'brute', name: 'Brute Force', icon: 'i-tabler-cpu', category: 'Method' },
                                          ]">
                             </SelectInput>
-                            <RangeInput v-show="particleLife.useSpatialHash" input label="Cell Subdivisions" mt-2
+                            <SelectInput v-show="particleLife.useBinning" name="binning-mode" mt-2
+                                         v-model="particleLife.binningMode"
+                                         :options="[
+                                             { id: 'grid', name: 'Dense Grid', icon: 'i-tabler-grid-4x4', category: 'Binning' },
+                                             { id: 'hash', name: 'Hash Grid', icon: 'i-tabler-hash', category: 'Binning' },
+                                         ]">
+                            </SelectInput>
+                            <RangeInput v-show="particleLife.useBinning" input label="Cell Subdivisions" mt-2
                                         tooltip="Subdivides the interaction radius into smaller grid cells. <br> Default: 2 (fastest in most cases). <br> Increasing subdivisions can improve performance for simulations with very large radii."
                                         :min="1" :max="5" :step="1" v-model="particleLife.cellSubdivisions">
                             </RangeInput>
@@ -181,6 +188,9 @@ import binScanAuxShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/bi
 import binAddOffsetsShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/binAddOffsets.wgsl?raw';
 import particleSortShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/particleSort.wgsl?raw';
 import particleComputeForcesShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/particleComputeForces.wgsl?raw';
+import binFillSizeHashShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/binFillSize_hash.wgsl?raw';
+import particleSortHashShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/particleSort_hash.wgsl?raw';
+import particleComputeForcesHashShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/particleComputeForces_hash.wgsl?raw';
 
 import bruteForceShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/compute_bruteForce.wgsl?raw';
 import particleAdvanceShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/particleAdvance.wgsl?raw';
@@ -316,7 +326,8 @@ export default defineComponent({
         let PARTICLE_OPACITY: number = particleLife.particleOpacity
         let NUM_TYPES: number = particleLife.numColors
         let NEW_NUM_TYPES: number = NUM_TYPES
-        let useSpatialHash: boolean = particleLife.useSpatialHash // Use spatial hash or brute force
+        let useBinning: boolean = particleLife.useBinning // Use spatial binning for neighbor search (vs brute force)
+        let binningMode: 'grid' | 'hash' = particleLife.binningMode // 'grid' = dense extended grid, 'hash' = Teschner spatial hash table
         let isWallRepel: boolean = particleLife.isWallRepel // Enable walls X and Y for the particles
         let isWallWrap: boolean = particleLife.isWallWrap // Enable wrapping for the particles
         let isBoundingBoxActive: boolean = particleLife.isBoundingBoxActive // Show box wireframe
@@ -340,6 +351,7 @@ export default defineComponent({
         let binSortCounterBuffer: GPUBuffer | undefined
         let binAuxBuffer: GPUBuffer | undefined
         let binAux2Buffer: GPUBuffer | undefined
+        let cellSignatureBuffer: GPUBuffer | undefined // Hash mode only: per-particle 32-bit cell signature for collision rejection
 
         let particleBufferBindGroup: GPUBindGroup
         let particleBufferReadOnlyBindGroup: GPUBindGroup
@@ -350,7 +362,9 @@ export default defineComponent({
         let addOffsetsAuxBindGroup: GPUBindGroup
         let addOffsetsBinOffsetBindGroup: GPUBindGroup
         let particleSortBindGroup: GPUBindGroup
+        let particleSortHashBindGroup: GPUBindGroup
         let particleComputeForcesBindGroup: GPUBindGroup
+        let particleComputeForcesHashBindGroup: GPUBindGroup
         let bruteForceBindGroup: GPUBindGroup
         let simOptionsBindGroup: GPUBindGroup
         let deltaTimeBindGroup: GPUBindGroup
@@ -363,22 +377,31 @@ export default defineComponent({
         let addOffsetsBindGroupLayout: GPUBindGroupLayout
         let binFillSizeBindGroupLayout: GPUBindGroupLayout
         let particleSortBindGroupLayout: GPUBindGroupLayout
+        let particleSortHashBindGroupLayout: GPUBindGroupLayout
         let particleComputeForcesBindGroupLayout: GPUBindGroupLayout
+        let particleComputeForcesHashBindGroupLayout: GPUBindGroupLayout
         let bruteForceBindGroupLayout: GPUBindGroupLayout
         let simOptionsBindGroupLayout: GPUBindGroupLayout
         let deltaTimeBindGroupLayout: GPUBindGroupLayout
         let cameraBindGroupLayout: GPUBindGroupLayout
 
-        let binClearSizePipeline: GPUComputePipeline
         let binFillSizePipeline: GPUComputePipeline
         let binScanLocalPipeline: GPUComputePipeline
         let binScanAuxPipeline: GPUComputePipeline
         let binAddOffsetsPipeline: GPUComputePipeline
-        let particleSortClearSizePipeline: GPUComputePipeline
         let particleSortPipeline: GPUComputePipeline
         let particleComputeForcesPipeline: GPUComputePipeline
+        let binFillSizeHashPipeline: GPUComputePipeline
+        let particleSortHashPipeline: GPUComputePipeline
+        let particleComputeForcesHashPipeline: GPUComputePipeline
         let bruteForceComputePipeline: GPUComputePipeline
         let particleAdvancePipeline: GPUComputePipeline
+
+        let activeFillSizePipeline: GPUComputePipeline
+        let activeSortPipeline: GPUComputePipeline
+        let activeForcesPipeline: GPUComputePipeline
+        let activeSortBindGroup: GPUBindGroup
+        let activeForcesBindGroup: GPUBindGroup
 
         let renderPipeline: GPURenderPipeline
         let boxRenderPipeline: GPURenderPipeline
@@ -446,7 +469,7 @@ export default defineComponent({
             SIM_DEPTH_HALF = SIM_DEPTH * 0.5
         }
         function setSimSize() {
-            if (useSpatialHash && isWallWrap) {
+            if (useBinning && isWallWrap) {
                 particleLife.simWidth = SIM_WIDTH = CELL_SIZE * Math.round(baseSimWidth / CELL_SIZE)
                 particleLife.simHeight = SIM_HEIGHT = CELL_SIZE * Math.round(baseSimHeight / CELL_SIZE)
                 particleLife.simDepth = SIM_DEPTH = CELL_SIZE * Math.round(baseSimDepth / CELL_SIZE)
@@ -462,12 +485,26 @@ export default defineComponent({
             const oldScanBlockCount = scanBlockCount
             const oldAuxBlockCount = auxBlockCount
 
-            // If no walls, set a larger grid size for better performance
-            if (!isWallWrap && !isWallRepel) {
+            GRID_WIDTH = Math.ceil(SIM_WIDTH / CELL_SIZE)
+            GRID_HEIGHT = Math.ceil(SIM_HEIGHT / CELL_SIZE)
+            GRID_DEPTH = Math.ceil(SIM_DEPTH / CELL_SIZE)
+
+            if (binningMode === 'hash') {
+                EXTENDED_SIM_WIDTH = SIM_WIDTH
+                EXTENDED_SIM_HEIGHT = SIM_HEIGHT
+                EXTENDED_SIM_DEPTH = SIM_DEPTH
+                EXTENDED_GRID_WIDTH = GRID_WIDTH
+                EXTENDED_GRID_HEIGHT = GRID_HEIGHT
+                EXTENDED_GRID_DEPTH = GRID_DEPTH
+                GRID_OFFSET_X = 0
+                GRID_OFFSET_Y = 0
+                GRID_OFFSET_Z = 0
+                binCount = 1 << Math.ceil(Math.log2(NUM_PARTICLES)) // Smallest power of 2 ≥ NUM_PARTICLES so the modulo becomes a free bitmask in shaders.
+            } else if (!isWallWrap && !isWallRepel) {
                 const requestedFactor = 12
                 const PERF_CAP = 30_000_000 // Arbitrary upper limit to avoid trying to use an excessive number of bins even if the device caps are very high. Based on preliminary tests showing that performance degrades significantly beyond this point on current hardware, even if the device limits would allow it.
                 const targetBinCount = Math.min(MAX_BIN_COUNT, PERF_CAP)
-                const baseBinCount = Math.ceil(SIM_WIDTH / CELL_SIZE) * Math.ceil(SIM_HEIGHT / CELL_SIZE) * Math.ceil(SIM_DEPTH / CELL_SIZE)
+                const baseBinCount = GRID_WIDTH * GRID_HEIGHT * GRID_DEPTH
                 const maxPossibleFactor = Math.cbrt(MAX_BIN_COUNT / baseBinCount)
                 const perfFactor = Math.cbrt(targetBinCount / baseBinCount)
                 const safeFactor = Math.max(1, Math.min(requestedFactor, maxPossibleFactor * 0.9, perfFactor))
@@ -485,14 +522,17 @@ export default defineComponent({
                 GRID_OFFSET_X = Math.ceil(extensionX / CELL_SIZE)
                 GRID_OFFSET_Y = Math.ceil(extensionY / CELL_SIZE)
                 GRID_OFFSET_Z = Math.ceil(extensionZ / CELL_SIZE)
-                GRID_WIDTH = Math.ceil(SIM_WIDTH / CELL_SIZE)
-                GRID_HEIGHT = Math.ceil(SIM_HEIGHT / CELL_SIZE)
-                GRID_DEPTH = Math.ceil(SIM_DEPTH / CELL_SIZE)
                 binCount = EXTENDED_GRID_WIDTH * EXTENDED_GRID_HEIGHT * EXTENDED_GRID_DEPTH
             } else {
-                GRID_WIDTH = Math.ceil(SIM_WIDTH / CELL_SIZE)
-                GRID_HEIGHT = Math.ceil(SIM_HEIGHT / CELL_SIZE)
-                GRID_DEPTH = Math.ceil(SIM_DEPTH / CELL_SIZE)
+                EXTENDED_SIM_WIDTH = SIM_WIDTH
+                EXTENDED_SIM_HEIGHT = SIM_HEIGHT
+                EXTENDED_SIM_DEPTH = SIM_DEPTH
+                EXTENDED_GRID_WIDTH = GRID_WIDTH
+                EXTENDED_GRID_HEIGHT = GRID_HEIGHT
+                EXTENDED_GRID_DEPTH = GRID_DEPTH
+                GRID_OFFSET_X = 0
+                GRID_OFFSET_Y = 0
+                GRID_OFFSET_Z = 0
                 binCount = GRID_WIDTH * GRID_HEIGHT * GRID_DEPTH
             }
 
@@ -761,11 +801,11 @@ export default defineComponent({
         const step = () => {
             const encoder = device.createCommandEncoder()
 
-            if (!useSpatialHash) {
+            if (useBinning) computeBinning(encoder)
+            else {
                 encoder.copyBufferToBuffer(particleBuffer!, 0, particleTempBuffer!, 0, particleBuffer!.size)
+                computeBruteForce(encoder)
             }
-            if (useSpatialHash) computeBinning(encoder)
-            else computeBruteForce(encoder)
             computeAdvance(encoder)
 
             renderParticles(encoder)
@@ -797,14 +837,15 @@ export default defineComponent({
             computePass.end()
         }
         const computeBinning = (encoder: GPUCommandEncoder) => {
+            const clearBytes = (binCount + 1) * 4
+            encoder.clearBuffer(binOffsetBuffer!, 0, clearBytes)
+            encoder.clearBuffer(binSortCounterBuffer!, 0, clearBytes)
+
             const binningComputePass = encoder.beginComputePass({ timestampWrites: tsWrites(0) })
-            binningComputePass.setPipeline(binClearSizePipeline)
+            binningComputePass.setPipeline(activeFillSizePipeline)
             binningComputePass.setBindGroup(0, particleBufferReadOnlyBindGroup)
             binningComputePass.setBindGroup(1, simOptionsBindGroup)
             binningComputePass.setBindGroup(2, binFillSizeBindGroup)
-            binningComputePass.dispatchWorkgroups(binDispatchX, binDispatchY)
-
-            binningComputePass.setPipeline(binFillSizePipeline)
             binningComputePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
 
             binningComputePass.setPipeline(binScanLocalPipeline)
@@ -831,17 +872,14 @@ export default defineComponent({
             binningComputePass.setBindGroup(0, addOffsetsBinOffsetBindGroup)
             binningComputePass.dispatchWorkgroups(scanBlockCount)
 
-            binningComputePass.setPipeline(particleSortClearSizePipeline)
-            binningComputePass.setBindGroup(0, particleSortBindGroup)
-            binningComputePass.dispatchWorkgroups(binDispatchX, binDispatchY)
-
-            binningComputePass.setPipeline(particleSortPipeline)
+            binningComputePass.setPipeline(activeSortPipeline)
+            binningComputePass.setBindGroup(0, activeSortBindGroup)
             binningComputePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
             binningComputePass.end()
 
             const forcesComputePass = encoder.beginComputePass({ timestampWrites: tsWrites(1) })
-            forcesComputePass.setPipeline(particleComputeForcesPipeline)
-            forcesComputePass.setBindGroup(0, particleComputeForcesBindGroup)
+            forcesComputePass.setPipeline(activeForcesPipeline)
+            forcesComputePass.setBindGroup(0, activeForcesBindGroup)
             forcesComputePass.setBindGroup(1, simOptionsBindGroup)
             forcesComputePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
             forcesComputePass.end()
@@ -1069,11 +1107,11 @@ export default defineComponent({
 
             binOffsetBuffer = device.createBuffer({
                 size: (binCount + 1) * 4,
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
             })
             binSortCounterBuffer = device.createBuffer({
                 size: (binCount + 1) * 4,
-                usage: GPUBufferUsage.STORAGE,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
             })
 
             const aux1Size = scanTwoLevels ? scanBlockCount : Math.max(scanBlockCount, SCAN_BLOCK_SIZE)
@@ -1184,6 +1222,7 @@ export default defineComponent({
         const updateParticleBuffers = (hasInitialParticles: boolean = false) => {
             if (particleBuffer) particleBuffer?.destroy(); particleBuffer = undefined;
             if (particleTempBuffer) particleTempBuffer?.destroy(); particleTempBuffer = undefined;
+            if (cellSignatureBuffer) cellSignatureBuffer.destroy(); cellSignatureBuffer = undefined;
 
             particleBuffer = device.createBuffer({
                 size: NUM_PARTICLES * 28,
@@ -1197,6 +1236,10 @@ export default defineComponent({
             particleTempBuffer = device.createBuffer({
                 size: particleBuffer.size,
                 usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+            })
+            cellSignatureBuffer = device.createBuffer({
+                size: NUM_PARTICLES * 4,
+                usage: GPUBufferUsage.STORAGE,
             })
         }
         const updateColorBuffer = () => {
@@ -1426,6 +1469,8 @@ export default defineComponent({
             particleBufferReadOnlyBindGroup = undefined as any;
             particleSortBindGroup = undefined as any;
             particleComputeForcesBindGroup = undefined as any;
+            particleSortHashBindGroup = undefined as any;
+            particleComputeForcesHashBindGroup = undefined as any;
             bruteForceBindGroup = undefined as any;
 
             particleBufferBindGroup = device.createBindGroup({
@@ -1460,6 +1505,26 @@ export default defineComponent({
                     { binding: 3, resource: { buffer: interactionMatrixBuffer! } },
                 ],
             })
+            particleSortHashBindGroup = device.createBindGroup({
+                layout: particleSortHashBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: particleBuffer! } },
+                    { binding: 1, resource: { buffer: particleTempBuffer! } },
+                    { binding: 2, resource: { buffer: binOffsetBuffer! } },
+                    { binding: 3, resource: { buffer: binSortCounterBuffer! } },
+                    { binding: 4, resource: { buffer: cellSignatureBuffer! } },
+                ],
+            })
+            particleComputeForcesHashBindGroup = device.createBindGroup({
+                layout: particleComputeForcesHashBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: particleTempBuffer! } },
+                    { binding: 1, resource: { buffer: particleBuffer! } },
+                    { binding: 2, resource: { buffer: binOffsetBuffer! } },
+                    { binding: 3, resource: { buffer: interactionMatrixBuffer! } },
+                    { binding: 4, resource: { buffer: cellSignatureBuffer! } },
+                ],
+            })
             bruteForceBindGroup = device.createBindGroup({
                 layout: bruteForceBindGroupLayout,
                 entries: [
@@ -1468,6 +1533,22 @@ export default defineComponent({
                     { binding: 2, resource: { buffer: interactionMatrixBuffer! } },
                 ],
             })
+            refreshActiveBinning()
+        }
+        const refreshActiveBinning = () => {
+            if (binningMode === 'hash') {
+                activeFillSizePipeline = binFillSizeHashPipeline
+                activeSortPipeline     = particleSortHashPipeline
+                activeForcesPipeline   = particleComputeForcesHashPipeline
+                activeSortBindGroup    = particleSortHashBindGroup
+                activeForcesBindGroup  = particleComputeForcesHashBindGroup
+            } else {
+                activeFillSizePipeline = binFillSizePipeline
+                activeSortPipeline     = particleSortPipeline
+                activeForcesPipeline   = particleComputeForcesPipeline
+                activeSortBindGroup    = particleSortBindGroup
+                activeForcesBindGroup  = particleComputeForcesBindGroup
+            }
         }
         const updateBinningBindGroups = () => {
             binFillSizeBindGroup = device.createBindGroup({
@@ -1563,6 +1644,24 @@ export default defineComponent({
                     { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // interactionMatrixBuffer
                 ],
             })
+            particleSortHashBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // particleBuffer
+                    { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // particleTempBuffer
+                    { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // binOffsetBuffer
+                    { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // binSortCounterBuffer
+                    { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // cellSignatureBuffer
+                ],
+            })
+            particleComputeForcesHashBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // particleTempBuffer
+                    { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }, // particleBuffer
+                    { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // binOffsetBuffer
+                    { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // interactionMatrixBuffer
+                    { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // cellSignatureBuffer
+                ],
+            })
             bruteForceBindGroupLayout = device.createBindGroupLayout({
                 entries: [
                     { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } }, // particleTempBuffer
@@ -1593,16 +1692,6 @@ export default defineComponent({
         }
         const createComputePipelines = () => {
             const binFillSizeShader = device.createShaderModule({ code: binFillSizeShaderCode })
-            binClearSizePipeline = device.createComputePipeline({
-                layout: device.createPipelineLayout({
-                    bindGroupLayouts: [
-                        particleBufferReadOnlyBindGroupLayout,
-                        simOptionsBindGroupLayout,
-                        binFillSizeBindGroupLayout,
-                    ],
-                }),
-                compute: { module: binFillSizeShader, entryPoint: 'clearBinSize' }
-            })
             binFillSizePipeline = device.createComputePipeline({
                 layout: device.createPipelineLayout({
                     bindGroupLayouts: [
@@ -1641,15 +1730,6 @@ export default defineComponent({
             })
 
             const particleSortShader = device.createShaderModule({ code: particleSortShaderCode })
-            particleSortClearSizePipeline = device.createComputePipeline({
-                layout: device.createPipelineLayout({
-                    bindGroupLayouts: [
-                        particleSortBindGroupLayout,
-                        simOptionsBindGroupLayout,
-                    ],
-                }),
-                compute: { module: particleSortShader, entryPoint: 'clearBinSize' }
-            })
             particleSortPipeline = device.createComputePipeline({
                 layout: device.createPipelineLayout({
                     bindGroupLayouts: [
@@ -1668,6 +1748,38 @@ export default defineComponent({
                     ],
                 }),
                 compute: { module: particleComputeForcesShader, entryPoint: 'computeForces' }
+            })
+            // -------------------------------------------------------------------------------------------------
+            const binFillSizeHashShader = device.createShaderModule({ code: binFillSizeHashShaderCode })
+            binFillSizeHashPipeline = device.createComputePipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [
+                        particleBufferReadOnlyBindGroupLayout,
+                        simOptionsBindGroupLayout,
+                        binFillSizeBindGroupLayout,
+                    ],
+                }),
+                compute: { module: binFillSizeHashShader, entryPoint: 'fillBinSize' }
+            })
+            const particleSortHashShader = device.createShaderModule({ code: particleSortHashShaderCode })
+            particleSortHashPipeline = device.createComputePipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [
+                        particleSortHashBindGroupLayout,
+                        simOptionsBindGroupLayout,
+                    ],
+                }),
+                compute: { module: particleSortHashShader, entryPoint: 'sortParticles' }
+            })
+            const particleComputeForcesHashShader = device.createShaderModule({ code: particleComputeForcesHashShaderCode })
+            particleComputeForcesHashPipeline = device.createComputePipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [
+                        particleComputeForcesHashBindGroupLayout,
+                        simOptionsBindGroupLayout,
+                    ],
+                }),
+                compute: { module: particleComputeForcesHashShader, entryPoint: 'computeForces' }
             })
             const bruteForceShader = device.createShaderModule({ code: bruteForceShaderCode })
             bruteForceComputePipeline = device.createComputePipeline({
@@ -1757,7 +1869,13 @@ export default defineComponent({
         }
 
         watch(() => particleLife.isRunning, (value: boolean) => isRunning = value)
-        watch(() => particleLife.useSpatialHash, (value: boolean) => useSpatialHash = value)
+        watch(() => particleLife.useBinning, (value: boolean) => useBinning = value)
+        watch(() => particleLife.binningMode, (value: 'grid' | 'hash') => {
+            binningMode = value
+            updateBinningParameters()
+            updateSimOptionsBuffer()
+            refreshActiveBinning()
+        })
 
         watchAndUpdateSimOptions(() => particleLife.particleSize, (value: number) => PARTICLE_SIZE = value)
         watchAndUpdateSimOptions(() => particleLife.particleOpacity, (value: number) => PARTICLE_OPACITY = value)

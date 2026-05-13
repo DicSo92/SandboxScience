@@ -46,7 +46,8 @@ export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => 
     const maxRadiusRange = ref<number[]>([32, 64]) // Range for the random maxRadius of each color
     const currentMaxRadius = ref<number>(0) // Current max radius for the particles
 
-    const useSpatialHash = ref<boolean>(true) // Use spatial hash for collision detection or brute force
+    const useBinning = ref<boolean>(true) // Use spatial binning for neighbor search (vs brute force O(N²))
+    const binningMode = ref<'grid' | 'hash'>('grid') // 'grid' = dense extended grid (default), 'hash' = Teschner spatial hash table
     const isBoundingBoxActive = ref<boolean>(true) // Show wireframe box for simulation boundaries
 
     const cellSubdivisions = ref<number>(1) // Number of subdivisions of maxRadius per cell (CELL_SIZE = maxRadius / cellSubdivisions)
@@ -67,7 +68,7 @@ export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => 
         numParticles, particleSize, particleOpacity, numColors, zoomSmoothing, panSmoothing,
         isWallRepel, isWallWrap, wallState,
         minRadiusRange, maxRadiusRange, currentMaxRadius,
-        repel, forceFactor, frictionFactor, useSpatialHash, isBoundingBoxActive,
+        repel, forceFactor, frictionFactor, useBinning, binningMode, isBoundingBoxActive,
         selectedRulesOption, selectedColorPaletteOption,
         cellSubdivisions,
         $reset
