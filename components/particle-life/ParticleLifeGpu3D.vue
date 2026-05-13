@@ -116,6 +116,12 @@
                                         tooltip="Subdivides the interaction radius into smaller grid cells. <br> Default: 2 (fastest in most cases). <br> Increasing subdivisions can improve performance for simulations with very large radii."
                                         :min="1" :max="5" :step="1" v-model="particleLife.cellSubdivisions">
                             </RangeInput>
+                            <RangeInput v-show="particleLife.useBinning && particleLife.binningMode === 'grid' && particleLife.wallState === 'none'"
+                                        input label="Extension Factor" mt-2
+                                        tooltip="How many times larger than the simulation box the dense grid extends in each axis. <br> Higher values let particles drift further before being clamped at the borders, at a cubic memory cost. <br> Automatically clamped to what fits the device's max bin count."
+                                        :min="1" :max="particleLife.maxGridExtensionFactor" :step="1"
+                                        v-model="particleLife.gridExtensionFactor">
+                            </RangeInput>
                         </Collapse>
                     </div>
                     <div absolute bottom-2 right-0 z-100 class="-mr-px">
@@ -501,13 +507,15 @@ export default defineComponent({
                 GRID_OFFSET_Z = 0
                 binCount = 1 << Math.ceil(Math.log2(NUM_PARTICLES)) // Smallest power of 2 ≥ NUM_PARTICLES so the modulo becomes a free bitmask in shaders.
             } else if (!isWallWrap && !isWallRepel) {
-                const requestedFactor = 12
+                const requestedFactor = particleLife.gridExtensionFactor // Default: 12
                 const PERF_CAP = 30_000_000 // Arbitrary upper limit to avoid trying to use an excessive number of bins even if the device caps are very high. Based on preliminary tests showing that performance degrades significantly beyond this point on current hardware, even if the device limits would allow it.
                 const targetBinCount = Math.min(MAX_BIN_COUNT, PERF_CAP)
                 const baseBinCount = GRID_WIDTH * GRID_HEIGHT * GRID_DEPTH
                 const maxPossibleFactor = Math.cbrt(MAX_BIN_COUNT / baseBinCount)
                 const perfFactor = Math.cbrt(targetBinCount / baseBinCount)
                 const safeFactor = Math.max(1, Math.min(requestedFactor, maxPossibleFactor * 0.9, perfFactor))
+
+                particleLife.maxGridExtensionFactor = Math.max(1, Math.floor(maxPossibleFactor * 0.9))
 
                 const extensionX = (SIM_WIDTH * safeFactor - SIM_WIDTH) / 2
                 const extensionY = (SIM_HEIGHT * safeFactor - SIM_HEIGHT) / 2
@@ -1902,6 +1910,10 @@ export default defineComponent({
             CELL_SUBDIVISIONS = value
             CELL_SIZE = Math.ceil(currentMaxRadius / CELL_SUBDIVISIONS)
             setSimSize()
+            updateSimOptionsBuffer()
+        })
+        watch(() => particleLife.gridExtensionFactor, () => {
+            updateBinningParameters()
             updateSimOptionsBuffer()
         })
         // -------------------------------------------------------------------------------------------------------------

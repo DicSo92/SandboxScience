@@ -52,6 +52,9 @@ export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => 
 
     const cellSubdivisions = ref<number>(1) // Number of subdivisions of maxRadius per cell (CELL_SIZE = maxRadius / cellSubdivisions)
 
+    const gridExtensionFactor = ref<number>(12) // Requested extension factor for the dense grid
+    const maxGridExtensionFactor = ref<number>(1) // Largest extension factor that fits the device cap for the current simSize / cellSize. Updated whenever binning is recomputed
+
     const selectedRulesOption = ref<number>(0) // Default to 'random'
     const selectedColorPaletteOption = ref<number>(0) // Default to 'random'
 
@@ -71,6 +74,7 @@ export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => 
         repel, forceFactor, frictionFactor, useBinning, binningMode, isBoundingBoxActive,
         selectedRulesOption, selectedColorPaletteOption,
         cellSubdivisions,
+        gridExtensionFactor, maxGridExtensionFactor,
         $reset
     }
 })
