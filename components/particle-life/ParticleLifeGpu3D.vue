@@ -122,6 +122,7 @@
                                         :min="1" :max="particleLife.maxGridExtensionFactor" :step="1"
                                         v-model="particleLife.gridExtensionFactor">
                             </RangeInput>
+                            <ToggleSwitch mt-2 label="Show Bounding Box" v-model="particleLife.isBoundingBoxActive" />
                         </Collapse>
                     </div>
                     <div absolute bottom-2 right-0 z-100 class="-mr-px">
@@ -1877,6 +1878,7 @@ export default defineComponent({
         }
 
         watch(() => particleLife.isRunning, (value: boolean) => isRunning = value)
+        watch(() => particleLife.isBoundingBoxActive, (value: boolean) => isBoundingBoxActive = value)
         watch(() => particleLife.useBinning, (value: boolean) => useBinning = value)
         watch(() => particleLife.binningMode, (value: 'grid' | 'hash') => {
             binningMode = value
