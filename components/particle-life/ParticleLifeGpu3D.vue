@@ -93,6 +93,27 @@
                                         tooltip="Adjust the opacity of the particles in the simulation. <br> This setting allows you to control how transparent or opaque the particles appear."
                                         :min="0" :max="1" :step="0.01" v-model="particleLife.particleOpacity" mt-2>
                             </RangeInput>
+
+                            <ToggleSwitch mt-2 label="Show Bounding Box" v-model="particleLife.isBoundingBoxActive" />
+
+                            <hr border-gray-500 my-2>
+                            <div flex items-start justify-between mb-2>
+                                <p underline text-gray-300 mb-1>Glow Settings :</p>
+                                <ToggleSwitch label="Particle Glowing" colorful-label v-model="particleLife.isParticleGlow" />
+                            </div>
+
+                            <RangeInput v-show="particleLife.isParticleGlow" input label="Glow Size" mt-2
+                                        tooltip="Radius multiplier of the additive halo billboard (× particleSize)."
+                                        :min="1" :max="40" :step="0.5" v-model="particleLife.glowSize">
+                            </RangeInput>
+                            <RangeInput v-show="particleLife.isParticleGlow" input label="Glow Intensity" mt-2
+                                        tooltip="Brightness of the additive halo before tonemapping. Higher values bloom more aggressively."
+                                        :min="0" :max="0.5" :step="0.001" v-model="particleLife.glowIntensity">
+                            </RangeInput>
+                            <RangeInput v-show="particleLife.isParticleGlow" input label="Glow Steepness" mt-2
+                                        tooltip="Falloff exponent on the radial halo. Higher = tighter core, lower = wider soft glow."
+                                        :min="0.5" :max="8" :step="0.1" v-model="particleLife.glowSteepness">
+                            </RangeInput>
                         </Collapse>
                         <Collapse label="Debug Tools" icon="i-tabler-bug text-rose-500"
                                   tooltip="Provides tools for visualizing the simulation's internal state. <br> Toggle the grid view to see spatial bins or activate a heatmap to analyze particle density. <br> These features are useful for debugging and performance tuning.">
@@ -122,7 +143,6 @@
                                         :min="1" :max="particleLife.maxGridExtensionFactor" :step="1"
                                         v-model="particleLife.gridExtensionFactor">
                             </RangeInput>
-                            <ToggleSwitch mt-2 label="Show Bounding Box" v-model="particleLife.isBoundingBoxActive" />
                         </Collapse>
                     </div>
                     <div absolute bottom-2 right-0 z-100 class="-mr-px">
@@ -202,7 +222,9 @@ import particleComputeForcesHashShaderCode from 'assets/particle-life-gpu-3d/sha
 import bruteForceShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/compute_bruteForce.wgsl?raw';
 import particleAdvanceShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/particleAdvance.wgsl?raw';
 import renderShaderCode from 'assets/particle-life-gpu-3d/shaders/render/render_normal.wgsl?raw';
+import renderGlowShaderCode from 'assets/particle-life-gpu-3d/shaders/render/particle_render_glow.wgsl?raw';
 import boxShaderCode from 'assets/particle-life-gpu-3d/shaders/render/render_box.wgsl?raw';
+import composeHdrShaderCode from 'assets/particle-life-gpu-3d/shaders/compose/compose_hdr.wgsl?raw';
 
 export default defineComponent({
     name: 'ParticleLifeGpu',
@@ -338,6 +360,10 @@ export default defineComponent({
         let isWallRepel: boolean = particleLife.isWallRepel // Enable walls X and Y for the particles
         let isWallWrap: boolean = particleLife.isWallWrap // Enable wrapping for the particles
         let isBoundingBoxActive: boolean = particleLife.isBoundingBoxActive // Show box wireframe
+        let isParticleGlow: boolean = particleLife.isParticleGlow // Toggle HDR + glow render path
+        let glowSize: number = particleLife.glowSize
+        let glowIntensity: number = particleLife.glowIntensity
+        let glowSteepness: number = particleLife.glowSteepness
 
         // Define GPU resources
         let device: GPUDevice
@@ -359,6 +385,7 @@ export default defineComponent({
         let binAuxBuffer: GPUBuffer | undefined
         let binAux2Buffer: GPUBuffer | undefined
         let cellSignatureBuffer: GPUBuffer | undefined // Hash mode only: per-particle 32-bit cell signature for collision rejection
+        let glowOptionsBuffer: GPUBuffer | undefined // glowSize, glowIntensity, glowSteepness
 
         let particleBufferBindGroup: GPUBindGroup
         let particleBufferReadOnlyBindGroup: GPUBindGroup
@@ -376,6 +403,8 @@ export default defineComponent({
         let simOptionsBindGroup: GPUBindGroup
         let deltaTimeBindGroup: GPUBindGroup
         let cameraBindGroup: GPUBindGroup
+        let glowOptionsBindGroup: GPUBindGroup
+        let composeHdrBindGroup: GPUBindGroup
 
         let particleBufferBindGroupLayout: GPUBindGroupLayout
         let particleBufferReadOnlyBindGroupLayout: GPUBindGroupLayout
@@ -391,6 +420,8 @@ export default defineComponent({
         let simOptionsBindGroupLayout: GPUBindGroupLayout
         let deltaTimeBindGroupLayout: GPUBindGroupLayout
         let cameraBindGroupLayout: GPUBindGroupLayout
+        let glowOptionsBindGroupLayout: GPUBindGroupLayout
+        let composeHdrBindGroupLayout: GPUBindGroupLayout
 
         let binFillSizePipeline: GPUComputePipeline
         let binScanLocalPipeline: GPUComputePipeline
@@ -412,9 +443,16 @@ export default defineComponent({
 
         let renderPipeline: GPURenderPipeline
         let boxRenderPipeline: GPURenderPipeline
+        let renderGlowPipeline: GPURenderPipeline
+        let renderCirclePipeline: GPURenderPipeline
+        let boxRenderHdrPipeline: GPURenderPipeline
+        let composeHdrPipeline: GPURenderPipeline
 
         let depthTexture: GPUTexture | undefined
+        let hdrTexture: GPUTexture | undefined
+        let hdrTextureView: GPUTextureView
         const DEPTH_FORMAT: GPUTextureFormat = 'depth24plus'
+        const HDR_FORMAT: GPUTextureFormat = 'rgba16float'
 
         onMounted(async () => {
             await initWebGPU()
@@ -465,6 +503,7 @@ export default defineComponent({
             CANVAS_HEIGHT = canvasRef.value!.height = Math.round(canvasRef.value!.clientHeight * DEVICE_PIXEL_RATIO)
             CANVAS_ASPECT_RATIO = (CANVAS_WIDTH > 0 && CANVAS_HEIGHT > 0) ? CANVAS_WIDTH / CANVAS_HEIGHT : 1
             updateDepthTexture()
+            updateHdrTexture()
             cameraChanged = true
         }
         function setSimSizeBasedOnScreen() {
@@ -908,36 +947,87 @@ export default defineComponent({
                 cameraChanged = false
             }
 
-            const renderPass = encoder.beginRenderPass({
-                colorAttachments: [{
-                    view: ctx.getCurrentTexture().createView(),
-                    loadOp: 'clear',
-                    clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
-                    storeOp: 'store',
-                }],
-                depthStencilAttachment: {
-                    view: depthTexture!.createView(),
-                    depthLoadOp: 'clear',
-                    depthClearValue: 1.0,
-                    depthStoreOp: 'store',
-                },
-                timestampWrites: tsRenderWrites(3),
-            })
-            renderPass.setPipeline(renderPipeline)
-            renderPass.setBindGroup(0, particleBufferReadOnlyBindGroup)
-            renderPass.setBindGroup(1, simOptionsBindGroup)
-            renderPass.setBindGroup(2, cameraBindGroup)
-            renderPass.draw(4, NUM_PARTICLES)
+            if (isParticleGlow) {
+                const hdrPass = encoder.beginRenderPass({
+                    colorAttachments: [{
+                        view: hdrTextureView,
+                        loadOp: 'clear',
+                        clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+                        storeOp: 'store',
+                    }],
+                    depthStencilAttachment: {
+                        view: depthTexture!.createView(),
+                        depthLoadOp: 'clear',
+                        depthClearValue: 1.0,
+                        depthStoreOp: 'store',
+                    },
+                    timestampWrites: tsRenderWrites(3),
+                })
+                hdrPass.setBindGroup(0, particleBufferReadOnlyBindGroup)
+                hdrPass.setBindGroup(1, simOptionsBindGroup)
+                hdrPass.setBindGroup(2, cameraBindGroup)
+                hdrPass.setBindGroup(3, glowOptionsBindGroup)
 
-            if (isBoundingBoxActive) renderBoundingBox(renderPass)
+                hdrPass.setPipeline(renderCirclePipeline)
+                hdrPass.draw(4, NUM_PARTICLES)
 
-            renderPass.end()
+                hdrPass.setPipeline(renderGlowPipeline)
+                hdrPass.draw(4, NUM_PARTICLES)
+
+                if (isBoundingBoxActive) renderHdrBoundingBox(hdrPass)
+
+                hdrPass.end()
+
+                const composePass = encoder.beginRenderPass({
+                    colorAttachments: [{
+                        view: ctx.getCurrentTexture().createView(),
+                        loadOp: 'clear',
+                        clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+                        storeOp: 'store',
+                    }],
+                })
+                composePass.setPipeline(composeHdrPipeline)
+                composePass.setBindGroup(0, composeHdrBindGroup)
+                composePass.draw(3)
+                composePass.end()
+            } else {
+                const renderPass = encoder.beginRenderPass({
+                    colorAttachments: [{
+                        view: ctx.getCurrentTexture().createView(),
+                        loadOp: 'clear',
+                        clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+                        storeOp: 'store',
+                    }],
+                    depthStencilAttachment: {
+                        view: depthTexture!.createView(),
+                        depthLoadOp: 'clear',
+                        depthClearValue: 1.0,
+                        depthStoreOp: 'store',
+                    },
+                    timestampWrites: tsRenderWrites(3),
+                })
+                renderPass.setPipeline(renderPipeline)
+                renderPass.setBindGroup(0, particleBufferReadOnlyBindGroup)
+                renderPass.setBindGroup(1, simOptionsBindGroup)
+                renderPass.setBindGroup(2, cameraBindGroup)
+                renderPass.draw(4, NUM_PARTICLES)
+
+                if (isBoundingBoxActive) renderBoundingBox(renderPass)
+
+                renderPass.end()
+            }
         }
         const renderBoundingBox = (renderPass: GPURenderPassEncoder) => {
             renderPass.setPipeline(boxRenderPipeline)
             renderPass.setBindGroup(0, simOptionsBindGroup)
             renderPass.setBindGroup(1, cameraBindGroup)
             renderPass.draw(24, 1)
+        }
+        const renderHdrBoundingBox = (hdrPass: GPURenderPassEncoder) => {
+            hdrPass.setPipeline(boxRenderHdrPipeline)
+            hdrPass.setBindGroup(0, simOptionsBindGroup)
+            hdrPass.setBindGroup(1, cameraBindGroup)
+            hdrPass.draw(24, 1)
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -1197,6 +1287,25 @@ export default defineComponent({
                 device.queue.writeBuffer(simOptionsBuffer, 0, simOptionsData)
             }
         }
+        const updateGlowOptionsBuffer = () => {
+            const glowOptionsData = new ArrayBuffer(16)
+            const glowOptionsView = new DataView(glowOptionsData)
+            glowOptionsView.setFloat32(0, glowSize, true)
+            glowOptionsView.setFloat32(4, glowIntensity, true)
+            glowOptionsView.setFloat32(8, glowSteepness, true)
+
+            if (!glowOptionsBuffer) {
+                glowOptionsBuffer = device.createBuffer({
+                    size: glowOptionsData.byteLength,
+                    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+                    mappedAtCreation: true,
+                })
+                new Uint8Array(glowOptionsBuffer.getMappedRange()).set(new Uint8Array(glowOptionsData))
+                glowOptionsBuffer.unmap()
+            } else {
+                device.queue.writeBuffer(glowOptionsBuffer, 0, glowOptionsData)
+            }
+        }
         const updateInteractionMatrixBuffer = () => {
             const stride = 4; // 4 octets par couple
             const interactionData = new Uint8Array(NUM_TYPES * NUM_TYPES * stride);
@@ -1440,6 +1549,7 @@ export default defineComponent({
             updateBinningBuffers()
             updateColorBuffer()
             updateCameraBuffer()
+            updateGlowOptionsBuffer()
             // ----------------------------------------------------------------------------------------------
             deltaTimeBuffer = device.createBuffer({
                 size: 4,
@@ -1453,6 +1563,7 @@ export default defineComponent({
         const createBindGroups = () => {
             updateBinningBindGroups()
             updateParticleBindGroups()
+            updateComposeHdrBindGroup()
             // ---------------------------------------------------------------------------------------------------------
             simOptionsBindGroup = device.createBindGroup({
                 layout: simOptionsBindGroupLayout,
@@ -1470,6 +1581,12 @@ export default defineComponent({
                 layout: cameraBindGroupLayout,
                 entries: [
                     { binding: 0, resource: { buffer: cameraBuffer! } },
+                ],
+            })
+            glowOptionsBindGroup = device.createBindGroup({
+                layout: glowOptionsBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: glowOptionsBuffer! } },
                 ],
             })
         }
@@ -1601,6 +1718,14 @@ export default defineComponent({
                 ],
             })
         }
+        const updateComposeHdrBindGroup = () => {
+            composeHdrBindGroup = device.createBindGroup({
+                layout: composeHdrBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: hdrTextureView }
+                ],
+            })
+        }
         // -------------------------------------------------------------------------------------------------------------
         const createBindGroupLayouts = () => {
             particleBufferBindGroupLayout = device.createBindGroupLayout({
@@ -1693,11 +1818,22 @@ export default defineComponent({
                     { binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } }, // cameraBuffer
                 ],
             })
+            glowOptionsBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } }, // glowOptionsBuffer
+                ],
+            })
+            composeHdrBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'unfilterable-float', viewDimension: '2d' } }, // hdrTexture
+                ],
+            })
         }
         // -------------------------------------------------------------------------------------------------------------
         const createPipelines = () => {
             createComputePipelines()
             createRenderPipelines()
+            createHdrGlowPipelines()
         }
         const createComputePipelines = () => {
             const binFillSizeShader = device.createShaderModule({ code: binFillSizeShaderCode })
@@ -1816,6 +1952,10 @@ export default defineComponent({
             color: { operation: 'add', srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha' },
             alpha: { operation: 'add', srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
         }
+        const particleAdditiveBlending: GPUBlendState = {
+            color: { operation: 'add', srcFactor: 'one', dstFactor: 'one' },
+            alpha: { operation: 'add', srcFactor: 'one', dstFactor: 'one' },
+        }
         const createRenderPipelines = () => {
             const renderShader = device.createShaderModule({code: renderShaderCode})
             renderPipeline = device.createRenderPipeline({
@@ -1836,7 +1976,7 @@ export default defineComponent({
                     depthCompare: 'less',
                 },
             })
-
+            // ---------------------------------------------------------------------------------------------------------
             const boxShader = device.createShaderModule({ code: boxShaderCode })
             boxRenderPipeline = device.createRenderPipeline({
                 layout: device.createPipelineLayout({
@@ -1846,6 +1986,79 @@ export default defineComponent({
                 fragment: {
                     module: boxShader, entryPoint: 'fragmentMain', targets: [{
                         format: navigator.gpu.getPreferredCanvasFormat(),
+                        blend: particleNormalBlending,
+                    }],
+                },
+                primitive: { topology: 'line-list' },
+                depthStencil: {
+                    format: DEPTH_FORMAT,
+                    depthWriteEnabled: false,
+                    depthCompare: 'less-equal',
+                },
+            })
+        }
+        const createHdrGlowPipelines = () => {
+            const renderGlowShader = device.createShaderModule({ code: renderGlowShaderCode })
+            const glowPipelineLayout = device.createPipelineLayout({
+                bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, glowOptionsBindGroupLayout],
+            })
+            // ---------------------------------------------------------------------------------------------------------
+            renderCirclePipeline = device.createRenderPipeline({
+                layout: glowPipelineLayout,
+                vertex: { module: renderGlowShader, entryPoint: 'vertexCircle' },
+                fragment: {
+                    module: renderGlowShader, entryPoint: 'fragmentCircle', targets: [{
+                        format: HDR_FORMAT,
+                        blend: particleNormalBlending,
+                    }],
+                },
+                primitive: { topology: 'triangle-strip' },
+                depthStencil: {
+                    format: DEPTH_FORMAT,
+                    depthWriteEnabled: true,
+                    depthCompare: 'less',
+                },
+            })
+            renderGlowPipeline = device.createRenderPipeline({
+                layout: glowPipelineLayout,
+                vertex: { module: renderGlowShader, entryPoint: 'vertexGlow' },
+                fragment: {
+                    module: renderGlowShader, entryPoint: 'fragmentGlow', targets: [{
+                        format: HDR_FORMAT,
+                        blend: particleAdditiveBlending,
+                    }],
+                },
+                primitive: { topology: 'triangle-strip' },
+                depthStencil: {
+                    format: DEPTH_FORMAT,
+                    depthWriteEnabled: false,
+                    depthCompare: 'less-equal',
+                },
+            })
+            // ---------------------------------------------------------------------------------------------------------
+            const composeShader = device.createShaderModule({ code: composeHdrShaderCode })
+            composeHdrPipeline = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [composeHdrBindGroupLayout],
+                }),
+                vertex: { module: composeShader, entryPoint: 'vertexMain' },
+                fragment: {
+                    module: composeShader, entryPoint: 'fragmentMain', targets: [{
+                        format: navigator.gpu.getPreferredCanvasFormat(),
+                    }],
+                },
+                primitive: { topology: 'triangle-list' },
+            })
+            // ---------------------------------------------------------------------------------------------------------
+            const boxShader = device.createShaderModule({ code: boxShaderCode })
+            boxRenderHdrPipeline = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [simOptionsBindGroupLayout, cameraBindGroupLayout],
+                }),
+                vertex: { module: boxShader, entryPoint: 'vertexMain' },
+                fragment: {
+                    module: boxShader, entryPoint: 'fragmentMain', targets: [{
+                        format: HDR_FORMAT,
                         blend: particleNormalBlending,
                     }],
                 },
@@ -1867,6 +2080,20 @@ export default defineComponent({
                 usage: GPUTextureUsage.RENDER_ATTACHMENT,
             })
         }
+        function updateHdrTexture() {
+            if (hdrTexture) hdrTexture.destroy(); hdrTexture = undefined;
+
+            hdrTexture = device.createTexture({
+                size: [CANVAS_WIDTH, CANVAS_HEIGHT, 1],
+                format: HDR_FORMAT,
+                usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+            })
+            hdrTextureView = hdrTexture.createView()
+
+            if (composeHdrPipeline) {
+                updateComposeHdrBindGroup()
+            }
+        }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -1876,9 +2103,16 @@ export default defineComponent({
                 updateSimOptionsBuffer()
             })
         }
+        function watchAndUpdateGlowOptions(effect: any, callback: any) {
+            watch(effect, (value) => {
+                callback(value)
+                updateGlowOptionsBuffer()
+            })
+        }
 
         watch(() => particleLife.isRunning, (value: boolean) => isRunning = value)
         watch(() => particleLife.isBoundingBoxActive, (value: boolean) => isBoundingBoxActive = value)
+        watch(() => particleLife.isParticleGlow, (value: boolean) => isParticleGlow = value)
         watch(() => particleLife.useBinning, (value: boolean) => useBinning = value)
         watch(() => particleLife.binningMode, (value: 'grid' | 'hash') => {
             binningMode = value
@@ -1886,6 +2120,10 @@ export default defineComponent({
             updateSimOptionsBuffer()
             refreshActiveBinning()
         })
+
+        watchAndUpdateGlowOptions(() => particleLife.glowSize, (value: number) => glowSize = value)
+        watchAndUpdateGlowOptions(() => particleLife.glowIntensity, (value: number) => glowIntensity = value)
+        watchAndUpdateGlowOptions(() => particleLife.glowSteepness, (value: number) => glowSteepness = value)
 
         watchAndUpdateSimOptions(() => particleLife.particleSize, (value: number) => PARTICLE_SIZE = value)
         watchAndUpdateSimOptions(() => particleLife.particleOpacity, (value: number) => PARTICLE_OPACITY = value)
@@ -1939,12 +2177,15 @@ export default defineComponent({
             cameraBuffer?.destroy(); cameraBuffer = undefined;
             interactionMatrixBuffer?.destroy(); interactionMatrixBuffer = undefined;
             simOptionsBuffer?.destroy(); simOptionsBuffer = undefined;
+            glowOptionsBuffer?.destroy(); glowOptionsBuffer = undefined;
 
             particleBuffer?.destroy(); particleBuffer = undefined;
             particleTempBuffer?.destroy(); particleTempBuffer = undefined;
 
             if (!keepTexture) {
                 depthTexture?.destroy(); depthTexture = undefined;
+                hdrTexture?.destroy(); hdrTexture = undefined;
+                hdrTextureView = undefined as any;
             }
 
             await nextTick() // Ensure GPU resources are cleaned up before creating new ones
@@ -1954,6 +2195,11 @@ export default defineComponent({
             particleAdvancePipeline = undefined as any;
             renderPipeline = undefined as any;
             boxRenderPipeline = undefined as any;
+            boxRenderHdrPipeline = undefined as any;
+            renderGlowPipeline = undefined as any;
+            renderCirclePipeline = undefined as any;
+            composeHdrPipeline = undefined as any;
+            composeHdrBindGroup = undefined as any;
 
             particleBufferReadOnlyBindGroup = undefined as any;
             bruteForceBindGroup = undefined as any;

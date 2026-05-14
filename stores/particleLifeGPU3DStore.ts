@@ -50,6 +50,11 @@ export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => 
     const binningMode = ref<'grid' | 'hash'>('grid') // 'grid' = dense extended grid (default), 'hash' = Teschner spatial hash table
     const isBoundingBoxActive = ref<boolean>(true) // Show wireframe box for simulation boundaries
 
+    const isParticleGlow = ref<boolean>(true) // Enable the HDR glow pipeline
+    const glowSize = ref<number>(4.0) // Glow billboard scale = particleSize * glowSize
+    const glowIntensity = ref<number>(0.01) // Multiplier on the additive glow alpha
+    const glowSteepness = ref<number>(1.2) // Falloff exponent: pow(1 - r², steepness)
+
     const cellSubdivisions = ref<number>(1) // Number of subdivisions of maxRadius per cell (CELL_SIZE = maxRadius / cellSubdivisions)
 
     const gridExtensionFactor = ref<number>(12) // Requested extension factor for the dense grid
@@ -72,6 +77,7 @@ export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => 
         isWallRepel, isWallWrap, wallState,
         minRadiusRange, maxRadiusRange, currentMaxRadius,
         repel, forceFactor, frictionFactor, useBinning, binningMode, isBoundingBoxActive,
+        isParticleGlow, glowSize, glowIntensity, glowSteepness,
         selectedRulesOption, selectedColorPaletteOption,
         cellSubdivisions,
         gridExtensionFactor, maxGridExtensionFactor,
