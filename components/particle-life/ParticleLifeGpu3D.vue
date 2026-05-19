@@ -102,18 +102,23 @@
                                 <ToggleSwitch label="Particle Glowing" colorful-label v-model="particleLife.isParticleGlow" />
                             </div>
 
-                            <RangeInput v-show="particleLife.isParticleGlow" input label="Glow Size" mt-2
-                                        tooltip="Radius multiplier of the additive halo billboard (× particleSize)."
-                                        :min="1" :max="40" :step="0.5" v-model="particleLife.glowSize">
+                            <RangeInput v-show="particleLife.isParticleGlow" input label="Glow Threshold" mt-2
+                                        tooltip="Luminance threshold above which pixels contribute to the glow (soft-knee around this value)."
+                                        :min="0" :max="2" :step="0.01" v-model="particleLife.bloomThreshold">
                             </RangeInput>
                             <RangeInput v-show="particleLife.isParticleGlow" input label="Glow Intensity" mt-2
-                                        tooltip="Brightness of the additive halo before tonemapping. Higher values bloom more aggressively."
-                                        :min="0" :max="0.5" :step="0.001" v-model="particleLife.glowIntensity">
+                                        tooltip="Strength of the glow mixed back into the final image (final = hdr + glow * intensity)."
+                                        :min="0" :max="2" :step="0.01" v-model="particleLife.bloomIntensity">
                             </RangeInput>
-                            <RangeInput v-show="particleLife.isParticleGlow" input label="Glow Steepness" mt-2
-                                        tooltip="Falloff exponent on the radial halo. Higher = tighter core, lower = wider soft glow."
-                                        :min="0.5" :max="8" :step="0.1" v-model="particleLife.glowSteepness">
+                            <RangeInput v-show="particleLife.isParticleGlow" input label="Glow Knee" mt-2
+                                        tooltip="Soft-knee width around the threshold. 0 = hard cutoff, 1 = very smooth ramp."
+                                        :min="0" :max="1" :step="0.01" v-model="particleLife.bloomKnee">
                             </RangeInput>
+                            <p text-gray-300 text-2sm underline mb-1 mt-3>Tonemap Operator :</p>
+                            <SelectInput name="tonemap-mode"
+                                         v-model="particleLife.tonemapMode"
+                                         :options="tonemapOptions">
+                            </SelectInput>
                         </Collapse>
                         <Collapse label="Debug Tools" icon="i-tabler-bug text-rose-500"
                                   tooltip="Provides tools for visualizing the simulation's internal state. <br> Toggle the grid view to see spatial bins or activate a heatmap to analyze particle density. <br> These features are useful for debugging and performance tuning.">
@@ -225,6 +230,17 @@ import renderShaderCode from 'assets/particle-life-gpu-3d/shaders/render/render_
 import renderGlowShaderCode from 'assets/particle-life-gpu-3d/shaders/render/particle_render_glow.wgsl?raw';
 import boxShaderCode from 'assets/particle-life-gpu-3d/shaders/render/render_box.wgsl?raw';
 import composeHdrShaderCode from 'assets/particle-life-gpu-3d/shaders/compose/compose_hdr.wgsl?raw';
+import bloomShaderCode from 'assets/particle-life-gpu-3d/shaders/compose/bloom.wgsl?raw';
+
+const tonemapOptions = [
+    { id: 0, name: 'None (raw)',           category: 'Raw' },
+    { id: 1, name: 'ACES (Narkowicz)',     category: 'Stylized' },
+    { id: 2, name: 'ACES (Fitted)',        category: 'Stylized' },
+    { id: 3, name: 'Lottes',               category: 'Stylized' },
+    { id: 4, name: 'Reinhard-Jodie',       category: 'Filmic' },
+    { id: 5, name: 'Uncharted 2 (Filmic)', category: 'Filmic' },
+    { id: 6, name: 'AgX',                  category: 'Realistic' },
+]
 
 export default defineComponent({
     name: 'ParticleLifeGpu',
@@ -360,10 +376,11 @@ export default defineComponent({
         let isWallRepel: boolean = particleLife.isWallRepel // Enable walls X and Y for the particles
         let isWallWrap: boolean = particleLife.isWallWrap // Enable wrapping for the particles
         let isBoundingBoxActive: boolean = particleLife.isBoundingBoxActive // Show box wireframe
-        let isParticleGlow: boolean = particleLife.isParticleGlow // Toggle HDR + glow render path
-        let glowSize: number = particleLife.glowSize
-        let glowIntensity: number = particleLife.glowIntensity
-        let glowSteepness: number = particleLife.glowSteepness
+        let isParticleGlow: boolean = particleLife.isParticleGlow // Toggle HDR + dual-filter bloom render path (UI: "Particle Glowing")
+        let tonemapMode: number = particleLife.tonemapMode
+        let bloomThreshold: number = particleLife.bloomThreshold
+        let bloomIntensity: number = particleLife.bloomIntensity
+        let bloomKnee: number = particleLife.bloomKnee
 
         // Define GPU resources
         let device: GPUDevice
@@ -385,7 +402,7 @@ export default defineComponent({
         let binAuxBuffer: GPUBuffer | undefined
         let binAux2Buffer: GPUBuffer | undefined
         let cellSignatureBuffer: GPUBuffer | undefined // Hash mode only: per-particle 32-bit cell signature for collision rejection
-        let glowOptionsBuffer: GPUBuffer | undefined // glowSize, glowIntensity, glowSteepness
+        let bloomOptionsBuffer: GPUBuffer | undefined // threshold, intensity, knee
 
         let particleBufferBindGroup: GPUBindGroup
         let particleBufferReadOnlyBindGroup: GPUBindGroup
@@ -403,8 +420,9 @@ export default defineComponent({
         let simOptionsBindGroup: GPUBindGroup
         let deltaTimeBindGroup: GPUBindGroup
         let cameraBindGroup: GPUBindGroup
-        let glowOptionsBindGroup: GPUBindGroup
         let composeHdrBindGroup: GPUBindGroup
+        const bloomDownBindGroups: GPUBindGroup[] = []
+        const bloomUpBindGroups: GPUBindGroup[] = []
 
         let particleBufferBindGroupLayout: GPUBindGroupLayout
         let particleBufferReadOnlyBindGroupLayout: GPUBindGroupLayout
@@ -420,7 +438,7 @@ export default defineComponent({
         let simOptionsBindGroupLayout: GPUBindGroupLayout
         let deltaTimeBindGroupLayout: GPUBindGroupLayout
         let cameraBindGroupLayout: GPUBindGroupLayout
-        let glowOptionsBindGroupLayout: GPUBindGroupLayout
+        let bloomBindGroupLayout: GPUBindGroupLayout
         let composeHdrBindGroupLayout: GPUBindGroupLayout
 
         let binFillSizePipeline: GPUComputePipeline
@@ -443,14 +461,22 @@ export default defineComponent({
 
         let renderPipeline: GPURenderPipeline
         let boxRenderPipeline: GPURenderPipeline
-        let renderGlowPipeline: GPURenderPipeline
         let renderCirclePipeline: GPURenderPipeline
         let boxRenderHdrPipeline: GPURenderPipeline
-        let composeHdrPipeline: GPURenderPipeline
+        const composeHdrPipelines: GPURenderPipeline[] = [] // One pre-compiled pipeline per tonemap operator (indexed by tonemap id)
+        let bloomPrefilterPipeline: GPURenderPipeline
+        let bloomDownsamplePipeline: GPURenderPipeline
+        let bloomUpsamplePipeline: GPURenderPipeline
 
         let depthTexture: GPUTexture | undefined
         let hdrTexture: GPUTexture | undefined
-        let hdrTextureView: GPUTextureView
+        let hdrTextureView: GPUTextureView | undefined
+        let bloomSampler: GPUSampler | undefined
+
+        const BLOOM_MIPS: number = 4
+        const bloomTextures: (GPUTexture | undefined)[] = new Array(BLOOM_MIPS).fill(undefined)
+        const bloomTextureViews: (GPUTextureView | undefined)[] = new Array(BLOOM_MIPS).fill(undefined)
+
         const DEPTH_FORMAT: GPUTextureFormat = 'depth24plus'
         const HDR_FORMAT: GPUTextureFormat = 'rgba16float'
 
@@ -950,7 +976,7 @@ export default defineComponent({
             if (isParticleGlow) {
                 const hdrPass = encoder.beginRenderPass({
                     colorAttachments: [{
-                        view: hdrTextureView,
+                        view: hdrTextureView!,
                         loadOp: 'clear',
                         clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
                         storeOp: 'store',
@@ -963,21 +989,44 @@ export default defineComponent({
                     },
                     timestampWrites: tsRenderWrites(3),
                 })
+                hdrPass.setPipeline(renderCirclePipeline)
                 hdrPass.setBindGroup(0, particleBufferReadOnlyBindGroup)
                 hdrPass.setBindGroup(1, simOptionsBindGroup)
                 hdrPass.setBindGroup(2, cameraBindGroup)
-                hdrPass.setBindGroup(3, glowOptionsBindGroup)
-
-                hdrPass.setPipeline(renderCirclePipeline)
-                hdrPass.draw(4, NUM_PARTICLES)
-
-                hdrPass.setPipeline(renderGlowPipeline)
                 hdrPass.draw(4, NUM_PARTICLES)
 
                 if (isBoundingBoxActive) renderHdrBoundingBox(hdrPass)
-
                 hdrPass.end()
 
+                // --- Bloom chain (dual filter Bjørge 2015) -----------------------------------------------------------
+                for (let i = 0; i < BLOOM_MIPS; i++) {
+                    const downPass = encoder.beginRenderPass({
+                        colorAttachments: [{
+                            view: bloomTextureViews[i]!,
+                            loadOp: 'clear',
+                            clearValue: { r: 0, g: 0, b: 0, a: 1 },
+                            storeOp: 'store',
+                        }],
+                    })
+                    downPass.setPipeline(i === 0 ? bloomPrefilterPipeline : bloomDownsamplePipeline)
+                    downPass.setBindGroup(0, bloomDownBindGroups[i])
+                    downPass.draw(3)
+                    downPass.end()
+                }
+                for (let i = BLOOM_MIPS - 2; i >= 0; i--) {
+                    const upPass = encoder.beginRenderPass({
+                        colorAttachments: [{
+                            view: bloomTextureViews[i]!,
+                            loadOp: 'load',
+                            storeOp: 'store',
+                        }],
+                    })
+                    upPass.setPipeline(bloomUpsamplePipeline)
+                    upPass.setBindGroup(0, bloomUpBindGroups[i])
+                    upPass.draw(3)
+                    upPass.end()
+                }
+                // -----------------------------------------------------------------------------------------------------
                 const composePass = encoder.beginRenderPass({
                     colorAttachments: [{
                         view: ctx.getCurrentTexture().createView(),
@@ -986,7 +1035,7 @@ export default defineComponent({
                         storeOp: 'store',
                     }],
                 })
-                composePass.setPipeline(composeHdrPipeline)
+                composePass.setPipeline(composeHdrPipelines[tonemapMode] ?? composeHdrPipelines[1]!)
                 composePass.setBindGroup(0, composeHdrBindGroup)
                 composePass.draw(3)
                 composePass.end()
@@ -1287,23 +1336,23 @@ export default defineComponent({
                 device.queue.writeBuffer(simOptionsBuffer, 0, simOptionsData)
             }
         }
-        const updateGlowOptionsBuffer = () => {
-            const glowOptionsData = new ArrayBuffer(16)
-            const glowOptionsView = new DataView(glowOptionsData)
-            glowOptionsView.setFloat32(0, glowSize, true)
-            glowOptionsView.setFloat32(4, glowIntensity, true)
-            glowOptionsView.setFloat32(8, glowSteepness, true)
+        const updateBloomOptionsBuffer = () => {
+            const bloomOptionsData = new ArrayBuffer(16)
+            const bloomOptionsView = new DataView(bloomOptionsData)
+            bloomOptionsView.setFloat32(0, bloomThreshold, true)
+            bloomOptionsView.setFloat32(4, bloomIntensity, true)
+            bloomOptionsView.setFloat32(8, bloomKnee, true)
 
-            if (!glowOptionsBuffer) {
-                glowOptionsBuffer = device.createBuffer({
-                    size: glowOptionsData.byteLength,
+            if (!bloomOptionsBuffer) {
+                bloomOptionsBuffer = device.createBuffer({
+                    size: bloomOptionsData.byteLength,
                     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
                     mappedAtCreation: true,
                 })
-                new Uint8Array(glowOptionsBuffer.getMappedRange()).set(new Uint8Array(glowOptionsData))
-                glowOptionsBuffer.unmap()
+                new Uint8Array(bloomOptionsBuffer.getMappedRange()).set(new Uint8Array(bloomOptionsData))
+                bloomOptionsBuffer.unmap()
             } else {
-                device.queue.writeBuffer(glowOptionsBuffer, 0, glowOptionsData)
+                device.queue.writeBuffer(bloomOptionsBuffer, 0, bloomOptionsData)
             }
         }
         const updateInteractionMatrixBuffer = () => {
@@ -1549,7 +1598,7 @@ export default defineComponent({
             updateBinningBuffers()
             updateColorBuffer()
             updateCameraBuffer()
-            updateGlowOptionsBuffer()
+            updateBloomOptionsBuffer()
             // ----------------------------------------------------------------------------------------------
             deltaTimeBuffer = device.createBuffer({
                 size: 4,
@@ -1563,6 +1612,7 @@ export default defineComponent({
         const createBindGroups = () => {
             updateBinningBindGroups()
             updateParticleBindGroups()
+            updateBloomBindGroups()
             updateComposeHdrBindGroup()
             // ---------------------------------------------------------------------------------------------------------
             simOptionsBindGroup = device.createBindGroup({
@@ -1581,12 +1631,6 @@ export default defineComponent({
                 layout: cameraBindGroupLayout,
                 entries: [
                     { binding: 0, resource: { buffer: cameraBuffer! } },
-                ],
-            })
-            glowOptionsBindGroup = device.createBindGroup({
-                layout: glowOptionsBindGroupLayout,
-                entries: [
-                    { binding: 0, resource: { buffer: glowOptionsBuffer! } },
                 ],
             })
         }
@@ -1722,9 +1766,37 @@ export default defineComponent({
             composeHdrBindGroup = device.createBindGroup({
                 layout: composeHdrBindGroupLayout,
                 entries: [
-                    { binding: 0, resource: hdrTextureView }
+                    { binding: 0, resource: hdrTextureView! },
+                    { binding: 1, resource: bloomTextureViews[0]! },
+                    { binding: 2, resource: bloomSampler! },
+                    { binding: 3, resource: { buffer: bloomOptionsBuffer! } },
                 ],
             })
+        }
+        const updateBloomBindGroups = () => {
+            bloomDownBindGroups.length = 0
+            bloomUpBindGroups.length = 0
+            for (let i = 0; i < BLOOM_MIPS; i++) {
+                const textureView = i === 0 ? hdrTextureView! : bloomTextureViews[i - 1]!
+                bloomDownBindGroups.push(device.createBindGroup({
+                    layout: bloomBindGroupLayout,
+                    entries: [
+                        { binding: 0, resource: textureView },
+                        { binding: 1, resource: bloomSampler! },
+                        { binding: 2, resource: { buffer: bloomOptionsBuffer! } },
+                    ],
+                }))
+            }
+            for (let i = 0; i < BLOOM_MIPS - 1; i++) {
+                bloomUpBindGroups.push(device.createBindGroup({
+                    layout: bloomBindGroupLayout,
+                    entries: [
+                        { binding: 0, resource: bloomTextureViews[i + 1]! },
+                        { binding: 1, resource: bloomSampler! },
+                        { binding: 2, resource: { buffer: bloomOptionsBuffer! } },
+                    ],
+                }))
+            }
         }
         // -------------------------------------------------------------------------------------------------------------
         const createBindGroupLayouts = () => {
@@ -1818,14 +1890,19 @@ export default defineComponent({
                     { binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } }, // cameraBuffer
                 ],
             })
-            glowOptionsBindGroupLayout = device.createBindGroupLayout({
+            bloomBindGroupLayout = device.createBindGroupLayout({
                 entries: [
-                    { binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } }, // glowOptionsBuffer
+                    { binding: 0, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'float', viewDimension: '2d' } }, // source mip / hdr
+                    { binding: 1, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } }, // sampler
+                    { binding: 2, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } }, // bloomOptionsBuffer
                 ],
             })
             composeHdrBindGroupLayout = device.createBindGroupLayout({
                 entries: [
                     { binding: 0, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'unfilterable-float', viewDimension: '2d' } }, // hdrTexture
+                    { binding: 1, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'float', viewDimension: '2d' } }, // bloom mip[0]
+                    { binding: 2, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } }, // sampler
+                    { binding: 3, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } }, // bloomOptionsBuffer
                 ],
             })
         }
@@ -1999,12 +2076,10 @@ export default defineComponent({
         }
         const createHdrGlowPipelines = () => {
             const renderGlowShader = device.createShaderModule({ code: renderGlowShaderCode })
-            const glowPipelineLayout = device.createPipelineLayout({
-                bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, glowOptionsBindGroupLayout],
-            })
-            // ---------------------------------------------------------------------------------------------------------
             renderCirclePipeline = device.createRenderPipeline({
-                layout: glowPipelineLayout,
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout],
+                }),
                 vertex: { module: renderGlowShader, entryPoint: 'vertexCircle' },
                 fragment: {
                     module: renderGlowShader, entryPoint: 'fragmentCircle', targets: [{
@@ -2019,36 +2094,24 @@ export default defineComponent({
                     depthCompare: 'less',
                 },
             })
-            renderGlowPipeline = device.createRenderPipeline({
-                layout: glowPipelineLayout,
-                vertex: { module: renderGlowShader, entryPoint: 'vertexGlow' },
-                fragment: {
-                    module: renderGlowShader, entryPoint: 'fragmentGlow', targets: [{
-                        format: HDR_FORMAT,
-                        blend: particleAdditiveBlending,
-                    }],
-                },
-                primitive: { topology: 'triangle-strip' },
-                depthStencil: {
-                    format: DEPTH_FORMAT,
-                    depthWriteEnabled: false,
-                    depthCompare: 'less-equal',
-                },
-            })
             // ---------------------------------------------------------------------------------------------------------
             const composeShader = device.createShaderModule({ code: composeHdrShaderCode })
-            composeHdrPipeline = device.createRenderPipeline({
-                layout: device.createPipelineLayout({
-                    bindGroupLayouts: [composeHdrBindGroupLayout],
-                }),
-                vertex: { module: composeShader, entryPoint: 'vertexMain' },
-                fragment: {
-                    module: composeShader, entryPoint: 'fragmentMain', targets: [{
-                        format: navigator.gpu.getPreferredCanvasFormat(),
-                    }],
-                },
-                primitive: { topology: 'triangle-list' },
+            const composeLayout = device.createPipelineLayout({
+                bindGroupLayouts: [composeHdrBindGroupLayout],
             })
+            for (const tonemap of tonemapOptions) {
+                composeHdrPipelines[tonemap.id] = device.createRenderPipeline({
+                    label: `composeHdrPipeline:${tonemap.id}`,
+                    layout: composeLayout,
+                    vertex: { module: composeShader, entryPoint: 'vertexMain' },
+                    fragment: {
+                        module: composeShader, entryPoint: 'fragmentMain',
+                        constants: { TONEMAP_ID: tonemap.id },
+                        targets: [{ format: navigator.gpu.getPreferredCanvasFormat() }],
+                    },
+                    primitive: { topology: 'triangle-list' },
+                })
+            }
             // ---------------------------------------------------------------------------------------------------------
             const boxShader = device.createShaderModule({ code: boxShaderCode })
             boxRenderHdrPipeline = device.createRenderPipeline({
@@ -2068,6 +2131,46 @@ export default defineComponent({
                     depthWriteEnabled: false,
                     depthCompare: 'less-equal',
                 },
+            })
+            // ---------------------------------------------------------------------------------------------------------
+            const bloomShader = device.createShaderModule({ code: bloomShaderCode })
+            const bloomPipelineLayout = device.createPipelineLayout({
+                bindGroupLayouts: [bloomBindGroupLayout],
+            })
+            bloomPrefilterPipeline = device.createRenderPipeline({
+                layout: bloomPipelineLayout,
+                vertex: { module: bloomShader, entryPoint: 'vertexMain' },
+                fragment: {
+                    module: bloomShader,
+                    entryPoint: 'fragmentDownsample',
+                    constants: { IS_PREFILTER: 1 },
+                    targets: [{ format: HDR_FORMAT }],
+                },
+                primitive: { topology: 'triangle-list' },
+            })
+            bloomDownsamplePipeline = device.createRenderPipeline({
+                layout: bloomPipelineLayout,
+                vertex: { module: bloomShader, entryPoint: 'vertexMain' },
+                fragment: {
+                    module: bloomShader,
+                    entryPoint: 'fragmentDownsample',
+                    constants: { IS_PREFILTER: 0 },
+                    targets: [{ format: HDR_FORMAT }],
+                },
+                primitive: { topology: 'triangle-list' },
+            })
+            bloomUpsamplePipeline = device.createRenderPipeline({
+                layout: bloomPipelineLayout,
+                vertex: { module: bloomShader, entryPoint: 'vertexMain' },
+                fragment: {
+                    module: bloomShader,
+                    entryPoint: 'fragmentUpsample',
+                    targets: [{
+                        format: HDR_FORMAT,
+                        blend: particleAdditiveBlending,
+                    }],
+                },
+                primitive: { topology: 'triangle-list' },
             })
         }
         // -------------------------------------------------------------------------------------------------------------
@@ -2090,7 +2193,33 @@ export default defineComponent({
             })
             hdrTextureView = hdrTexture.createView()
 
-            if (composeHdrPipeline) {
+            for (let i = 0; i < BLOOM_MIPS; i++) {
+                bloomTextures[i]?.destroy()
+                bloomTextures[i] = undefined
+                bloomTextureViews[i] = undefined
+            }
+            for (let i = 0; i < BLOOM_MIPS; i++) {
+                const divisor = 1 << (i + 1) // 2, 4, 8, 16, ...
+                const WIDTH = Math.max(1, Math.floor(CANVAS_WIDTH / divisor))
+                const HEIGHT = Math.max(1, Math.floor(CANVAS_HEIGHT / divisor))
+                bloomTextures[i] = device.createTexture({
+                    size: [WIDTH, HEIGHT, 1],
+                    format: HDR_FORMAT,
+                    usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+                })
+                bloomTextureViews[i] = bloomTextures[i]!.createView()
+            }
+            if (!bloomSampler) {
+                bloomSampler = device.createSampler({
+                    magFilter: 'linear',
+                    minFilter: 'linear',
+                    addressModeU: 'clamp-to-edge',
+                    addressModeV: 'clamp-to-edge',
+                })
+            }
+
+            if (composeHdrPipelines.length > 0) {
+                updateBloomBindGroups()
                 updateComposeHdrBindGroup()
             }
         }
@@ -2103,15 +2232,16 @@ export default defineComponent({
                 updateSimOptionsBuffer()
             })
         }
-        function watchAndUpdateGlowOptions(effect: any, callback: any) {
+        function watchAndUpdateBloomOptions(effect: any, callback: any) {
             watch(effect, (value) => {
                 callback(value)
-                updateGlowOptionsBuffer()
+                updateBloomOptionsBuffer()
             })
         }
 
         watch(() => particleLife.isRunning, (value: boolean) => isRunning = value)
         watch(() => particleLife.isBoundingBoxActive, (value: boolean) => isBoundingBoxActive = value)
+        watch(() => particleLife.tonemapMode, (value: number) => tonemapMode = value)
         watch(() => particleLife.isParticleGlow, (value: boolean) => isParticleGlow = value)
         watch(() => particleLife.useBinning, (value: boolean) => useBinning = value)
         watch(() => particleLife.binningMode, (value: 'grid' | 'hash') => {
@@ -2121,9 +2251,9 @@ export default defineComponent({
             refreshActiveBinning()
         })
 
-        watchAndUpdateGlowOptions(() => particleLife.glowSize, (value: number) => glowSize = value)
-        watchAndUpdateGlowOptions(() => particleLife.glowIntensity, (value: number) => glowIntensity = value)
-        watchAndUpdateGlowOptions(() => particleLife.glowSteepness, (value: number) => glowSteepness = value)
+        watchAndUpdateBloomOptions(() => particleLife.bloomThreshold, (value: number) => bloomThreshold = value)
+        watchAndUpdateBloomOptions(() => particleLife.bloomIntensity, (value: number) => bloomIntensity = value)
+        watchAndUpdateBloomOptions(() => particleLife.bloomKnee, (value: number) => bloomKnee = value)
 
         watchAndUpdateSimOptions(() => particleLife.particleSize, (value: number) => PARTICLE_SIZE = value)
         watchAndUpdateSimOptions(() => particleLife.particleOpacity, (value: number) => PARTICLE_OPACITY = value)
@@ -2177,7 +2307,7 @@ export default defineComponent({
             cameraBuffer?.destroy(); cameraBuffer = undefined;
             interactionMatrixBuffer?.destroy(); interactionMatrixBuffer = undefined;
             simOptionsBuffer?.destroy(); simOptionsBuffer = undefined;
-            glowOptionsBuffer?.destroy(); glowOptionsBuffer = undefined;
+            bloomOptionsBuffer?.destroy(); bloomOptionsBuffer = undefined;
 
             particleBuffer?.destroy(); particleBuffer = undefined;
             particleTempBuffer?.destroy(); particleTempBuffer = undefined;
@@ -2185,7 +2315,12 @@ export default defineComponent({
             if (!keepTexture) {
                 depthTexture?.destroy(); depthTexture = undefined;
                 hdrTexture?.destroy(); hdrTexture = undefined;
-                hdrTextureView = undefined as any;
+                hdrTextureView = undefined;
+                for (let i = 0; i < BLOOM_MIPS; i++) {
+                    bloomTextures[i]?.destroy()
+                    bloomTextures[i] = undefined
+                    bloomTextureViews[i] = undefined
+                }
             }
 
             await nextTick() // Ensure GPU resources are cleaned up before creating new ones
@@ -2196,10 +2331,14 @@ export default defineComponent({
             renderPipeline = undefined as any;
             boxRenderPipeline = undefined as any;
             boxRenderHdrPipeline = undefined as any;
-            renderGlowPipeline = undefined as any;
             renderCirclePipeline = undefined as any;
-            composeHdrPipeline = undefined as any;
+            composeHdrPipelines.length = 0;
+            bloomPrefilterPipeline = undefined as any;
+            bloomDownsamplePipeline = undefined as any;
+            bloomUpsamplePipeline = undefined as any;
             composeHdrBindGroup = undefined as any;
+            bloomDownBindGroups.length = 0
+            bloomUpBindGroups.length = 0
 
             particleBufferReadOnlyBindGroup = undefined as any;
             bruteForceBindGroup = undefined as any;
@@ -2225,6 +2364,7 @@ export default defineComponent({
             updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, newRandomRulesMatrix, updateSingleColor,
             randomizeRadius, randomizeRulesAndRadius,
             setNewNumParticles, setNewNumTypes,
+            tonemapOptions,
         }
     }
 })

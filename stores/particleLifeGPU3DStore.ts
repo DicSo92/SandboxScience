@@ -50,10 +50,11 @@ export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => 
     const binningMode = ref<'grid' | 'hash'>('grid') // 'grid' = dense extended grid (default), 'hash' = Teschner spatial hash table
     const isBoundingBoxActive = ref<boolean>(true) // Show wireframe box for simulation boundaries
 
-    const isParticleGlow = ref<boolean>(true) // Enable the HDR glow pipeline
-    const glowSize = ref<number>(4.0) // Glow billboard scale = particleSize * glowSize
-    const glowIntensity = ref<number>(0.01) // Multiplier on the additive glow alpha
-    const glowSteepness = ref<number>(1.2) // Falloff exponent: pow(1 - r², steepness)
+    const isParticleGlow = ref<boolean>(true) // Enable the HDR + dual-filter bloom pipeline (UI label: "Particle Glowing")
+    const bloomThreshold = ref<number>(0.1) // Luminance above which pixels start to bloom (soft-knee)
+    const bloomIntensity = ref<number>(0.12) // Bloom mix at compose time (final = hdr + bloom * intensity)
+    const bloomKnee = ref<number>(1.0) // Soft-knee width: 0 = hard cutoff, 1 = very soft ramp
+    const tonemapMode = ref<number>(1) // 1 = ACES Narkowicz
 
     const cellSubdivisions = ref<number>(1) // Number of subdivisions of maxRadius per cell (CELL_SIZE = maxRadius / cellSubdivisions)
 
@@ -77,7 +78,7 @@ export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => 
         isWallRepel, isWallWrap, wallState,
         minRadiusRange, maxRadiusRange, currentMaxRadius,
         repel, forceFactor, frictionFactor, useBinning, binningMode, isBoundingBoxActive,
-        isParticleGlow, glowSize, glowIntensity, glowSteepness,
+        isParticleGlow, bloomThreshold, bloomIntensity, bloomKnee, tonemapMode,
         selectedRulesOption, selectedColorPaletteOption,
         cellSubdivisions,
         gridExtensionFactor, maxGridExtensionFactor,
