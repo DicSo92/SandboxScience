@@ -128,6 +128,16 @@
                                          :options="tonemapOptions">
                             </SelectInput>
                         </Collapse>
+                        <Collapse label="Camera Settings" icon="i-tabler-camera-cog text-violet-500">
+                            <RangeInput input label="Zoom Smoothing"
+                                        tooltip="Adjusts the smoothness of the zoom. <br> Lower values result in a slower, more fluid zoom, while higher values make it faster and more abrupt."
+                                        :min="0.01" :max="0.5" :step="0.01" v-model="particleLife.zoomSmoothing">
+                            </RangeInput>
+                            <RangeInput input label="Pan Smoothing"
+                                        tooltip="Adjusts the smoothness of camera panning. <br> Lower values create more inertia for a gliding effect, while higher values make the movement stop more abruptly."
+                                        :min="0.01" :max="0.5" :step="0.01" v-model="particleLife.panSmoothing" mt-2>
+                            </RangeInput>
+                        </Collapse>
                         <Collapse label="Debug Tools" icon="i-tabler-bug text-rose-500"
                                   tooltip="Provides tools for visualizing the simulation's internal state. <br> Toggle the grid view to see spatial bins or activate a heatmap to analyze particle density. <br> These features are useful for debugging and performance tuning.">
                             <p text-gray-300 text-2sm underline mb-1 class="-mt-0.5">Neighbor Search :</p>
@@ -360,10 +370,18 @@ export default defineComponent({
         const NEAR_PLANE: number = 0.05
         const FAR_PLANE: number = 100.0
 
+        let zoomSmoothing: number = particleLife.zoomSmoothing // Smoothing factor for zooming
+        let panSmoothing: number = particleLife.panSmoothing // Smoothing factor for panning
+
         let zoomFactor: number = 1.5 // distance from focus point (zoom)
         let cameraYaw: number = 0 // rotation around Y (horizontal)
         let cameraPitch: number = 0 // rotation around X (vertical)
-        let cameraTarget: [number, number, number] = [0, 0, 0] // pan offset in normalized world space
+        const cameraTarget: [number, number, number] = [0, 0, 0] // pan offset in normalized world space
+
+        let targetZoomFactor: number = 1.5
+        let targetCameraYaw: number = 0
+        let targetCameraPitch: number = 0
+        const targetCameraTarget: [number, number, number] = [0, 0, 0]
 
         const cameraRight: [number, number, number] = [1, 0, 0]
         const cameraUp: [number, number, number]    = [0, 1, 0]
@@ -641,11 +659,14 @@ export default defineComponent({
                 }
             }
         }
+        // -------------------------------------------------------------------------------------------------------------
         function centerView() {
-            cameraYaw = 0
-            cameraPitch = 0
-            zoomFactor = 1.5
-            cameraTarget = [0, 0, 0]
+            cameraYaw = targetCameraYaw = 0
+            cameraPitch = targetCameraPitch = 0
+            zoomFactor = targetZoomFactor = 1.5
+            cameraTarget[0] = targetCameraTarget[0] = 0
+            cameraTarget[1] = targetCameraTarget[1] = 0
+            cameraTarget[2] = targetCameraTarget[2] = 0
             cameraRotationChanged = true
             cameraChanged = true
         }
@@ -654,32 +675,54 @@ export default defineComponent({
             const dy = pointerY - lastPointerY
             updateCameraAxes()
             const speed = zoomFactor / Math.max(1, CANVAS_HEIGHT)
-            cameraTarget[0] += (-dx * cameraRight[0] + dy * cameraUp[0]) * speed
-            cameraTarget[1] += (-dx * cameraRight[1] + dy * cameraUp[1]) * speed
-            cameraTarget[2] += (-dx * cameraRight[2] + dy * cameraUp[2]) * speed
+            targetCameraTarget[0] += (-dx * cameraRight[0] + dy * cameraUp[0]) * speed
+            targetCameraTarget[1] += (-dx * cameraRight[1] + dy * cameraUp[1]) * speed
+            targetCameraTarget[2] += (-dx * cameraRight[2] + dy * cameraUp[2]) * speed
 
             lastPointerX = pointerX
             lastPointerY = pointerY
-            cameraChanged = true
         }
         const handleRotate = () => {
             const dx = pointerX - lastPointerX
             const dy = pointerY - lastPointerY
             const radPerPixel = Math.PI / Math.max(1, CANVAS_HEIGHT)
-            cameraYaw -= dx * radPerPixel
-            cameraPitch += dy * radPerPixel
+            targetCameraYaw -= dx * radPerPixel
+            targetCameraPitch += dy * radPerPixel
             const lim = Math.PI * 0.5
-            if (cameraPitch > lim) cameraPitch = lim
-            if (cameraPitch < -lim) cameraPitch = -lim
+            if (targetCameraPitch > lim) targetCameraPitch = lim
+            if (targetCameraPitch < -lim) targetCameraPitch = -lim
 
             lastPointerX = pointerX
             lastPointerY = pointerY
+        }
+        function handleZoom(delta: number, isCentered: boolean = false) {
+            const zoomIntensity = 0.1
+            targetZoomFactor = Math.max(0.2, Math.min(20.0, targetZoomFactor * (1 - delta * zoomIntensity)))
+        }
+        const handleMoveSmoothing = () => {
+            const dx = targetCameraTarget[0] - cameraTarget[0]
+            const dy = targetCameraTarget[1] - cameraTarget[1]
+            const dz = targetCameraTarget[2] - cameraTarget[2]
+            // Cheap squared-magnitude test (avoids Math.abs x3 and a costly sqrt)
+            if (dx * dx + dy * dy + dz * dz < 0.000001) return // 0.001²
+            cameraTarget[0] += dx * panSmoothing
+            cameraTarget[1] += dy * panSmoothing
+            cameraTarget[2] += dz * panSmoothing
+            cameraChanged = true
+        }
+        const handleRotateSmoothing = () => {
+            const dyaw = targetCameraYaw - cameraYaw
+            const dpitch = targetCameraPitch - cameraPitch
+            if (dyaw * dyaw + dpitch * dpitch < 0.000001) return // 0.001² rad
+            cameraYaw += dyaw * panSmoothing
+            cameraPitch += dpitch * panSmoothing
             cameraRotationChanged = true
             cameraChanged = true
         }
-        function handleZoom(delta: number, isCentered: boolean = false) {
-            const zoomIntensity = 0.15
-            zoomFactor = Math.max(0.2, Math.min(20.0, zoomFactor * (1 - delta * zoomIntensity)))
+        const handleZoomSmoothing = () => {
+            const d = targetZoomFactor - zoomFactor
+            if (d < 0.001 && d > -0.001) return
+            zoomFactor += d * zoomSmoothing
             cameraChanged = true
         }
         // -------------------------------------------------------------------------------------------------------------
@@ -869,6 +912,10 @@ export default defineComponent({
         const frame = async () => {
             if (isUpdateNumParticlesPending) await updateNumParticles(NEW_NUM_PARTICLES)
             else if (isUpdateNumTypesPending) await updateNumTypes(NEW_NUM_TYPES)
+
+            handleMoveSmoothing()
+            handleRotateSmoothing()
+            handleZoomSmoothing()
 
             const startExecutionTime = performance.now()
             if (isRunning) {
@@ -2342,6 +2389,8 @@ export default defineComponent({
         }
 
         watch(() => particleLife.isRunning, (value: boolean) => isRunning = value)
+        watch(() => particleLife.zoomSmoothing, (value: number) => zoomSmoothing = value)
+        watch(() => particleLife.panSmoothing, (value: number) => panSmoothing = value)
         watch(() => particleLife.isBoundingBoxActive, (value: boolean) => isBoundingBoxActive = value)
         watch(() => particleLife.tonemapMode, (value: number) => tonemapMode = value)
         watch(() => particleLife.isParticleGlow, (value: boolean) => isParticleGlow = value)
