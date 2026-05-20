@@ -527,15 +527,12 @@ export default defineComponent({
                 pointerX = (e.x - canvasRef.value!.getBoundingClientRect().left) * DEVICE_PIXEL_RATIO
                 pointerY = (e.y - canvasRef.value!.getBoundingClientRect().top) * DEVICE_PIXEL_RATIO
 
-                if (e.buttons > 0) { // if mouse is pressed
-                    if (e.buttons === 1) { // if primary button is pressed (left click) -> pan
-                        isDragging = true
-                        handleMove()
-                    }
-                    if (e.buttons === 2) { // if secondary button is pressed (right click) -> rotate
-                        isDragging = true
-                        handleRotate()
-                    }
+                if (e.buttons & 3) { // if mouse is pressed, ignoring wheel click event (bit 4)
+                    isDragging = true
+                    if (e.buttons & 1) handleMove() // if left-click or left+right click
+                    if (e.buttons & 2) handleRotate() // if right-click or left+right click
+                    lastPointerX = pointerX
+                    lastPointerY = pointerY
                 }
                 else if (e.buttons === 0) {
                     isDragging = false
@@ -678,9 +675,6 @@ export default defineComponent({
             targetCameraTarget[0] += (-dx * cameraRight[0] + dy * cameraUp[0]) * speed
             targetCameraTarget[1] += (-dx * cameraRight[1] + dy * cameraUp[1]) * speed
             targetCameraTarget[2] += (-dx * cameraRight[2] + dy * cameraUp[2]) * speed
-
-            lastPointerX = pointerX
-            lastPointerY = pointerY
         }
         const handleRotate = () => {
             const dx = pointerX - lastPointerX
@@ -691,9 +685,6 @@ export default defineComponent({
             const lim = Math.PI * 0.5
             if (targetCameraPitch > lim) targetCameraPitch = lim
             if (targetCameraPitch < -lim) targetCameraPitch = -lim
-
-            lastPointerX = pointerX
-            lastPointerY = pointerY
         }
         function handleZoom(delta: number, isCentered: boolean = false) {
             const zoomIntensity = 0.1
