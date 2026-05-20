@@ -50,6 +50,7 @@ export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => 
     const useBinning = ref<boolean>(true) // Use spatial binning for neighbor search (vs brute force O(N²))
     const binningMode = ref<'grid' | 'hash'>('grid') // 'grid' = dense extended grid (default), 'hash' = Teschner spatial hash table
     const isBoundingBoxActive = ref<boolean>(true) // Show wireframe box for simulation boundaries
+    const isGpuTimingsEnabled = ref<boolean>(true) // Enable per-pass GPU timestamp queries (binning/forces/advance/render). Off by default to save a tiny amount of GPU/CPU and avoid potential driver pipeline stalls.
 
     const isParticleGlow = ref<boolean>(true) // Enable the HDR + dual-filter bloom pipeline (UI label: "Particle Glowing")
     const bloomThreshold = ref<number>(0.1) // Luminance above which pixels start to bloom (soft-knee)
@@ -81,7 +82,7 @@ export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => 
         numParticles, particleSize, particleOpacity, numColors, zoomSmoothing, panSmoothing,
         isWallRepel, isWallWrap, wallState,
         minRadiusRange, maxRadiusRange, currentMaxRadius,
-        repel, forceFactor, frictionFactor, useBinning, binningMode, isBoundingBoxActive,
+        repel, forceFactor, frictionFactor, useBinning, binningMode, isBoundingBoxActive, isGpuTimingsEnabled,
         isParticleGlow, bloomThreshold, bloomIntensity, bloomKnee, tonemapMode,
         selectedRulesOption, selectedColorPaletteOption, savedPresets, isSaveModalOpen,
         cellSubdivisions, gridExtensionFactor, maxGridExtensionFactor,

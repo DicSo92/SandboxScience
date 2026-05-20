@@ -166,6 +166,10 @@
                                         :min="1" :max="particleLife.maxGridExtensionFactor" :step="1"
                                         v-model="particleLife.gridExtensionFactor">
                             </RangeInput>
+                            <ToggleSwitch label="GPU Timings" colorful-label mt-3
+                                          tooltip="Display per-pass GPU execution times (binning, forces, advance, render) in the top-right HUD. <br> Uses WebGPU timestamp queries. <br> Has a tiny performance cost (allocations + potential driver pipeline stalls), so it's off by default."
+                                          v-model="particleLife.isGpuTimingsEnabled">
+                            </ToggleSwitch>
                         </Collapse>
                     </div>
                     <div absolute bottom-2 right-0 z-100 class="-mr-px">
@@ -194,12 +198,14 @@
                 <div flex>Fps: <div ml-1 min-w-8>{{ fps }}</div></div>
                 <!--                <div flex ml-3>Process: <div ml-1 min-w-7>{{ Math.round(executionTime) }}</div></div>-->
             </div>
-            <div flex flex-col items-end text-start text-xs px-2 py-1 bg-slate-800 rounded-bl-xl style="opacity: 75%; font-family: monospace" mt-1>
-                <div>bin&nbsp;&nbsp;&nbsp; {{ gpuTimings.binning.toFixed(2) }} ms</div>
-                <div>force {{ gpuTimings.forces.toFixed(2) }} ms</div>
-                <div>adv&nbsp;&nbsp;&nbsp; {{ gpuTimings.advance.toFixed(2) }} ms</div>
-                <div>rend&nbsp; {{ gpuTimings.render.toFixed(2) }} ms</div>
-                <div style="border-top:1px solid #555; padding-top:1px">total {{ gpuTimings.total.toFixed(2) }} ms</div>
+            <div v-if="particleLife.isGpuTimingsEnabled" flex flex-col items-end text-start text-xs pl-2.5 pr-2 py-1.5 bg-slate-800 rounded-l-xl style="opacity: 75%; font-family: monospace" mt-1>
+                <div v-if="particleLife.useBinning" flex>bin <div ml-1 min-w-15 text-end>{{ gpuTimings.binning.toFixed(2) }} ms</div></div>
+                <div flex>force <div ml-1 min-w-15 text-end>{{ gpuTimings.forces.toFixed(2) }} ms</div></div>
+                <div flex>adv <div ml-1 min-w-15 text-end>{{ gpuTimings.advance.toFixed(2) }} ms</div></div>
+                <div flex>rend <div ml-1 min-w-15 text-end>{{ gpuTimings.render.toFixed(2) }} ms</div></div>
+                <div v-if="particleLife.isParticleGlow" flex>bloom <div ml-1 min-w-15 text-end>{{ gpuTimings.bloom.toFixed(2) }} ms</div></div>
+                <div v-if="particleLife.isParticleGlow" flex>comp <div ml-1 min-w-15 text-end>{{ gpuTimings.compose.toFixed(2) }} ms</div></div>
+                <div flex border-t-px border-gray-500 pt-0.5 mt-px>total <div ml-1 min-w-15 text-end>{{ gpuTimings.total.toFixed(2) }} ms</div></div>
             </div>
         </div>
 
@@ -321,19 +327,14 @@ export default defineComponent({
 
         // -------------------------------------------------------------------------------------------------------------
         // ---- GPU profiling ----
-        const gpuTimings = reactive({
-            binning: 0,
-            forces: 0,
-            advance: 0,
-            render: 0,
-            total: 0,
-        })
+        let isGpuTimingsEnabled: boolean = particleLife.isGpuTimingsEnabled
         let timestampQuerySupported: boolean = false
         let timestampQuerySet: GPUQuerySet | null = null
         let timestampResolveBuffer: GPUBuffer | null = null
         const timestampStagingPool: GPUBuffer[] = []
-        const TIMESTAMP_COUNT = 8 // binning, forces, advance, render
+        const TIMESTAMP_COUNT = 12 // 6 slots × 2 (begin/end): binning, forces, advance, render, bloom, compose
         let timestampStagingInFlight: number = 0
+        const gpuTimings = reactive({ binning: 0, forces: 0, advance: 0, render: 0, bloom: 0, compose: 0, total: 0 })
         // -----------------------
         // -------------------------------------------------------------------------------------------------------------
 
@@ -858,6 +859,7 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         const tsWrites = (slot: number): GPUComputePassTimestampWrites | undefined => {
+            if (!isGpuTimingsEnabled) return undefined
             if (!timestampQuerySupported || !timestampQuerySet) return undefined
             return {
                 querySet: timestampQuerySet,
@@ -865,15 +867,16 @@ export default defineComponent({
                 endOfPassWriteIndex: slot * 2 + 1,
             }
         }
-        const tsRenderWrites = (slot: number): GPURenderPassTimestampWrites | undefined => {
+        const tsRenderWrites = (slot: number, mode: 'full' | 'begin' | 'end' = 'full'): GPURenderPassTimestampWrites | undefined => {
+            if (!isGpuTimingsEnabled) return undefined
             if (!timestampQuerySupported || !timestampQuerySet) return undefined
-            return {
-                querySet: timestampQuerySet,
-                beginningOfPassWriteIndex: slot * 2,
-                endOfPassWriteIndex: slot * 2 + 1,
-            }
+            const writes: GPURenderPassTimestampWrites = { querySet: timestampQuerySet }
+            if (mode !== 'end') writes.beginningOfPassWriteIndex = slot * 2
+            if (mode !== 'begin') writes.endOfPassWriteIndex = slot * 2 + 1
+            return writes
         }
         const resolveAndReadTimestamps = (encoder: GPUCommandEncoder) => {
+            if (!isGpuTimingsEnabled) return
             if (!timestampQuerySupported || !timestampQuerySet || !timestampResolveBuffer) return
             const staging = timestampStagingPool.find(b => b.mapState === 'unmapped')
             if (!staging || timestampStagingInFlight >= timestampStagingPool.length) return
@@ -886,16 +889,20 @@ export default defineComponent({
                     staging.unmap()
                     timestampStagingInFlight--
                     const ns2ms = (a: bigint, b: bigint) => Number(b - a) / 1e6
-                    const binning = ns2ms(data[0], data[1])
-                    const forces  = ns2ms(data[2], data[3])
-                    const advance = ns2ms(data[4], data[5])
-                    const render  = ns2ms(data[6], data[7])
+                    const binning = ns2ms(data[0],  data[1])
+                    const forces  = ns2ms(data[2],  data[3])
+                    const advance = ns2ms(data[4],  data[5])
+                    const render  = ns2ms(data[6],  data[7])
+                    const bloom   = ns2ms(data[8],  data[9])
+                    const compose = ns2ms(data[10], data[11])
                     const k = 0.15
                     gpuTimings.binning = gpuTimings.binning * (1 - k) + binning * k
                     gpuTimings.forces  = gpuTimings.forces  * (1 - k) + forces  * k
                     gpuTimings.advance = gpuTimings.advance * (1 - k) + advance * k
                     gpuTimings.render  = gpuTimings.render  * (1 - k) + render  * k
-                    gpuTimings.total   = gpuTimings.binning + gpuTimings.forces + gpuTimings.advance + gpuTimings.render
+                    gpuTimings.bloom   = gpuTimings.bloom   * (1 - k) + bloom   * k
+                    gpuTimings.compose = gpuTimings.compose * (1 - k) + compose * k
+                    gpuTimings.total   = gpuTimings.binning + gpuTimings.forces + gpuTimings.advance + gpuTimings.render + gpuTimings.bloom + gpuTimings.compose
                 }).catch(() => { timestampStagingInFlight-- })
             })
         }
@@ -955,7 +962,7 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         const computeBruteForce = (encoder: GPUCommandEncoder) => {
-            const computePass = encoder.beginComputePass({ timestampWrites: tsWrites(0) })
+            const computePass = encoder.beginComputePass({ timestampWrites: tsWrites(1) })
             computePass.setPipeline(bruteForceComputePipeline)
             computePass.setBindGroup(0, bruteForceBindGroup)
             computePass.setBindGroup(1, simOptionsBindGroup)
@@ -1059,6 +1066,7 @@ export default defineComponent({
                             clearValue: { r: 0, g: 0, b: 0, a: 1 },
                             storeOp: 'store',
                         }],
+                        timestampWrites: i === 0 ? tsRenderWrites(4, 'begin') : undefined,
                     })
                     downPass.setPipeline(i === 0 ? bloomPrefilterPipeline : bloomDownsamplePipeline)
                     downPass.setBindGroup(0, bloomDownBindGroups[i])
@@ -1072,6 +1080,7 @@ export default defineComponent({
                             loadOp: 'load',
                             storeOp: 'store',
                         }],
+                        timestampWrites: i === 0 ? tsRenderWrites(4, 'end') : undefined,
                     })
                     upPass.setPipeline(bloomUpsamplePipeline)
                     upPass.setBindGroup(0, bloomUpBindGroups[i])
@@ -1086,6 +1095,7 @@ export default defineComponent({
                         clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
                         storeOp: 'store',
                     }],
+                    timestampWrites: tsRenderWrites(5),
                 })
                 composePass.setPipeline(composeHdrPipelines[tonemapMode] ?? composeHdrPipelines[1]!)
                 composePass.setBindGroup(0, composeHdrBindGroup)
@@ -2380,6 +2390,7 @@ export default defineComponent({
         }
 
         watch(() => particleLife.isRunning, (value: boolean) => isRunning = value)
+        watch(() => particleLife.isGpuTimingsEnabled, (value: boolean) => isGpuTimingsEnabled = value)
         watch(() => particleLife.zoomSmoothing, (value: number) => zoomSmoothing = value)
         watch(() => particleLife.panSmoothing, (value: number) => panSmoothing = value)
         watch(() => particleLife.isBoundingBoxActive, (value: boolean) => isBoundingBoxActive = value)
