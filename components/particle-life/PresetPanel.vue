@@ -56,7 +56,7 @@
                         </div>
                     </div>
                 </div>
-                <div mt-2 v-if="particleLife.engineType !== 'CPU'">
+                <div mt-2 v-if="particleLife.engineType === 'GPU'">
                     <div class="flex items-center text-2sm mb-1">
                         <div class="i-tabler-spiral text-cyan-500 text-md"></div>
                         <span mx-1>Particle Distribution</span>

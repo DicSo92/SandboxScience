@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import type {Preset} from "~/composables/usePresetManager";
 
 export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => {
     const engineType = ref<'CPU' | 'GPU' | 'GPU3D'>('GPU3D') // Engine type
@@ -64,6 +65,9 @@ export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => 
     const selectedRulesOption = ref<number>(0) // Default to 'random'
     const selectedColorPaletteOption = ref<number>(0) // Default to 'random'
 
+    const savedPresets = ref<Record<string, Preset>>({}) // Saved presets from localStorage
+    const isSaveModalOpen = ref<boolean>(false) // Is the save preset modal open
+
     function $reset() {
         sidebarLeftOpen.value = false
         currentMaxRadius.value = 0 // Prevent watcher from not triggering when page is reloaded (!important)
@@ -79,9 +83,8 @@ export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => 
         minRadiusRange, maxRadiusRange, currentMaxRadius,
         repel, forceFactor, frictionFactor, useBinning, binningMode, isBoundingBoxActive,
         isParticleGlow, bloomThreshold, bloomIntensity, bloomKnee, tonemapMode,
-        selectedRulesOption, selectedColorPaletteOption,
-        cellSubdivisions,
-        gridExtensionFactor, maxGridExtensionFactor,
+        selectedRulesOption, selectedColorPaletteOption, savedPresets, isSaveModalOpen,
+        cellSubdivisions, gridExtensionFactor, maxGridExtensionFactor,
         $reset
     }
 })

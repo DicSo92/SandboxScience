@@ -17,6 +17,14 @@
                     </div>
                     <hr border-slate-500>
                     <div overflow-auto flex-1 flex flex-col gap-2 mt-2 pb-12 class="scrollableArea">
+                        <Collapse label="Presets" icon="i-tabler-sparkles text-amber-500"
+                                  tooltip="Choose predefined configurations to quickly set up your simulation.">
+                            <PresetPanel :store="particleLife"
+                                         @updateColors="updateColors"
+                                         @updateRulesMatrix="updateRulesMatrix"
+                                         @loadPreset="loadPreset">
+                            </PresetPanel>
+                        </Collapse>
                         <Collapse label="Matrix Settings" icon="i-tabler-grid-4x4 text-indigo-500"
                                   tooltip="Modify matrix values by clicking on cells in the grid. <br>
                                   Adjust individual cell values with the slider, or click and drag to change them directly. <br>
@@ -169,6 +177,8 @@
 
         <canvas ref="canvasRef" id="canvasRef" @contextmenu.prevent w-full h-full cursor-crosshair></canvas>
 
+        <SaveModal :store="particleLife"></SaveModal>
+
         <div absolute top-0 right-0 flex flex-col items-end text-right pointer-events-none>
             <div flex items-center text-start text-xs pl-4 pr-1 bg-slate-800 rounded-bl-xl style="padding-bottom: 1px; opacity: 75%" >
                 <div flex>Fps: <div ml-1 min-w-8>{{ fps }}</div></div>
@@ -231,6 +241,8 @@ import renderGlowShaderCode from 'assets/particle-life-gpu-3d/shaders/render/par
 import boxShaderCode from 'assets/particle-life-gpu-3d/shaders/render/render_box.wgsl?raw';
 import composeHdrShaderCode from 'assets/particle-life-gpu-3d/shaders/compose/compose_hdr.wgsl?raw';
 import bloomShaderCode from 'assets/particle-life-gpu-3d/shaders/compose/bloom.wgsl?raw';
+import PresetPanel from "~/components/particle-life/PresetPanel.vue";
+import SaveModal from "~/components/particle-life/SaveModal.vue";
 
 const tonemapOptions = [
     { id: 0, name: 'None (raw)',           category: 'Raw' },
@@ -244,13 +256,15 @@ const tonemapOptions = [
 
 export default defineComponent({
     name: 'ParticleLifeGpu',
-    components: { RadiusVisualizer, BrushSettings, MatrixSettings },
+    components: {SaveModal, PresetPanel, RadiusVisualizer, BrushSettings, MatrixSettings },
     setup() {
         // Define refs and variables
         const mainContainer = ref<HTMLElement | null>(null)
         const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(mainContainer)
-        // const { success, error } = useToasts()
+        const { success, error } = useToasts()
         const particleLife = useParticleLifeGPU3DStore()
+        const rulesOptions = RULES_OPTIONS
+        const paletteOptions = PALETTE_OPTIONS
         const fps = useFps()
         const executionTime = ref<number>(0)
         const canvasRef = ref<HTMLCanvasElement | null>(null)
@@ -1135,6 +1149,22 @@ export default defineComponent({
             setMaxRadiusMatrix(makeRandomMaxRadiusMatrix())
             updateInteractionMatrixBuffer()
         }
+
+        const updateColors = async (useRandomGenerator: boolean | Event = false) => {
+            const shouldRandom = typeof useRandomGenerator === 'boolean' ? useRandomGenerator : false
+            if (shouldRandom) particleLife.selectedColorPaletteOption = paletteOptions[Math.floor(Math.random() * paletteOptions.length)].id
+
+            colors = generateColors(particleLife.selectedColorPaletteOption, NUM_TYPES)
+            particleLife.currentColors = colors
+            updateColorBuffer()
+        }
+        const updateRulesMatrix = async (useRandomGenerator: boolean | Event = false) => {
+            const shouldRandom = typeof useRandomGenerator === 'boolean' ? useRandomGenerator : false
+            if (shouldRandom) particleLife.selectedRulesOption = rulesOptions[Math.floor(Math.random() * rulesOptions.length)].id
+
+            setRulesMatrix(generateRules(particleLife.selectedRulesOption, NUM_TYPES))
+            updateInteractionMatrixBuffer()
+        }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -1522,7 +1552,79 @@ export default defineComponent({
                 isUpdateNumTypesPending = NEW_NUM_TYPES !== NUM_TYPES
             }
         }
+        const loadPreset = async (options: { presetRules?: number[][], presetMinRadius?: number[][], presetMaxRadius?: number[][], presetColors?: Float32Array }, presetTypeCount: number, matchPresetCount: boolean) => {
+            const { presetRules, presetMinRadius, presetMaxRadius, presetColors } = options
+
+            if (isUpdatingParticles) return
+            isUpdatingParticles = true
+            await device.queue.onSubmittedWorkDone()
+
+            try {
+                const oldNumTypes = NUM_TYPES
+                const newNumTypes = presetTypeCount
+                if (newNumTypes === 0) return
+
+                if (!matchPresetCount) {
+                    const typesToUpdate = Math.min(NUM_TYPES, newNumTypes)
+                    if (presetColors) await adjustColors(presetColors, NUM_TYPES, typesToUpdate, true) // Update only the colors that fit within the current NUM_TYPES
+                    if (presetRules) setRulesMatrix(applyPresetSubMatrix(rulesMatrix, presetRules, NUM_TYPES, typesToUpdate))
+                    if (presetMinRadius) setMinRadiusMatrix(applyPresetSubMatrix(minRadiusMatrix, presetMinRadius, NUM_TYPES, typesToUpdate))
+                    if (presetMaxRadius) setMaxRadiusMatrix(applyPresetSubMatrix(maxRadiusMatrix, presetMaxRadius, NUM_TYPES, typesToUpdate))
+                } else {
+                    if (presetColors) {
+                        colors = presetColors
+                        particleLife.currentColors = colors
+                    } else if (newNumTypes !== oldNumTypes) {
+                        await adjustColors(colors, oldNumTypes, newNumTypes)
+                    }
+
+                    if (newNumTypes !== oldNumTypes) {
+                        NUM_TYPES = newNumTypes
+                        particleLife.numColors = NUM_TYPES
+
+                        await adjustParticleTypes(oldNumTypes, newNumTypes)
+
+                        if (presetRules) setRulesMatrix(presetRules)
+                        else setRulesMatrix(resizeMatrix(rulesMatrix, oldNumTypes, newNumTypes, () => {
+                            return Math.round((Math.random() * 2 - 1) * 100) / 100
+                        }))
+                        if (presetMinRadius) setMinRadiusMatrix(presetMinRadius)
+                        else setMinRadiusMatrix(resizeMatrix(minRadiusMatrix, oldNumTypes, newNumTypes, () => {
+                            return Math.floor(Math.random() * (particleLife.minRadiusRange[1] - particleLife.minRadiusRange[0] + 1) + particleLife.minRadiusRange[0])
+                        }))
+                        if (presetMaxRadius) setMaxRadiusMatrix(presetMaxRadius)
+                        else setMaxRadiusMatrix(resizeMatrix(maxRadiusMatrix, oldNumTypes, newNumTypes, () => {
+                            return Math.floor(Math.random() * (particleLife.maxRadiusRange[1] - particleLife.maxRadiusRange[0] + 1) + particleLife.maxRadiusRange[0])
+                        }))
+
+                        updateSimOptionsBuffer()
+                    } else {
+                        if (presetRules) setRulesMatrix(presetRules)
+                        if (presetMinRadius) setMinRadiusMatrix(presetMinRadius)
+                        if (presetMaxRadius) setMaxRadiusMatrix(presetMaxRadius)
+                    }
+                }
+
+                updateColorBuffer()
+                updateInteractionMatrixBuffer()
+                if (matchPresetCount && (newNumTypes !== oldNumTypes)) updateParticleBindGroups()
+            } finally {
+                isUpdatingParticles = false
+                success("Preset loaded.")
+            }
+        }
         // -------------------------------------------------------------------------------------------------------------
+        const applyPresetSubMatrix = (current: number[][], preset: number[][], numTypes: number, typesToUpdate: number,): number[][] => {
+            const result = current.map(row => row.slice())
+            for (let i = 0; i < numTypes; i++) {
+                for (let j = 0; j < numTypes; j++) {
+                    if (i < typesToUpdate && j < typesToUpdate) {
+                        result[i][j] = preset[i][j]
+                    }
+                }
+            }
+            return result
+        }
         const adjustColors = async (oldColors: Float32Array, oldNumTypes: number, newNumTypes: number, keepExtraColors: boolean = false) => {
             const newColors = new Float32Array((keepExtraColors ? oldNumTypes : newNumTypes) * 4)
             if (keepExtraColors) newColors.set(colors)
@@ -2362,7 +2464,7 @@ export default defineComponent({
             handleZoom, toggleFullscreen, isFullscreen, regenerateLife, step,
             updateSimWidth, updateSimHeight, updateSimDepth,
             updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, newRandomRulesMatrix, updateSingleColor,
-            randomizeRadius, randomizeRulesAndRadius,
+            randomizeRadius, randomizeRulesAndRadius, updateColors, updateRulesMatrix, loadPreset,
             setNewNumParticles, setNewNumTypes,
             tonemapOptions,
         }
