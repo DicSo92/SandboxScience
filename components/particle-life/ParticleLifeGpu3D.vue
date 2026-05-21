@@ -102,7 +102,51 @@
                                         :min="0" :max="1" :step="0.01" v-model="particleLife.particleOpacity" mt-2>
                             </RangeInput>
 
-                            <ToggleSwitch mt-2 label="Show Bounding Box" v-model="particleLife.isBoundingBoxActive" />
+                            <div flex justify-between>
+                                <ToggleSwitch mt-2 label="Bounding Box" v-model="particleLife.isBoundingBoxActive" />
+                                <ToggleSwitch mt-2 label="Particle Border"
+                                              tooltip="Draw a subtle dark border around each particle. Helps individual particles stand out in dense clusters. Disable for solid discs that blend together more."
+                                              v-model="particleLife.isParticleBorder">
+                                </ToggleSwitch>
+                            </div>
+
+                            <hr border-gray-500 my-2>
+                            <div flex items-start justify-between mb-1>
+                                <p underline text-gray-300 mb-1>Sphere Shading :</p>
+                                <ToggleSwitch label="Sphere Shading" colorful-label v-model="particleLife.isSphereShading" />
+                            </div>
+
+                            <SelectInput v-show="particleLife.isSphereShading" name="sphere-shading-preset"
+                                         v-model="sphereShadingPreset"
+                                         :options="sphereShadingPresetOptions">
+                            </SelectInput>
+                            <RangeInput v-show="particleLife.isSphereShading" input label="Ambient" mt-2
+                                        tooltip="Constant ambient term added to the diffuse contribution. Raises overall brightness on dark sides."
+                                        :min="0" :max="1" :step="0.01" v-model="particleLife.sphereAmbient">
+                            </RangeInput>
+                            <RangeInput v-show="particleLife.isSphereShading" input label="Diffuse" mt-2
+                                        tooltip="Lambert diffuse strength. Controls how strongly the lit hemisphere reads as the base color."
+                                        :min="0" :max="2" :step="0.01" v-model="particleLife.sphereDiffuseStrength">
+                            </RangeInput>
+                            <RangeInput v-show="particleLife.isSphereShading" input label="Specular" mt-2
+                                        tooltip="Blinn-Phong specular strength (white highlight). 0 disables the highlight."
+                                        :min="0" :max="2" :step="0.01" v-model="particleLife.sphereSpecularStrength">
+                            </RangeInput>
+                            <RangeInput v-show="particleLife.isSphereShading" input label="Shininess" mt-2
+                                        tooltip="Specular exponent. Higher values produce a smaller, sharper highlight."
+                                        :min="1" :max="128" :step="1" v-model="particleLife.sphereShininess">
+                            </RangeInput>
+                            <div v-show="particleLife.isSphereShading" flex items-center justify-between mt-2>
+                                <p class="w-2/3 text-2sm">
+                                    Light Direction
+                                    <TooltipInfo container="#mainContainer" tooltip="Position of the light source illuminating each particle. <br> X = left/right <br> Y = up/down <br> Z = front/back <br> Negative values flip the direction on that axis." />
+                                </p>
+                                <div flex items-center gap-2>
+                                    <Input label="x" :model-value="particleLife.sphereLightDir[0]" @update:model-value="particleLife.sphereLightDir[0] = $event" inputClass="w-12!" />
+                                    <Input label="y" :model-value="particleLife.sphereLightDir[1]" @update:model-value="particleLife.sphereLightDir[1] = $event" inputClass="w-12!" />
+                                    <Input label="z" :model-value="particleLife.sphereLightDir[2]" @update:model-value="particleLife.sphereLightDir[2] = $event" inputClass="w-12!" />
+                                </div>
+                            </div>
 
                             <hr border-gray-500 my-2>
                             <div flex items-start justify-between mb-2>
@@ -231,7 +275,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, onMounted, reactive, ref } from 'vue';
+import { computed, defineComponent, onMounted, reactive, ref } from 'vue';
 import MatrixSettings from "~/components/particle-life/MatrixSettings.vue";
 import BrushSettings from "~/components/particle-life/BrushSettings.vue";
 import RadiusVisualizer from "~/components/particle-life/RadiusVisualizer.vue";
@@ -268,6 +312,19 @@ const tonemapOptions = [
     { id: 4, name: 'Reinhard-Jodie',       category: 'Filmic' },
     { id: 5, name: 'Uncharted 2 (Filmic)', category: 'Filmic' },
     { id: 6, name: 'AgX',                  category: 'Realistic' },
+]
+const SPHERE_SHADING_PRESETS = [
+    { id: 'flat-matte',     name: 'Flat Matte',     category: 'Diffuse',  ambient: 0.45, diffuse: 0.95, specular: 0.00, shininess: 1 },
+    { id: 'chalk',          name: 'Chalk',          category: 'Diffuse',  ambient: 0.35, diffuse: 0.80, specular: 0.05, shininess: 4 },
+    { id: 'rubber',         name: 'Rubber',         category: 'Soft',     ambient: 0.20, diffuse: 0.90, specular: 0.20, shininess: 8 },
+    { id: 'plastic',        name: 'Plastic',        category: 'Soft',     ambient: 0.25, diffuse: 0.85, specular: 0.45, shininess: 24 },
+    { id: 'glossy-bead',    name: 'Glossy Bead',    category: 'Glossy',   ambient: 0.15, diffuse: 0.80, specular: 0.75, shininess: 48 },
+    { id: 'polished-pearl', name: 'Polished Pearl', category: 'Glossy',   ambient: 0.10, diffuse: 0.70, specular: 1.10, shininess: 96 },
+    { id: 'chrome-drop',    name: 'Chrome Drop',    category: 'Metallic', ambient: 0.05, diffuse: 0.55, specular: 1.50, shininess: 128},
+] as const
+const sphereShadingPresetOptions = [
+    ...SPHERE_SHADING_PRESETS.map(p => ({ id: p.id, name: p.name, category: p.category })),
+    { id: 'custom', name: 'Custom', category: 'Manual' },
 ]
 
 export default defineComponent({
@@ -409,11 +466,20 @@ export default defineComponent({
         let isWallRepel: boolean = particleLife.isWallRepel // Enable walls X and Y for the particles
         let isWallWrap: boolean = particleLife.isWallWrap // Enable wrapping for the particles
         let isBoundingBoxActive: boolean = particleLife.isBoundingBoxActive // Show box wireframe
+
         let isParticleGlow: boolean = particleLife.isParticleGlow // Toggle HDR + dual-filter bloom render path (UI: "Particle Glowing")
         let tonemapMode: number = particleLife.tonemapMode
         let bloomThreshold: number = particleLife.bloomThreshold
         let bloomIntensity: number = particleLife.bloomIntensity
         let bloomKnee: number = particleLife.bloomKnee
+
+        let isParticleBorder: boolean = particleLife.isParticleBorder
+        let isSphereShading: boolean = particleLife.isSphereShading
+        let sphereAmbient: number = particleLife.sphereAmbient
+        let sphereDiffuseStrength: number = particleLife.sphereDiffuseStrength
+        let sphereSpecularStrength: number = particleLife.sphereSpecularStrength
+        let sphereShininess: number = particleLife.sphereShininess
+        let sphereLightDir: number[] = [...particleLife.sphereLightDir]
 
         // Define GPU resources
         let device: GPUDevice
@@ -436,6 +502,7 @@ export default defineComponent({
         let binAux2Buffer: GPUBuffer | undefined
         let cellSignatureBuffer: GPUBuffer | undefined // Hash mode only: per-particle 32-bit cell signature for collision rejection
         let bloomOptionsBuffer: GPUBuffer | undefined // threshold, intensity, knee
+        let renderOptionsBuffer: GPUBuffer | undefined // border, sphere shading, lightDir, etc...
 
         let particleBufferBindGroup: GPUBindGroup
         let particleBufferReadOnlyBindGroup: GPUBindGroup
@@ -453,6 +520,7 @@ export default defineComponent({
         let simOptionsBindGroup: GPUBindGroup
         let deltaTimeBindGroup: GPUBindGroup
         let cameraBindGroup: GPUBindGroup
+        let renderOptionsBindGroup: GPUBindGroup
         let composeHdrBindGroup: GPUBindGroup
         const bloomDownBindGroups: GPUBindGroup[] = []
         const bloomUpBindGroups: GPUBindGroup[] = []
@@ -471,6 +539,7 @@ export default defineComponent({
         let simOptionsBindGroupLayout: GPUBindGroupLayout
         let deltaTimeBindGroupLayout: GPUBindGroupLayout
         let cameraBindGroupLayout: GPUBindGroupLayout
+        let renderOptionsBindGroupLayout: GPUBindGroupLayout
         let bloomBindGroupLayout: GPUBindGroupLayout
         let composeHdrBindGroupLayout: GPUBindGroupLayout
 
@@ -1052,6 +1121,7 @@ export default defineComponent({
                 hdrPass.setBindGroup(0, particleBufferReadOnlyBindGroup)
                 hdrPass.setBindGroup(1, simOptionsBindGroup)
                 hdrPass.setBindGroup(2, cameraBindGroup)
+                hdrPass.setBindGroup(3, renderOptionsBindGroup)
                 hdrPass.draw(4, NUM_PARTICLES)
 
                 if (isBoundingBoxActive) renderHdrBoundingBox(hdrPass)
@@ -1121,6 +1191,7 @@ export default defineComponent({
                 renderPass.setBindGroup(0, particleBufferReadOnlyBindGroup)
                 renderPass.setBindGroup(1, simOptionsBindGroup)
                 renderPass.setBindGroup(2, cameraBindGroup)
+                renderPass.setBindGroup(3, renderOptionsBindGroup)
                 renderPass.draw(4, NUM_PARTICLES)
 
                 if (isBoundingBoxActive) renderBoundingBox(renderPass)
@@ -1431,6 +1502,31 @@ export default defineComponent({
                 bloomOptionsBuffer.unmap()
             } else {
                 device.queue.writeBuffer(bloomOptionsBuffer, 0, bloomOptionsData)
+            }
+        }
+        const updateRenderOptionsBuffer = () => {
+            const renderData = new ArrayBuffer(48)
+            const view = new DataView(renderData)
+            view.setUint32(0, isParticleBorder ? 1 : 0, true)
+            view.setUint32(4, isSphereShading ? 1 : 0, true)
+            view.setFloat32(8, sphereAmbient, true)
+            view.setFloat32(12, sphereDiffuseStrength, true)
+            view.setFloat32(16, sphereSpecularStrength, true)
+            view.setFloat32(20, sphereShininess, true)
+            view.setFloat32(32, sphereLightDir[0] ?? 0, true)
+            view.setFloat32(36, sphereLightDir[1] ?? 0, true)
+            view.setFloat32(40, sphereLightDir[2] ?? 1, true)
+
+            if (!renderOptionsBuffer) {
+                renderOptionsBuffer = device.createBuffer({
+                    size: renderData.byteLength,
+                    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+                    mappedAtCreation: true,
+                })
+                new Uint8Array(renderOptionsBuffer.getMappedRange()).set(new Uint8Array(renderData))
+                renderOptionsBuffer.unmap()
+            } else {
+                device.queue.writeBuffer(renderOptionsBuffer, 0, renderData)
             }
         }
         const updateInteractionMatrixBuffer = () => {
@@ -1749,6 +1845,7 @@ export default defineComponent({
             updateColorBuffer()
             updateCameraBuffer()
             updateBloomOptionsBuffer()
+            updateRenderOptionsBuffer()
             // ----------------------------------------------------------------------------------------------
             deltaTimeBuffer = device.createBuffer({
                 size: 4,
@@ -1781,6 +1878,12 @@ export default defineComponent({
                 layout: cameraBindGroupLayout,
                 entries: [
                     { binding: 0, resource: { buffer: cameraBuffer! } },
+                ],
+            })
+            renderOptionsBindGroup = device.createBindGroup({
+                layout: renderOptionsBindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: renderOptionsBuffer! } },
                 ],
             })
         }
@@ -2040,6 +2143,11 @@ export default defineComponent({
                     { binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } }, // cameraBuffer
                 ],
             })
+            renderOptionsBindGroupLayout = device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } }, // renderOptionsBuffer
+                ],
+            })
             bloomBindGroupLayout = device.createBindGroupLayout({
                 entries: [
                     { binding: 0, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'float', viewDimension: '2d' } }, // source mip / hdr
@@ -2187,7 +2295,7 @@ export default defineComponent({
             const renderShader = device.createShaderModule({code: renderShaderCode})
             renderPipeline = device.createRenderPipeline({
                 layout: device.createPipelineLayout({
-                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout],
+                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, renderOptionsBindGroupLayout],
                 }),
                 vertex: { module: renderShader, entryPoint: 'vertexMain' },
                 fragment: {
@@ -2228,7 +2336,7 @@ export default defineComponent({
             const renderGlowShader = device.createShaderModule({ code: renderGlowShaderCode })
             renderCirclePipeline = device.createRenderPipeline({
                 layout: device.createPipelineLayout({
-                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout],
+                    bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, renderOptionsBindGroupLayout],
                 }),
                 vertex: { module: renderGlowShader, entryPoint: 'vertexCircle' },
                 fragment: {
@@ -2388,6 +2496,12 @@ export default defineComponent({
                 updateBloomOptionsBuffer()
             })
         }
+        function watchAndUpdateRenderOptions(effect: any, callback: any) {
+            watch(effect, (value) => {
+                callback(value)
+                updateRenderOptionsBuffer()
+            }, { deep: true })
+        }
 
         watch(() => particleLife.isRunning, (value: boolean) => isRunning = value)
         watch(() => particleLife.isGpuTimingsEnabled, (value: boolean) => isGpuTimingsEnabled = value)
@@ -2407,6 +2521,14 @@ export default defineComponent({
         watchAndUpdateBloomOptions(() => particleLife.bloomThreshold, (value: number) => bloomThreshold = value)
         watchAndUpdateBloomOptions(() => particleLife.bloomIntensity, (value: number) => bloomIntensity = value)
         watchAndUpdateBloomOptions(() => particleLife.bloomKnee, (value: number) => bloomKnee = value)
+
+        watchAndUpdateRenderOptions(() => particleLife.isParticleBorder, (value: boolean) => isParticleBorder = value)
+        watchAndUpdateRenderOptions(() => particleLife.isSphereShading, (value: boolean) => isSphereShading = value)
+        watchAndUpdateRenderOptions(() => particleLife.sphereAmbient, (value: number) => sphereAmbient = value)
+        watchAndUpdateRenderOptions(() => particleLife.sphereDiffuseStrength, (value: number) => sphereDiffuseStrength = value)
+        watchAndUpdateRenderOptions(() => particleLife.sphereSpecularStrength, (value: number) => sphereSpecularStrength = value)
+        watchAndUpdateRenderOptions(() => particleLife.sphereShininess, (value: number) => sphereShininess = value)
+        watchAndUpdateRenderOptions(() => particleLife.sphereLightDir, (value: number[]) => sphereLightDir = [...value])
 
         watchAndUpdateSimOptions(() => particleLife.particleSize, (value: number) => PARTICLE_SIZE = value)
         watchAndUpdateSimOptions(() => particleLife.particleOpacity, (value: number) => PARTICLE_OPACITY = value)
@@ -2440,6 +2562,25 @@ export default defineComponent({
             updateSimOptionsBuffer()
         })
         // -------------------------------------------------------------------------------------------------------------
+        const sphereShadingPreset = computed<string>({
+            get() {
+                const preset = SPHERE_SHADING_PRESETS.find(p =>
+                    Math.abs(p.ambient - particleLife.sphereAmbient) < 0.0001 &&
+                    Math.abs(p.diffuse - particleLife.sphereDiffuseStrength) < 0.0001 &&
+                    Math.abs(p.specular - particleLife.sphereSpecularStrength) < 0.0001 &&
+                    Math.abs(p.shininess - particleLife.sphereShininess) < 0.0001)
+                return preset ? preset.id : 'custom'
+            },
+            set(id: string) {
+                const preset = SPHERE_SHADING_PRESETS.find(p => p.id === id)
+                if (!preset) return // custom
+                particleLife.sphereAmbient = preset.ambient
+                particleLife.sphereDiffuseStrength = preset.diffuse
+                particleLife.sphereSpecularStrength = preset.specular
+                particleLife.sphereShininess = preset.shininess
+            },
+        })
+        // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         const cancelAnimationLoop = () => {
@@ -2461,6 +2602,7 @@ export default defineComponent({
             interactionMatrixBuffer?.destroy(); interactionMatrixBuffer = undefined;
             simOptionsBuffer?.destroy(); simOptionsBuffer = undefined;
             bloomOptionsBuffer?.destroy(); bloomOptionsBuffer = undefined;
+            renderOptionsBuffer?.destroy(); renderOptionsBuffer = undefined;
 
             particleBuffer?.destroy(); particleBuffer = undefined;
             particleTempBuffer?.destroy(); particleTempBuffer = undefined;
@@ -2518,6 +2660,7 @@ export default defineComponent({
             randomizeRadius, randomizeRulesAndRadius, updateColors, updateRulesMatrix, loadPreset,
             setNewNumParticles, setNewNumTypes,
             tonemapOptions,
+            sphereShadingPresetOptions, sphereShadingPreset,
         }
     }
 })

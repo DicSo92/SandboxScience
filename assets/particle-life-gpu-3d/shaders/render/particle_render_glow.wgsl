@@ -39,10 +39,14 @@ struct Camera {
     nearPlane: f32,
     farPlane: f32,
 };
-struct GlowOptions {
-    glowSize: f32, // multiplier applied to particleSize for the glow billboard
-    glowIntensity: f32, // scalar multiplied into the HDR alpha of the glow
-    glowSteepness: f32, // exponent on the radial falloff: pow(1 - r², steepness)
+struct RenderOptions {
+    isParticleBorder: u32,
+    isSphereShading: u32,
+    ambient: f32,
+    diffuseStrength: f32,
+    specularStrength: f32,
+    shininess: f32,
+    lightDir: vec4<f32>, // xyz = direction (normalized in shader); w reserved
 };
 
 const QUAD_VERTICES = array<vec2<f32>, 4>(
@@ -53,10 +57,10 @@ const QUAD_VERTICES = array<vec2<f32>, 4>(
 );
 
 @group(0) @binding(0) var<storage, read> particles : array<Particle>;
-@group(0) @binding(1) var<storage, read> colors    : array<vec4<f32>>;
+@group(0) @binding(1) var<storage, read> colors : array<vec4<f32>>;
 @group(1) @binding(0) var<uniform> options : SimOptions;
-@group(2) @binding(0) var<uniform> camera  : Camera;
-@group(3) @binding(0) var<uniform> glow    : GlowOptions;
+@group(2) @binding(0) var<uniform> camera : Camera;
+@group(3) @binding(0) var<uniform> render : RenderOptions;
 
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
@@ -65,14 +69,14 @@ struct VertexOutput {
     @location(2) depthShade: f32,
 };
 
-fn vertex_main(instanceIndex: u32, vertexIndex: u32, sizeScale: f32) -> VertexOutput {
+fn vertex_main(instanceIndex: u32, vertexIndex: u32) -> VertexOutput {
     if (instanceIndex >= options.numParticles) {
         return VertexOutput(vec4f(2.0, 2.0, 2.0, 1.0), vec2f(0.0), vec4f(0.0), 0.0);
     }
     let particle = particles[instanceIndex];
-    let color    = colors[u32(particle.particleType)];
+    let color = colors[u32(particle.particleType)];
 
-    let simSize  = vec3f(options.simWidth, options.simHeight, options.simDepth);
+    let simSize = vec3f(options.simWidth, options.simHeight, options.simDepth);
     let halfSize = simSize * 0.5;
     let normScale = 1.0 / max(max(halfSize.x, halfSize.y), halfSize.z);
     let centered = vec3f(particle.x, particle.y, particle.z) - halfSize;
@@ -82,7 +86,7 @@ fn vertex_main(instanceIndex: u32, vertexIndex: u32, sizeScale: f32) -> VertexOu
     let aspect = camera.aspectRatio;
     let f = 1.0 / tan(camera.fovY * 0.5);
     let quadOffset = QUAD_VERTICES[vertexIndex];
-    let billboardRadius = options.particleSize * sizeScale * normScale * f;
+    let billboardRadius = options.particleSize * normScale * f;
     let offsetClip = vec2f(quadOffset.x / aspect, quadOffset.y) * billboardRadius;
 
     let clipPos = vec4f(centerClip.x + offsetClip.x, centerClip.y + offsetClip.y, centerClip.z, centerClip.w);
@@ -93,35 +97,34 @@ fn vertex_main(instanceIndex: u32, vertexIndex: u32, sizeScale: f32) -> VertexOu
 }
 
 @vertex
-fn vertexGlow(@builtin(instance_index) instanceIndex: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
-    return vertex_main(instanceIndex, vertexIndex, glow.glowSize);
-}
-
-@vertex
 fn vertexCircle(@builtin(instance_index) instanceIndex: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
-    return vertex_main(instanceIndex, vertexIndex, 1.0);
-}
-
-@fragment
-fn fragmentGlow(in: VertexOutput) -> @location(0) vec4<f32> {
-    let dist_sq = dot(in.offset, in.offset);
-    if (dist_sq > 1.0) { discard; }
-
-    let falloff = saturate(1.0 - dist_sq);
-    let alpha = pow(falloff, glow.glowSteepness) * glow.glowIntensity;
-    if (alpha < 0.0001) { discard; }
-
-    return vec4<f32>(in.color.rgb * alpha * in.depthShade, alpha);
+    return vertex_main(instanceIndex, vertexIndex);
 }
 
 @fragment
 fn fragmentCircle(in: VertexOutput) -> @location(0) vec4<f32> {
     let dist_sq = dot(in.offset, in.offset);
     if (dist_sq > 1.0) { discard; }
-    let edge_width = fwidth(dist_sq);
-    let alpha = 1.0 - smoothstep(max(0.0, 1.0 - edge_width), 1.0, dist_sq);
+
+    var coverage: f32 = 1.0;
+    if (render.isParticleBorder != 0u) {
+        let edge_width = min(fwidth(dist_sq), 0.20);
+        coverage = 1.0 - smoothstep(1.0 - edge_width, 1.0, dist_sq);
+    }
 
     let linearColor = pow(in.color.rgb, vec3<f32>(2.2));
-    let shaded = linearColor * in.depthShade;
-    return vec4<f32>(shaded, in.color.a * options.particleOpacity * alpha);
+    var shaded = linearColor * in.depthShade;
+    if (render.isSphereShading != 0u) {
+        let r = in.offset;
+        let z2 = max(1.0 - dist_sq, 0.0);
+        let n = vec3<f32>(r.x, r.y, sqrt(z2));
+        let L = normalize(render.lightDir.xyz);
+        let V = vec3<f32>(0.0, 0.0, 1.0);
+        let H = normalize(L + V);
+        let diff = max(dot(n, L), 0.0);
+        let spec = pow(max(dot(n, H), 0.0), max(render.shininess, 1.0));
+        let lit = render.ambient + render.diffuseStrength * diff;
+        shaded = (linearColor * lit + vec3<f32>(render.specularStrength * spec)) * in.depthShade;
+    }
+    return vec4<f32>(shaded * coverage, in.color.a * options.particleOpacity);
 }

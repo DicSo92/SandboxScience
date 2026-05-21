@@ -40,6 +40,16 @@ struct Camera {
     farPlane: f32,
 };
 
+struct RenderOptions {
+    isParticleBorder: u32,
+    isSphereShading: u32,
+    ambient: f32,
+    diffuseStrength: f32,
+    specularStrength: f32,
+    shininess: f32,
+    lightDir: vec4<f32>, // xyz = direction (normalized in shader); w reserved
+};
+
 const QUAD_VERTICES = array<vec2<f32>, 4>(
     vec2<f32>(-1.0, -1.0),
     vec2<f32>( 1.0, -1.0),
@@ -51,6 +61,7 @@ const QUAD_VERTICES = array<vec2<f32>, 4>(
 @group(0) @binding(1) var<storage, read> colors: array<vec4<f32>>;
 @group(1) @binding(0) var<uniform> options: SimOptions;
 @group(2) @binding(0) var<uniform> camera: Camera;
+@group(3) @binding(0) var<uniform> render: RenderOptions;
 
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
@@ -70,55 +81,49 @@ fn vertexMain(
     let particle = particles[instanceIndex];
     let color = colors[u32(particle.particleType)];
 
-    // Center the simulation around the origin and normalize using the largest axis,
-    // so the simulation cube fits roughly in [-1, 1] on its largest dimension.
     let simSize = vec3f(options.simWidth, options.simHeight, options.simDepth);
     let halfSize = simSize * 0.5;
     let normScale = 1.0 / max(max(halfSize.x, halfSize.y), halfSize.z);
     let centered = vec3f(particle.x, particle.y, particle.z) - halfSize;
-    // Flip Y so the simulation Y axis (downwards on screen) maps to standard Y-up world space.
     let worldPos = vec3f(centered.x, -centered.y, centered.z) * normScale;
-
-    // Apply view-projection from the controllable camera.
     let centerClip = camera.viewProjMatrix * vec4f(worldPos, 1.0);
 
-    // Billboard offset: keep the particle facing the camera by offsetting in clip space.
-
     let aspect = camera.aspectRatio;
-    let fovY = camera.fovY;
-    let f = 1.0 / tan(fovY * 0.5);
+    let f = 1.0 / tan(camera.fovY * 0.5);
     let quadOffset = QUAD_VERTICES[vertexIndex];
-    let pixelSize = options.particleSize;
-    let billboardRadius = pixelSize * normScale * f;
+    let billboardRadius = options.particleSize * normScale * f;
     let offsetClip = vec2f(quadOffset.x / aspect, quadOffset.y) * billboardRadius;
 
-    let clipPos = vec4f(centerClip.x + offsetClip.x,
-                        centerClip.y + offsetClip.y,
-                        centerClip.z,
-                        centerClip.w);
+    let clipPos = vec4f(centerClip.x + offsetClip.x, centerClip.y + offsetClip.y, centerClip.z, centerClip.w);
 
-    // Simple depth-based shading using clip-space w (≈ view-space distance).
     let depthShade = clamp(1.0 - (centerClip.w - 1.0) * 0.35, 0.35, 1.0);
 
-    return VertexOutput(
-        clipPos,
-        quadOffset,
-        color,
-        depthShade
-    );
+    return VertexOutput(clipPos, quadOffset, color, depthShade);
 }
 
 @fragment
 fn fragmentMain(in: VertexOutput) -> @location(0) vec4f {
     let dist_sq = dot(in.offset, in.offset);
-    // Discard fragments outside the disc so they don't write to the depth buffer
-    // (otherwise the transparent quad corners would occlude particles behind them).
-    if (dist_sq > 1.0) {
-        discard;
-    }
-    let edge_width = fwidth(dist_sq);
-    let alpha = 1.0 - smoothstep(max(0.0, 1.0 - edge_width), 1.0, dist_sq);
+    if (dist_sq > 1.0) { discard; }
 
-    let shaded = in.color.rgb * in.depthShade;
-    return vec4f(shaded, in.color.a * options.particleOpacity * alpha);
+    var coverage: f32 = 1.0;
+    if (render.isParticleBorder != 0u) {
+        let edge_width = min(fwidth(dist_sq), 0.20);
+        coverage = 1.0 - smoothstep(1.0 - edge_width, 1.0, dist_sq);
+    }
+
+    var shadedRgb = in.color.rgb * in.depthShade;
+    if (render.isSphereShading != 0u) {
+        let r = in.offset;
+        let z2 = max(1.0 - dist_sq, 0.0);
+        let n = vec3<f32>(r.x, r.y, sqrt(z2));
+        let L = normalize(render.lightDir.xyz);
+        let V = vec3<f32>(0.0, 0.0, 1.0);
+        let H = normalize(L + V);
+        let diff = max(dot(n, L), 0.0);
+        let spec = pow(max(dot(n, H), 0.0), max(render.shininess, 1.0));
+        let lit = render.ambient + render.diffuseStrength * diff;
+        shadedRgb = (in.color.rgb * lit + vec3<f32>(render.specularStrength * spec)) * in.depthShade;
+    }
+    return vec4f(shadedRgb * coverage, in.color.a * options.particleOpacity);
 }

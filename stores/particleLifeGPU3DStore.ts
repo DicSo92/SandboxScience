@@ -58,6 +58,14 @@ export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => 
     const bloomKnee = ref<number>(1.0) // Soft-knee width: 0 = hard cutoff, 1 = very soft ramp
     const tonemapMode = ref<number>(1) // 1 = ACES Narkowicz
 
+    const isParticleBorder = ref<boolean>(true) // Soft anti-aliased silhouette via coverage-as-color (free perf, kills 1px aliasing on big sprites)
+    const isSphereShading = ref<boolean>(true) // Toggle sphere shading; off = original flat disc look
+    const sphereAmbient = ref<number>(0.25) // Ambient term (added to diffuse contribution before mixing with base color)
+    const sphereDiffuseStrength = ref<number>(0.85) // Diffuse Lambert strength
+    const sphereSpecularStrength = ref<number>(0.45) // Specular Blinn-Phong strength (white highlight)
+    const sphereShininess = ref<number>(24) // Specular exponent (higher = tighter highlight)
+    const sphereLightDir = ref<number[]>([-0.4, 0.6, 0.8]) // Light direction in view space (normalized in shader) [-0.4, 0.6, 0.8], [-0.3, 0.7, 0.65], [0.43, 0.77, 0.5], [-0.2, 0.85, 0.5]
+
     const cellSubdivisions = ref<number>(1) // Number of subdivisions of maxRadius per cell (CELL_SIZE = maxRadius / cellSubdivisions)
 
     const gridExtensionFactor = ref<number>(12) // Requested extension factor for the dense grid
@@ -84,6 +92,7 @@ export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => 
         minRadiusRange, maxRadiusRange, currentMaxRadius,
         repel, forceFactor, frictionFactor, useBinning, binningMode, isBoundingBoxActive, isGpuTimingsEnabled,
         isParticleGlow, bloomThreshold, bloomIntensity, bloomKnee, tonemapMode,
+        isParticleBorder, isSphereShading, sphereAmbient, sphereDiffuseStrength, sphereSpecularStrength, sphereShininess, sphereLightDir,
         selectedRulesOption, selectedColorPaletteOption, savedPresets, isSaveModalOpen,
         cellSubdivisions, gridExtensionFactor, maxGridExtensionFactor,
         $reset
