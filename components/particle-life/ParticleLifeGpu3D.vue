@@ -102,49 +102,57 @@
                                         :min="0" :max="1" :step="0.01" v-model="particleLife.particleOpacity" mt-2>
                             </RangeInput>
 
-                            <div flex justify-between>
-                                <ToggleSwitch mt-2 label="Bounding Box" v-model="particleLife.isBoundingBoxActive" />
-                                <ToggleSwitch mt-2 label="Particle Border"
+                            <hr border-gray-500 my-2>
+                            <div flex justify-between gap-2>
+                                <ToggleSwitch label="Bounding Box" v-model="particleLife.isBoundingBoxActive" />
+                                <ToggleSwitch label="Particle Border"
                                               tooltip="Draw a subtle dark border around each particle. Helps individual particles stand out in dense clusters. Disable for solid discs that blend together more."
                                               v-model="particleLife.isParticleBorder">
                                 </ToggleSwitch>
                             </div>
-
                             <hr border-gray-500 my-2>
+
                             <div flex items-start justify-between mb-1>
                                 <p underline text-gray-300 mb-1>Sphere Shading :</p>
                                 <ToggleSwitch label="Sphere Shading" colorful-label v-model="particleLife.isSphereShading" />
                             </div>
-
-                            <SelectInput v-show="particleLife.isSphereShading" name="sphere-shading-preset"
-                                         v-model="sphereShadingPreset"
-                                         :options="sphereShadingPresetOptions">
-                            </SelectInput>
-                            <RangeInput v-show="particleLife.isSphereShading" input label="Ambient" mt-2
-                                        tooltip="Constant ambient term added to the diffuse contribution. Raises overall brightness on dark sides."
-                                        :min="0" :max="1" :step="0.01" v-model="particleLife.sphereAmbient">
-                            </RangeInput>
-                            <RangeInput v-show="particleLife.isSphereShading" input label="Diffuse" mt-2
-                                        tooltip="Lambert diffuse strength. Controls how strongly the lit hemisphere reads as the base color."
-                                        :min="0" :max="2" :step="0.01" v-model="particleLife.sphereDiffuseStrength">
-                            </RangeInput>
-                            <RangeInput v-show="particleLife.isSphereShading" input label="Specular" mt-2
-                                        tooltip="Blinn-Phong specular strength (white highlight). 0 disables the highlight."
-                                        :min="0" :max="2" :step="0.01" v-model="particleLife.sphereSpecularStrength">
-                            </RangeInput>
-                            <RangeInput v-show="particleLife.isSphereShading" input label="Shininess" mt-2
-                                        tooltip="Specular exponent. Higher values produce a smaller, sharper highlight."
-                                        :min="1" :max="128" :step="1" v-model="particleLife.sphereShininess">
-                            </RangeInput>
-                            <div v-show="particleLife.isSphereShading" flex items-center justify-between mt-2>
-                                <p class="w-2/3 text-2sm">
-                                    Light Direction
-                                    <TooltipInfo container="#mainContainer" tooltip="Position of the light source illuminating each particle. <br> X = left/right <br> Y = up/down <br> Z = front/back <br> Negative values flip the direction on that axis." />
-                                </p>
-                                <div flex items-center gap-2>
-                                    <Input label="x" :model-value="particleLife.sphereLightDir[0]" @update:model-value="particleLife.sphereLightDir[0] = $event" inputClass="w-12!" />
-                                    <Input label="y" :model-value="particleLife.sphereLightDir[1]" @update:model-value="particleLife.sphereLightDir[1] = $event" inputClass="w-12!" />
-                                    <Input label="z" :model-value="particleLife.sphereLightDir[2]" @update:model-value="particleLife.sphereLightDir[2] = $event" inputClass="w-12!" />
+                            <div v-show="particleLife.isSphereShading">
+                                <div flex items-center justify-between gap-2>
+                                    <p class="w-1/3 text-2sm shrink-0">
+                                        Material
+                                        <TooltipInfo container="#mainContainer" tooltip="Preset combinations of ambient, diffuse, specular and shininess that emulate common materials (matte, plastic, metal…). <br> Pick one as a starting point, then fine-tune the sliders below." />
+                                    </p>
+                                    <SelectInput name="sphere-shading-preset" class="max-w-full!"
+                                                 v-model="sphereShadingPreset"
+                                                 :options="sphereShadingPresetOptions">
+                                    </SelectInput>
+                                </div>
+                                <RangeInput input label="Ambient" mt-1
+                                            tooltip="Constant ambient term added to the diffuse contribution. Raises overall brightness on dark sides."
+                                            :min="0" :max="1" :step="0.01" v-model="particleLife.sphereAmbient">
+                                </RangeInput>
+                                <RangeInput input label="Diffuse" mt-2
+                                            tooltip="Lambert diffuse strength. Controls how strongly the lit hemisphere reads as the base color."
+                                            :min="0" :max="2" :step="0.01" v-model="particleLife.sphereDiffuseStrength">
+                                </RangeInput>
+                                <RangeInput input label="Specular" mt-2
+                                            tooltip="Blinn-Phong specular strength (white highlight). 0 disables the highlight."
+                                            :min="0" :max="2" :step="0.01" v-model="particleLife.sphereSpecularStrength">
+                                </RangeInput>
+                                <RangeInput input label="Shininess" mt-2
+                                            tooltip="Specular exponent. Higher values produce a smaller, sharper highlight."
+                                            :min="1" :max="128" :step="1" v-model="particleLife.sphereShininess">
+                                </RangeInput>
+                                <div flex items-center justify-between mt-2>
+                                    <p class="w-2/3 text-2sm">
+                                        Light Direction
+                                        <TooltipInfo container="#mainContainer" tooltip="Position of the light source illuminating each particle. <br> X = left/right <br> Y = up/down <br> Z = front/back <br> Negative values flip the direction on that axis." />
+                                    </p>
+                                    <div flex items-center gap-2>
+                                        <Input label="x" :model-value="particleLife.sphereLightDir[0]" @update:model-value="particleLife.sphereLightDir[0] = $event" inputClass="w-12!" />
+                                        <Input label="y" :model-value="particleLife.sphereLightDir[1]" @update:model-value="particleLife.sphereLightDir[1] = $event" inputClass="w-12!" />
+                                        <Input label="z" :model-value="particleLife.sphereLightDir[2]" @update:model-value="particleLife.sphereLightDir[2] = $event" inputClass="w-12!" />
+                                    </div>
                                 </div>
                             </div>
 
@@ -153,24 +161,30 @@
                                 <p underline text-gray-300 mb-1>Glow Settings :</p>
                                 <ToggleSwitch label="Particle Glowing" colorful-label v-model="particleLife.isParticleGlow" />
                             </div>
-
-                            <RangeInput v-show="particleLife.isParticleGlow" input label="Glow Threshold" mt-2
-                                        tooltip="Luminance threshold above which pixels contribute to the glow (soft-knee around this value)."
-                                        :min="0" :max="2" :step="0.01" v-model="particleLife.bloomThreshold">
-                            </RangeInput>
-                            <RangeInput v-show="particleLife.isParticleGlow" input label="Glow Intensity" mt-2
-                                        tooltip="Strength of the glow mixed back into the final image (final = hdr + glow * intensity)."
-                                        :min="0" :max="2" :step="0.01" v-model="particleLife.bloomIntensity">
-                            </RangeInput>
-                            <RangeInput v-show="particleLife.isParticleGlow" input label="Glow Knee" mt-2
-                                        tooltip="Soft-knee width around the threshold. 0 = hard cutoff, 1 = very smooth ramp."
-                                        :min="0" :max="1" :step="0.01" v-model="particleLife.bloomKnee">
-                            </RangeInput>
-                            <p text-gray-300 text-2sm underline mb-1 mt-3>Tonemap Operator :</p>
-                            <SelectInput name="tonemap-mode"
-                                         v-model="particleLife.tonemapMode"
-                                         :options="tonemapOptions">
-                            </SelectInput>
+                            <div v-show="particleLife.isParticleGlow">
+                                <RangeInput input label="Glow Threshold" mt-2
+                                            tooltip="Luminance threshold above which pixels contribute to the glow (soft-knee around this value)."
+                                            :min="0" :max="2" :step="0.01" v-model="particleLife.bloomThreshold">
+                                </RangeInput>
+                                <RangeInput input label="Glow Intensity" mt-2
+                                            tooltip="Strength of the glow mixed back into the final image (final = hdr + glow * intensity)."
+                                            :min="0" :max="2" :step="0.01" v-model="particleLife.bloomIntensity">
+                                </RangeInput>
+                                <RangeInput input label="Glow Knee" mt-2
+                                            tooltip="Soft-knee width around the threshold. 0 = hard cutoff, 1 = very smooth ramp."
+                                            :min="0" :max="1" :step="0.01" v-model="particleLife.bloomKnee">
+                                </RangeInput>
+                                <div flex items-center justify-between gap-2 mt-1>
+                                    <p class="w-1/3 text-2sm shrink-0">
+                                        Tonemap
+                                        <TooltipInfo container="#mainContainer" tooltip="Tone mapping operator applied to the HDR buffer before display. <br> Controls how bright glowing pixels are compressed into the visible range." />
+                                    </p>
+                                    <SelectInput name="tonemap-mode" class="max-w-full!"
+                                                 v-model="particleLife.tonemapMode"
+                                                 :options="tonemapOptions">
+                                    </SelectInput>
+                                </div>
+                            </div>
                         </Collapse>
                         <Collapse label="Camera Settings" icon="i-tabler-camera-cog text-violet-500">
                             <RangeInput input label="Zoom Smoothing"
@@ -182,35 +196,47 @@
                                         :min="0.01" :max="0.5" :step="0.01" v-model="particleLife.panSmoothing" mt-2>
                             </RangeInput>
                         </Collapse>
-                        <Collapse label="Debug Tools" icon="i-tabler-bug text-rose-500"
-                                  tooltip="Provides tools for visualizing the simulation's internal state. <br> Toggle the grid view to see spatial bins or activate a heatmap to analyze particle density. <br> These features are useful for debugging and performance tuning.">
-                            <p text-gray-300 text-2sm underline mb-1 class="-mt-0.5">Neighbor Search :</p>
-                            <SelectInput name="algorithm-mode"
-                                         :model-value="particleLife.useBinning ? 'spatial' : 'brute'"
-                                         @update:model-value="particleLife.useBinning = $event === 'spatial'"
-                                         :options="[
-                                             { id: 'spatial', name: 'Spatial Binning', icon: 'i-tabler-topology-ring-3', category: 'Method' },
-                                             { id: 'brute', name: 'Brute Force', icon: 'i-tabler-cpu', category: 'Method' },
-                                         ]">
-                            </SelectInput>
-                            <SelectInput v-show="particleLife.useBinning" name="binning-mode" mt-2
-                                         v-model="particleLife.binningMode"
-                                         :options="[
-                                             { id: 'grid', name: 'Dense Grid', icon: 'i-tabler-grid-4x4', category: 'Binning' },
-                                             { id: 'hash', name: 'Hash Grid', icon: 'i-tabler-hash', category: 'Binning' },
-                                         ]">
-                            </SelectInput>
-                            <RangeInput v-show="particleLife.useBinning" input label="Cell Subdivisions" mt-2
-                                        tooltip="Subdivides the interaction radius into smaller grid cells. <br> Default: 2 (fastest in most cases). <br> Increasing subdivisions can improve performance for simulations with very large radii."
+                        <Collapse label="Performance" icon="i-tabler-gauge text-rose-500"
+                                  tooltip="Tune how the simulation finds neighboring particles. <br> Different algorithms and storage layouts suit different particle counts and interaction radii. <br> Enable GPU Timings to measure each pass and pick the fastest combination for your scene.">
+                            <div flex items-center justify-between gap-2>
+                                <p class="w-1/3 text-2sm shrink-0">
+                                    Algorithm
+                                    <TooltipInfo container="#mainContainer" tooltip="How each particle finds its neighbors. <br> <b>Spatial Binning</b>: groups particles into cells, only checks nearby cells. Fastest for large radii or many particles. <br> <b>Brute Force</b>: every particle checks every other one. Simpler, only faster with very few particles." />
+                                </p>
+                                <SelectInput name="algorithm-mode" class="max-w-full!"
+                                             :model-value="particleLife.useBinning ? 'spatial' : 'brute'"
+                                             @update:model-value="particleLife.useBinning = $event === 'spatial'"
+                                             :options="[
+                                                 { id: 'spatial', name: 'Spatial Binning', icon: 'i-tabler-topology-ring-3', category: 'Method' },
+                                                 { id: 'brute', name: 'Brute Force', icon: 'i-tabler-cpu', category: 'Method' },
+                                             ]">
+                                </SelectInput>
+                            </div>
+                            <div v-show="particleLife.useBinning" flex items-center justify-between gap-2 mt-1.5>
+                                <p class="w-1/3 text-2sm shrink-0">
+                                    Binning
+                                    <TooltipInfo container="#mainContainer" tooltip="How spatial cells are stored in GPU memory. <br> <b>Dense Grid</b>: 3D array indexed by cell coordinates. Fast lookup, more memory. <br> <b>Hash Grid</b>: cells stored in a hash table. Constant memory, slight lookup overhead. Recommended for very large simulation spaces." />
+                                </p>
+                                <SelectInput name="binning-mode" class="max-w-full!"
+                                             v-model="particleLife.binningMode"
+                                             :options="[
+                                                 { id: 'grid', name: 'Dense Grid', icon: 'i-tabler-grid-4x4', category: 'Binning' },
+                                                 { id: 'hash', name: 'Hash Grid', icon: 'i-tabler-hash', category: 'Binning' },
+                                             ]">
+                                </SelectInput>
+                            </div>
+                            <RangeInput v-show="particleLife.useBinning" input label="Cell Subdivisions" mt-1.5
+                                        tooltip="Splits each bin cell into smaller sub-cells. <br> Default: 1 (fastest in almost every scene). <br> Higher values rarely help: fewer particles per cell, but many more cells to scan around each particle. <br> Can help with very large interaction radii on dense clusters."
                                         :min="1" :max="5" :step="1" v-model="particleLife.cellSubdivisions">
                             </RangeInput>
                             <RangeInput v-show="particleLife.useBinning && particleLife.binningMode === 'grid' && particleLife.wallState === 'none'"
-                                        input label="Extension Factor" mt-2
+                                        input label="Grid Extension" mt-2
                                         tooltip="How many times larger than the simulation box the dense grid extends in each axis. <br> Higher values let particles drift further before being clamped at the borders, at a cubic memory cost. <br> Automatically clamped to what fits the device's max bin count."
                                         :min="1" :max="particleLife.maxGridExtensionFactor" :step="1"
                                         v-model="particleLife.gridExtensionFactor">
                             </RangeInput>
-                            <ToggleSwitch label="GPU Timings" colorful-label mt-3
+                            <hr border-gray-500 my-2>
+                            <ToggleSwitch label="Show GPU Timings" colorful-label mb-0.5
                                           tooltip="Display per-pass GPU execution times (binning, forces, advance, render) in the top-right HUD. <br> Uses WebGPU timestamp queries. <br> Has a tiny performance cost (allocations + potential driver pipeline stalls), so it's off by default."
                                           v-model="particleLife.isGpuTimingsEnabled">
                             </ToggleSwitch>
@@ -314,13 +340,13 @@ const tonemapOptions = [
     { id: 6, name: 'AgX',                  category: 'Realistic' },
 ]
 const SPHERE_SHADING_PRESETS = [
-    { id: 'flat-matte',     name: 'Flat Matte',     category: 'Diffuse',  ambient: 0.45, diffuse: 0.95, specular: 0.00, shininess: 1 },
-    { id: 'chalk',          name: 'Chalk',          category: 'Diffuse',  ambient: 0.35, diffuse: 0.80, specular: 0.05, shininess: 4 },
-    { id: 'rubber',         name: 'Rubber',         category: 'Soft',     ambient: 0.20, diffuse: 0.90, specular: 0.20, shininess: 8 },
-    { id: 'plastic',        name: 'Plastic',        category: 'Soft',     ambient: 0.25, diffuse: 0.85, specular: 0.45, shininess: 24 },
-    { id: 'glossy-bead',    name: 'Glossy Bead',    category: 'Glossy',   ambient: 0.15, diffuse: 0.80, specular: 0.75, shininess: 48 },
-    { id: 'polished-pearl', name: 'Polished Pearl', category: 'Glossy',   ambient: 0.10, diffuse: 0.70, specular: 1.10, shininess: 96 },
-    { id: 'chrome-drop',    name: 'Chrome Drop',    category: 'Metallic', ambient: 0.05, diffuse: 0.55, specular: 1.50, shininess: 128},
+    { id: 'matte',    name: 'Matte',    category: 'Diffuse',  ambient: 0.45, diffuse: 0.95, specular: 0.00, shininess: 1 },
+    { id: 'chalk',    name: 'Chalk',    category: 'Diffuse',  ambient: 0.35, diffuse: 0.80, specular: 0.05, shininess: 4 },
+    { id: 'rubber',   name: 'Rubber',   category: 'Soft',     ambient: 0.20, diffuse: 0.90, specular: 0.20, shininess: 8 },
+    { id: 'plastic',  name: 'Plastic',  category: 'Soft',     ambient: 0.25, diffuse: 0.85, specular: 0.45, shininess: 24 },
+    { id: 'glossy',   name: 'Glossy',   category: 'Glossy',   ambient: 0.15, diffuse: 0.80, specular: 0.75, shininess: 48 },
+    { id: 'ceramic',  name: 'Ceramic',  category: 'Glossy',   ambient: 0.10, diffuse: 0.70, specular: 1.10, shininess: 96 },
+    { id: 'chrome',   name: 'Chrome',   category: 'Metallic', ambient: 0.05, diffuse: 0.55, specular: 1.50, shininess: 128},
 ] as const
 const sphereShadingPresetOptions = [
     ...SPHERE_SHADING_PRESETS.map(p => ({ id: p.id, name: p.name, category: p.category })),
