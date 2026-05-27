@@ -85,7 +85,7 @@
                             </RangeInput>
                             <RangeInput input label="Force Multiplier"
                                         tooltip="Scales the interaction forces between particles. <br> Higher values make forces stronger and particles move faster."
-                                        :min="0.01" :max="2" :step="0.01" v-model="particleLife.forceFactor" mt-2>
+                                        :min="0.01" :max="4" :step="0.01" v-model="particleLife.forceFactor" mt-2>
                             </RangeInput>
                             <RangeInput input label="Friction"
                                         tooltip="Controls how much friction slows particles down. <br> Higher values reduce speed and help stabilize the system."
