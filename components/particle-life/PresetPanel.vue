@@ -56,7 +56,7 @@
                         </div>
                     </div>
                 </div>
-                <div mt-2 v-if="particleLife.engineType === 'GPU'">
+                <div mt-2 v-if="particleLife.engineType !== 'CPU'">
                     <div class="flex items-center text-2sm mb-1">
                         <div class="i-tabler-spiral text-cyan-500 text-md"></div>
                         <span mx-1>Particle Distribution</span>
@@ -88,6 +88,7 @@ import { defineComponent } from "vue";
 import { RULES_OPTIONS } from '~/helpers/utils/rulesGenerator';
 import { PALETTE_OPTIONS } from "~/helpers/utils/colorsGenerator";
 import { POSITION_OPTIONS } from "~/helpers/utils/positionsGenerator";
+import { POSITION_OPTIONS as POSITION_OPTIONS_3D } from "~/helpers/utils/positionsGenerator3D";
 import MyPresets from "~/components/particle-life/MyPresets.vue";
 export default defineComponent({
     components: { MyPresets },
@@ -101,7 +102,7 @@ export default defineComponent({
         const particleLife = props.store
         const rulesOptions = RULES_OPTIONS
         const paletteOptions = PALETTE_OPTIONS
-        const positionOptions = POSITION_OPTIONS
+        const positionOptions = particleLife.engineType === 'GPU3D' ? POSITION_OPTIONS_3D : POSITION_OPTIONS
 
         const openTab = ref<number>(1)
 
