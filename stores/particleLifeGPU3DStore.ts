@@ -19,7 +19,7 @@ export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => 
     const simDepth = ref<number>(0) // Grid depth (for 3D)
     const linkProportions = ref<boolean>(false) // Constraint x y sim proportions
 
-    const numParticles = ref<number>(160000) // Number of particles
+    const numParticles = ref<number>(128000) // Number of particles
     const particleSize = ref<number>(2.0) // Size of the particles at zoomFactor = 1
     const particleOpacity = ref<number>(1.0) // Opacity of the particles (0 to 1)
     const numColors = ref<number>(7) // Number of colors to be used
@@ -39,18 +39,18 @@ export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => 
 
     // Define force properties
     const repel = ref<number>(1) // repel force for particles that are too close to each other
-    const forceFactor = ref<number>(2.5) // Adjust the overall force applied between particles (can't be 0)
+    const forceFactor = ref<number>(2) // Adjust the overall force applied between particles (can't be 0)
     const frictionFactor = ref<number>(0.3) // Slow down the particles (0 to 1, where 0 is no friction)
 
     // Define properties for randomizing radius matrix
-    const minRadiusRange = ref<number[]>([32, 56]) // Range for the random minRadius of each color
-    const maxRadiusRange = ref<number[]>([64, 88]) // Range for the random maxRadius of each color
+    const minRadiusRange = ref<number[]>([28, 40]) // Range for the random minRadius of each color
+    const maxRadiusRange = ref<number[]>([56, 80]) // Range for the random maxRadius of each color
     const currentMaxRadius = ref<number>(0) // Current max radius for the particles
 
     const useBinning = ref<boolean>(true) // Use spatial binning for neighbor search (vs brute force O(N²))
     const binningMode = ref<'grid' | 'hash'>('grid') // 'grid' = dense extended grid (default), 'hash' = Teschner spatial hash table
     const isBoundingBoxActive = ref<boolean>(true) // Show wireframe box for simulation boundaries
-    const isGpuTimingsEnabled = ref<boolean>(true) // Enable per-pass GPU timestamp queries (binning/forces/advance/render). Off by default to save a tiny amount of GPU/CPU and avoid potential driver pipeline stalls.
+    const isGpuTimingsEnabled = ref<boolean>(false) // Enable per-pass GPU timestamp queries (binning/forces/advance/render). Off by default to save a tiny amount of GPU/CPU and avoid potential driver pipeline stalls.
 
     const isParticleGlow = ref<boolean>(true) // Enable the HDR + dual-filter bloom pipeline (UI label: "Particle Glowing")
     const bloomThreshold = ref<number>(0.1) // Luminance above which pixels start to bloom (soft-knee)
