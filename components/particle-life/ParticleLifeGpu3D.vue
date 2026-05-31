@@ -597,6 +597,7 @@ export default defineComponent({
         let bloomUpsamplePipeline: GPURenderPipeline
 
         let depthTexture: GPUTexture | undefined
+        let depthTextureView: GPUTextureView | undefined
         let hdrTexture: GPUTexture | undefined
         let hdrTextureView: GPUTextureView | undefined
         let bloomSampler: GPUSampler | undefined
@@ -1136,7 +1137,7 @@ export default defineComponent({
                         storeOp: 'store',
                     }],
                     depthStencilAttachment: {
-                        view: depthTexture!.createView(),
+                        view: depthTextureView!,
                         depthLoadOp: 'clear',
                         depthClearValue: 1.0,
                         depthStoreOp: 'store',
@@ -1206,7 +1207,7 @@ export default defineComponent({
                         storeOp: 'store',
                     }],
                     depthStencilAttachment: {
-                        view: depthTexture!.createView(),
+                        view: depthTextureView!,
                         depthLoadOp: 'clear',
                         depthClearValue: 1.0,
                         depthStoreOp: 'store',
@@ -2463,6 +2464,7 @@ export default defineComponent({
                 format: DEPTH_FORMAT,
                 usage: GPUTextureUsage.RENDER_ATTACHMENT,
             })
+            depthTextureView = depthTexture.createView()
         }
         function updateHdrTexture() {
             if (hdrTexture) hdrTexture.destroy(); hdrTexture = undefined;
@@ -2632,6 +2634,7 @@ export default defineComponent({
 
             if (!keepTexture) {
                 depthTexture?.destroy(); depthTexture = undefined;
+                depthTextureView = undefined;
                 hdrTexture?.destroy(); hdrTexture = undefined;
                 hdrTextureView = undefined;
                 for (let i = 0; i < BLOOM_MIPS; i++) {
