@@ -5,14 +5,21 @@
             </template>
             <template #default>
                 <div h-full px-2 flex flex-col>
-                    <div flex justify-between items-end mb-2 px-1>
-                        <div flex items-center class="-mb-0.5">
+                    <div flex justify-between items-end mb-1.5 px-1>
+                        <div flex items-center>
                             <div i-lets-icons-bubble text-2xl mr-2 class="text-[#2a9d8f] -mt-0.5"></div>
                             <h1 font-800 text-lg tracking-widest class="text-[#dff6f3] drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Particle Life</h1>
                             <p class="ml-2 px-2 py-0.5 rounded-lg ring-1 uppercase justify-center font-mono font-bold bg-fuchsia-600/20 text-fuchsia-400 ring-fuchsia-500/30">
                                 GPU
                             </p>
+                            <p ml-1.5 px-2 py-0.5 rounded-lg ring-1 uppercase justify-center font-mono font-bold class="bg-amber-600/20 text-amber-400 ring-amber-500/30">
+                                3D
+                            </p>
                         </div>
+                        <button @click="switchTo2D" px-2 h-full rounded-lg flex items-center font-semibold class="bg-cyan-500/15 hover:bg-cyan-500/25 transition-all ring-1 ring-cyan-300/45 text-cyan-100" title="Switch to 2D version">
+                            <span class="i-tabler-cube-off text-sm mr-1"></span>
+                            <span class="-mb-px text-xs">Try 2D</span>
+                        </button>
                         <!--                        <ToggleSwitch inactive-label="2D" label="3D" colorful-label v-model="particleLife.is3D" />-->
                     </div>
                     <hr border-slate-500>
@@ -358,7 +365,8 @@ const sphereShadingPresetOptions = [
 export default defineComponent({
     name: 'ParticleLifeGpu',
     components: {SaveModal, PresetPanel, RadiusVisualizer, BrushSettings, MatrixSettings },
-    setup() {
+    emits: ['switch-renderer'],
+    setup(props, { emit }) {
         // Define refs and variables
         const mainContainer = ref<HTMLElement | null>(null)
         const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(mainContainer)
@@ -2677,8 +2685,31 @@ export default defineComponent({
             cancelAnimationLoop()
             destroyPipelinesAndBindGroups()
             destroyBuffers()
+            releaseGpuDevice()
             // particleLife.$reset()
         })
+
+        const releaseGpuDevice = () => {
+            if (!device && !ctx) return
+            cancelAnimationLoop()
+            // if (device) device.onuncapturederror = null
+
+            try { timestampQuerySet?.destroy?.() } catch {}
+            try { timestampResolveBuffer?.destroy?.() } catch {}
+            for (const b of timestampStagingPool) { try { b?.destroy?.() } catch {} }
+            timestampStagingPool.length = 0
+            timestampQuerySet = null
+            timestampResolveBuffer = null
+
+            try { ctx?.unconfigure?.() } catch {}
+            try { device?.destroy?.() } catch {}
+            device = undefined as any
+            ctx = undefined as any
+        }
+
+        const switchTo2D = () => {
+            emit('switch-renderer', 'gpu')
+        }
 
         return {
             particleLife, canvasRef, fps, executionTime, gpuTimings,
@@ -2688,7 +2719,7 @@ export default defineComponent({
             randomizeRadius, randomizeRulesAndRadius, updateColors, updateRulesMatrix, updateParticlePositions, loadPreset,
             setNewNumParticles, setNewNumTypes,
             tonemapOptions,
-            sphereShadingPresetOptions, sphereShadingPreset,
+            sphereShadingPresetOptions, sphereShadingPreset, switchTo2D,
         }
     }
 })
