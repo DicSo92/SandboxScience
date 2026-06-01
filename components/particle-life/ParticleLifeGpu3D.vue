@@ -1043,6 +1043,7 @@ export default defineComponent({
             device.queue.submit([encoder.finish()])
         }
         // -------------------------------------------------------------------------------------------------------------
+        const deltaTimeData = new Float32Array(1)
         const handleDeltaTime = (startExecutionTime: number) => {
             const deltaTime = Math.min((startExecutionTime - lastFrameTime) / 1000, 0.1) // Cap deltaTime to avoid spikes
             lastFrameTime = startExecutionTime
@@ -1051,7 +1052,8 @@ export default defineComponent({
 
             // Only update the delta time buffer if it has changed significantly
             if (Math.round(lastSmoothedDeltaTime * 1000) !== Math.round(smoothedDeltaTime * 1000)) {
-                device.queue.writeBuffer(deltaTimeBuffer!, 0, new Float32Array([smoothedDeltaTime]))
+                deltaTimeData[0] = smoothedDeltaTime
+                device.queue.writeBuffer(deltaTimeBuffer!, 0, deltaTimeData)
             }
         }
         // -------------------------------------------------------------------------------------------------------------
