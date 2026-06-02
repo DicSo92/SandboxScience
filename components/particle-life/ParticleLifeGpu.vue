@@ -5,14 +5,21 @@
             </template>
             <template #default>
                 <div h-full px-2 flex flex-col>
-                    <div flex justify-between items-end mb-2 px-1>
-                        <div flex items-center class="-mb-0.5">
+                    <div flex justify-between items-end mb-1.5 px-1>
+                        <div flex items-center>
                             <div i-lets-icons-bubble text-2xl mr-2 class="text-[#2a9d8f] -mt-0.5"></div>
                             <h1 font-800 text-lg tracking-widest class="text-[#dff6f3] drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Particle Life</h1>
                             <p class="ml-2 px-2 py-0.5 rounded-lg ring-1 uppercase justify-center font-mono font-bold bg-fuchsia-600/20 text-fuchsia-400 ring-fuchsia-500/30">
                                 GPU
                             </p>
+                            <p ml-1.5 px-2 py-0.5 rounded-lg ring-1 uppercase justify-center font-mono font-bold class="bg-cyan-600/20 text-cyan-400 ring-cyan-500/30">
+                                2D
+                            </p>
                         </div>
+                        <button @click="switchTo3D" px-2 h-full rounded-lg flex items-center font-semibold class="bg-amber-500/15 hover:bg-amber-500/25 transition-all ring-1 ring-amber-300/45 text-amber-100" title="Switch to 3D version">
+                            <span class="i-tabler-cube text-sm mr-0.75"></span>
+                            <span class="-mb-px text-xs">Try 3D</span>
+                        </button>
 <!--                        <ToggleSwitch inactive-label="2D" label="3D" colorful-label v-model="particleLife.is3D" />-->
                     </div>
                     <hr border-slate-500>
@@ -391,7 +398,8 @@ import trackerCameraUpdateShaderCode from 'assets/particle-life-gpu/shaders/comp
 export default defineComponent({
     name: 'ParticleLifeGpu',
     components: { PresetPanel, SaveModal, BrushSettings, MatrixSettings, WrapModeSelection, TrackerOverlay, TrackerToggle, CenterViewButton, RadiusVisualizer },
-    setup() {
+    emits: ['switch-renderer'],
+    setup(props, { emit }) {
         // Define refs and variables
         const mainContainer = ref<HTMLElement | null>(null)
         const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(mainContainer)
@@ -3115,7 +3123,7 @@ export default defineComponent({
             particleLife.currentColors = colors // Ensure the store is updated with the initial colors
         }
         function initParticles() {
-            initialParticles = generatePositions(particleLife.selectedColorPaletteOption, NUM_PARTICLES, NUM_TYPES, SIM_WIDTH, SIM_HEIGHT)
+            initialParticles = generatePositions(particleLife.selectedSpawnPositionOption, NUM_PARTICLES, NUM_TYPES, SIM_WIDTH, SIM_HEIGHT)
         }
         function makeRandomMinRadiusMatrix() {
             let matrix: number[][] = []
@@ -3558,8 +3566,24 @@ export default defineComponent({
             cancelAnimationLoop()
             destroyPipelinesAndBindGroups()
             destroyBuffers()
+            releaseGpuDevice()
             // particleLife.$reset()
         })
+
+        const releaseGpuDevice = () => {
+            if (!device && !ctx) return
+            cancelAnimationLoop()
+            // if (device) device.onuncapturederror = null
+
+            try { ctx?.unconfigure?.() } catch {}
+            try { device?.destroy?.() } catch {}
+            device = undefined as any
+            ctx = undefined as any
+        }
+
+        const switchTo3D = () => {
+            emit('switch-renderer', 'gpu3d')
+        }
 
             return {
                 particleLife, canvasRef, fps, executionTime, colorRgbStrings,
@@ -3568,7 +3592,7 @@ export default defineComponent({
                 updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, newRandomRulesMatrix,
                 updateRulesMatrix, updateParticlePositions, updateColors, loadPreset, updateSingleColor,
                 startTrackerSelection, cancelTrackerSelection, stopTracker, onTrackerZoneSelected,
-                rulesOptions, paletteOptions, positionOptions
+                rulesOptions, paletteOptions, positionOptions, switchTo3D
             }
     }
 });

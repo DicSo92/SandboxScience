@@ -2,11 +2,10 @@
     <div flex items-center>
         <p v-if="label" class="text-2sm pt-0.5 mr-2">{{ label }}</p>
         <slot name="customLabel"></slot>
-        <div flex items-center>
-            <div w-14>
-                <input type="text" maxlength="5" :value="modelValue" @input="inputTextUpdate($event.target.value)" class="w-full border border-gray-200 rounded text-sm text-center text-black font-500">
-            </div>
-        </div>
+        <input type="text" maxlength="5" :value="modelValue"
+               @input="inputTextUpdate($event.target.value)"
+               class="w-14 border border-gray-200 rounded text-sm text-center text-black font-500"
+               :class="inputClass">
     </div>
 
 </template>
@@ -26,6 +25,10 @@ export default defineComponent({
         debounce: {
             type: Number,
             default: 750
+        },
+        inputClass: {
+            type: String,
+            default: ''
         }
     },
     emits: ['change', 'update:modelValue'],

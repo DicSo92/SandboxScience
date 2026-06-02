@@ -18,8 +18,14 @@
             <header>
                 <div flex items-center mb-3 class="text-2xl sm:text-[1.75rem] font-bold">
                     <h1 flex items-center>Particle Life</h1>
-                    <p class="ml-2 px-2 py-1 rounded-lg ring-1 uppercase justify-center font-mono" :class="currentRenderer === 'gpu' ? 'bg-fuchsia-600/20 text-fuchsia-400 ring-fuchsia-500/30' : 'bg-sky-600/20 text-sky-400 ring-sky-500/30'">
-                        {{ currentRenderer }}
+                    <p class="ml-2 px-2 py-1 rounded-lg ring-1 uppercase justify-center font-mono" :class="(currentRenderer === 'gpu' || currentRenderer === 'gpu3d') ? 'bg-fuchsia-600/20 text-fuchsia-400 ring-fuchsia-500/30' : 'bg-sky-600/20 text-sky-400 ring-sky-500/30'">
+                        {{ currentRenderer === 'cpu' ? 'CPU' : 'GPU' }}
+                    </p>
+                    <p v-if="currentRenderer === 'gpu'" ml-2 px-2 py-1 rounded-lg ring-1 uppercase justify-center font-mono class="bg-cyan-600/20 text-cyan-400 ring-cyan-500/30">
+                        2D
+                    </p>
+                    <p v-else-if="currentRenderer === 'gpu3d'" ml-2 px-2 py-1 rounded-lg ring-1 uppercase justify-center font-mono class="bg-amber-600/20 text-amber-400 ring-amber-500/30">
+                        3D
                     </p>
                 </div>
                 <h2 class="text-gray-300 mb-2">
@@ -42,7 +48,7 @@
                         This device supports <strong>WebGPU</strong>. You’re currently on the <strong>CPU renderer</strong>.
                     </p>
                     <div rounded-lg py-2 px-3 mb-1 class="bg-sky-600/10 ring-1 ring-sky-400/20">
-                        <div class="text-sky-100 text-sm font-semibold">CPU mode — Fully compatible</div>
+                        <div class="text-sky-100 text-sm font-semibold">CPU mode - Fully compatible</div>
                         <p class="text-indigo-50/90 text-sm mt-1">
                             Runs on every device and supports the full <strong>3D simulation</strong>. Switch to <strong>WebGPU</strong> for higher FPS and more particles. You can switch back anytime.
                         </p>
@@ -57,7 +63,7 @@
                     </div>
                 </div>
             </div>
-            <div v-else-if="isWebGPUSupported && currentRenderer === 'gpu'" class="rounded-lg border border-green-800 bg-green-900/20 ring-1 ring-green-400/30 text-green-100 text-sm p-4">
+            <div v-else-if="isWebGPUSupported && (currentRenderer === 'gpu' || currentRenderer === 'gpu3d')" class="rounded-lg border border-green-800 bg-green-900/20 ring-1 ring-green-400/30 text-green-100 text-sm p-4">
                 <div class="flex items-center rounded-full bg-green-700/60 ring-1 ring-green-400/30 w-fit pl-2 pr-3 py-0.5 mb-3">
                     <div i-tabler-check text-lg mr-1></div>
                     <h3 class="font-semibold">WebGPU is available</h3>
@@ -68,7 +74,7 @@
                         You’re on the <strong>GPU renderer</strong> for maximum performance.
                     </p>
                     <div rounded-lg py-2 px-3 class="bg-emerald-500/10 ring-1 ring-emerald-400/20">
-                        <div class="text-emerald-100 text-sm font-semibold">WebGPU mode — High performance</div>
+                        <div class="text-emerald-100 text-sm font-semibold">WebGPU mode - High performance</div>
                         <p class="text-emerald-50/90 text-sm mt-1">
                             <strong>WebGPU</strong> runs the simulation on your graphics card for <strong>higher FPS</strong>, <strong>more particles</strong>, and <em>richer visuals</em>. It also reduces <strong>CPU</strong> load to keep the <em>UI</em> responsive as scenes grow.
                         </p>
@@ -79,9 +85,14 @@
                             Switch to CPU
                         </a>
                     </p>
-                    <div class="flex items-center gap-3 mt-1">
+                    <div class="flex flex-wrap items-center gap-3 mt-1">
                         <button class="px-4 sm:px-8 py-2 w-fit rounded-xl bg-gray-50 hover:bg-gray-200 transition-all ring-1 ring-black text-black text-base font-semibold" @click.prevent="closeIntroModal">
                             Start Simulation
+                        </button>
+                        <button v-if="currentRenderer === 'gpu'" @click.prevent="selectRenderer('gpu3d', true)" class="px-4 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 ring-1 ring-amber-300/45 transition-all text-base font-semibold flex items-center gap-2 shadow-sm shadow-amber-900/20">
+                            <div i-tabler-cube-3d-sphere w-5 h-5 text-amber-300 shrink-0></div>
+                            <span text-amber-100>Try 3D version</span>
+                            <span px-1.5 py-0.5 rounded-md text-xs font-semibold uppercase tracking-wide class="bg-amber-400/20 ring-1 ring-amber-300/35 text-amber-50">New</span>
                         </button>
                         <button class="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700/75 ring-1 ring-gray-500/20 transition-all text-white text-base font-semibold" @click.prevent="selectRenderer('cpu', true)">
                             Switch to CPU
@@ -100,7 +111,7 @@
                         <strong>WebGPU</strong> is <strong>not supported</strong> on this <em>device or browser</em>. You’re currently on the <strong>CPU renderer</strong>.
                     </p>
                     <div rounded-lg py-2 px-3 class="bg-amber-500/10 ring-1 ring-amber-400/20">
-                        <div class="text-amber-100 text-sm font-semibold">CPU mode — Fully compatible</div>
+                        <div class="text-amber-100 text-sm font-semibold">CPU mode - Fully compatible</div>
                         <p class="text-amber-50/90 text-sm mt-1">
                             Runs on <strong>every device</strong> and supports the full <strong>3D simulation</strong>. Enable <strong>WebGPU</strong> for higher FPS and more particles when your setup supports it.
                         </p>
@@ -115,7 +126,7 @@
             </div>
 
             <!-- Performance warning even when WebGPU is available -->
-            <div v-if="isWebGPUSupported && currentRenderer === 'gpu'" class="mt-3 rounded-lg border border-yellow-700 bg-yellow-900/30 text-yellow-100 p-4">
+            <div v-if="isWebGPUSupported && (currentRenderer === 'gpu' || currentRenderer === 'gpu3d')" class="mt-3 rounded-lg border border-yellow-700 bg-yellow-900/30 text-yellow-100 p-4">
                 <div class="flex items-center gap-2 font-medium text-white/90 mb-2">
                     <div i-tabler-alert-triangle text-lg mr-1></div>
                     <h3>Performance warning</h3>
@@ -141,7 +152,7 @@
                             <div i-tabler-alert-triangle text-lg mr-1></div>
                             <h3 class="font-semibold">Performance not great ?</h3>
                         </div>
-                        <p text-sm>Try the tips in the left guide for your OS, then restart the browser — small changes often make a big difference.</p>
+                        <p text-sm>Try the tips in the left guide for your OS, then restart the browser. Small changes often make a big difference.</p>
                     </div>
                     <div class="rounded-2xl p-4 bg-gradient-to-br from-sky-500/15 to-indigo-500/10 ring-1 ring-sky-400/30 sm:w-1/2 md:w-auto">
                         <div class="flex items-center gap-2 text-sm font-semibold text-white/90 mb-1">
@@ -163,13 +174,13 @@
         </section>
     </Modal>
 
-    <component v-if="particleLifeComponent" :is="particleLifeComponent" :key="currentRenderer" />
+    <component v-if="particleLifeComponent" :is="particleLifeComponent" :key="currentRenderer" @switch-renderer="switchRenderer" />
 </template>
 
 <script lang="ts">
 import { defineComponent } from "vue";
 import DevicesGpuTips from "~/components/particle-life/DevicesGpuTips.vue";
-import CpuComp from '~/components/particle-life/ParticleLifeCpu.vue'
+import CpuComp from "~/components/particle-life/ParticleLifeCpu.vue";
 
 export default defineComponent({
     components: {DevicesGpuTips},
@@ -191,8 +202,12 @@ export default defineComponent({
             loader: () => import('~/components/particle-life/ParticleLifeGpu.vue'),
             suspensible: false
         })
+        const Gpu3dComp = defineAsyncComponent({
+            loader: () => import('~/components/particle-life/ParticleLifeGpu3D.vue'),
+            suspensible: false
+        })
         const particleLifeComponent = shallowRef<any>(null)
-        const currentRenderer = ref<'gpu' | 'cpu'>('cpu') // track active renderer
+        const currentRenderer = ref<'gpu' | 'gpu3d' | 'cpu'>('cpu') // track active renderer
         const isWebGPUSupported = ref<boolean>(true)
         const isModalOpen = ref<boolean>(false)
         const isOverlayOpen = ref<boolean>(true)
@@ -237,16 +252,22 @@ export default defineComponent({
                 return false
             }
         }
-        const selectRenderer = async (mode: 'gpu' | 'cpu', isSwitching = false) => {
+        const selectRenderer = async (mode: 'gpu' | 'gpu3d' | 'cpu', isSwitching = false) => {
             isBooting.value = true
             try {
                 if (isSwitching) {
                     isModalOpen.value = false
+                    isOverlayOpen.value = true
                     await new Promise(r => setTimeout(r, 600)) // wait for fade out
                 }
-                if (mode === 'gpu' && !isWebGPUSupported.value) mode = 'cpu'
+                if ((mode === 'gpu' || mode === 'gpu3d') && !isWebGPUSupported.value) mode = 'cpu'
 
-                particleLifeComponent.value = mode === 'gpu' ? GpuComp : CpuComp
+                if (particleLifeComponent.value) {
+                    particleLifeComponent.value = null
+                    await nextTick()
+                }
+
+                particleLifeComponent.value = mode === 'gpu' ? GpuComp : mode === 'gpu3d' ? Gpu3dComp : CpuComp
                 currentRenderer.value = mode
                 await nextTick()
 
@@ -259,6 +280,9 @@ export default defineComponent({
                 isBooting.value = false
                 if (isSwitching) isModalOpen.value = true
             }
+        }
+        const switchRenderer = (mode: 'gpu' | 'gpu3d' | 'cpu') => {
+            selectRenderer(mode, true)
         }
         // -------------------------------------------------------------------------------------------------------------
         const onBootOverlayHidden = () => {
@@ -283,7 +307,7 @@ export default defineComponent({
 
         return {
             isModalOpen, isWebGPUSupported, particleLifeComponent, selectRenderer, currentRenderer,
-            modalDismissed, toggleModalDismiss,
+            modalDismissed, toggleModalDismiss, switchRenderer,
             isBooting, onBootOverlayHidden, isOverlayOpen, closeIntroModal
         }
     }
