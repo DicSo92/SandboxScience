@@ -1328,8 +1328,7 @@ export default defineComponent({
                 particleLife.simDepth = SIM_DEPTH = baseSimDepth = Math.round(SIM_DEPTH * (newWidth / SIM_WIDTH))
             }
             particleLife.simWidth = SIM_WIDTH = baseSimWidth = newWidth
-            setSimSize()
-            regenerateLife()
+            applySimResize()
         }
         const updateSimHeight = (newHeight: number | Event) => {
             if (typeof(newHeight) !== 'number') return // Prevent input event like unfocus
@@ -1338,8 +1337,7 @@ export default defineComponent({
                 particleLife.simDepth = SIM_DEPTH = baseSimDepth = Math.round(SIM_DEPTH * (newHeight / SIM_HEIGHT))
             }
             particleLife.simHeight = SIM_HEIGHT = baseSimHeight = newHeight
-            setSimSize()
-            regenerateLife()
+            applySimResize()
         }
         const updateSimDepth = (newDepth: number | Event) => {
             if (typeof(newDepth) !== 'number') return // Prevent input event like unfocus
@@ -1348,8 +1346,14 @@ export default defineComponent({
                 particleLife.simHeight = SIM_HEIGHT = baseSimHeight = Math.round(SIM_HEIGHT * (newDepth / SIM_DEPTH))
             }
             particleLife.simDepth = SIM_DEPTH = baseSimDepth = newDepth
+            applySimResize()
+        }
+        const applySimResize = async () => {
+            cancelAnimationLoop()
             setSimSize()
-            regenerateLife()
+            updateSimOptionsBuffer()
+            void updateParticlePositions()
+            animationFrameId = requestAnimationFrame(frame)
         }
         // -------------------------------------------------------------------------------------------------------------
         const updateRulesMatrixValue = (x: number, y: number, value: number) => {
