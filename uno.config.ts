@@ -54,6 +54,7 @@ export default defineConfig({
                 'game-icons': () => import('@iconify-json/game-icons/icons.json').then(i => i.default as any),
                 tabler: () => import('@iconify-json/tabler/icons.json').then(i => i.default as any),
                 'lets-icons': () => import('@iconify-json/lets-icons/icons.json').then(i => i.default as any),
+                'streamline-flex': () => import('@iconify-json/streamline-flex/icons.json').then(i => i.default as any),
                 custom: {
                     icon: () => fs.readFile('./public/icon.svg', 'utf-8'),
                 }

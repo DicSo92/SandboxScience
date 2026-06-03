@@ -258,6 +258,18 @@
                 </div>
             </template>
             <template #bottom-actions>
+                <button type="button" name="Toggle Camera Target" title="Toggle Camera Target" aria-label="Toggle Camera Target"
+                        btn rounded-full flex items-center justify-center p-2 class="backdrop-blur-sm z-10 relative"
+                        :class="particleLife.isCameraTargetVisible ? 'bg-red-700/80 hover:bg-red-600/80' : 'bg-red-900/80  hover:bg-red-700/80'"
+                        @click="particleLife.isCameraTargetVisible = !particleLife.isCameraTargetVisible" :disabled="particleLife.isHudLocked">
+                    <span i-streamline-flex-3d-coordinate-axis class="-mt-px" :class="particleLife.isCameraTargetVisible ? 'text-red-200' : 'text-red-300/80'"></span>
+                </button>
+                <CenterViewButton :disabled="particleLife.isHudLocked" :is3D="true"
+                                  @centerAll="smoothCenterView()"
+                                  @centerPosition="smoothCenterView(true, false, false)"
+                                  @resetZoom="smoothCenterView(false, true, false)" 
+                                  @resetRotation="smoothCenterView(false, false, true)">
+                </CenterViewButton>
                 <button type="button" name="Randomize" aria-label="Randomize" title="Randomize simulation"
                         btn rounded-full flex items-center justify-center p-2 pointer-events-auto
                         class="backdrop-blur-sm bg-[#094F5D]/90 hover:bg-[#0B5F6F]/90"
@@ -334,10 +346,12 @@ import particleAdvanceShaderCode from 'assets/particle-life-gpu-3d/shaders/compu
 import renderShaderCode from 'assets/particle-life-gpu-3d/shaders/render/render_normal.wgsl?raw';
 import renderGlowShaderCode from 'assets/particle-life-gpu-3d/shaders/render/particle_render_glow.wgsl?raw';
 import boxShaderCode from 'assets/particle-life-gpu-3d/shaders/render/render_box.wgsl?raw';
+import cameraTargetShaderCode from 'assets/particle-life-gpu-3d/shaders/render/camera_target.wgsl?raw';
 import composeHdrShaderCode from 'assets/particle-life-gpu-3d/shaders/compose/compose_hdr.wgsl?raw';
 import bloomShaderCode from 'assets/particle-life-gpu-3d/shaders/compose/bloom.wgsl?raw';
 import PresetPanel from "~/components/particle-life/PresetPanel.vue";
 import SaveModal from "~/components/particle-life/SaveModal.vue";
+import CenterViewButton from "~/components/particle-life/CenterViewButton.vue";
 
 const tonemapOptions = [
     { id: 0, name: 'None (raw)',           category: 'Raw' },
@@ -364,7 +378,7 @@ const sphereShadingPresetOptions = [
 
 export default defineComponent({
     name: 'ParticleLifeGpu',
-    components: {SaveModal, PresetPanel, RadiusVisualizer, BrushSettings, MatrixSettings },
+    components: { SaveModal, PresetPanel, CenterViewButton, RadiusVisualizer, BrushSettings, MatrixSettings },
     emits: ['switch-renderer'],
     setup(props, { emit }) {
         // Define refs and variables
@@ -480,7 +494,7 @@ export default defineComponent({
         const cameraFwd: [number, number, number]   = [0, 0, -1]
         let cameraRotationChanged: boolean = true
 
-        const CAMERA_BUFFER_SIZE = 80 // 80 bytes = 64 (mat4) + 16 (vec4 params), aligned to 16 (multiple of 16)
+        const CAMERA_BUFFER_SIZE = 96 // 96 bytes = 64 (mat4) + 16 (vec4 params) + 16 (vec4 focus point), aligned to 16
         const cameraData = new Float32Array(CAMERA_BUFFER_SIZE / 4)
         const cameraProjMatrix = new Float32Array(16)
         const cameraViewMatrix = new Float32Array(16)
@@ -500,6 +514,7 @@ export default defineComponent({
         let isWallRepel: boolean = particleLife.isWallRepel // Enable walls X and Y for the particles
         let isWallWrap: boolean = particleLife.isWallWrap // Enable wrapping for the particles
         let isBoundingBoxActive: boolean = particleLife.isBoundingBoxActive // Show box wireframe
+        let isCameraTargetVisible: boolean = particleLife.isCameraTargetVisible
 
         let isParticleGlow: boolean = particleLife.isParticleGlow // Toggle HDR + dual-filter bloom render path (UI: "Particle Glowing")
         let tonemapMode: number = particleLife.tonemapMode
@@ -597,8 +612,10 @@ export default defineComponent({
 
         let renderPipeline: GPURenderPipeline
         let boxRenderPipeline: GPURenderPipeline
+        let cameraTargetRenderPipeline: GPURenderPipeline
         let renderCirclePipeline: GPURenderPipeline
         let boxRenderHdrPipeline: GPURenderPipeline
+        let cameraTargetHdrPipeline: GPURenderPipeline
         const composeHdrPipelines: GPURenderPipeline[] = [] // One pre-compiled pipeline per tonemap operator (indexed by tonemap id)
         let bloomPrefilterPipeline: GPURenderPipeline
         let bloomDownsamplePipeline: GPURenderPipeline
@@ -627,6 +644,9 @@ export default defineComponent({
             useEventListener(canvasRef.value, ['mousedown'], (e) => {
                 lastPointerX = (e.x - canvasRef.value!.getBoundingClientRect().left) * DEVICE_PIXEL_RATIO
                 lastPointerY = (e.y - canvasRef.value!.getBoundingClientRect().top) * DEVICE_PIXEL_RATIO
+                if (e.button === 1) { // Middle click (wheel click)
+                    particleLife.isCameraTargetVisible = !particleLife.isCameraTargetVisible
+                }
             })
             useEventListener(canvasRef.value, ['mousemove'], (e) => {
                 pointerX = (e.x - canvasRef.value!.getBoundingClientRect().left) * DEVICE_PIXEL_RATIO
@@ -771,6 +791,20 @@ export default defineComponent({
             cameraTarget[2] = targetCameraTarget[2] = 0
             cameraRotationChanged = true
             cameraChanged = true
+        }
+        function smoothCenterView(position: boolean = true, zoom: boolean = true, rotation: boolean = true) {
+            if (position) {
+                targetCameraTarget[0] = 0
+                targetCameraTarget[1] = 0
+                targetCameraTarget[2] = 0
+            }
+            if (zoom) {
+                targetZoomFactor = 1.5
+            }
+            if (rotation) {
+                targetCameraYaw = 0
+                targetCameraPitch = 0
+            }
         }
         const handleMove = () => {
             const dx = pointerX - lastPointerX
@@ -1162,6 +1196,7 @@ export default defineComponent({
                 hdrPass.draw(4, NUM_PARTICLES)
 
                 if (isBoundingBoxActive) renderHdrBoundingBox(hdrPass)
+                if (isCameraTargetVisible) renderHdrCameraTarget(hdrPass)
                 hdrPass.end()
 
                 // --- Bloom chain (dual filter Bjørge 2015) -----------------------------------------------------------
@@ -1232,6 +1267,7 @@ export default defineComponent({
                 renderPass.draw(4, NUM_PARTICLES)
 
                 if (isBoundingBoxActive) renderBoundingBox(renderPass)
+                if (isCameraTargetVisible) renderCameraTarget(renderPass)
 
                 renderPass.end()
             }
@@ -1247,6 +1283,18 @@ export default defineComponent({
             hdrPass.setBindGroup(0, simOptionsBindGroup)
             hdrPass.setBindGroup(1, cameraBindGroup)
             hdrPass.draw(24, 1)
+        }
+        const renderCameraTarget = (renderPass: GPURenderPassEncoder) => {
+            renderPass.setPipeline(cameraTargetRenderPipeline)
+            renderPass.setBindGroup(0, simOptionsBindGroup)
+            renderPass.setBindGroup(1, cameraBindGroup)
+            renderPass.draw(54, 1)
+        }
+        const renderHdrCameraTarget = (hdrPass: GPURenderPassEncoder) => {
+            hdrPass.setPipeline(cameraTargetHdrPipeline)
+            hdrPass.setBindGroup(0, simOptionsBindGroup)
+            hdrPass.setBindGroup(1, cameraBindGroup)
+            hdrPass.draw(54, 1)
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -1328,8 +1376,7 @@ export default defineComponent({
                 particleLife.simDepth = SIM_DEPTH = baseSimDepth = Math.round(SIM_DEPTH * (newWidth / SIM_WIDTH))
             }
             particleLife.simWidth = SIM_WIDTH = baseSimWidth = newWidth
-            setSimSize()
-            regenerateLife()
+            applySimResize()
         }
         const updateSimHeight = (newHeight: number | Event) => {
             if (typeof(newHeight) !== 'number') return // Prevent input event like unfocus
@@ -1338,8 +1385,7 @@ export default defineComponent({
                 particleLife.simDepth = SIM_DEPTH = baseSimDepth = Math.round(SIM_DEPTH * (newHeight / SIM_HEIGHT))
             }
             particleLife.simHeight = SIM_HEIGHT = baseSimHeight = newHeight
-            setSimSize()
-            regenerateLife()
+            applySimResize()
         }
         const updateSimDepth = (newDepth: number | Event) => {
             if (typeof(newDepth) !== 'number') return // Prevent input event like unfocus
@@ -1348,8 +1394,14 @@ export default defineComponent({
                 particleLife.simHeight = SIM_HEIGHT = baseSimHeight = Math.round(SIM_HEIGHT * (newDepth / SIM_DEPTH))
             }
             particleLife.simDepth = SIM_DEPTH = baseSimDepth = newDepth
+            applySimResize()
+        }
+        const applySimResize = async () => {
+            cancelAnimationLoop()
             setSimSize()
-            regenerateLife()
+            updateSimOptionsBuffer()
+            void updateParticlePositions()
+            animationFrameId = requestAnimationFrame(frame)
         }
         // -------------------------------------------------------------------------------------------------------------
         const updateRulesMatrixValue = (x: number, y: number, value: number) => {
@@ -1466,6 +1518,11 @@ export default defineComponent({
             cameraData[17] = FOV_Y
             cameraData[18] = NEAR_PLANE
             cameraData[19] = FAR_PLANE
+            // Focus point (vec4); used by camera-target marker
+            cameraData[20] = cameraTarget[0]
+            cameraData[21] = cameraTarget[1]
+            cameraData[22] = cameraTarget[2]
+            cameraData[23] = 0
 
             if (!cameraBuffer) {
                 cameraBuffer = device.createBuffer({
@@ -2365,6 +2422,26 @@ export default defineComponent({
                     depthCompare: 'less-equal',
                 },
             })
+            // ---------------------------------------------------------------------------------------------------------
+            const cameraTargetShader = device.createShaderModule({ code: cameraTargetShaderCode })
+            cameraTargetRenderPipeline = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [simOptionsBindGroupLayout, cameraBindGroupLayout],
+                }),
+                vertex: { module: cameraTargetShader, entryPoint: 'vertexMain' },
+                fragment: {
+                    module: cameraTargetShader, entryPoint: 'fragmentMain', targets: [{
+                        format: navigator.gpu.getPreferredCanvasFormat(),
+                        blend: particleNormalBlending,
+                    }],
+                },
+                primitive: { topology: 'line-list' },
+                depthStencil: {
+                    format: DEPTH_FORMAT,
+                    depthWriteEnabled: false,
+                    depthCompare: 'less-equal',
+                },
+            })
         }
         const createHdrGlowPipelines = () => {
             const renderGlowShader = device.createShaderModule({ code: renderGlowShaderCode })
@@ -2413,6 +2490,26 @@ export default defineComponent({
                 vertex: { module: boxShader, entryPoint: 'vertexMain' },
                 fragment: {
                     module: boxShader, entryPoint: 'fragmentMain', targets: [{
+                        format: HDR_FORMAT,
+                        blend: particleNormalBlending,
+                    }],
+                },
+                primitive: { topology: 'line-list' },
+                depthStencil: {
+                    format: DEPTH_FORMAT,
+                    depthWriteEnabled: false,
+                    depthCompare: 'less-equal',
+                },
+            })
+            // ---------------------------------------------------------------------------------------------------------
+            const cameraTargetShader = device.createShaderModule({ code: cameraTargetShaderCode })
+            cameraTargetHdrPipeline = device.createRenderPipeline({
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [simOptionsBindGroupLayout, cameraBindGroupLayout],
+                }),
+                vertex: { module: cameraTargetShader, entryPoint: 'vertexMain' },
+                fragment: {
+                    module: cameraTargetShader, entryPoint: 'fragmentMain', targets: [{
                         format: HDR_FORMAT,
                         blend: particleNormalBlending,
                     }],
@@ -2543,6 +2640,7 @@ export default defineComponent({
         watch(() => particleLife.zoomSmoothing, (value: number) => zoomSmoothing = value)
         watch(() => particleLife.panSmoothing, (value: number) => panSmoothing = value)
         watch(() => particleLife.isBoundingBoxActive, (value: boolean) => isBoundingBoxActive = value)
+        watch(() => particleLife.isCameraTargetVisible, (value: boolean) => isCameraTargetVisible = value)
         watch(() => particleLife.tonemapMode, (value: number) => tonemapMode = value)
         watch(() => particleLife.isParticleGlow, (value: boolean) => isParticleGlow = value)
         watch(() => particleLife.useBinning, (value: boolean) => useBinning = value)
@@ -2662,6 +2760,8 @@ export default defineComponent({
             renderPipeline = undefined as any;
             boxRenderPipeline = undefined as any;
             boxRenderHdrPipeline = undefined as any;
+            cameraTargetRenderPipeline = undefined as any;
+            cameraTargetHdrPipeline = undefined as any;
             renderCirclePipeline = undefined as any;
             composeHdrPipelines.length = 0;
             bloomPrefilterPipeline = undefined as any;
@@ -2713,7 +2813,7 @@ export default defineComponent({
 
         return {
             particleLife, canvasRef, fps, executionTime, gpuTimings,
-            handleZoom, toggleFullscreen, isFullscreen, regenerateLife, step,
+            handleZoom, toggleFullscreen, isFullscreen, smoothCenterView, regenerateLife, step,
             updateSimWidth, updateSimHeight, updateSimDepth,
             updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, newRandomRulesMatrix, updateSingleColor,
             randomizeRadius, randomizeRulesAndRadius, updateColors, updateRulesMatrix, updateParticlePositions, loadPreset,
