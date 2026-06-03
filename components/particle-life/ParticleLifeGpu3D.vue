@@ -258,6 +258,12 @@
                 </div>
             </template>
             <template #bottom-actions>
+                <CenterViewButton :disabled="particleLife.isHudLocked" :is3D="true"
+                                  @centerAll="smoothCenterView()"
+                                  @centerPosition="smoothCenterView(true, false, false)"
+                                  @resetZoom="smoothCenterView(false, true, false)" 
+                                  @resetRotation="smoothCenterView(false, false, true)">
+                </CenterViewButton>
                 <button type="button" name="Randomize" aria-label="Randomize" title="Randomize simulation"
                         btn rounded-full flex items-center justify-center p-2 pointer-events-auto
                         class="backdrop-blur-sm bg-[#094F5D]/90 hover:bg-[#0B5F6F]/90"
@@ -338,6 +344,7 @@ import composeHdrShaderCode from 'assets/particle-life-gpu-3d/shaders/compose/co
 import bloomShaderCode from 'assets/particle-life-gpu-3d/shaders/compose/bloom.wgsl?raw';
 import PresetPanel from "~/components/particle-life/PresetPanel.vue";
 import SaveModal from "~/components/particle-life/SaveModal.vue";
+import CenterViewButton from "~/components/particle-life/CenterViewButton.vue";
 
 const tonemapOptions = [
     { id: 0, name: 'None (raw)',           category: 'Raw' },
@@ -364,7 +371,7 @@ const sphereShadingPresetOptions = [
 
 export default defineComponent({
     name: 'ParticleLifeGpu',
-    components: {SaveModal, PresetPanel, RadiusVisualizer, BrushSettings, MatrixSettings },
+    components: { SaveModal, PresetPanel, CenterViewButton, RadiusVisualizer, BrushSettings, MatrixSettings },
     emits: ['switch-renderer'],
     setup(props, { emit }) {
         // Define refs and variables
@@ -771,6 +778,20 @@ export default defineComponent({
             cameraTarget[2] = targetCameraTarget[2] = 0
             cameraRotationChanged = true
             cameraChanged = true
+        }
+        function smoothCenterView(position: boolean = true, zoom: boolean = true, rotation: boolean = true) {
+            if (position) {
+                targetCameraTarget[0] = 0
+                targetCameraTarget[1] = 0
+                targetCameraTarget[2] = 0
+            }
+            if (zoom) {
+                targetZoomFactor = 1.5
+            }
+            if (rotation) {
+                targetCameraYaw = 0
+                targetCameraPitch = 0
+            }
         }
         const handleMove = () => {
             const dx = pointerX - lastPointerX
@@ -2717,7 +2738,7 @@ export default defineComponent({
 
         return {
             particleLife, canvasRef, fps, executionTime, gpuTimings,
-            handleZoom, toggleFullscreen, isFullscreen, regenerateLife, step,
+            handleZoom, toggleFullscreen, isFullscreen, smoothCenterView, regenerateLife, step,
             updateSimWidth, updateSimHeight, updateSimDepth,
             updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, newRandomRulesMatrix, updateSingleColor,
             randomizeRadius, randomizeRulesAndRadius, updateColors, updateRulesMatrix, updateParticlePositions, loadPreset,
