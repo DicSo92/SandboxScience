@@ -3190,15 +3190,21 @@ export default defineComponent({
             if (typeof(newWidth) !== 'number') return // Prevent input event like unfocus
             if (particleLife.linkProportions) particleLife.simHeight = SIM_HEIGHT = baseSimHeight = Math.round(SIM_HEIGHT * (newWidth / SIM_WIDTH))
             particleLife.simWidth = SIM_WIDTH = baseSimWidth = newWidth
-            setSimSize()
-            regenerateLife()
+            applySimResize()
         }
         const updateSimHeight = (newHeight: number | Event) => {
             if (typeof(newHeight) !== 'number') return // Prevent input event like unfocus
             if (particleLife.linkProportions) particleLife.simWidth = SIM_WIDTH = baseSimWidth = Math.round(SIM_WIDTH * (newHeight / SIM_HEIGHT))
             particleLife.simHeight = SIM_HEIGHT = baseSimHeight = newHeight
+            applySimResize()
+        }
+        const applySimResize = async () => {
+            if (isTrackerActive) await stopTracker()
+            cancelAnimationLoop()
             setSimSize()
-            regenerateLife()
+            updateSimOptionsBuffer()
+            void updateParticlePositions()
+            animationFrameId = requestAnimationFrame(frame)
         }
         const updateRulesMatrixValue = (x: number, y: number, value: number) => {
             const roundedValue = Math.round(value * 100) / 100
