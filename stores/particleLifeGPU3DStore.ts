@@ -51,6 +51,7 @@ export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => 
     const binningMode = ref<'grid' | 'hash'>('grid') // 'grid' = dense extended grid (default), 'hash' = Teschner spatial hash table
     const isBoundingBoxActive = ref<boolean>(true) // Show wireframe box for simulation boundaries
     const isGpuTimingsEnabled = ref<boolean>(false) // Enable per-pass GPU timestamp queries (binning/forces/advance/render). Off by default to save a tiny amount of GPU/CPU and avoid potential driver pipeline stalls.
+    const isCameraTargetVisible = ref<boolean>(true) // Show a target at the center of the camera view (for debugging and visualizing camera movement in 3D space)
 
     const isParticleGlow = ref<boolean>(true) // Enable the HDR + dual-filter bloom pipeline (UI label: "Particle Glowing")
     const bloomThreshold = ref<number>(0.1) // Luminance above which pixels start to bloom (soft-knee)
@@ -91,7 +92,7 @@ export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => 
         numParticles, particleSize, particleOpacity, numColors, zoomSmoothing, panSmoothing,
         isWallRepel, isWallWrap, wallState,
         minRadiusRange, maxRadiusRange, currentMaxRadius,
-        repel, forceFactor, frictionFactor, useBinning, binningMode, isBoundingBoxActive, isGpuTimingsEnabled,
+        repel, forceFactor, frictionFactor, useBinning, binningMode, isBoundingBoxActive, isGpuTimingsEnabled, isCameraTargetVisible,
         isParticleGlow, bloomThreshold, bloomIntensity, bloomKnee, tonemapMode,
         isParticleBorder, isSphereShading, sphereAmbient, sphereDiffuseStrength, sphereSpecularStrength, sphereShininess, sphereLightDir,
         selectedSpawnPositionOption, selectedRulesOption, selectedColorPaletteOption, savedPresets, isSaveModalOpen,
