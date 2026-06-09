@@ -62,6 +62,10 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
     const forceFactor = ref<number>(1.0) // Adjust the overall force applied between particles (can't be 0)
     const frictionFactor = ref<number>(0.3) // Slow down the particles (0 to 1, where 0 is no friction)
 
+    const showLiveDeltaTime = ref<boolean>(false) // Show live Δt in the HUD (for debugging and performance monitoring)
+    const manualDeltaTimeEnabled = ref<boolean>(false) // Override the automatic (framerate-independent) Δt with a fixed value
+    const manualDeltaTime = ref<number>(0.0166) // Manual simulation time step in seconds (used only when manualDeltaTimeEnabled)
+
     // Define properties for randomizing radius matrix
     const minRadiusRange = ref<number[]>([12, 24]) // Range for the random minRadius of each color
     const maxRadiusRange = ref<number[]>([32, 64]) // Range for the random maxRadius of each color
@@ -109,6 +113,7 @@ export const useParticleLifeGPUStore = defineStore('particleLifeGPU', () => {
         isTrackerActive, isTrackerSelectionActive, isTrackerCameraActive, isTrackerIndicatorVisible, trackerCameraSmoothing,
         minRadiusRange, maxRadiusRange, currentMaxRadius,
         repel, forceFactor, frictionFactor, useSpatialHash,
+        showLiveDeltaTime, manualDeltaTimeEnabled, manualDeltaTime,
         isBrushActive, brushes, brushRadius, brushIntensity, brushType, attractForce, repulseForce, brushDirectionalForce, showBrushCircle,
         glowSize, glowIntensity, glowSteepness, particleOpacity,
         selectedSpawnPositionOption, selectedRulesOption, selectedColorPaletteOption, savedPresets, isSaveModalOpen,

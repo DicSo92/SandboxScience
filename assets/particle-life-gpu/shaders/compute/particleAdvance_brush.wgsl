@@ -45,13 +45,17 @@ struct Camera {
     scaleX: f32,
     scaleY: f32,
 }
+struct DeltaTime {
+    deltaTime: f32,
+    friction: f32, // pre-computed pow(1 - frictionFactor, deltaTime * 60) on the CPU
+}
 
 const BRUSH_FORCE_MULTIPLIER = 500.0;
 const BRUSH_DIRECTIONAL_STRENGTH = 40.0;
 
 @group(0) @binding(0) var<storage, read_write> particles : array<Particle>;
 @group(1) @binding(0) var<uniform> options : SimOptions;
-@group(2) @binding(0) var<uniform> deltaTime: f32;
+@group(2) @binding(0) var<uniform> dt: DeltaTime;
 @group(3) @binding(0) var<uniform> brush: BrushOptions;
 @group(3) @binding(1) var<storage, read> brushTypes: BrushTypes;
 @group(3) @binding(2) var<uniform> camera: Camera;
@@ -94,8 +98,8 @@ fn particleAdvance(@builtin(global_invocation_id) id : vec3u) {
             let directionalForce = forceMagnitude * brush.brushDirectionalForce * options.frictionFactor;
 
             let totalForce = (radialDir * radialForce) + (vec2<f32>(brush.brushVx, brush.brushVy) * directionalForce);
-            particle.vx += totalForce.x * deltaTime;
-            particle.vy += totalForce.y * deltaTime;
+            particle.vx += totalForce.x * dt.deltaTime;
+            particle.vy += totalForce.y * dt.deltaTime;
         }
     }
 
@@ -118,11 +122,11 @@ fn particleAdvance(@builtin(global_invocation_id) id : vec3u) {
 //        particle.vy += totalForce.y * deltaTime;
 //    }
 
-    particle.vx *= (1.0 - options.frictionFactor);
-    particle.vy *= (1.0 - options.frictionFactor);
+    particle.vx *= dt.friction;
+    particle.vy *= dt.friction;
 
-    particle.x += particle.vx * deltaTime;
-    particle.y += particle.vy * deltaTime;
+    particle.x += particle.vx * dt.deltaTime;
+    particle.y += particle.vy * dt.deltaTime;
 
     if (options.isWallRepel == 1u) {
         let margin = options.particleSize;
