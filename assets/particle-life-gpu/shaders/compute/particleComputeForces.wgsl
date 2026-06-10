@@ -55,7 +55,8 @@ fn getBinInfo(position: vec2f, options: SimOptions) -> BinInfo {
 fn get_interaction(index: u32) -> vec3<f32> {
     let word = interactions.data[index];
 //    let rule = (f32((word >> 0u) & 0xFFu) / 255.0) * 2.0 - 1.0;
-    let rule = fma(f32((word >> 0u) & 0xFFu), 1.0 / 127.5, -1.0);
+//    let rule = fma(f32((word >> 0u) & 0xFFu), 1.0 / 127.5, -1.0);
+    let rule = (f32((word >> 0u) & 0xFFu) - 100.0) * 0.01;
     let minR = f32((word >> 8u) & 0xFFu);
     let maxR = f32((word >> 16u) & 0xFFFFu);
     return vec3<f32>(rule, minR, maxR);
@@ -145,6 +146,13 @@ fn computeForces(@builtin(global_invocation_id) id : vec3u) {
 //                        force = (dist * (1.0 / minR) - 1.0) * options.repel;
 //                        force = (dist / minR - 1.0) * options.repel;
                         force = fma(dist / minR, repelForce, -repelForce);
+
+//                        let t = dist / minR;            // 0..1
+//                        force = -repelForce * (1.0 / max(t, 0.05) - 1.0);
+
+//                        let t = 1.0 - dist / minR;      // 1 au centre, 0 à minR
+//                        force = -repelForce * t * t * 3.0; // plus raide près du centre
+
                     } else {
                         let rule = interaction.x;
                         let mid = (minR + maxR) * 0.5;

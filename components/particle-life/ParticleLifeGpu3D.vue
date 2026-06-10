@@ -1626,7 +1626,8 @@ export default defineComponent({
             for (let a = 0; a < NUM_TYPES; a++) {
                 for (let b = 0; b < NUM_TYPES; b++) {
                     const index = (a * NUM_TYPES + b) * stride;
-                    interactionData[index] = Math.round((rulesMatrix[a][b] + 1) * 0.5 * 255); // rule u8
+                    // interactionData[index] = Math.round((rulesMatrix[a][b] + 1) * 0.5 * 255); // rule u8
+                    interactionData[index] = Math.max(0, Math.min(200, Math.round(rulesMatrix[a][b] * 100) + 100)); // rule u8
                     interactionData[index + 1] = Math.round(minRadiusMatrix[a][b]); // minR u8
                     const maxR = maxRadiusMatrix[a][b];
                     interactionData[index + 2] = maxR & 0xFF; // maxR low byte
