@@ -56,10 +56,9 @@ fn rawHashCell(cellId: vec3i) -> u32 {
 }
 fn get_interaction(index: u32) -> vec3<f32> {
     let word = interactions.data[index];
-//    let rule = fma(f32((word >> 0u) & 0xFFu), 1.0 / 127.5, -1.0);
     let rule = (f32((word >> 0u) & 0xFFu) - 100.0) * 0.01;
-    let minR = f32((word >> 8u) & 0xFFu);
-    let maxR = f32((word >> 16u) & 0xFFFFu);
+    let minR = f32((word >> 8u) & 0xFFFu);
+    let maxR = f32((word >> 20u) & 0xFFFu);
     return vec3<f32>(rule, minR, maxR);
 }
 

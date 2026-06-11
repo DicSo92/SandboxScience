@@ -1760,8 +1760,8 @@ export default defineComponent({
             particleLife.minRadiusMatrix[x][y] = value
             minRadiusMatrix[x][y] = value
             if (value > particleLife.maxRadiusMatrix[x][y]) {
-                particleLife.maxRadiusMatrix[x][y] = value
-                maxRadiusMatrix[x][y] = value
+                particleLife.maxRadiusMatrix[x][y] = value + 1
+                maxRadiusMatrix[x][y] = value + 1
                 setCurrentMaxRadius(getCurrentMaxRadius())
             }
             // currentMinRadius = minRadiusMatrix.reduce((min, row) => Math.min(min, ...row), Infinity)
@@ -1770,10 +1770,9 @@ export default defineComponent({
             particleLife.maxRadiusMatrix[x][y] = value
             maxRadiusMatrix[x][y] = value
             setCurrentMaxRadius(getCurrentMaxRadius())
-
             if (value < particleLife.minRadiusMatrix[x][y]) {
-                particleLife.minRadiusMatrix[x][y] = value
-                minRadiusMatrix[x][y] = value
+                particleLife.minRadiusMatrix[x][y] = value - 1
+                minRadiusMatrix[x][y] = value - 1
                 // currentMinRadius = minRadiusMatrix.reduce((min, row) => Math.min(min, ...row), Infinity)
             }
         }

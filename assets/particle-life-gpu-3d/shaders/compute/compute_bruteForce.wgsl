@@ -34,12 +34,11 @@ struct Particle {
     particleType : f32,
 }
 
-fn get_interaction(index: u32, numTypes: u32) -> vec3<f32> {
+fn get_interaction(index: u32) -> vec3<f32> {
     let word = interactions.data[index];
-//    let rule = (f32((word >> 0u) & 0xFFu) / 255.0) * 2.0 - 1.0;
     let rule = (f32((word >> 0u) & 0xFFu) - 100.0) * 0.01;
-    let minR = f32((word >> 8u) & 0xFFu);
-    let maxR = f32((word >> 16u) & 0xFFFFu);
+    let minR = f32((word >> 8u) & 0xFFFu);
+    let maxR = f32((word >> 20u) & 0xFFFu);
     return vec3<f32>(rule, minR, maxR);
 }
 
@@ -82,7 +81,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
 
         let dist = sqrt(dx * dx + dy * dy + dz * dz);
         let index = typeA * options.numTypes + typeB;
-        let params = get_interaction(index, options.numTypes);
+        let params = get_interaction(index);
         let maxR = params.z;
         if (dist > 0.0 && dist < maxR) {
             let rule = params.x;

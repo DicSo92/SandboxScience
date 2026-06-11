@@ -1414,8 +1414,8 @@ export default defineComponent({
             particleLife.minRadiusMatrix[x][y] = value
             minRadiusMatrix[x][y] = value
             if (value > particleLife.maxRadiusMatrix[x][y]) {
-                particleLife.maxRadiusMatrix[x][y] = value
-                maxRadiusMatrix[x][y] = value
+                particleLife.maxRadiusMatrix[x][y] = value + 1
+                maxRadiusMatrix[x][y] = value + 1
                 setCurrentMaxRadius(getCurrentMaxRadius())
             }
             updateInteractionMatrixBuffer()
@@ -1425,8 +1425,8 @@ export default defineComponent({
             maxRadiusMatrix[x][y] = value
             setCurrentMaxRadius(getCurrentMaxRadius())
             if (value < particleLife.minRadiusMatrix[x][y]) {
-                particleLife.minRadiusMatrix[x][y] = value
-                minRadiusMatrix[x][y] = value
+                particleLife.minRadiusMatrix[x][y] = value - 1
+                minRadiusMatrix[x][y] = value - 1
             }
             updateInteractionMatrixBuffer()
         }
@@ -1621,35 +1621,28 @@ export default defineComponent({
             }
         }
         const updateInteractionMatrixBuffer = () => {
-            const stride = 4; // 4 octets par couple
-            const interactionData = new Uint8Array(NUM_TYPES * NUM_TYPES * stride);
+            const wordCount = Math.ceil((NUM_TYPES * NUM_TYPES) / 4) * 4 // 16 octets
+            const interactionData = new Uint32Array(wordCount)
             for (let a = 0; a < NUM_TYPES; a++) {
                 for (let b = 0; b < NUM_TYPES; b++) {
-                    const index = (a * NUM_TYPES + b) * stride;
-                    // interactionData[index] = Math.round((rulesMatrix[a][b] + 1) * 0.5 * 255); // rule u8
-                    interactionData[index] = Math.max(0, Math.min(200, Math.round(rulesMatrix[a][b] * 100) + 100)); // rule u8
-                    interactionData[index + 1] = Math.round(minRadiusMatrix[a][b]); // minR u8
-                    const maxR = maxRadiusMatrix[a][b];
-                    interactionData[index + 2] = maxR & 0xFF; // maxR low byte
-                    interactionData[index + 3] = (maxR >> 8) & 0xFF; // maxR high byte
+                    const rule = Math.max(0, Math.min(200, Math.round(rulesMatrix[a][b] * 100) + 100)); // rule 8 bits (0-200) (-1.00->1.00)
+                    const minR = Math.max(0, Math.min(4095, Math.round(minRadiusMatrix[a][b]))); // minR 12 bits (0–4095)
+                    const maxR = Math.max(0, Math.min(4095, Math.round(maxRadiusMatrix[a][b]))); // maxR 12 bits (0–4095)
+                    interactionData[a * NUM_TYPES + b] = (rule | (minR << 8) | (maxR << 20)) >>> 0;
                 }
             }
 
-            const paddedSize = Math.ceil(interactionData.byteLength / 16) * 16 // Ensure padded to 16 bytes
-            const paddedInteractionData = new Uint8Array(paddedSize)
-            paddedInteractionData.set(interactionData)
-
-            if (!interactionMatrixBuffer || interactionMatrixBuffer.size !== paddedSize) {
+            if (!interactionMatrixBuffer || interactionMatrixBuffer.size !== interactionData.byteLength) {
                 if (interactionMatrixBuffer) interactionMatrixBuffer.destroy(); interactionMatrixBuffer = undefined;
                 interactionMatrixBuffer = device.createBuffer({
-                    size: paddedSize,
+                    size: interactionData.byteLength,
                     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
                     mappedAtCreation: true
                 })
-                new Uint8Array(interactionMatrixBuffer.getMappedRange()).set(paddedInteractionData)
+                new Uint32Array(interactionMatrixBuffer.getMappedRange()).set(interactionData)
                 interactionMatrixBuffer.unmap()
             } else {
-                device.queue.writeBuffer(interactionMatrixBuffer, 0, paddedInteractionData)
+                device.queue.writeBuffer(interactionMatrixBuffer, 0, interactionData)
             }
         }
         const updateParticleBuffers = (hasInitialParticles: boolean = false) => {
