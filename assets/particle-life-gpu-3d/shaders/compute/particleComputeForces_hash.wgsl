@@ -69,6 +69,7 @@ fn get_interaction(index: u32) -> vec3<f32> {
 @group(0) @binding(4) var<storage, read> cellSignature : array<u32>;
 
 @group(1) @binding(0) var<uniform> options : SimOptions;
+@group(2) @binding(0) var<uniform> deltaTime : f32;
 
 @compute @workgroup_size(64)
 fn computeForces(@builtin(global_invocation_id) id : vec3u) {
@@ -150,9 +151,10 @@ fn computeForces(@builtin(global_invocation_id) id : vec3u) {
         }
     }
 
-    particle.vx = fma(totalForce.x, options.forceFactor, particle.vx);
-    particle.vy = fma(totalForce.y, options.forceFactor, particle.vy);
-    particle.vz = fma(totalForce.z, options.forceFactor, particle.vz);
+    let forceFactor = options.forceFactor * deltaTime * 60.0;
+    particle.vx = fma(totalForce.x, forceFactor, particle.vx);
+    particle.vy = fma(totalForce.y, forceFactor, particle.vy);
+    particle.vz = fma(totalForce.z, forceFactor, particle.vz);
 
     particlesDestination[id.x] = particle;
 }

@@ -118,9 +118,9 @@
                             </RangeInput>
 
                             <hr border-gray-500 my-2>
-                            <div flex items-center justify-between gap-2>
+                            <div flex items-center justify-between>
                                 <p underline text-gray-300>Delta Time :</p>
-                                <div flex-1>
+                                <div flex-1 pl-2>
                                     <button type="button" text-sm cursor-pointer pointer-events-auto rounded-full px-2 py-0.5 flex items-center gap-1 transition-colors text-gray-300 ring-1 class="ring-slate-500/50 bg-slate-700/40 hover:bg-slate-600/50"
                                             :title="particleLife.showLiveDeltaTime ? 'Hide live Δt' : 'Show live Δt'"
                                             @click="particleLife.showLiveDeltaTime = !particleLife.showLiveDeltaTime">
@@ -454,7 +454,7 @@ export default defineComponent({
         let showLiveDeltaTime: boolean = particleLife.showLiveDeltaTime // Hidden by default: only refreshed/rendered when the user reveals it (avoids permanent reactivity)
         let manualDeltaTimeEnabled: boolean = particleLife.manualDeltaTimeEnabled // Override auto Δt with a fixed value
         let manualDeltaTime: number = particleLife.manualDeltaTime // Fixed Δt (seconds) used when manualDeltaTimeEnabled
-        let smoothedDeltaTime: number = 0.0083 // Smoothed delta time (s) — fed to the shaders AND used for brush velocity
+        let smoothedDeltaTime: number = 0.0083 // Smoothed delta time (s) - Initial value (1/120s)
 
         let CANVAS_WIDTH: number = 0
         let CANVAS_HEIGHT: number = 0
@@ -1279,6 +1279,7 @@ export default defineComponent({
             animationFrameId = requestAnimationFrame(frame)
         }
         // -------------------------------------------------------------------------------------------------------------
+        const deltaTimeData = new Float32Array(2)
         const DT_SMOOTHING_TAU: number = 1.0 // Smoothing time constant (s). Framerate-independent (1 - exp(-dt/tau)): same convergence time in wall-clock at any fps. Higher = steadier, lower = snappier.
         const handleDeltaTime = (startExecutionTime: number) => {
             const deltaTime = Math.min((startExecutionTime - lastFrameTime) / 1000, smoothedDeltaTime * 2) // Cap deltaTime to avoid spikes
@@ -1299,7 +1300,9 @@ export default defineComponent({
             }
         }
         const updateDeltaTimeBuffer = (deltaTime: number) => {
-            device.queue.writeBuffer(deltaTimeBuffer!, 0, new Float32Array([deltaTime, Math.pow(1 - frictionFactor, deltaTime * 60)]))
+            deltaTimeData[0] = deltaTime
+            deltaTimeData[1] = Math.pow(1 - frictionFactor, deltaTime * 60)
+            device.queue.writeBuffer(deltaTimeBuffer!, 0, deltaTimeData)
         }
         // -------------------------------------------------------------------------------------------------------------
         const step = () => {

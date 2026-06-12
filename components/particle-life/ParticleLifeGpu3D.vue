@@ -99,6 +99,33 @@
                                         tooltip="Controls how much friction slows particles down. <br> Higher values reduce speed and help stabilize the system."
                                         :min="0" :max="1" :step="0.01" v-model="particleLife.frictionFactor" mt-2>
                             </RangeInput>
+
+                            <hr border-gray-500 my-2>
+                            <div flex items-center justify-between>
+                                <p underline text-gray-300>Delta Time :</p>
+                                <div flex-1 pl-2>
+                                    <button type="button" text-sm cursor-pointer pointer-events-auto rounded-full px-2 py-0.5 flex items-center gap-1 transition-colors text-gray-300 ring-1 class="ring-slate-500/50 bg-slate-700/40 hover:bg-slate-600/50"
+                                            :title="particleLife.showLiveDeltaTime ? 'Hide live Δt' : 'Show live Δt'"
+                                            @click="particleLife.showLiveDeltaTime = !particleLife.showLiveDeltaTime">
+                                        <Transition name="dt-fade" mode="out-in">
+                                            <span v-if="!particleLife.showLiveDeltaTime" key="show" flex items-center gap-1 text-gray-300>
+                                                <span i-tabler-eye text-sm></span>
+                                                Show live Δt
+                                            </span>
+                                            <span v-else key="value" flex items-center gap-1 text-gray-300>
+                                                <span i-tabler-eye-off text-sm text-gray-500></span>
+                                                1/{{ Math.round(1 / displayedDeltaTime) }} <span text-gray-500>({{ displayedDeltaTime.toFixed(4) }}s)</span>
+                                            </span>
+                                        </Transition>
+                                    </button>
+                                </div>
+                                <ToggleSwitch label="Manual Δt" v-model="particleLife.manualDeltaTimeEnabled" />
+                            </div>
+                            <RangeInput v-if="particleLife.manualDeltaTimeEnabled"
+                                        input :label="`Δt = 1/${Math.round(1 / particleLife.manualDeltaTime)}`"
+                                        tooltip="Manually set the simulation time step (Δt), shown as a frame fraction (1/x). <br> <b>Higher Δt</b> → faster but particles overshoot <br> <b>Lower Δt</b> → slower but more stable. <br> <i>Disable to keep the automatic, framerate-independent Δt.</i>"
+                                        :min="0.0041" :max="0.05" :step="0.0001" v-model="particleLife.manualDeltaTime" mt-2>
+                            </RangeInput>
                         </Collapse>
                         <Collapse label="Graphics Settings" icon="i-tabler-photo-cog text-emerald-500">
                             <RangeInput input label="Particle Size"
@@ -399,7 +426,13 @@ export default defineComponent({
         let isUpdateNumTypesPending: boolean = false
         let hasUpdateNumParticles: boolean = false
 
-        let smoothedDeltaTime: number = 0.0083 // Initial value (1/120s)
+        const displayedDeltaTime = ref<number>(1 / 60) // Reactive readout of the live auto Δt (refreshed only a few times/sec)
+        let lastDisplayedDtUpdate: number = 0 // Throttle timestamp for the displayedDeltaTime UI readout
+        let showLiveDeltaTime: boolean = particleLife.showLiveDeltaTime // Hidden by default: only refreshed/rendered when the user reveals it (avoids permanent reactivity)
+        let manualDeltaTimeEnabled: boolean = particleLife.manualDeltaTimeEnabled // Override auto Δt with a fixed value
+        let manualDeltaTime: number = particleLife.manualDeltaTime // Fixed Δt (seconds) used when manualDeltaTimeEnabled
+        let smoothedDeltaTime: number = 0.0083 // Smoothed delta time (s) - Initial value (1/120s)
+
         let CANVAS_WIDTH: number = 0
         let CANVAS_HEIGHT: number = 0
         let DEVICE_PIXEL_RATIO: number = 1
@@ -1085,18 +1118,30 @@ export default defineComponent({
             device.queue.submit([encoder.finish()])
         }
         // -------------------------------------------------------------------------------------------------------------
-        const deltaTimeData = new Float32Array(1)
+        const deltaTimeData = new Float32Array(2)
+        const DT_SMOOTHING_TAU: number = 1.0 // Smoothing time constant (s). Framerate-independent (1 - exp(-dt/tau)): same convergence time in wall-clock at any fps. Higher = steadier, lower = snappier.
         const handleDeltaTime = (startExecutionTime: number) => {
-            const deltaTime = Math.min((startExecutionTime - lastFrameTime) / 1000, 0.1) // Cap deltaTime to avoid spikes
+            const deltaTime = Math.min((startExecutionTime - lastFrameTime) / 1000, smoothedDeltaTime * 2) // Cap deltaTime to avoid spikes
             lastFrameTime = startExecutionTime
             const lastSmoothedDeltaTime = smoothedDeltaTime
-            smoothedDeltaTime = smoothedDeltaTime * (1 - 0.01) + deltaTime * 0.01 // Smooth the delta time
+            const smoothing = 1 - Math.exp(-deltaTime / DT_SMOOTHING_TAU)
+            smoothedDeltaTime = smoothedDeltaTime * (1 - smoothing) + deltaTime * smoothing // Smooth the delta time
+
+            if (showLiveDeltaTime && startExecutionTime - lastDisplayedDtUpdate > 400) {
+                lastDisplayedDtUpdate = startExecutionTime
+                displayedDeltaTime.value = smoothedDeltaTime
+            }
+            if (manualDeltaTimeEnabled) return
 
             // Only update the delta time buffer if it has changed significantly
             if (Math.round(lastSmoothedDeltaTime * 1000) !== Math.round(smoothedDeltaTime * 1000)) {
-                deltaTimeData[0] = smoothedDeltaTime
-                device.queue.writeBuffer(deltaTimeBuffer!, 0, deltaTimeData)
+                updateDeltaTimeBuffer(smoothedDeltaTime)
             }
+        }
+        const updateDeltaTimeBuffer = (deltaTime: number) => {
+            deltaTimeData[0] = deltaTime
+            deltaTimeData[1] = Math.pow(1 - frictionFactor, deltaTime * 60)
+            device.queue.writeBuffer(deltaTimeBuffer!, 0, deltaTimeData)
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -1106,6 +1151,7 @@ export default defineComponent({
             computePass.setPipeline(bruteForceComputePipeline)
             computePass.setBindGroup(0, bruteForceBindGroup)
             computePass.setBindGroup(1, simOptionsBindGroup)
+            computePass.setBindGroup(2, deltaTimeBindGroup)
             computePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
             computePass.end()
         }
@@ -1154,6 +1200,7 @@ export default defineComponent({
             forcesComputePass.setPipeline(activeForcesPipeline)
             forcesComputePass.setBindGroup(0, activeForcesBindGroup)
             forcesComputePass.setBindGroup(1, simOptionsBindGroup)
+            forcesComputePass.setBindGroup(2, deltaTimeBindGroup)
             forcesComputePass.dispatchWorkgroups(Math.ceil(NUM_PARTICLES / 64))
             forcesComputePass.end()
         }
@@ -1933,11 +1980,11 @@ export default defineComponent({
             updateRenderOptionsBuffer()
             // ----------------------------------------------------------------------------------------------
             deltaTimeBuffer = device.createBuffer({
-                size: 4,
+                size: 8, // [deltaTime, friction] -> friction = pre-computed pow(1 - frictionFactor, deltaTime * 60)
                 usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
                 mappedAtCreation: true
             })
-            new Float32Array(deltaTimeBuffer.getMappedRange()).set([smoothedDeltaTime])
+            new Float32Array(deltaTimeBuffer.getMappedRange()).set([smoothedDeltaTime, Math.pow(1 - frictionFactor, smoothedDeltaTime * 60)])
             deltaTimeBuffer.unmap()
         }
         // -------------------------------------------------------------------------------------------------------------
@@ -2310,6 +2357,7 @@ export default defineComponent({
                     bindGroupLayouts: [
                         particleComputeForcesBindGroupLayout,
                         simOptionsBindGroupLayout,
+                        deltaTimeBindGroupLayout,
                     ],
                 }),
                 compute: { module: particleComputeForcesShader, entryPoint: 'computeForces' }
@@ -2342,6 +2390,7 @@ export default defineComponent({
                     bindGroupLayouts: [
                         particleComputeForcesHashBindGroupLayout,
                         simOptionsBindGroupLayout,
+                        deltaTimeBindGroupLayout,
                     ],
                 }),
                 compute: { module: particleComputeForcesHashShader, entryPoint: 'computeForces' }
@@ -2352,6 +2401,7 @@ export default defineComponent({
                     bindGroupLayouts: [
                         bruteForceBindGroupLayout,
                         simOptionsBindGroupLayout,
+                        deltaTimeBindGroupLayout,
                     ],
                 }),
                 compute: { module: bruteForceShader, entryPoint: 'main' }
@@ -2661,7 +2711,20 @@ export default defineComponent({
         watchAndUpdateSimOptions(() => particleLife.particleOpacity, (value: number) => PARTICLE_OPACITY = value)
         watchAndUpdateSimOptions(() => particleLife.repel, (value: number) => repel = value)
         watchAndUpdateSimOptions(() => particleLife.forceFactor, (value: number) => forceFactor = value)
-        watchAndUpdateSimOptions(() => particleLife.frictionFactor, (value: number) => frictionFactor = value)
+        watchAndUpdateSimOptions(() => particleLife.frictionFactor, (value: number) => {
+            frictionFactor = value
+            updateDeltaTimeBuffer(manualDeltaTimeEnabled ? manualDeltaTime : smoothedDeltaTime)
+        })
+
+        watch(() => particleLife.showLiveDeltaTime, (value: boolean) => showLiveDeltaTime = value)
+        watch(() => particleLife.manualDeltaTimeEnabled, (value: boolean) => {
+            manualDeltaTimeEnabled = value
+            updateDeltaTimeBuffer(value ? manualDeltaTime : smoothedDeltaTime)
+        })
+        watch(() => particleLife.manualDeltaTime, (value: number) => {
+            manualDeltaTime = value
+            if (manualDeltaTimeEnabled) updateDeltaTimeBuffer(value)
+        })
 
         watch(() => particleLife.minRadiusRange, (value: number[]) => {
             if (value[0] > value[1]) particleLife.minRadiusRange[0] = value[1]
@@ -2806,7 +2869,7 @@ export default defineComponent({
         }
 
         return {
-            particleLife, canvasRef, fps, executionTime, gpuTimings,
+            particleLife, canvasRef, fps, executionTime, gpuTimings, displayedDeltaTime, showLiveDeltaTime,
             handleZoom, toggleFullscreen, isFullscreen, smoothCenterView, regenerateLife, step,
             updateSimWidth, updateSimHeight, updateSimDepth,
             updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, newRandomRulesMatrix, updateSingleColor,
@@ -2822,5 +2885,14 @@ export default defineComponent({
 <style scoped>
 canvas {
     background: black;
+}
+
+.dt-fade-enter-active,
+.dt-fade-leave-active {
+    transition: opacity 0.2s ease;
+}
+.dt-fade-enter-from,
+.dt-fade-leave-to {
+    opacity: 0;
 }
 </style>

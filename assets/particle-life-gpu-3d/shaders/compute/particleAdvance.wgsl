@@ -32,10 +32,14 @@ struct Particle {
     vz : f32,
     particleType : f32,
 }
+struct DeltaTime {
+    deltaTime: f32,
+    friction: f32, // pre-computed pow(1 - frictionFactor, deltaTime * 60) on the CPU
+}
 
 @group(0) @binding(0) var<storage, read_write> particles : array<Particle>;
 @group(1) @binding(0) var<uniform> options : SimOptions;
-@group(2) @binding(0) var<uniform> deltaTime: f32;
+@group(2) @binding(0) var<uniform> dt: DeltaTime;
 
 @compute @workgroup_size(64)
 fn particleAdvance(@builtin(global_invocation_id) id : vec3u) {
@@ -47,14 +51,13 @@ fn particleAdvance(@builtin(global_invocation_id) id : vec3u) {
 
     var particle = particles[id.x];
 
-    let friction = 1.0 - options.frictionFactor;
-    particle.vx *= friction;
-    particle.vy *= friction;
-    particle.vz *= friction;
+    particle.vx *= dt.friction;
+    particle.vy *= dt.friction;
+    particle.vz *= dt.friction;
 
-    particle.x += particle.vx * deltaTime;
-    particle.y += particle.vy * deltaTime;
-    particle.z += particle.vz * deltaTime;
+    particle.x += particle.vx * dt.deltaTime;
+    particle.y += particle.vy * dt.deltaTime;
+    particle.z += particle.vz * dt.deltaTime;
 
     if (options.isWallRepel == 1u) {
         let margin = options.particleSize;

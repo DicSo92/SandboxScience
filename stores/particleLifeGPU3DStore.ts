@@ -37,6 +37,10 @@ export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => 
         }
     })
 
+    const showLiveDeltaTime = ref<boolean>(false) // Show live Δt in the HUD (for debugging and performance monitoring)
+    const manualDeltaTimeEnabled = ref<boolean>(false) // Override the automatic (framerate-independent) Δt with a fixed value
+    const manualDeltaTime = ref<number>(0.0166) // Manual simulation time step in seconds (used only when manualDeltaTimeEnabled)
+
     // Define force properties
     const repel = ref<number>(1) // repel force for particles that are too close to each other
     const forceFactor = ref<number>(2) // Adjust the overall force applied between particles (can't be 0)
@@ -97,6 +101,7 @@ export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => 
         isParticleBorder, isSphereShading, sphereAmbient, sphereDiffuseStrength, sphereSpecularStrength, sphereShininess, sphereLightDir,
         selectedSpawnPositionOption, selectedRulesOption, selectedColorPaletteOption, savedPresets, isSaveModalOpen,
         cellSubdivisions, gridExtensionFactor, maxGridExtensionFactor,
+        showLiveDeltaTime, manualDeltaTimeEnabled, manualDeltaTime,
         $reset
     }
 })
