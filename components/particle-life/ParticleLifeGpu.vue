@@ -118,9 +118,9 @@
                             </RangeInput>
 
                             <hr border-gray-500 my-2>
-                            <div flex items-center justify-between gap-2>
+                            <div flex items-center justify-between>
                                 <p underline text-gray-300>Delta Time :</p>
-                                <div flex-1>
+                                <div flex-1 pl-2>
                                     <button type="button" text-sm cursor-pointer pointer-events-auto rounded-full px-2 py-0.5 flex items-center gap-1 transition-colors text-gray-300 ring-1 class="ring-slate-500/50 bg-slate-700/40 hover:bg-slate-600/50"
                                             :title="particleLife.showLiveDeltaTime ? 'Hide live Δt' : 'Show live Δt'"
                                             @click="particleLife.showLiveDeltaTime = !particleLife.showLiveDeltaTime">
@@ -454,7 +454,7 @@ export default defineComponent({
         let showLiveDeltaTime: boolean = particleLife.showLiveDeltaTime // Hidden by default: only refreshed/rendered when the user reveals it (avoids permanent reactivity)
         let manualDeltaTimeEnabled: boolean = particleLife.manualDeltaTimeEnabled // Override auto Δt with a fixed value
         let manualDeltaTime: number = particleLife.manualDeltaTime // Fixed Δt (seconds) used when manualDeltaTimeEnabled
-        let smoothedDeltaTime: number = 0.0083 // Smoothed delta time (s) — fed to the shaders AND used for brush velocity
+        let smoothedDeltaTime: number = 0.0083 // Smoothed delta time (s) - Initial value (1/120s)
 
         let CANVAS_WIDTH: number = 0
         let CANVAS_HEIGHT: number = 0
@@ -1279,6 +1279,7 @@ export default defineComponent({
             animationFrameId = requestAnimationFrame(frame)
         }
         // -------------------------------------------------------------------------------------------------------------
+        const deltaTimeData = new Float32Array(2)
         const DT_SMOOTHING_TAU: number = 1.0 // Smoothing time constant (s). Framerate-independent (1 - exp(-dt/tau)): same convergence time in wall-clock at any fps. Higher = steadier, lower = snappier.
         const handleDeltaTime = (startExecutionTime: number) => {
             const deltaTime = Math.min((startExecutionTime - lastFrameTime) / 1000, smoothedDeltaTime * 2) // Cap deltaTime to avoid spikes
@@ -1299,7 +1300,9 @@ export default defineComponent({
             }
         }
         const updateDeltaTimeBuffer = (deltaTime: number) => {
-            device.queue.writeBuffer(deltaTimeBuffer!, 0, new Float32Array([deltaTime, Math.pow(1 - frictionFactor, deltaTime * 60)]))
+            deltaTimeData[0] = deltaTime
+            deltaTimeData[1] = Math.pow(1 - frictionFactor, deltaTime * 60)
+            device.queue.writeBuffer(deltaTimeBuffer!, 0, deltaTimeData)
         }
         // -------------------------------------------------------------------------------------------------------------
         const step = () => {
@@ -1878,34 +1881,27 @@ export default defineComponent({
             targetTrackerCameraOffset = { x: 0, y: 0 }
         }
         const updateInteractionMatrixBuffer = () => {
-            const stride = 4; // 4 octets par couple
-            const interactionData = new Uint8Array(NUM_TYPES * NUM_TYPES * stride);
+            const wordCount = Math.ceil((NUM_TYPES * NUM_TYPES) / 4) * 4 // 16 octets
+            const interactionData = new Uint32Array(wordCount)
             for (let a = 0; a < NUM_TYPES; a++) {
                 for (let b = 0; b < NUM_TYPES; b++) {
-                    const index = (a * NUM_TYPES + b) * stride;
-                    interactionData[index] = Math.round((rulesMatrix[a][b] + 1) * 0.5 * 255); // rule u8
-                    interactionData[index + 1] = Math.round(minRadiusMatrix[a][b]); // minR u8
-                    const maxR = maxRadiusMatrix[a][b];
-                    interactionData[index + 2] = maxR & 0xFF; // maxR low byte
-                    interactionData[index + 3] = (maxR >> 8) & 0xFF; // maxR high byte
+                    const rule = Math.max(0, Math.min(200, Math.round(rulesMatrix[a][b] * 100) + 100)); // rule 8 bits (0-200) (-1.00->1.00)
+                    const minR = Math.max(0, Math.min(4095, Math.round(minRadiusMatrix[a][b]))); // minR 12 bits (0–4095)
+                    const maxR = Math.max(0, Math.min(4095, Math.round(maxRadiusMatrix[a][b]))); // maxR 12 bits (0–4095)
+                    interactionData[a * NUM_TYPES + b] = (rule | (minR << 8) | (maxR << 20)) >>> 0;
                 }
             }
-
-            const paddedSize = Math.ceil(interactionData.byteLength / 16) * 16 // Ensure padded to 16 bytes
-            const paddedInteractionData = new Uint8Array(paddedSize)
-            paddedInteractionData.set(interactionData)
-
-            if (!interactionMatrixBuffer || interactionMatrixBuffer.size !== paddedSize) {
+            if (!interactionMatrixBuffer || interactionMatrixBuffer.size !== interactionData.byteLength) {
                 if (interactionMatrixBuffer) interactionMatrixBuffer.destroy(); interactionMatrixBuffer = undefined;
                 interactionMatrixBuffer = device.createBuffer({
-                    size: paddedSize,
+                    size: interactionData.byteLength,
                     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
                     mappedAtCreation: true
                 })
-                new Uint8Array(interactionMatrixBuffer.getMappedRange()).set(paddedInteractionData)
+                new Uint32Array(interactionMatrixBuffer.getMappedRange()).set(interactionData)
                 interactionMatrixBuffer.unmap()
             } else {
-                device.queue.writeBuffer(interactionMatrixBuffer, 0, paddedInteractionData)
+                device.queue.writeBuffer(interactionMatrixBuffer, 0, interactionData)
             }
         }
         // -------------------------------------------------------------------------------------------------------------
@@ -3264,9 +3260,9 @@ export default defineComponent({
         const updateMinMatrixValue = (x: number, y: number, value: number) => {
             particleLife.minRadiusMatrix[x][y] = value
             minRadiusMatrix[x][y] = value
-            if (value > particleLife.maxRadiusMatrix[x][y]) {
-                particleLife.maxRadiusMatrix[x][y] = value
-                maxRadiusMatrix[x][y] = value
+            if (value >= particleLife.maxRadiusMatrix[x][y]) {
+                particleLife.maxRadiusMatrix[x][y] = value + 1
+                maxRadiusMatrix[x][y] = value + 1
                 setCurrentMaxRadius(getCurrentMaxRadius())
             }
             updateInteractionMatrixBuffer()
@@ -3275,9 +3271,9 @@ export default defineComponent({
             particleLife.maxRadiusMatrix[x][y] = value
             maxRadiusMatrix[x][y] = value
             setCurrentMaxRadius(getCurrentMaxRadius())
-            if (value < particleLife.minRadiusMatrix[x][y]) {
-                particleLife.minRadiusMatrix[x][y] = value
-                minRadiusMatrix[x][y] = value
+            if (value <= particleLife.minRadiusMatrix[x][y]) {
+                particleLife.minRadiusMatrix[x][y] = value - 1
+                minRadiusMatrix[x][y] = value - 1
             }
             updateInteractionMatrixBuffer()
         }

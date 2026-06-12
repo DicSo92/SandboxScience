@@ -249,7 +249,7 @@ export default defineComponent({
         }
         // -------------------------------------------------------------------------------------------------------------
         function updateMatrixForAllCells(value: number = 0) {
-            value = Math.max(0, value)
+            value = Math.max(1, Math.min(4094, Math.round(value)))
             for (let i = 0; i < particleLife.numColors; i++) {
                 for (let j = 0; j < particleLife.numColors; j++) {
                     emit('update', i, j, value)
@@ -257,7 +257,7 @@ export default defineComponent({
             }
         }
         function updateMatrixForSelectedCells(value: number) {
-            value = Math.max(0, value)
+            value = Math.max(1, Math.min(4094, Math.round(value)))
             for (let i = 0; i < selectedCells.value!.length; i++) {
                 const [x, y] = selectedCells.value![i]
                 emit('update', x, y, value)

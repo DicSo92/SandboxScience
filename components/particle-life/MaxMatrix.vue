@@ -47,7 +47,7 @@
                 </div>
             </div>
         </div>
-        <RangeInput input :min="selectedCell && selectedCells?.length === 1 ? particleLife.minRadiusMatrix[selectedCell[0]][selectedCell[1]] : 1" :max="600" :step="1" v-model="selectedValue" mt-2 >
+        <RangeInput input :min="selectedCell && selectedCells?.length === 1 ? particleLife.minRadiusMatrix[selectedCell[0]][selectedCell[1]] : 2" :max="600" :step="1" v-model="selectedValue" mt-2 >
             <template #customLabel>
                 <div class="w-2/3 px-2 py-0.5 bg-slate-900/80 border-2 border-slate-500/80" rounded-lg>
                     <div v-if="!selectedCells" font-bold text-center text-gray-300>All Types</div>
@@ -248,7 +248,7 @@ export default defineComponent({
         }
         // -------------------------------------------------------------------------------------------------------------
         function updateMatrixForAllCells(value: number = 0) {
-            value = Math.max(1, value)
+            value = Math.max(2, Math.min(4095, Math.round(value)))
             for (let i = 0; i < particleLife.numColors; i++) {
                 for (let j = 0; j < particleLife.numColors; j++) {
                     emit('update', i, j, value)
@@ -256,7 +256,7 @@ export default defineComponent({
             }
         }
         function updateMatrixForSelectedCells(value: number) {
-            value = Math.max(1, value)
+            value = Math.max(2, Math.min(4095, Math.round(value)))
             for (let i = 0; i < selectedCells.value!.length; i++) {
                 const [x, y] = selectedCells.value![i]
                 emit('update', x, y, value)

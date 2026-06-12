@@ -34,11 +34,11 @@ struct Particle {
     particleType : f32,
 }
 
-fn get_interaction(index: u32, numTypes: u32) -> vec3<f32> {
+fn get_interaction(index: u32) -> vec3<f32> {
     let word = interactions.data[index];
-    let rule = (f32((word >> 0u) & 0xFFu) / 255.0) * 2.0 - 1.0;
-    let minR = f32((word >> 8u) & 0xFFu);
-    let maxR = f32((word >> 16u) & 0xFFFFu);
+    let rule = (f32((word >> 0u) & 0xFFu) - 100.0) * 0.01;
+    let minR = f32((word >> 8u) & 0xFFFu);
+    let maxR = f32((word >> 20u) & 0xFFFu);
     return vec3<f32>(rule, minR, maxR);
 }
 
@@ -46,6 +46,7 @@ fn get_interaction(index: u32, numTypes: u32) -> vec3<f32> {
 @group(0) @binding(1) var<storage, read_write> particlesDestination : array<Particle>;
 @group(0) @binding(2) var<storage, read> interactions: InteractionMatrix;
 @group(1) @binding(0) var<uniform> options: SimOptions;
+@group(2) @binding(0) var<uniform> deltaTime: f32;
 
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
@@ -81,7 +82,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
 
         let dist = sqrt(dx * dx + dy * dy + dz * dz);
         let index = typeA * options.numTypes + typeB;
-        let params = get_interaction(index, options.numTypes);
+        let params = get_interaction(index);
         let maxR = params.z;
         if (dist > 0.0 && dist < maxR) {
             let rule = params.x;
@@ -103,9 +104,10 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
         }
     }
 
-    particle.vx += velocitySum.x * options.forceFactor;
-    particle.vy += velocitySum.y * options.forceFactor;
-    particle.vz += velocitySum.z * options.forceFactor;
+    let forceFactor = options.forceFactor * deltaTime * 60.0;
+    particle.vx += velocitySum.x * forceFactor;
+    particle.vy += velocitySum.y * forceFactor;
+    particle.vz += velocitySum.z * forceFactor;
 
     particlesDestination[i] = particle;
 };

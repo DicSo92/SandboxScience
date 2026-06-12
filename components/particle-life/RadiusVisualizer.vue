@@ -362,28 +362,28 @@ const applyValue = (handle: Handle, value: number) => {
     const maxR = [props.maxRadiusRange[0], props.maxRadiusRange[1]]
 
     if (handle === 'minA') {
-        minR[0] = Math.max(0, value)
-        if (minR[0] > minR[1] - HANDLE_GAP) minR[1] = minR[0] + HANDLE_GAP
+        minR[0] = Math.max(1, Math.min(4094, Math.round(value)))
+        if (minR[0] > minR[1]) minR[1] = minR[0]
         if (minR[1] > maxR[0] - HANDLE_GAP) maxR[0] = minR[1] + HANDLE_GAP
-        if (maxR[0] > maxR[1] - HANDLE_GAP) maxR[1] = maxR[0] + HANDLE_GAP
+        if (maxR[0] > maxR[1]) maxR[1] = maxR[0]
     }
     else if (handle === 'minB') {
-        minR[1] = Math.max(0, value)
-        if (minR[1] < minR[0] + HANDLE_GAP) minR[0] = Math.max(0, minR[1] - HANDLE_GAP)
+        minR[1] = Math.max(1, Math.min(4094, Math.round(value)))
+        if (minR[1] < minR[0]) minR[0] = minR[1]
         if (minR[1] > maxR[0] - HANDLE_GAP) maxR[0] = minR[1] + HANDLE_GAP
-        if (maxR[0] > maxR[1] - HANDLE_GAP) maxR[1] = maxR[0] + HANDLE_GAP
+        if (maxR[0] > maxR[1]) maxR[1] = maxR[0]
     }
     else if (handle === 'maxA') {
-        maxR[0] = Math.max(0, value)
-        if (maxR[0] < minR[1] + HANDLE_GAP) minR[1] = Math.max(0, maxR[0] - HANDLE_GAP)
-        if (minR[1] < minR[0] + HANDLE_GAP) minR[0] = Math.max(0, minR[1] - HANDLE_GAP)
-        if (maxR[0] > maxR[1] - HANDLE_GAP) maxR[1] = maxR[0] + HANDLE_GAP
+        maxR[0] = Math.max(2, Math.min(4095, Math.round(value)))
+        if (maxR[0] < minR[1] + HANDLE_GAP) minR[1] = Math.max(1, maxR[0] - HANDLE_GAP)
+        if (minR[1] < minR[0]) minR[0] = minR[1]
+        if (maxR[0] > maxR[1]) maxR[1] = maxR[0]
     }
     else {
-        maxR[1] = Math.max(0, value)
-        if (maxR[1] < maxR[0] + HANDLE_GAP) maxR[0] = Math.max(0, maxR[1] - HANDLE_GAP)
-        if (maxR[0] < minR[1] + HANDLE_GAP) minR[1] = Math.max(0, maxR[0] - HANDLE_GAP)
-        if (minR[1] < minR[0] + HANDLE_GAP) minR[0] = Math.max(0, minR[1] - HANDLE_GAP)
+        maxR[1] = Math.max(2, Math.min(4095, Math.round(value)))
+        if (maxR[1] < maxR[0]) maxR[0] = maxR[1]
+        if (maxR[0] < minR[1] + HANDLE_GAP) minR[1] = Math.max(1, maxR[0] - HANDLE_GAP)
+        if (minR[1] < minR[0]) minR[0] = minR[1]
     }
 
     if (minR[0] !== props.minRadiusRange[0] || minR[1] !== props.minRadiusRange[1]) {
