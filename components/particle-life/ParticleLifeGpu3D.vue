@@ -33,6 +33,13 @@
                                          @loadPreset="loadPreset">
                             </PresetPanel>
                         </Collapse>
+                        <Collapse label="Save / Load State" icon="i-tabler-archive text-emerald-500"
+                                  tooltip="Save the full simulation snapshot (the position of every particle) to a file, and load it back later to resume exactly where you left off.">
+                            <StatePanel :store="particleLife"
+                                        @saveState="saveState"
+                                        @loadState="loadState">
+                            </StatePanel>
+                        </Collapse>
                         <Collapse label="Matrix Settings" icon="i-tabler-grid-4x4 text-indigo-500"
                                   tooltip="Modify matrix values by clicking on cells in the grid. <br>
                                   Adjust individual cell values with the slider, or click and drag to change them directly. <br>
@@ -350,6 +357,7 @@ import cameraTargetShaderCode from 'assets/particle-life-gpu-3d/shaders/render/c
 import composeHdrShaderCode from 'assets/particle-life-gpu-3d/shaders/compose/compose_hdr.wgsl?raw';
 import bloomShaderCode from 'assets/particle-life-gpu-3d/shaders/compose/bloom.wgsl?raw';
 import PresetPanel from "~/components/particle-life/PresetPanel.vue";
+import StatePanel from "~/components/particle-life/StatePanel.vue";
 import SaveModal from "~/components/particle-life/SaveModal.vue";
 import CenterViewButton from "~/components/particle-life/CenterViewButton.vue";
 
@@ -378,7 +386,7 @@ const sphereShadingPresetOptions = [
 
 export default defineComponent({
     name: 'ParticleLifeGpu',
-    components: { SaveModal, PresetPanel, CenterViewButton, RadiusVisualizer, BrushSettings, MatrixSettings },
+    components: { SaveModal, PresetPanel, StatePanel, CenterViewButton, RadiusVisualizer, BrushSettings, MatrixSettings },
     emits: ['switch-renderer'],
     setup(props, { emit }) {
         // Define refs and variables
@@ -462,6 +470,8 @@ export default defineComponent({
         // Define the simulation properties
         let initialParticles: Float32Array // Initial particle x, y, vx, vy, type
         let colors: Float32Array // Particle colors
+        const { downloadState, readStateFile } = useStateManager()
+        let pendingLoadedState: { rulesMatrix: number[][], minRadiusMatrix: number[][], maxRadiusMatrix: number[][], colors: Float32Array, particles: Float32Array } | null = null
 
         // Define the properties for dragging and zooming
         let isDragging: boolean = false // Flag to check if the mouse is being dragged
@@ -965,9 +975,16 @@ export default defineComponent({
         }
         const initLife = async (autoCenter: boolean = true) => {
             isInitializing = true
+            if (pendingLoadedState) {
+                // Restoring a saved snapshot: use its matrices instead of generating random ones
+                setRulesMatrix(pendingLoadedState.rulesMatrix)
+                setMinRadiusMatrix(pendingLoadedState.minRadiusMatrix)
+                setMaxRadiusMatrix(pendingLoadedState.maxRadiusMatrix)
+            } else {
             setRulesMatrix(generateRules(0, NUM_TYPES)) // Random rule
             setMinRadiusMatrix(makeRandomMinRadiusMatrix())
             setMaxRadiusMatrix(makeRandomMaxRadiusMatrix())
+            }
 
             console.log("Rules Matrix:", rulesMatrix);
             console.log("Min Radius Matrix:", minRadiusMatrix);
@@ -976,8 +993,15 @@ export default defineComponent({
             await nextTick()
             if (autoCenter) centerView()
 
+            if (pendingLoadedState) {
+                colors = pendingLoadedState.colors
+                particleLife.currentColors = colors
+                initialParticles = pendingLoadedState.particles
+                pendingLoadedState = null
+            } else {
             initColors()
             initParticles()
+            }
             createBuffers()
             createBindGroupLayouts()
             createPipelines()
@@ -1342,6 +1366,65 @@ export default defineComponent({
             setMinRadiusMatrix(makeRandomMinRadiusMatrix())
             setMaxRadiusMatrix(makeRandomMaxRadiusMatrix())
             updateInteractionMatrixBuffer()
+        }
+        // -------------------------------------------------------------------------------------------------------------
+        // --- Save / Load full simulation state (every particle) ------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
+        const saveState = async () => {
+            if (!device || !particleBuffer) return
+            await device.queue.onSubmittedWorkDone() // Ensure the latest simulation step is reflected in the buffer
+
+            // Read the live particle buffer back from the GPU (x, y, z, vx, vy, vz, type per particle)
+            const FLOATS_PER_PARTICLE = 7
+            const arrayBuffer = await readBufferFromGPU(particleBuffer, NUM_PARTICLES * FLOATS_PER_PARTICLE * 4)
+            const particles = new Float32Array(arrayBuffer)
+
+            downloadState({
+                engine: "3D",
+                floatsPerParticle: FLOATS_PER_PARTICLE,
+                numParticles: NUM_PARTICLES,
+                numColors: NUM_TYPES,
+                simWidth: SIM_WIDTH,
+                simHeight: SIM_HEIGHT,
+                simDepth: SIM_DEPTH,
+                colors: Array.from(colors),
+                rulesMatrix: rulesMatrix.map(row => [...row]),
+                minRadiusMatrix: minRadiusMatrix.map(row => [...row]),
+                maxRadiusMatrix: maxRadiusMatrix.map(row => [...row]),
+                particles,
+            })
+        }
+        const loadState = async (file: File) => {
+            const state = await readStateFile(file)
+            if (!state) return
+            if (state.engine !== "3D") {
+                error("This file is a 2D state. Open the 2D version to load it.")
+                return
+            }
+
+            cancelAnimationLoop()
+
+            // Apply the saved dimensions/counts to both the store and the local engine variables
+            NUM_PARTICLES = state.numParticles
+            NUM_TYPES = state.numColors
+            particleLife.numParticles = state.numParticles
+            particleLife.numColors = state.numColors
+            particleLife.simWidth = SIM_WIDTH = baseSimWidth = state.simWidth
+            particleLife.simHeight = SIM_HEIGHT = baseSimHeight = state.simHeight
+            if (state.simDepth != null) particleLife.simDepth = SIM_DEPTH = baseSimDepth = state.simDepth
+
+            pendingLoadedState = {
+                rulesMatrix: state.rulesMatrix,
+                minRadiusMatrix: state.minRadiusMatrix,
+                maxRadiusMatrix: state.maxRadiusMatrix,
+                colors: new Float32Array(state.colors),
+                particles: state.particles,
+            }
+
+            destroyPipelinesAndBindGroups()
+            await destroyBuffers(true)
+            await initLife(false)
+            success("Simulation state loaded.")
         }
 
         const updateColors = async (useRandomGenerator: boolean | Event = false) => {
@@ -2817,6 +2900,7 @@ export default defineComponent({
             updateSimWidth, updateSimHeight, updateSimDepth,
             updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, newRandomRulesMatrix, updateSingleColor,
             randomizeRadius, randomizeRulesAndRadius, updateColors, updateRulesMatrix, updateParticlePositions, loadPreset,
+            saveState, loadState,
             setNewNumParticles, setNewNumTypes,
             tonemapOptions,
             sphereShadingPresetOptions, sphereShadingPreset, switchTo2D,

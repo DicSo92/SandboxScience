@@ -33,6 +33,13 @@
                                          @loadPreset="loadPreset">
                             </PresetPanel>
                         </Collapse>
+                        <Collapse label="Save / Load State" icon="i-tabler-archive text-emerald-500"
+                                  tooltip="Save the full simulation snapshot (the position of every particle) to a file, and load it back later to resume exactly where you left off.">
+                            <StatePanel :store="particleLife"
+                                        @saveState="saveState"
+                                        @loadState="loadState">
+                            </StatePanel>
+                        </Collapse>
                         <Collapse label="Matrix Settings" icon="i-tabler-grid-4x4 text-indigo-500"
                                   tooltip="Modify matrix values by clicking on cells in the grid. <br>
                                   Adjust individual cell values with the slider, or click and drag to change them directly. <br>
@@ -385,6 +392,7 @@ import MatrixSettings from "~/components/particle-life/MatrixSettings.vue";
 import BrushSettings from "~/components/particle-life/BrushSettings.vue";
 import SaveModal from "~/components/particle-life/SaveModal.vue";
 import PresetPanel from "~/components/particle-life/PresetPanel.vue";
+import StatePanel from "~/components/particle-life/StatePanel.vue";
 import TrackerOverlay from "~/components/particle-life/TrackerOverlay.vue";
 import TrackerToggle from "~/components/particle-life/TrackerToggle.vue";
 import CenterViewButton from "~/components/particle-life/CenterViewButton.vue";
@@ -424,7 +432,7 @@ import trackerCameraUpdateShaderCode from 'assets/particle-life-gpu/shaders/comp
 
 export default defineComponent({
     name: 'ParticleLifeGpu',
-    components: { PresetPanel, SaveModal, BrushSettings, MatrixSettings, WrapModeSelection, TrackerOverlay, TrackerToggle, CenterViewButton, RadiusVisualizer },
+    components: { PresetPanel, SaveModal, StatePanel, BrushSettings, MatrixSettings, WrapModeSelection, TrackerOverlay, TrackerToggle, CenterViewButton, RadiusVisualizer },
     emits: ['switch-renderer'],
     setup(props, { emit }) {
         // Define refs and variables
@@ -486,6 +494,8 @@ export default defineComponent({
 
         // Define the simulation properties
         let initialParticles: Float32Array // Initial particle x, y, vx, vy, type
+        const { downloadState, readStateFile } = useStateManager()
+        let pendingLoadedState: { rulesMatrix: number[][], minRadiusMatrix: number[][], maxRadiusMatrix: number[][], colors: Float32Array, particles: Float32Array } | null = null
         let colors: Float32Array // Particle colors
 
         // Define the properties for dragging and zooming
@@ -1191,9 +1201,16 @@ export default defineComponent({
         }
         const initLife = async (autoCenter: boolean = true) => {
             isInitializing = true
+            if (pendingLoadedState) {
+                // Restoring a saved snapshot: use its matrices instead of generating random ones
+                setRulesMatrix(pendingLoadedState.rulesMatrix)
+                setMinRadiusMatrix(pendingLoadedState.minRadiusMatrix)
+                setMaxRadiusMatrix(pendingLoadedState.maxRadiusMatrix)
+            } else {
             setRulesMatrix(generateRules(0, NUM_TYPES)) // Random rule
             setMinRadiusMatrix(makeRandomMinRadiusMatrix())
             setMaxRadiusMatrix(makeRandomMaxRadiusMatrix())
+            }
             // setRulesMatrix([[-0.2758, -0.9341, -0.7292, -0.2024, -0.4367, -0.4714, -0.8962],[0.3548, -0.4365, -0.5117, -0.3945, -0.7828, 0.7885, 0.4696],[-0.9114, -0.8742, -0.5724, 0.1277, 0.3471, 0.3468, -0.6377],[0.3619, 0.6267, -0.6251, -0.1823, -0.285, -0.7255, 0.4615],[-0.2717, 0.9975, -0.4783, -0.9001, -0.2176, -0.9916, -0.4428],[-0.133, -0.342, -0.5631, 0.1238, -0.2723, -0.7484, 0.8461],[0.571, -0.7669, 0.0851, 0.5078, 0.8143, -0.7627, 0.7893]])
             // setMinRadiusMatrix([[25, 39, 37, 31, 31, 40, 30],[33, 27, 37, 33, 40, 33, 40],[26, 31, 25, 30, 32, 34, 39],[33, 27, 33, 39, 34, 25, 38],[28, 32, 31, 30, 40, 37, 30],[39, 39, 38, 35, 25, 31, 40],[33, 36, 29, 35, 30, 25, 40]])
             // setMaxRadiusMatrix([[65, 72, 80, 66, 72, 67, 79],[69, 61, 75, 73, 69, 70, 73],[80, 69, 71, 74, 67, 62, 61],[73, 79, 70, 70, 70, 72, 79],[67, 65, 74, 76, 64, 77, 71],[61, 68, 72, 64, 69, 64, 79],[72, 68, 77, 74, 63, 70, 75]])
@@ -1206,8 +1223,15 @@ export default defineComponent({
             await nextTick()
             if (autoCenter) centerView()
 
+            if (pendingLoadedState) {
+                colors = pendingLoadedState.colors
+                particleLife.currentColors = colors
+                initialParticles = pendingLoadedState.particles
+                pendingLoadedState = null
+            } else {
             initColors()
             initParticles()
+            }
             createBuffers()
             createBindGroupLayouts()
             createPipelines()
@@ -3234,6 +3258,64 @@ export default defineComponent({
             device.queue.writeBuffer(particleBuffer!, 0, initialParticles.buffer)
         }
         // -------------------------------------------------------------------------------------------------------------
+        // --- Save / Load full simulation state (every particle) ------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
+        const saveState = async () => {
+            if (!device || !particleBuffer) return
+            await device.queue.onSubmittedWorkDone() // Ensure the latest simulation step is reflected in the buffer
+
+            // Read the live particle buffer back from the GPU (x, y, vx, vy, type per particle)
+            const FLOATS_PER_PARTICLE = 5
+            const arrayBuffer = await readBufferFromGPU(particleBuffer, NUM_PARTICLES * FLOATS_PER_PARTICLE * 4)
+            const particles = new Float32Array(arrayBuffer)
+
+            downloadState({
+                engine: "2D",
+                floatsPerParticle: FLOATS_PER_PARTICLE,
+                numParticles: NUM_PARTICLES,
+                numColors: NUM_TYPES,
+                simWidth: SIM_WIDTH,
+                simHeight: SIM_HEIGHT,
+                colors: Array.from(colors),
+                rulesMatrix: rulesMatrix.map(row => [...row]),
+                minRadiusMatrix: minRadiusMatrix.map(row => [...row]),
+                maxRadiusMatrix: maxRadiusMatrix.map(row => [...row]),
+                particles,
+            })
+        }
+        const loadState = async (file: File) => {
+            const state = await readStateFile(file)
+            if (!state) return
+            if (state.engine !== "2D") {
+                error("This file is a 3D state. Open the 3D version to load it.")
+                return
+            }
+
+            if (isTrackerActive) await stopTracker()
+            cancelAnimationLoop()
+
+            // Apply the saved dimensions/counts to both the store and the local engine variables
+            NUM_PARTICLES = state.numParticles
+            NUM_TYPES = state.numColors
+            particleLife.numParticles = state.numParticles
+            particleLife.numColors = state.numColors
+            particleLife.simWidth = SIM_WIDTH = baseSimWidth = state.simWidth
+            particleLife.simHeight = SIM_HEIGHT = baseSimHeight = state.simHeight
+
+            pendingLoadedState = {
+                rulesMatrix: state.rulesMatrix,
+                minRadiusMatrix: state.minRadiusMatrix,
+                maxRadiusMatrix: state.maxRadiusMatrix,
+                colors: new Float32Array(state.colors),
+                particles: state.particles,
+            }
+
+            destroyPipelinesAndBindGroups()
+            await destroyBuffers(true)
+            await initLife(false)
+            success("Simulation state loaded.")
+        }
+        // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         const updateSimWidth = (newWidth: number | Event) => {
             if (typeof(newWidth) !== 'number') return // Prevent input event like unfocus
@@ -3659,6 +3741,7 @@ export default defineComponent({
                 updateSimWidth, updateSimHeight, updateNumParticles, setNewNumParticles, setNewNumTypes,
                 updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, newRandomRulesMatrix,
                 updateRulesMatrix, updateParticlePositions, updateColors, loadPreset, updateSingleColor,
+                saveState, loadState,
                 startTrackerSelection, cancelTrackerSelection, stopTracker, onTrackerZoneSelected,
                 rulesOptions, paletteOptions, positionOptions, switchTo3D
             }
