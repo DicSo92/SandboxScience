@@ -18,7 +18,7 @@
             </div>
         </section>
         <section container>
-            <div grid gap-4 grid-cols-1 class="sm:grid-cols-3">
+            <div grid gap-4 grid-cols-1 class="sm:grid-cols-2 lg:grid-cols-4">
                 <NuxtLink to="/particle-life" bg="gray-900 hover:gray-800"
                           class="relative overflow-hidden rounded-lg border border-gray-800 shadow-lg p-6 sm:p-5 md:p-6 pt-3 sm:pt-4 md:pt-4">
                     <div flex items-center mb-2>
@@ -29,6 +29,19 @@
                     <div class="absolute right-0 top-0 h-16 w-16">
                         <div class="shadow-lg absolute transform rotate-45 bg-[#00b84d] bg-opacity-70 text-center text-sm text-white font-semibold py-1 right-[-38px] top-[13px] w-[128px]">
                             BETA
+                        </div>
+                    </div>
+                </NuxtLink>
+                <NuxtLink to="/particle-brain" bg="gray-900 hover:gray-800"
+                          class="relative overflow-hidden rounded-lg border border-gray-800 shadow-lg p-6 sm:p-5 md:p-6 pt-3 sm:pt-4 md:pt-4">
+                    <div flex items-center mb-2>
+                        <span class="text-2xl md:text-3xl" font-bold mr-2>🧠</span>
+                        <h3 class="text-lg md:text-xl font-semibold">Particle Brain</h3>
+                    </div>
+                    <p class="text-sm md:text-base">Particle Life extended with emergent urges, neurons, brain networks, and magnetic forces.</p>
+                    <div class="absolute right-0 top-0 h-16 w-16">
+                        <div class="shadow-lg absolute transform rotate-45 bg-purple-700 bg-opacity-70 text-center text-sm text-white font-semibold py-1 right-[-38px] top-[13px] w-[128px]">
+                            NEW
                         </div>
                     </div>
                 </NuxtLink>

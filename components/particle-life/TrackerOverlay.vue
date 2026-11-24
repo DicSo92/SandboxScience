@@ -1,18 +1,18 @@
 <template>
-    <div absolute w-full h-full>
-        <canvas id="trackerCanvas" @contextmenu.prevent w-full h-full cursor-crosshair></canvas>
+    <div absolute h-full w-full>
+        <canvas id="trackerCanvas" h-full w-full cursor-crosshair @contextmenu.prevent />
 
-        <div v-if="isSelecting" pointer-events-none class="absolute top-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-slate-900/90 backdrop-blur-sm ring-1 ring-amber-500/40 px-5 py-2.5 rounded-full text-sm animate-pulse">
-            <span i-tabler-current-location text-rose-400></span>
+        <div v-if="isSelecting" pointer-events-none class="absolute left-1/2 top-6 flex animate-pulse items-center gap-2 rounded-full bg-slate-900/90 px-5 py-2.5 text-sm ring-1 ring-amber-500/40 backdrop-blur-sm -translate-x-1/2">
+            <span i-tabler-current-location text-rose-400 />
             <span text-gray-200>Draw around a creature to start tracking</span>
         </div>
 
-        <div v-if="isSelecting" class="absolute inset-0 pointer-events-none border-3 border-dashed border-amber-500/70 animate-pulse rounded-sm"></div>
+        <div v-if="isSelecting" class="pointer-events-none absolute inset-0 animate-pulse border-3 border-amber-500/70 rounded-sm border-dashed" />
     </div>
 </template>
 
 <script lang="ts">
-import { defineComponent } from "vue";
+import { defineComponent } from "vue"
 
 export default defineComponent({
     props: {},
@@ -23,8 +23,8 @@ export default defineComponent({
         let ctx: CanvasRenderingContext2D | undefined
 
         const isSelecting = ref<boolean>(true)
-        let trackerAreaBorderSize: number = 4
-        let trackerAreaBorderColor: string = '#06b6d4' // cyan-500
+        const trackerAreaBorderSize: number = 4
+        const trackerAreaBorderColor: string = '#06b6d4' // cyan-500
 
         let isHandlingTrackerArea: boolean = false
         let startingTrackerArea: { x: number, y: number } | null = null
@@ -73,7 +73,8 @@ export default defineComponent({
         }
         // -------------------------------------------------------------------------------------------------------------
         function confirmTrackerArea() {
-            if (!currentTrackerArea) return
+            if (!currentTrackerArea)
+                return
 
             const x = currentTrackerArea.x + trackerAreaBorderSize / 2
             const y = currentTrackerArea.y + trackerAreaBorderSize / 2
@@ -90,7 +91,8 @@ export default defineComponent({
         }
         // -------------------------------------------------------------------------------------------------------------
         function drawTrackerArea() {
-            if (!startingTrackerArea || !endingTrackerArea) return
+            if (!startingTrackerArea || !endingTrackerArea)
+                return
             const x = Math.min(startingTrackerArea.x, endingTrackerArea.x)
             const y = Math.min(startingTrackerArea.y, endingTrackerArea.y)
             const width = Math.abs(endingTrackerArea.x - startingTrackerArea.x)
@@ -123,7 +125,7 @@ export default defineComponent({
         }
         // -------------------------------------------------------------------------------------------------------------
         return { isSelecting, particleLife }
-    }
+    },
 })
 </script>
 

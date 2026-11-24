@@ -1,0 +1,86 @@
+# Build the Nuxt app and deploy it to GitHub Pages.
+# Docs: https://nuxt.com/deploy/github-pages
+name: Deploy to GitHub Pages
+
+on:
+    push:
+        branches:
+            - master
+    workflow_dispatch:
+
+# Allow the workflow to create a Pages deployment
+permissions:
+    pages: write
+    id-token: write
+
+# Only one concurrent deployment, skip runs queued behind the latest one
+concurrency:
+    group: pages
+    cancel-in-progress: true
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  persist-credentials: false # required to cache packages
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 24
+                  cache: npm
+
+            - name: Install dependencies
+              run: npm ci
+
+            # The github_pages preset makes the build fully static (prerender),
+            # adds /404.html and writes a .nojekyll file.
+            # NUXT_APP_BASE_URL is required for a project site (<user>.github.io/<repo>/).
+            # Remove it if you point GitHub Pages at a custom domain instead.
+            - name: Build (npm run build, github_pages preset)
+              run: npm run build -- --preset github_pages
+              env:
+                  NUXT_APP_BASE_URL: /${{ github.event.repository.name }}/
+
+            - name: Upload artifact
+              uses: actions/upload-pages-artifact@v3
+              with:
+                  path: .output/public
+
+    # Runs the Vitest suite in CI so we can see results on every push.
+    #
+    # IMPORTANT (intentional): this job is NOT listed in the `deploy` job's
+    # `needs`, so a failing test does NOT block deployment right now. The deploy
+    # job only depends on `build`. Once the suite is reliably green, gate deploys
+    # by changing the line below from `needs: build` to `needs: [build, test]`.
+    test:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  persist-credentials: false # required to cache packages
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 24
+                  cache: npm
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Run tests (vitest)
+              run: npx vitest run
+
+    deploy:
+        needs: build
+        environment:
+            name: github-pages
+            url: ${{ steps.deployment.outputs.page_url }}
+        runs-on: ubuntu-latest
+        steps:
+            - name: Deploy to GitHub Pages
+              id: deployment
+              uses: actions/deploy-pages@v4

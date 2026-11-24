@@ -8,7 +8,7 @@ export interface Toast {
 
 const toasts = ref<Toast[]>([])
 
-const addToast = (type: ToastType, message: string, duration = 3000) => {
+function addToast(type: ToastType, message: string, duration = 3000) {
     const id = Date.now() + Math.random()
     toasts.value.push({ id, type, message })
 
@@ -17,15 +17,17 @@ const addToast = (type: ToastType, message: string, duration = 3000) => {
     }
 }
 
-const removeToast = (id: number) => {
+function removeToast(id: number) {
     toasts.value = toasts.value.filter(t => t.id !== id)
 }
 
-export const useToasts = () => ({
-    toasts: readonly(toasts),
-    success: (msg: string, duration?: number) => addToast("success", msg, duration),
-    warning: (msg: string, duration?: number) => addToast("warning", msg, duration),
-    error: (msg: string, duration?: number) => addToast("error", msg, duration),
-    info: (msg: string, duration?: number) => addToast("info", msg, duration),
-    removeToast,
-})
+export function useToasts() {
+    return {
+        toasts: readonly(toasts),
+        success: (msg: string, duration?: number) => addToast("success", msg, duration),
+        warning: (msg: string, duration?: number) => addToast("warning", msg, duration),
+        error: (msg: string, duration?: number) => addToast("error", msg, duration),
+        info: (msg: string, duration?: number) => addToast("info", msg, duration),
+        removeToast,
+    }
+}

@@ -1,0 +1,176 @@
+import type { Preset } from "~/composables/usePresetManager"
+import { defineStore } from 'pinia'
+
+export const useParticleBrainStore = defineStore('particleBrain', () => {
+    const engineType = ref<'CPU' | 'GPU' | 'GPU3D'>('CPU') // Engine type
+    const sidebarLeftOpen = ref<boolean>(false) // Is sidebar left open
+    const isLockedPointer = ref<boolean>(false) // Prevent lifeCanvas events from being triggered
+
+    const isRunning = ref<boolean>(true) // Is the simulation running
+    const isBrushActive = ref<boolean>(false) // Is the brush active
+    const brushes = ref<number[]>([]) // Brush particles
+    const brushRadius = ref<number>(300) // Brush radius
+    const brushIntensity = ref<number>(10) // Brush intensity (number of particles)
+    const brushType = ref<number>(1) // Brush type (0: Add, 1: Remove)
+    const attractForce = ref<number>(10) // Attract force for the brush
+    const repulseForce = ref<number>(10) // Repulse force for the brush
+    const wallRepelForce = ref<number>(1.8) // Repulse force for the walls (velocity will be multiplied by this value negative)
+
+    const currentColors = ref<number[][]>([]) // Current colors for the particles
+    const rulesMatrix = ref<number[][]>([]) // Rules matrix for each color
+    const minRadiusMatrix = ref<number[][]>([]) // Min radius matrix for each color
+    const maxRadiusMatrix = ref<number[][]>([]) // Max radius matrix for each color
+
+    const gridWidth = ref<number>(0) // Grid width
+    const gridHeight = ref<number>(0) // Grid height
+    const linkProportions = ref<boolean>(false) // Constraint x y grid proportions
+
+    const numParticles = ref<number>(6000) // Number of particles
+    const particleSize = ref<number>(8) // Size of the particles at zoomFactor = 1
+    const numColors = ref<number>(7) // Number of colors to be used
+    const depthLimit = ref<number>(420) // Maximum Z axis depth (0 means almost 2D because there is friction with the walls && can be negative)
+
+    const is3D = ref<boolean>(true) // Enable 3D Algorithm
+    const isCircle = ref<boolean>(true) // Enable circular shape for the particles
+    const hasGrid = ref<boolean>(true) // Enable grid
+    const hasCells = ref<boolean>(false) // Enable cells
+    const isCellFollow = ref<boolean>(false) // Enable cells to follow the particles
+    const isWallRepel = ref<boolean>(true) // Enable walls X and Y for the particles
+    const isWallWrap = ref<boolean>(false) // Enable wrapped particles
+    const wallState = computed({
+        get: () => isWallRepel.value ? 'repel' : isWallWrap.value ? 'wrap' : 'none',
+        set: (value: string) => {
+            isWallRepel.value = value === 'repel'
+            isWallWrap.value = value === 'wrap'
+        },
+    })
+    const hasDepthSize = ref<boolean>(true) // Enable depth size effect
+    const hasDepthOpacity = ref<boolean>(false) // Enable depth opacity effect
+    const maxOpacity = ref<number>(1) // Maximum opacity when hasDepthOpacity is enabled
+    const minOpacity = ref<number>(0.5) // Depth effect will be stronger with lower opacity
+    const cellShape = ref<number>(0) // 0: Rectangle, 1: Circle
+    const wallShape = ref<number>(0) // 0: Rectangle, 1: Circle
+    const screenMultiplierForGridSize = ref<number>(3) // Multiplier for the grid size (1 means the grid will be the same size as the screen)
+
+    const cellGroupSize = ref<number>(0) // Minimum number of particles to be considered a group (0 to visualize all cells)
+    const cellSizeFactor = ref<number>(1) // Size of the cells at zoomFactor = 1
+
+    // Define force properties
+    const repel = ref<number>(1) // repel force for particles that are too close to each other
+    const forceFactor = ref<number>(1.0) // Adjust the overall force applied between particles (can't be 0)
+    const frictionFactor = ref<number>(0.3) // Slow down the particles (0 to 1, where 0 is no friction)
+
+    // ---- Quantum / Electrical layer: Urge & Neuron particles -------------------------
+    const isElectricalEnabled = ref<boolean>(true) // Master switch for the whole urge/neuron layer
+    const numUrges = ref<number>(30) // Number of urge particles
+    const numNeurons = ref<number>(80) // Number of neuron particles
+    const metricMode = ref<number>(0) // goal family: 0 = cycle all three per-urge (maximize/minimize/homeostasis), 1 = all maximize, 2 = all minimize, 3 = all homeostasis
+    const urgeRadius = ref<number>(45) // Radius over which an urge measures its goal metric & a neuron pushes/pulls its color
+    const neuronRadius = ref<number>(30) // Radius (from the neuron) within which an urge drives it
+    const urgeForce = ref<number>(0.2) // Strength of a neuron's field on its color, scaled by drive from nearby urges (tuned: controlMax*urgeForce ≈ 1.15× F_pair)
+    const controlGain = ref<number>(0.2) // Learning rate: how strongly dM/dt pushes an urge's control toward its goal sign (tuned for O(1) normalized metric)
+    const controlMax = ref<number>(2.0) // Clamp on |control| (+ attract / - repel)
+    const cohesion = ref<number>(0.6) // How strongly urges/neurons cling to the body & avoid overlapping
+    // ---- Sense neurons: sensors that perceive ONE target color (no actuation) --------------
+    // Each sense neuron senses exactly one color (= local index % numTypes) and stores its
+    // perception in the persistent particle scalars: signal = magnitude [0,1], control = bearing
+    // (radians, -PI..PI) for omnidirectional senses; 0 when there is no meaningful bearing.
+    const numSenseNeurons = ref<number>(40) // Number of sense neuron particles (sensors)
+    const senseRadius = ref<number>(60) // Perception radius (world units) shared by all three senses
+    const senseConeHalfAngleDeg = ref<number>(35) // Sight: half-angle (degrees) of the forward cone in direction of motion
+    const senseMode = ref<number>(0) // 0 = cycle all three per-sense (sight/smell/sound), 1 = all sight, 2 = all smell, 3 = all sound
+
+    // Define properties for randomizing radius matrix
+    const minRadiusRange = ref<number[]>([30, 60]) // Range for the random minRadius of each color
+    const maxRadiusRange = ref<number[]>([90, 150]) // Range for the random maxRadius of each color
+
+    const currentMaxRadius = ref<number>(0) // Current max radius for the particles
+
+    const captureType = ref<string>('') // Capture type (screenshot or GIF)
+    const isCapturingGIF = ref<boolean>(false) // Start capturing GIF frames
+    const isShareOptionsOpen = ref<boolean>(false) // Is controls canvas open
+
+    // const selectedSpawnPositionOption = ref<number>(0) // Default to 'random'
+    const selectedRulesOption = ref<number>(0) // Default to 'random'
+    const selectedColorPaletteOption = ref<number>(0) // Default to 'random'
+
+    const savedPresets = ref<Record<string, Preset>>({}) // Saved presets from localStorage
+    const isSaveModalOpen = ref<boolean>(false) // Is the save preset modal open
+
+    function $reset() {
+        sidebarLeftOpen.value = false
+        isRunning.value = true
+        currentMaxRadius.value = 0 // Prevent watcher from not triggering when page is reloaded (!important)
+    }
+
+    return {
+        engineType,
+        sidebarLeftOpen,
+        isLockedPointer,
+        isRunning,
+        isBrushActive,
+        brushes,
+        brushRadius,
+        brushIntensity,
+        brushType,
+        attractForce,
+        repulseForce,
+        wallRepelForce,
+        rulesMatrix,
+        minRadiusMatrix,
+        maxRadiusMatrix,
+        currentColors,
+        gridWidth,
+        gridHeight,
+        linkProportions,
+        numParticles,
+        particleSize,
+        numColors,
+        depthLimit,
+        is3D,
+        isCircle,
+        hasGrid,
+        hasCells,
+        isCellFollow,
+        isWallRepel,
+        isWallWrap,
+        wallState,
+        hasDepthSize,
+        hasDepthOpacity,
+        maxOpacity,
+        minOpacity,
+        cellShape,
+        wallShape,
+        screenMultiplierForGridSize,
+        minRadiusRange,
+        maxRadiusRange,
+        currentMaxRadius,
+        repel,
+        forceFactor,
+        frictionFactor,
+        isElectricalEnabled,
+        numUrges,
+        numNeurons,
+        metricMode,
+        urgeRadius,
+        neuronRadius,
+        urgeForce,
+        controlGain,
+        controlMax,
+        cohesion,
+        numSenseNeurons,
+        senseRadius,
+        senseConeHalfAngleDeg,
+        senseMode,
+        cellGroupSize,
+        cellSizeFactor,
+        captureType,
+        isCapturingGIF,
+        isShareOptionsOpen,
+        selectedRulesOption,
+        selectedColorPaletteOption,
+        savedPresets,
+        isSaveModalOpen,
+        $reset,
+    }
+})

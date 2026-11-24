@@ -1,5 +1,5 @@
+import type { Preset } from "~/composables/usePresetManager"
 import { defineStore } from 'pinia'
-import type {Preset} from "~/composables/usePresetManager";
 
 export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => {
     const engineType = ref<'CPU' | 'GPU' | 'GPU3D'>('GPU3D') // Engine type
@@ -34,7 +34,7 @@ export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => 
         set: (value: string) => {
             isWallRepel.value = value === 'repel'
             isWallWrap.value = value === 'wrap'
-        }
+        },
     })
 
     // Define force properties
@@ -85,18 +85,59 @@ export const useParticleLifeGPU3DStore = defineStore('particleLifeGPU3D', () => 
     }
 
     return {
-        engineType, sidebarLeftOpen, isLockedPointer, isHudLocked,
+        engineType,
+        sidebarLeftOpen,
+        isLockedPointer,
+        isHudLocked,
         isRunning,
-        rulesMatrix, minRadiusMatrix, maxRadiusMatrix, currentColors,
-        simWidth, simHeight, simDepth, linkProportions,
-        numParticles, particleSize, particleOpacity, numColors, zoomSmoothing, panSmoothing,
-        isWallRepel, isWallWrap, wallState,
-        minRadiusRange, maxRadiusRange, currentMaxRadius,
-        repel, forceFactor, frictionFactor, useBinning, binningMode, isBoundingBoxActive, isGpuTimingsEnabled, isCameraTargetVisible,
-        isParticleGlow, bloomThreshold, bloomIntensity, bloomKnee, tonemapMode,
-        isParticleBorder, isSphereShading, sphereAmbient, sphereDiffuseStrength, sphereSpecularStrength, sphereShininess, sphereLightDir,
-        selectedSpawnPositionOption, selectedRulesOption, selectedColorPaletteOption, savedPresets, isSaveModalOpen,
-        cellSubdivisions, gridExtensionFactor, maxGridExtensionFactor,
-        $reset
+        rulesMatrix,
+        minRadiusMatrix,
+        maxRadiusMatrix,
+        currentColors,
+        simWidth,
+        simHeight,
+        simDepth,
+        linkProportions,
+        numParticles,
+        particleSize,
+        particleOpacity,
+        numColors,
+        zoomSmoothing,
+        panSmoothing,
+        isWallRepel,
+        isWallWrap,
+        wallState,
+        minRadiusRange,
+        maxRadiusRange,
+        currentMaxRadius,
+        repel,
+        forceFactor,
+        frictionFactor,
+        useBinning,
+        binningMode,
+        isBoundingBoxActive,
+        isGpuTimingsEnabled,
+        isCameraTargetVisible,
+        isParticleGlow,
+        bloomThreshold,
+        bloomIntensity,
+        bloomKnee,
+        tonemapMode,
+        isParticleBorder,
+        isSphereShading,
+        sphereAmbient,
+        sphereDiffuseStrength,
+        sphereSpecularStrength,
+        sphereShininess,
+        sphereLightDir,
+        selectedSpawnPositionOption,
+        selectedRulesOption,
+        selectedColorPaletteOption,
+        savedPresets,
+        isSaveModalOpen,
+        cellSubdivisions,
+        gridExtensionFactor,
+        maxGridExtensionFactor,
+        $reset,
     }
 })

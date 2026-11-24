@@ -1,23 +1,24 @@
 <template>
     <label class="relative inline-block" :class="disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'">
-        <input type="checkbox" class="peer sr-only" :checked="modelValue" @change="toggle" :disabled="disabled"/>
+        <input type="checkbox" class="peer sr-only" :checked="modelValue" :disabled="disabled" @change="toggle">
 
-        <span class="flex w-full items-center justify-between gap-3 rounded-lg border px-1.5 py-1 text-xs font-medium transition transition-duration-75 shadow-sm
-                    peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-sky-500"
-              :class="disabled ? disabledClass : (modelValue ? activeClass : inactiveClass)">
+        <span
+            class="w-full flex items-center justify-between gap-3 border rounded-lg px-1.5 py-1 text-xs font-medium shadow-sm transition transition-duration-75 peer-focus-visible:outline-2 peer-focus-visible:outline-sky-500 peer-focus-visible:outline"
+            :class="disabled ? disabledClass : (modelValue ? activeClass : inactiveClass)"
+        >
 
             <span flex items-center>
-                <span v-if="icon" class="text-sm" :class="icon" mr-2></span>
+                <span v-if="icon" class="text-sm" :class="icon" mr-2 />
                 <span>{{ label }}</span>
             </span>
 
-            <span class="text-sm" :class="modelValue ? 'i-tabler-circle-check text-green-600' : 'i-tabler-circle'"></span>
+            <span class="text-sm" :class="modelValue ? 'i-tabler-circle-check text-green-600' : 'i-tabler-circle'" />
         </span>
     </label>
 </template>
 
 <script lang="ts">
-import { defineComponent } from "vue";
+import { defineComponent } from "vue"
 
 export default defineComponent({
     name: "ToggleChip",
@@ -45,12 +46,12 @@ export default defineComponent({
     emits: ["update:modelValue"],
     setup(props, { emit }) {
         const toggle = () => {
-            emit("update:modelValue", !props.modelValue);
-        };
+            emit("update:modelValue", !props.modelValue)
+        }
 
-        return { toggle };
+        return { toggle }
     },
-});
+})
 </script>
 
 <style scoped>

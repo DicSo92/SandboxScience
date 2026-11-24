@@ -3,79 +3,91 @@
         <div v-if="isBooting" class="fixed inset-0 z-100 bg-gray-950">
             <div class="absolute inset-0 flex items-center justify-center">
                 <div class="flex flex-col items-center gap-3">
-                    <div class="h-10 w-10 rounded-full border-4 border-white/30 border-t-white animate-spin"></div>
-                    <p class="text-white/80 text-sm">Loading simulation...</p>
+                    <div class="h-10 w-10 animate-spin border-4 border-white/30 border-t-white rounded-full" />
+                    <p class="text-sm text-white/80">
+                        Loading simulation...
+                    </p>
                 </div>
             </div>
         </div>
     </transition>
     <transition name="overlay-animation">
-        <div v-if="isOverlayOpen" class="fixed inset-0 z-90 bg-gray-950/40 backdrop-blur-[0.6px]"></div>
+        <div v-if="isOverlayOpen" class="fixed inset-0 z-90 bg-gray-950/40 backdrop-blur-[0.6px]" />
     </transition>
 
-    <Modal :modal-active="isModalOpen" @close="closeIntroModal" overlayColor="transparent" modalClass="max-w-[880px]">
+    <Modal :modal-active="isModalOpen" overlay-color="transparent" modal-class="max-w-[880px]" @close="closeIntroModal">
         <section class="space-y-4">
             <header>
-                <div flex items-center mb-3 class="text-2xl sm:text-[1.75rem] font-bold">
-                    <h1 flex items-center>Particle Life</h1>
-                    <p class="ml-2 px-2 py-1 rounded-lg ring-1 uppercase justify-center font-mono" :class="(currentRenderer === 'gpu' || currentRenderer === 'gpu3d') ? 'bg-fuchsia-600/20 text-fuchsia-400 ring-fuchsia-500/30' : 'bg-sky-600/20 text-sky-400 ring-sky-500/30'">
+                <div mb-3 flex items-center class="text-2xl font-bold sm:text-[1.75rem]">
+                    <h1 flex items-center>
+                        Particle Life
+                    </h1>
+                    <p class="ml-2 justify-center rounded-lg px-2 py-1 font-mono uppercase ring-1" :class="(currentRenderer === 'gpu' || currentRenderer === 'gpu3d') ? 'bg-fuchsia-600/20 text-fuchsia-400 ring-fuchsia-500/30' : 'bg-sky-600/20 text-sky-400 ring-sky-500/30'">
                         {{ currentRenderer === 'cpu' ? 'CPU' : 'GPU' }}
                     </p>
-                    <p v-if="currentRenderer === 'gpu'" ml-2 px-2 py-1 rounded-lg ring-1 uppercase justify-center font-mono class="bg-cyan-600/20 text-cyan-400 ring-cyan-500/30">
+                    <p v-if="currentRenderer === 'gpu'" ml-2 justify-center rounded-lg px-2 py-1 font-mono uppercase ring-1 class="bg-cyan-600/20 text-cyan-400 ring-cyan-500/30">
                         2D
                     </p>
-                    <p v-else-if="currentRenderer === 'gpu3d'" ml-2 px-2 py-1 rounded-lg ring-1 uppercase justify-center font-mono class="bg-amber-600/20 text-amber-400 ring-amber-500/30">
+                    <p v-else-if="currentRenderer === 'gpu3d'" ml-2 justify-center rounded-lg px-2 py-1 font-mono uppercase ring-1 class="bg-amber-600/20 text-amber-400 ring-amber-500/30">
                         3D
                     </p>
                 </div>
-                <h2 class="text-gray-300 mb-2">
+                <h2 class="mb-2 text-gray-300">
                     <strong>Particle Life</strong> is a <strong>particle simulator</strong> where <em>simple interaction rules</em> produce <strong>complex, emergent behaviors</strong>.
                     Tweak <strong>forces</strong> and <strong>starting conditions</strong> to reveal <em>stable clusters</em>, <em>flowing patterns</em>, and <em>chaotic transitions</em> in <strong>real time</strong>.
                 </h2>
                 <p class="text-sm text-gray-300">
-                    <span class="font-bold text-fuchsia-500">WebGPU</span> provides <strong>higher FPS</strong>, <strong>smoother motion</strong>, and <strong>bigger particle counts</strong> when supported, while the <span class="font-bold text-sky-500">CPU renderer</span> stays <em>compatible</em> on every device.
+                    <span class="text-fuchsia-500 font-bold">WebGPU</span> provides <strong>higher FPS</strong>, <strong>smoother motion</strong>, and <strong>bigger particle counts</strong> when supported, while the <span class="text-sky-500 font-bold">CPU renderer</span> stays <em>compatible</em> on every device.
                 </p>
             </header>
 
-            <div v-if="isWebGPUSupported && currentRenderer === 'cpu'" class="rounded-lg ring-1 ring-gray-500/30 bg-slate-700/20 text-gray-50 text-sm p-4">
-                <div class="flex items-center rounded-full bg-amber-700/60 ring-1 ring-amber-400/30 w-fit pl-2 pr-3 py-0.5 mb-3">
-                    <div i-tabler-alert-hexagon text-lg mr-1></div>
-                    <h3 class="font-semibold">WebGPU is available</h3>
+            <div v-if="isWebGPUSupported && currentRenderer === 'cpu'" class="rounded-lg bg-slate-700/20 p-4 text-sm text-gray-50 ring-1 ring-gray-500/30">
+                <div class="mb-3 w-fit flex items-center rounded-full bg-amber-700/60 py-0.5 pl-2 pr-3 ring-1 ring-amber-400/30">
+                    <div i-tabler-alert-hexagon mr-1 text-lg />
+                    <h3 class="font-semibold">
+                        WebGPU is available
+                    </h3>
                 </div>
 
                 <div flex flex-col gap-2>
                     <p>
                         This device supports <strong>WebGPU</strong>. You’re currently on the <strong>CPU renderer</strong>.
                     </p>
-                    <div rounded-lg py-2 px-3 mb-1 class="bg-sky-600/10 ring-1 ring-sky-400/20">
-                        <div class="text-sky-100 text-sm font-semibold">CPU mode - Fully compatible</div>
-                        <p class="text-indigo-50/90 text-sm mt-1">
+                    <div mb-1 rounded-lg px-3 py-2 class="bg-sky-600/10 ring-1 ring-sky-400/20">
+                        <div class="text-sm text-sky-100 font-semibold">
+                            CPU mode - Fully compatible
+                        </div>
+                        <p class="mt-1 text-sm text-indigo-50/90">
                             Runs on every device and supports the full <strong>3D simulation</strong>. Switch to <strong>WebGPU</strong> for higher FPS and more particles. You can switch back anytime.
                         </p>
                     </div>
-                    <div class="flex items-center gap-3 mt-1">
-                        <button class="px-4 sm:px-8 py-2 rounded-xl bg-gray-50 hover:bg-gray-200 transition-all ring-1 ring-black text-black text-base font-semibold" @click.prevent="selectRenderer('gpu', true)">
+                    <div class="mt-1 flex items-center gap-3">
+                        <button class="rounded-xl bg-gray-50 px-4 py-2 text-base text-black font-semibold ring-1 ring-black transition-all hover:bg-gray-200 sm:px-8" @click.prevent="selectRenderer('gpu', true)">
                             Switch to WebGPU <em>(Recommended)</em>
                         </button>
-                        <button class="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700/75 transition-all text-white text-base font-semibold" @click.prevent="closeIntroModal">
+                        <button class="rounded-xl bg-gray-800 px-4 py-2 text-base text-white font-semibold transition-all hover:bg-gray-700/75" @click.prevent="closeIntroModal">
                             Keep CPU for now
                         </button>
                     </div>
                 </div>
             </div>
-            <div v-else-if="isWebGPUSupported && (currentRenderer === 'gpu' || currentRenderer === 'gpu3d')" class="rounded-lg border border-green-800 bg-green-900/20 ring-1 ring-green-400/30 text-green-100 text-sm p-4">
-                <div class="flex items-center rounded-full bg-green-700/60 ring-1 ring-green-400/30 w-fit pl-2 pr-3 py-0.5 mb-3">
-                    <div i-tabler-check text-lg mr-1></div>
-                    <h3 class="font-semibold">WebGPU is available</h3>
+            <div v-else-if="isWebGPUSupported && (currentRenderer === 'gpu' || currentRenderer === 'gpu3d')" class="border border-green-800 rounded-lg bg-green-900/20 p-4 text-sm text-green-100 ring-1 ring-green-400/30">
+                <div class="mb-3 w-fit flex items-center rounded-full bg-green-700/60 py-0.5 pl-2 pr-3 ring-1 ring-green-400/30">
+                    <div i-tabler-check mr-1 text-lg />
+                    <h3 class="font-semibold">
+                        WebGPU is available
+                    </h3>
                 </div>
 
                 <div flex flex-col gap-2>
                     <p>
                         You’re on the <strong>GPU renderer</strong> for maximum performance.
                     </p>
-                    <div rounded-lg py-2 px-3 class="bg-emerald-500/10 ring-1 ring-emerald-400/20">
-                        <div class="text-emerald-100 text-sm font-semibold">WebGPU mode - High performance</div>
-                        <p class="text-emerald-50/90 text-sm mt-1">
+                    <div rounded-lg px-3 py-2 class="bg-emerald-500/10 ring-1 ring-emerald-400/20">
+                        <div class="text-sm text-emerald-100 font-semibold">
+                            WebGPU mode - High performance
+                        </div>
+                        <p class="mt-1 text-sm text-emerald-50/90">
                             <strong>WebGPU</strong> runs the simulation on your graphics card for <strong>higher FPS</strong>, <strong>more particles</strong>, and <em>richer visuals</em>. It also reduces <strong>CPU</strong> load to keep the <em>UI</em> responsive as scenes grow.
                         </p>
                     </div>
@@ -85,50 +97,54 @@
                             Switch to CPU
                         </a>
                     </p>
-                    <div class="flex flex-wrap items-center gap-3 mt-1">
-                        <button class="px-4 sm:px-8 py-2 w-fit rounded-xl bg-gray-50 hover:bg-gray-200 transition-all ring-1 ring-black text-black text-base font-semibold" @click.prevent="closeIntroModal">
+                    <div class="mt-1 flex flex-wrap items-center gap-3">
+                        <button class="w-fit rounded-xl bg-gray-50 px-4 py-2 text-base text-black font-semibold ring-1 ring-black transition-all hover:bg-gray-200 sm:px-8" @click.prevent="closeIntroModal">
                             Start Simulation
                         </button>
-                        <button v-if="currentRenderer === 'gpu'" @click.prevent="selectRenderer('gpu3d', true)" class="px-4 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 ring-1 ring-amber-300/45 transition-all text-base font-semibold flex items-center gap-2 shadow-sm shadow-amber-900/20">
-                            <div i-tabler-cube-3d-sphere w-5 h-5 text-amber-300 shrink-0></div>
+                        <button v-if="currentRenderer === 'gpu'" class="flex items-center gap-2 rounded-xl bg-amber-500/15 px-4 py-2 text-base font-semibold shadow-amber-900/20 shadow-sm ring-1 ring-amber-300/45 transition-all hover:bg-amber-500/25" @click.prevent="selectRenderer('gpu3d', true)">
+                            <div i-tabler-cube-3d-sphere h-5 w-5 shrink-0 text-amber-300 />
                             <span text-amber-100>Try 3D version</span>
-                            <span px-1.5 py-0.5 rounded-md text-xs font-semibold uppercase tracking-wide class="bg-amber-400/20 ring-1 ring-amber-300/35 text-amber-50">New</span>
+                            <span rounded-md px-1.5 py-0.5 text-xs font-semibold tracking-wide uppercase class="bg-amber-400/20 text-amber-50 ring-1 ring-amber-300/35">New</span>
                         </button>
-                        <button class="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700/75 ring-1 ring-gray-500/20 transition-all text-white text-base font-semibold" @click.prevent="selectRenderer('cpu', true)">
+                        <button class="rounded-xl bg-gray-800 px-4 py-2 text-base text-white font-semibold ring-1 ring-gray-500/20 transition-all hover:bg-gray-700/75" @click.prevent="selectRenderer('cpu', true)">
                             Switch to CPU
                         </button>
                     </div>
                 </div>
             </div>
 
-            <div v-else class="rounded-lg bg-amber-900/20 ring-1 ring-amber-400/30 text-amber-100 text-sm p-4">
-                <div class="flex items-center rounded-full bg-amber-700/60 ring-1 ring-amber-400/30 w-fit pl-2 pr-3 py-0.5 mb-3">
-                    <div i-tabler-alert-triangle text-lg mr-1></div>
-                    <h3 class="font-semibold">WebGPU is not available</h3>
+            <div v-else class="rounded-lg bg-amber-900/20 p-4 text-sm text-amber-100 ring-1 ring-amber-400/30">
+                <div class="mb-3 w-fit flex items-center rounded-full bg-amber-700/60 py-0.5 pl-2 pr-3 ring-1 ring-amber-400/30">
+                    <div i-tabler-alert-triangle mr-1 text-lg />
+                    <h3 class="font-semibold">
+                        WebGPU is not available
+                    </h3>
                 </div>
                 <div flex flex-col gap-2>
                     <p>
                         <strong>WebGPU</strong> is <strong>not supported</strong> on this <em>device or browser</em>. You’re currently on the <strong>CPU renderer</strong>.
                     </p>
-                    <div rounded-lg py-2 px-3 class="bg-amber-500/10 ring-1 ring-amber-400/20">
-                        <div class="text-amber-100 text-sm font-semibold">CPU mode - Fully compatible</div>
-                        <p class="text-amber-50/90 text-sm mt-1">
+                    <div rounded-lg px-3 py-2 class="bg-amber-500/10 ring-1 ring-amber-400/20">
+                        <div class="text-sm text-amber-100 font-semibold">
+                            CPU mode - Fully compatible
+                        </div>
+                        <p class="mt-1 text-sm text-amber-50/90">
                             Runs on <strong>every device</strong> and supports the full <strong>3D simulation</strong>. Enable <strong>WebGPU</strong> for higher FPS and more particles when your setup supports it.
                         </p>
                     </div>
                     <p class="text-stone-300/90">
                         Follow the <em>Enable WebGPU</em> guide below to set up your browser for higher FPS and more particles.
                     </p>
-                    <button class="mt-1 px-4 sm:px-8 py-2 w-fit rounded-xl bg-gray-50 hover:bg-gray-200 transition-all ring-1 ring-black text-black text-base font-semibold" @click.prevent="closeIntroModal">
+                    <button class="mt-1 w-fit rounded-xl bg-gray-50 px-4 py-2 text-base text-black font-semibold ring-1 ring-black transition-all hover:bg-gray-200 sm:px-8" @click.prevent="closeIntroModal">
                         Start Simulation
                     </button>
                 </div>
             </div>
 
             <!-- Performance warning even when WebGPU is available -->
-            <div v-if="isWebGPUSupported && (currentRenderer === 'gpu' || currentRenderer === 'gpu3d')" class="mt-3 rounded-lg border border-yellow-700 bg-yellow-900/30 text-yellow-100 p-4">
-                <div class="flex items-center gap-2 font-medium text-white/90 mb-2">
-                    <div i-tabler-alert-triangle text-lg mr-1></div>
+            <div v-if="isWebGPUSupported && (currentRenderer === 'gpu' || currentRenderer === 'gpu3d')" class="mt-3 border border-yellow-700 rounded-lg bg-yellow-900/30 p-4 text-yellow-100">
+                <div class="mb-2 flex items-center gap-2 text-white/90 font-medium">
+                    <div i-tabler-alert-triangle mr-1 text-lg />
                     <h3>Performance warning</h3>
                 </div>
                 <p class="mt-1 text-sm">
@@ -144,20 +160,26 @@
                 </p>
             </div>
 
-            <div class="flex flex-col md:flex-row gap-4" v-if="currentRenderer === 'cpu'" :key="currentRenderer">
-                <DevicesGpuTips class="w-full md:w-1/2"></DevicesGpuTips>
-                <div class="w-full md:w-1/2 flex flex-col sm:flex-row md:flex-col gap-3">
-                    <div class="rounded-2xl p-4 bg-gradient-to-br from-amber-500/15 to-rose-500/10 ring-1 ring-amber-400/30 sm:w-1/2 md:w-auto">
-                        <div class="flex items-center gap-2 text-sm font-semibold text-white/90 mb-1">
-                            <div i-tabler-alert-triangle text-lg mr-1></div>
-                            <h3 class="font-semibold">Performance not great ?</h3>
+            <div v-if="currentRenderer === 'cpu'" :key="currentRenderer" class="flex flex-col gap-4 md:flex-row">
+                <DevicesGpuTips class="w-full md:w-1/2" />
+                <div class="w-full flex flex-col gap-3 md:w-1/2 sm:flex-row md:flex-col">
+                    <div class="rounded-2xl from-amber-500/15 to-rose-500/10 bg-gradient-to-br p-4 ring-1 ring-amber-400/30 md:w-auto sm:w-1/2">
+                        <div class="mb-1 flex items-center gap-2 text-sm text-white/90 font-semibold">
+                            <div i-tabler-alert-triangle mr-1 text-lg />
+                            <h3 class="font-semibold">
+                                Performance not great ?
+                            </h3>
                         </div>
-                        <p text-sm>Try the tips in the left guide for your OS, then restart the browser. Small changes often make a big difference.</p>
+                        <p text-sm>
+                            Try the tips in the left guide for your OS, then restart the browser. Small changes often make a big difference.
+                        </p>
                     </div>
-                    <div class="rounded-2xl p-4 bg-gradient-to-br from-sky-500/15 to-indigo-500/10 ring-1 ring-sky-400/30 sm:w-1/2 md:w-auto">
-                        <div class="flex items-center gap-2 text-sm font-semibold text-white/90 mb-1">
-                            <div i-tabler-info-circle text-lg mr-1></div>
-                            <h3 class="font-semibold">Helpfull reminders</h3>
+                    <div class="rounded-2xl from-sky-500/15 to-indigo-500/10 bg-gradient-to-br p-4 ring-1 ring-sky-400/30 md:w-auto sm:w-1/2">
+                        <div class="mb-1 flex items-center gap-2 text-sm text-white/90 font-semibold">
+                            <div i-tabler-info-circle mr-1 text-lg />
+                            <h3 class="font-semibold">
+                                Helpfull reminders
+                            </h3>
                         </div>
                         <ul class="list-disc list-outside pl-5 text-sm">
                             <li>Keep your browser and GPU drivers up to date.</li>
@@ -168,26 +190,26 @@
                 </div>
             </div>
 
-<!--            <div flex justify-end>-->
-<!--                <ToggleSwitch label="Don’t show this again" colorful-label v-model="modalDismissed" @update:modelValue="toggleModalDismiss" />-->
-<!--            </div>-->
+            <!--            <div flex justify-end> -->
+            <!--                <ToggleSwitch label="Don’t show this again" colorful-label v-model="modalDismissed" @update:modelValue="toggleModalDismiss" /> -->
+            <!--            </div> -->
         </section>
     </Modal>
 
-    <component v-if="particleLifeComponent" :is="particleLifeComponent" :key="currentRenderer" @switch-renderer="switchRenderer" />
+    <component :is="particleLifeComponent" v-if="particleLifeComponent" :key="currentRenderer" @switch-renderer="switchRenderer" />
 </template>
 
 <script lang="ts">
-import { defineComponent } from "vue";
-import DevicesGpuTips from "~/components/particle-life/DevicesGpuTips.vue";
-import CpuComp from "~/components/particle-life/ParticleLifeCpu.vue";
+import { defineComponent } from "vue"
+import DevicesGpuTips from "~/components/particle-life/DevicesGpuTips.vue"
+import CpuComp from "~/components/particle-life/ParticleLifeCpu.vue"
 
 export default defineComponent({
-    components: {DevicesGpuTips},
+    components: { DevicesGpuTips },
     setup() {
         definePageMeta({
             layout: 'life',
-            hideNavBar: true
+            hideNavBar: true,
         })
         useSeoMeta({
             title: 'Particle Life',
@@ -200,11 +222,11 @@ export default defineComponent({
 
         const GpuComp = defineAsyncComponent({
             loader: () => import('~/components/particle-life/ParticleLifeGpu.vue'),
-            suspensible: false
+            suspensible: false,
         })
         const Gpu3dComp = defineAsyncComponent({
             loader: () => import('~/components/particle-life/ParticleLifeGpu3D.vue'),
-            suspensible: false
+            suspensible: false,
         })
         const particleLifeComponent = shallowRef<any>(null)
         const currentRenderer = ref<'gpu' | 'gpu3d' | 'cpu'>('cpu') // track active renderer
@@ -222,10 +244,12 @@ export default defineComponent({
                 isWebGPUSupported.value = await checkGPUAdapter()
                 // isWebGPUSupported.value = false // TEMP DISABLE GPU RENDERER
                 await selectRenderer(isWebGPUSupported.value ? 'gpu' : 'cpu')
-            } catch (err) {
+            }
+            catch (err) {
                 console.error('Boot error:', err)
                 isWebGPUSupported.value = false
-                try { await selectRenderer('cpu') } catch {}
+                try { await selectRenderer('cpu') }
+                catch {}
             }
         })
         // -------------------------------------------------------------------------------------------------------------
@@ -247,7 +271,8 @@ export default defineComponent({
                 }
                 console.log('WebGPU is supported')
                 return true
-            } catch (err) {
+            }
+            catch (err) {
                 console.warn('WebGPU check failed:', err)
                 return false
             }
@@ -260,7 +285,8 @@ export default defineComponent({
                     isOverlayOpen.value = true
                     await new Promise(r => setTimeout(r, 600)) // wait for fade out
                 }
-                if ((mode === 'gpu' || mode === 'gpu3d') && !isWebGPUSupported.value) mode = 'cpu'
+                if ((mode === 'gpu' || mode === 'gpu3d') && !isWebGPUSupported.value)
+                    mode = 'cpu'
 
                 if (particleLifeComponent.value) {
                     particleLifeComponent.value = null
@@ -272,13 +298,16 @@ export default defineComponent({
                 await nextTick()
 
                 await new Promise(r => setTimeout(r, 100)) // wait for component to mount
-            } catch (err) {
+            }
+            catch (err) {
                 console.error('selectRenderer error:', err)
                 particleLifeComponent.value = CpuComp
                 currentRenderer.value = 'cpu'
-            } finally {
+            }
+            finally {
                 isBooting.value = false
-                if (isSwitching) isModalOpen.value = true
+                if (isSwitching)
+                    isModalOpen.value = true
             }
         }
         const switchRenderer = (mode: 'gpu' | 'gpu3d' | 'cpu') => {
@@ -296,7 +325,8 @@ export default defineComponent({
         const toggleModalDismiss = () => {
             if (modalDismissed.value) {
                 localStorage.setItem(MODAL_DISMISS_KEY, 'true')
-            } else {
+            }
+            else {
                 localStorage.removeItem(MODAL_DISMISS_KEY)
             }
         }
@@ -306,11 +336,20 @@ export default defineComponent({
         })
 
         return {
-            isModalOpen, isWebGPUSupported, particleLifeComponent, selectRenderer, currentRenderer,
-            modalDismissed, toggleModalDismiss, switchRenderer,
-            isBooting, onBootOverlayHidden, isOverlayOpen, closeIntroModal
+            isModalOpen,
+            isWebGPUSupported,
+            particleLifeComponent,
+            selectRenderer,
+            currentRenderer,
+            modalDismissed,
+            toggleModalDismiss,
+            switchRenderer,
+            isBooting,
+            onBootOverlayHidden,
+            isOverlayOpen,
+            closeIntroModal,
         }
-    }
+    },
 })
 </script>
 

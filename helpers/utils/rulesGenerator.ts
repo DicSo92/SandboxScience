@@ -1,4 +1,4 @@
-export interface RuleOption { id: number; name: string; category?: string }
+export interface RuleOption { id: number, name: string, category?: string }
 export type Matrix = number[][]
 
 export function makeRandomRulesMatrix(NUM_TYPES: number): Matrix {
@@ -27,8 +27,10 @@ export function snakeGenerator(NUM_TYPES: number): Matrix {
     for (let i = 0; i < NUM_TYPES; i++) {
         m[i] = []
         for (let j = 0; j < NUM_TYPES; j++) {
-            if (j === i) m[i][j] = 1
-            else if (j === (i + 1) % NUM_TYPES) m[i][j] = 0.2
+            if (j === i)
+                m[i][j] = 1
+            else if (j === (i + 1) % NUM_TYPES)
+                m[i][j] = 0.2
             else m[i][j] = 0
         }
     }
@@ -40,7 +42,8 @@ export function chains1Generator(NUM_TYPES: number): Matrix {
     for (let i = 0; i < NUM_TYPES; i++) {
         m[i] = []
         for (let j = 0; j < NUM_TYPES; j++) {
-            if (j === i || j === (i + 1) % NUM_TYPES || j === (i + NUM_TYPES - 1) % NUM_TYPES) m[i][j] = 1
+            if (j === i || j === (i + 1) % NUM_TYPES || j === (i + NUM_TYPES - 1) % NUM_TYPES)
+                m[i][j] = 1
             else m[i][j] = -1
         }
     }
@@ -52,8 +55,10 @@ export function chains2Generator(NUM_TYPES: number): Matrix {
     for (let i = 0; i < NUM_TYPES; i++) {
         m[i] = []
         for (let j = 0; j < NUM_TYPES; j++) {
-            if (j === i) m[i][j] = 1
-            else if (j === (i + 1) % NUM_TYPES || j === (i + NUM_TYPES - 1) % NUM_TYPES) m[i][j] = 0.2
+            if (j === i)
+                m[i][j] = 1
+            else if (j === (i + 1) % NUM_TYPES || j === (i + NUM_TYPES - 1) % NUM_TYPES)
+                m[i][j] = 0.2
             else m[i][j] = -1
         }
     }
@@ -65,8 +70,10 @@ export function chains3Generator(NUM_TYPES: number): Matrix {
     for (let i = 0; i < NUM_TYPES; i++) {
         m[i] = []
         for (let j = 0; j < NUM_TYPES; j++) {
-            if (j === i) m[i][j] = 1
-            else if (j === (i + 1) % NUM_TYPES || j === (i + NUM_TYPES - 1) % NUM_TYPES) m[i][j] = 0.2
+            if (j === i)
+                m[i][j] = 1
+            else if (j === (i + 1) % NUM_TYPES || j === (i + NUM_TYPES - 1) % NUM_TYPES)
+                m[i][j] = 0.2
             else m[i][j] = 0
         }
     }
@@ -74,14 +81,17 @@ export function chains3Generator(NUM_TYPES: number): Matrix {
 }
 
 export function rockPaperScissorsGenerator(NUM_TYPES: number): Matrix {
-    const A = 0.9, R = -0.7, S = -0.1
+    const A = 0.9; const R = -0.7; const S = -0.1
     const m: Matrix = []
     for (let i = 0; i < NUM_TYPES; i++) {
         m[i] = []
         for (let j = 0; j < NUM_TYPES; j++) {
-            if (j === i) m[i][j] = S
-            else if (j === (i + 1) % NUM_TYPES) m[i][j] = A
-            else if (j === (i + NUM_TYPES - 1) % NUM_TYPES) m[i][j] = R
+            if (j === i)
+                m[i][j] = S
+            else if (j === (i + 1) % NUM_TYPES)
+                m[i][j] = A
+            else if (j === (i + NUM_TYPES - 1) % NUM_TYPES)
+                m[i][j] = R
             else m[i][j] = 0
         }
     }
@@ -89,7 +99,7 @@ export function rockPaperScissorsGenerator(NUM_TYPES: number): Matrix {
 }
 
 export function bipartiteGenerator(NUM_TYPES: number): Matrix {
-    const INTRA = 0.8, INTER = -0.8, S = 0.2
+    const INTRA = 0.8; const INTER = -0.8; const S = 0.2
     const m: Matrix = []
     for (let i = 0; i < NUM_TYPES; i++) {
         m[i] = []
@@ -102,14 +112,17 @@ export function bipartiteGenerator(NUM_TYPES: number): Matrix {
 }
 
 export function hubAndSpokesGenerator(NUM_TYPES: number): Matrix {
-    const CORE = 0, INTRA = 0.0, TO_CORE = 1.0, FROM_CORE = 0.6
+    const CORE = 0; const INTRA = 0.0; const TO_CORE = 1.0; const FROM_CORE = 0.6
     const m: Matrix = []
     for (let i = 0; i < NUM_TYPES; i++) {
         m[i] = []
         for (let j = 0; j < NUM_TYPES; j++) {
-            if (i === j) m[i][j] = CORE
-            else if (i === 0) m[i][j] = TO_CORE
-            else if (j === 0) m[i][j] = FROM_CORE
+            if (i === j)
+                m[i][j] = CORE
+            else if (i === 0)
+                m[i][j] = TO_CORE
+            else if (j === 0)
+                m[i][j] = FROM_CORE
             else m[i][j] = INTRA
         }
     }
@@ -117,13 +130,15 @@ export function hubAndSpokesGenerator(NUM_TYPES: number): Matrix {
 }
 
 export function concentricShellsGenerator(NUM_TYPES: number): Matrix {
-    const SELF = 0.9, NEXT = 0.3, FAR = -0.6
+    const SELF = 0.9; const NEXT = 0.3; const FAR = -0.6
     const m: Matrix = []
     for (let i = 0; i < NUM_TYPES; i++) {
         m[i] = []
         for (let j = 0; j < NUM_TYPES; j++) {
-            if (j === i) m[i][j] = SELF
-            else if (j === (i + 1) % NUM_TYPES) m[i][j] = NEXT
+            if (j === i)
+                m[i][j] = SELF
+            else if (j === (i + 1) % NUM_TYPES)
+                m[i][j] = NEXT
             else m[i][j] = FAR
         }
     }
@@ -132,7 +147,7 @@ export function concentricShellsGenerator(NUM_TYPES: number): Matrix {
 
 export function antiSymmetricSwirlGenerator(NUM_TYPES: number): Matrix {
     const BASE = 0.7
-    const m: Matrix = Array.from({ length: NUM_TYPES }, () => Array(NUM_TYPES).fill(0))
+    const m: Matrix = Array.from({ length: NUM_TYPES }, () => new Array(NUM_TYPES).fill(0))
     for (let i = 0; i < NUM_TYPES; i++) {
         for (let j = i + 1; j < NUM_TYPES; j++) {
             const val = ((j - i + NUM_TYPES) % NUM_TYPES) <= (NUM_TYPES / 2) ? BASE : -BASE
@@ -145,14 +160,17 @@ export function antiSymmetricSwirlGenerator(NUM_TYPES: number): Matrix {
 }
 
 export function checkerOffsetsGenerator(NUM_TYPES: number): Matrix {
-    const NEI = -0.8, SKIP = 0.8, SELF = 0.2
+    const NEI = -0.8; const SKIP = 0.8; const SELF = 0.2
     const m: Matrix = []
     for (let i = 0; i < NUM_TYPES; i++) {
         m[i] = []
         for (let j = 0; j < NUM_TYPES; j++) {
-            if (j === i) m[i][j] = SELF
-            else if (j === (i + 1) % NUM_TYPES || j === (i + NUM_TYPES - 1) % NUM_TYPES) m[i][j] = NEI
-            else if (j === (i + 2) % NUM_TYPES || j === (i + NUM_TYPES - 2) % NUM_TYPES) m[i][j] = SKIP
+            if (j === i)
+                m[i][j] = SELF
+            else if (j === (i + 1) % NUM_TYPES || j === (i + NUM_TYPES - 1) % NUM_TYPES)
+                m[i][j] = NEI
+            else if (j === (i + 2) % NUM_TYPES || j === (i + NUM_TYPES - 2) % NUM_TYPES)
+                m[i][j] = SKIP
             else m[i][j] = 0
         }
     }
@@ -160,14 +178,16 @@ export function checkerOffsetsGenerator(NUM_TYPES: number): Matrix {
 }
 
 export function dimersAndChainsGenerator(NUM_TYPES: number): Matrix {
-    const STRONG = 1.0, REP = -0.9, SELF = 0
+    const STRONG = 1.0; const REP = -0.9; const SELF = 0
     const partner = (t: number) => t ^ 1 // 0↔1, 2↔3, ...
     const m: Matrix = []
     for (let i = 0; i < NUM_TYPES; i++) {
         m.push([])
         for (let j = 0; j < NUM_TYPES; j++) {
-            if (j === i) m[i].push(SELF)
-            else if (j === partner(i)) m[i].push(STRONG)
+            if (j === i)
+                m[i].push(SELF)
+            else if (j === partner(i))
+                m[i].push(STRONG)
             else m[i].push(REP)
         }
     }
@@ -175,13 +195,14 @@ export function dimersAndChainsGenerator(NUM_TYPES: number): Matrix {
 }
 
 export function triadFlocksGenerator(NUM_TYPES: number): Matrix {
-    const IN = 0.9, OUT = -0.7, SELF = 0.1
+    const IN = 0.9; const OUT = -0.7; const SELF = 0.1
     const groupId = (t: number) => Math.floor(t / 3)
     const m: Matrix = []
     for (let i = 0; i < NUM_TYPES; i++) {
         m.push([])
         for (let j = 0; j < NUM_TYPES; j++) {
-            if (i === j) m[i].push(SELF)
+            if (i === j)
+                m[i].push(SELF)
             else m[i].push(groupId(i) === groupId(j) ? IN : OUT)
         }
     }
@@ -189,14 +210,17 @@ export function triadFlocksGenerator(NUM_TYPES: number): Matrix {
 }
 
 export function spiralConveyorGenerator(NUM_TYPES: number): Matrix {
-    const A1 = 0.7, A2 = 0.3, R = -0.6, SELF = -0.1
+    const A1 = 0.7; const A2 = 0.3; const R = -0.6; const SELF = -0.1
     const m: Matrix = []
     for (let i = 0; i < NUM_TYPES; i++) {
         m.push([])
         for (let j = 0; j < NUM_TYPES; j++) {
-            if (j === i) m[i].push(SELF)
-            else if (j === (i + 1) % NUM_TYPES) m[i].push(A1)
-            else if (j === (i + 2) % NUM_TYPES) m[i].push(A2)
+            if (j === i)
+                m[i].push(SELF)
+            else if (j === (i + 1) % NUM_TYPES)
+                m[i].push(A1)
+            else if (j === (i + 2) % NUM_TYPES)
+                m[i].push(A2)
             else m[i].push(R)
         }
     }
@@ -204,13 +228,15 @@ export function spiralConveyorGenerator(NUM_TYPES: number): Matrix {
 }
 
 export function patchworkGenerator(NUM_TYPES: number): Matrix {
-    const p = 0.35, POS = 0.9, NEG = -0.9, SELF = 0.0
+    const p = 0.35; const POS = 0.9; const NEG = -0.9; const SELF = 0.0
     const rnd = (i: number, j: number) => Math.abs((Math.sin(i * 73856093 ^ j * 19349663) * 43758.5453) % 1)
     const m: Matrix = []
     for (let i = 0; i < NUM_TYPES; i++) {
         m.push([])
         for (let j = 0; j < NUM_TYPES; j++) {
-            if (i === j) m[i].push(SELF)
+            if (i === j) {
+                m[i].push(SELF)
+            }
             else {
                 const r = rnd(i, j)
                 m[i].push(r < p ? POS : (r < 2 * p ? NEG : 0))
@@ -221,12 +247,14 @@ export function patchworkGenerator(NUM_TYPES: number): Matrix {
 }
 
 export function wavefieldGenerator(NUM_TYPES: number): Matrix {
-    const AMP = 0.9, SELF = -0.05
+    const AMP = 0.9; const SELF = -0.05
     const m: Matrix = []
     for (let i = 0; i < NUM_TYPES; i++) {
         m.push([])
         for (let j = 0; j < NUM_TYPES; j++) {
-            if (i === j) m[i].push(SELF)
+            if (i === j) {
+                m[i].push(SELF)
+            }
             else {
                 const phase = 2 * Math.PI * (j - i) / NUM_TYPES
                 m[i].push(Math.sin(phase) * AMP)
@@ -237,7 +265,7 @@ export function wavefieldGenerator(NUM_TYPES: number): Matrix {
 }
 
 export function chiralBandpassGenerator(NUM_TYPES: number): Matrix {
-    const SELF = -0.05, A1 = 0.7, A2 = 0.35, EPS = 0.15
+    const SELF = -0.05; const A1 = 0.7; const A2 = 0.35; const EPS = 0.15
     const m: Matrix = []
     for (let i = 0; i < NUM_TYPES; i++) {
         m.push([])
@@ -253,7 +281,7 @@ export function chiralBandpassGenerator(NUM_TYPES: number): Matrix {
 }
 
 export function rotatingConveyorGenerator(NUM_TYPES: number): Matrix {
-    const SELF = -0.05, AMP = 0.8, TWIST = 2 * Math.PI / (NUM_TYPES * 1.5)
+    const SELF = -0.05; const AMP = 0.8; const TWIST = 2 * Math.PI / (NUM_TYPES * 1.5)
     const m: Matrix = []
     for (let i = 0; i < NUM_TYPES; i++) {
         m.push([])
@@ -267,10 +295,13 @@ export function rotatingConveyorGenerator(NUM_TYPES: number): Matrix {
 }
 
 export function primeHopGenerator(NUM_TYPES: number): Matrix {
-    const SELF = -0.05, A = 0.9, R = -0.7
+    const SELF = -0.05; const A = 0.9; const R = -0.7
     const p = (n: number) => {
         const primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29]
-        for (const x of primes) if (x < n) return x
+        for (const x of primes) {
+            if (x < n)
+                return x
+        }
         return 2
     }
     const P = p(NUM_TYPES)
@@ -289,7 +320,7 @@ export function primeHopGenerator(NUM_TYPES: number): Matrix {
 }
 
 export function parityVortexGenerator(NUM_TYPES: number): Matrix {
-    const SELF = -0.05, Aeo = 0.8, Aoe = 0.6, Ree = -0.4, Roo = -0.6
+    const SELF = -0.05; const Aeo = 0.8; const Aoe = 0.6; const Ree = -0.4; const Roo = -0.6
     const isEven = (x: number) => (x % 2) === 0
     const m: Matrix = []
     for (let i = 0; i < NUM_TYPES; i++) {
@@ -297,8 +328,10 @@ export function parityVortexGenerator(NUM_TYPES: number): Matrix {
         for (let j = 0; j < NUM_TYPES; j++) {
             if (i === j) { m[i].push(SELF); continue }
             let val = 0
-            if (isEven(i) && !isEven(j)) val = Aeo
-            else if (!isEven(i) && isEven(j)) val = Aoe
+            if (isEven(i) && !isEven(j))
+                val = Aeo
+            else if (!isEven(i) && isEven(j))
+                val = Aoe
             else val = isEven(i) ? Ree : Roo
             m[i].push(val)
         }
@@ -307,7 +340,7 @@ export function parityVortexGenerator(NUM_TYPES: number): Matrix {
 }
 
 export function helicalLadderGenerator(NUM_TYPES: number): Matrix {
-    const SELF = -0.05, A = 0.7, B = 0.4, K = 2 * Math.PI / NUM_TYPES
+    const SELF = -0.05; const A = 0.7; const B = 0.4; const K = 2 * Math.PI / NUM_TYPES
     const m: Matrix = []
     for (let i = 0; i < NUM_TYPES; i++) {
         m.push([])
@@ -321,7 +354,7 @@ export function helicalLadderGenerator(NUM_TYPES: number): Matrix {
 }
 
 export function biasedWaveGenerator(NUM_TYPES: number): Matrix {
-    const SELF = -0.05, AMP = 0.75, BIAS = 0.15
+    const SELF = -0.05; const AMP = 0.75; const BIAS = 0.15
     const m: Matrix = []
     for (let i = 0; i < NUM_TYPES; i++) {
         m.push([])
@@ -335,14 +368,14 @@ export function biasedWaveGenerator(NUM_TYPES: number): Matrix {
 }
 
 export function modularTriadsGenerator(NUM_TYPES: number): Matrix {
-    const SELF = -0.05, IN = -0.2, NEXT = 0.85, PREV = -0.75
+    const SELF = -0.05; const IN = -0.2; const NEXT = 0.85; const PREV = -0.75
     const gid = (t: number) => t % 3
     const m: Matrix = []
     for (let i = 0; i < NUM_TYPES; i++) {
         m[i] = []
         for (let j = 0; j < NUM_TYPES; j++) {
             if (i === j) { m[i][j] = SELF; continue }
-            const di = gid(i), dj = gid(j)
+            const di = gid(i); const dj = gid(j)
             const val = (di === dj) ? IN : ((dj === (di + 1) % 3) ? NEXT : PREV)
             m[i][j] = val
         }
@@ -351,7 +384,7 @@ export function modularTriadsGenerator(NUM_TYPES: number): Matrix {
 }
 
 export function skippedPursuitGenerator(NUM_TYPES: number): Matrix {
-    const SELF = -0.05, K = 2, A = 0.9, R = -0.6
+    const SELF = -0.05; const K = 2; const A = 0.9; const R = -0.6
     const circ = (d: number) => Math.min((d + NUM_TYPES) % NUM_TYPES, (-d + NUM_TYPES) % NUM_TYPES)
     const m: Matrix = []
     for (let i = 0; i < NUM_TYPES; i++) {
@@ -375,7 +408,7 @@ function deterministicHash32(a: number, b: number): number {
 }
 
 export function blueNoiseConveyorGenerator(NUM_TYPES: number): Matrix {
-    const SELF = -0.05, AMP = 0.9, SKEW = 0.8
+    const SELF = -0.05; const AMP = 0.9; const SKEW = 0.8
     const m: Matrix = Array.from({ length: NUM_TYPES }, () => [])
     for (let i = 0; i < NUM_TYPES; i++) {
         for (let j = 0; j < NUM_TYPES; j++) {
@@ -394,7 +427,7 @@ export function blueNoiseConveyorGenerator(NUM_TYPES: number): Matrix {
 }
 
 export function offsetPhasefieldGenerator(NUM_TYPES: number): Matrix {
-    const SELF = -0.05, AMP = 0.8, K = 2 * Math.PI / NUM_TYPES, TW = 3
+    const SELF = -0.05; const AMP = 0.8; const K = 2 * Math.PI / NUM_TYPES; const TW = 3
     const theta = (i: number) => K * TW * i
     const m: Matrix = []
     for (let i = 0; i < NUM_TYPES; i++) {
@@ -409,7 +442,7 @@ export function offsetPhasefieldGenerator(NUM_TYPES: number): Matrix {
 }
 
 export function ringRoadGenerator(NUM_TYPES: number): Matrix {
-    const SELF = -0.05, KA = 1, KR = Math.ceil(NUM_TYPES / 3), A = 0.85, R = -0.8
+    const SELF = -0.05; const KA = 1; const KR = Math.ceil(NUM_TYPES / 3); const A = 0.85; const R = -0.8
     const circ = (d: number) => Math.min((d + NUM_TYPES) % NUM_TYPES, (-d + NUM_TYPES) % NUM_TYPES)
     const m: Matrix = []
     for (let i = 0; i < NUM_TYPES; i++) {
@@ -425,7 +458,7 @@ export function ringRoadGenerator(NUM_TYPES: number): Matrix {
 }
 
 export function triSpiralGenerator(NUM_TYPES: number): Matrix {
-    const SELF = -0.05, A1 = 0.7, A3 = 0.55
+    const SELF = -0.05; const A1 = 0.7; const A3 = 0.55
     const m: Matrix = []
     for (let i = 0; i < NUM_TYPES; i++) {
         m[i] = []
@@ -439,7 +472,7 @@ export function triSpiralGenerator(NUM_TYPES: number): Matrix {
 }
 
 export function vortexAntivortexGenerator(NUM_TYPES: number): Matrix {
-    const SELF = -0.05, AMP = 0.8
+    const SELF = -0.05; const AMP = 0.8
     const m: Matrix = []
     for (let i = 0; i < NUM_TYPES; i++) {
         m[i] = []
@@ -454,7 +487,7 @@ export function vortexAntivortexGenerator(NUM_TYPES: number): Matrix {
 }
 
 export function driftedPatchworkGenerator(NUM_TYPES: number): Matrix {
-    const SELF = -0.05, AMP = 0.75, BIAS = 0.12, DENS = 0.6
+    const SELF = -0.05; const AMP = 0.75; const BIAS = 0.12; const DENS = 0.6
     const hash = (a: number, b: number) => {
         let x = (a * 2654435761) ^ (b * 1597334677)
         x = (x ^ (x << 13)) ^ (x >>> 7) ^ (x << 17)
@@ -474,7 +507,7 @@ export function driftedPatchworkGenerator(NUM_TYPES: number): Matrix {
     return m
 }
 
-const RULES: { id: number; name: string; category?: string; generator: (n: number) => Matrix }[] = [
+const RULES: { id: number, name: string, category?: string, generator: (n: number) => Matrix }[] = [
     { id: 0, name: 'Random', category: 'Default', generator: makeRandomRulesMatrix },
     { id: 1, name: 'Symmetric', category: 'Experimental', generator: symmetricGenerator },
     { id: 2, name: 'Snake', category: 'Experimental', generator: snakeGenerator },
@@ -511,7 +544,8 @@ const RULES: { id: number; name: string; category?: string; generator: (n: numbe
 export const RULES_OPTIONS: RuleOption[] = RULES.map(({ id, name, category }) => ({ id, name, category }))
 
 export function generateRules(optionID: number, NUM_TYPES: number): Matrix {
-    if (NUM_TYPES <= 0) return []
+    if (NUM_TYPES <= 0)
+        return []
 
     const rule = RULES.find(rule => rule.id === optionID)
     const generator = rule?.generator ?? makeRandomRulesMatrix
