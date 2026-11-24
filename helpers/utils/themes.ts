@@ -1,10 +1,12 @@
 function hexToBgr(hex: string) {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
-    return result ? [
-        parseInt(result[3], 16),
-        parseInt(result[2], 16),
-        parseInt(result[1], 16)
-    ] : null
+    return result
+        ? [
+                Number.parseInt(result[3], 16),
+                Number.parseInt(result[2], 16),
+                Number.parseInt(result[1], 16),
+            ]
+        : null
 }
 
 function bgrToHex(bgr: number[]) {
@@ -12,7 +14,7 @@ function bgrToHex(bgr: number[]) {
     for (let i = 0; i < 3; i++) {
         let bgrValue = bgr[i].toString(16)
         if (bgrValue.length === 1) {
-            bgrValue = "0" + bgrValue
+            bgrValue = `0${bgrValue}`
         }
         hex += bgrValue
     }
@@ -51,7 +53,7 @@ const themes = [
         category: 'Simple',
         BACKGROUND: '#000000',
         ALIVE: '#ffffff',
-        DEAD: '#000000'
+        DEAD: '#000000',
     },
     {
         name: 'Inverse',
@@ -60,7 +62,7 @@ const themes = [
         category: 'Simple',
         BACKGROUND: '#dddddd',
         ALIVE: '#000000',
-        DEAD: '#dddddd'
+        DEAD: '#dddddd',
     },
     {
         name: 'Blues',
@@ -71,7 +73,7 @@ const themes = [
         ALIVE: '#00ffff',
         ALIVERAMP: '#ffffff',
         DEAD: '#0000ff',
-        DEADRAMP: '#00002f'
+        DEADRAMP: '#00002f',
     },
     {
         name: 'Fire',
@@ -82,7 +84,7 @@ const themes = [
         ALIVE: '#ff9000',
         ALIVERAMP: '#ffff00',
         DEAD: '#A00000',
-        DEADRAMP: '#200000'
+        DEADRAMP: '#200000',
     },
     {
         name: 'Poison',
@@ -93,7 +95,7 @@ const themes = [
         ALIVE: '#00ffff',
         ALIVERAMP: '#ffffff',
         DEAD: '#008000',
-        DEADRAMP: '#001800'
+        DEADRAMP: '#001800',
     },
     {
         name: 'Arcane',
@@ -104,7 +106,7 @@ const themes = [
         ALIVE: '#ffff00',
         ALIVERAMP: '#ffffff',
         DEAD: '#800080',
-        DEADRAMP: '#002f00'
+        DEADRAMP: '#002f00',
     },
     {
         name: 'Matrix',
@@ -113,7 +115,7 @@ const themes = [
         category: 'Simple',
         BACKGROUND: '#000000',
         ALIVE: '#00ff41',
-        DEAD: '#000000'
+        DEAD: '#000000',
     },
     {
         name: 'Blueprint',
@@ -122,7 +124,7 @@ const themes = [
         category: 'Simple',
         BACKGROUND: '#0a2463',
         ALIVE: '#e8e8e8',
-        DEAD: '#0a2463'
+        DEAD: '#0a2463',
     },
     {
         name: 'Amber',
@@ -131,7 +133,7 @@ const themes = [
         category: 'Simple',
         BACKGROUND: '#1a0a00',
         ALIVE: '#ffbf00',
-        DEAD: '#1a0a00'
+        DEAD: '#1a0a00',
     },
     {
         name: 'Sunset',
@@ -142,7 +144,7 @@ const themes = [
         ALIVE: '#ff6c11',
         ALIVERAMP: '#ffd700',
         DEAD: '#cc2936',
-        DEADRAMP: '#1a0510'
+        DEADRAMP: '#1a0510',
     },
     {
         name: 'Ocean',
@@ -153,7 +155,7 @@ const themes = [
         ALIVE: '#00b4d8',
         ALIVERAMP: '#caf0f8',
         DEAD: '#023e8a',
-        DEADRAMP: '#000510'
+        DEADRAMP: '#000510',
     },
     {
         name: 'Forest',
@@ -164,7 +166,7 @@ const themes = [
         ALIVE: '#80b918',
         ALIVERAMP: '#d4f07a',
         DEAD: '#2d6a4f',
-        DEADRAMP: '#081408'
+        DEADRAMP: '#081408',
     },
     {
         name: 'Rose',
@@ -175,7 +177,7 @@ const themes = [
         ALIVE: '#ff69b4',
         ALIVERAMP: '#ffc0e0',
         DEAD: '#c2185b',
-        DEADRAMP: '#1a0010'
+        DEADRAMP: '#1a0010',
     },
     {
         name: 'Ice',
@@ -186,7 +188,7 @@ const themes = [
         ALIVE: '#a8dadc',
         ALIVERAMP: '#f1faee',
         DEAD: '#457b9d',
-        DEADRAMP: '#051020'
+        DEADRAMP: '#051020',
     },
     {
         name: 'Amethyst',
@@ -197,7 +199,7 @@ const themes = [
         ALIVE: '#b388ff',
         ALIVERAMP: '#e8d0ff',
         DEAD: '#7c4dff',
-        DEADRAMP: '#120025'
+        DEADRAMP: '#120025',
     },
     {
         name: 'Neon',
@@ -208,7 +210,7 @@ const themes = [
         ALIVE: '#39ff14',
         ALIVERAMP: '#f5ff00',
         DEAD: '#ff00ff',
-        DEADRAMP: '#1a001a'
+        DEADRAMP: '#1a001a',
     },
     {
         name: 'Lava',
@@ -219,7 +221,7 @@ const themes = [
         ALIVE: '#ff4500',
         ALIVERAMP: '#ffcc00',
         DEAD: '#8b0000',
-        DEADRAMP: '#1a0000'
+        DEADRAMP: '#1a0000',
     },
     {
         name: 'Midnight',
@@ -230,7 +232,7 @@ const themes = [
         ALIVE: '#e0e0ff',
         ALIVERAMP: '#ffffff',
         DEAD: '#1a1a4e',
-        DEADRAMP: '#000008'
+        DEADRAMP: '#000008',
     },
     {
         name: 'Coral',
@@ -241,14 +243,15 @@ const themes = [
         ALIVE: '#ff7f50',
         ALIVERAMP: '#ffd1b3',
         DEAD: '#e05090',
-        DEADRAMP: '#1a0020'
-    }
+        DEADRAMP: '#1a0020',
+    },
 ]
 
 // Multi-State themes
 
-
-
 export {
-    generateColorRange, hexToBgr, bgrToHex, themes
+    bgrToHex,
+    generateColorRange,
+    hexToBgr,
+    themes,
 }

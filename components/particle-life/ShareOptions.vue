@@ -1,64 +1,81 @@
 <template>
-    <section absolute w-full h-full>
+    <section absolute h-full w-full>
         <ClientOnly>
-            <ParticleLifeCaptureOverlay ref="captureOverlay" v-if="isCaptureOverlayOpen"
-                                        :getSelectedAreaImageData="getSelectedAreaImageData"
-                                        :captureFPS="captureFPS" :captureDuration="captureDuration"
-                                        @captureComplete="onCaptureComplete">>
+            <ParticleLifeCaptureOverlay
+                v-if="isCaptureOverlayOpen" ref="captureOverlay"
+                :get-selected-area-image-data="getSelectedAreaImageData"
+                :capture-f-p-s="captureFPS" :capture-duration="captureDuration"
+                @capture-complete="onCaptureComplete"
+            >
+                >
             </ParticleLifeCaptureOverlay>
         </ClientOnly>
 
-        <Modal :modalActive="modalActive" @close="closeModal">
+        <Modal :modal-active="modalActive" @close="closeModal">
             <div class="modal-content">
                 <div flex items-center>
-                    <span i-tabler-screenshot text-2xl mr-2></span>
-                    <h1 text-xl>Choose Capture Mode</h1>
+                    <span i-tabler-screenshot mr-2 text-2xl />
+                    <h1 text-xl>
+                        Choose Capture Mode
+                    </h1>
                 </div>
                 <hr mb-4>
                 <section flex>
-                    <div v-if="imageURL" class="w-2/3" relative bg-zinc-900 flex justify-center items-center rounded-lg p-1.5 border-2 border-gray-500 border-dashed>
-                        <img :src="imageURL" alt="" w-full aspect-video object-scale-down object-center rounded>
-                        <div absolute top-2 right-2>
-                            <button type="button" title="Delete Capture" aria-label="Delete Capture" @click="imageURL = null"
-                                    aspect-square rounded-full p-1 flex justify-center items-center
-                                    class="bg-red-800 hover:bg-red-700">
-                                <span i-tabler-trash text-lg></span>
+                    <div v-if="imageURL" class="w-2/3" relative flex items-center justify-center border-2 border-gray-500 rounded-lg border-dashed bg-zinc-900 p-1.5>
+                        <img :src="imageURL" alt="" aspect-video w-full rounded object-scale-down object-center>
+                        <div absolute right-2 top-2>
+                            <button
+                                type="button" title="Delete Capture" aria-label="Delete Capture" aspect-square
+                                flex items-center justify-center rounded-full p-1 class="bg-red-800 hover:bg-red-700"
+                                @click="imageURL = null"
+                            >
+                                <span i-tabler-trash text-lg />
                             </button>
-                            <button type="button" title="Download" aria-label="Download" @click="downloadCapture"
-                                    aspect-square rounded-full p-1 flex justify-center items-center mt-1
-                                    class="bg-blue-950 hover:bg-blue-900">
-                                <span i-tabler-download text-lg></span>
+                            <button
+                                type="button" title="Download" aria-label="Download" mt-1
+                                aspect-square flex items-center justify-center rounded-full p-1 class="bg-blue-950 hover:bg-blue-900"
+                                @click="downloadCapture"
+                            >
+                                <span i-tabler-download text-lg />
                             </button>
                         </div>
                     </div>
-                    <div v-else flex items-center h-42 class="w-2/3">
-                        <button type="button" title="Screenshot" aria-label="Screenshot"
-                                flex-1 h-full rounded-xl px-4 py-1 flex flex-col items-center justify-center border-2 border-dashed border-gray-500 text-gray-300
-                                class="bg-zinc-800 hover:bg-zinc-700" @click="onChooseCaptureMode('screenshot')">
-                            <span i-tabler-camera text-2xl></span>
+                    <div v-else h-42 flex items-center class="w-2/3">
+                        <button
+                            type="button" title="Screenshot" aria-label="Screenshot"
+                            h-full flex flex-1 flex-col items-center justify-center border-2 border-gray-500 rounded-xl border-dashed px-4 py-1 text-gray-300
+                            class="bg-zinc-800 hover:bg-zinc-700" @click="onChooseCaptureMode('screenshot')"
+                        >
+                            <span i-tabler-camera text-2xl />
                             Screenshot
                         </button>
-                        <hr class="h-5/6" border-l-1 border-gray-500 border-dashed mx-3 py-8>
-                        <button type="button" title="GIF Capture" aria-label="GIF Capture"
-                                flex-1 h-full rounded-xl px-4 py-1 flex flex-col items-center justify-center border-2 border-dashed border-gray-500 text-gray-300
-                                class="bg-zinc-800 hover:bg-zinc-700" @click="onChooseCaptureMode('GIF')">
-                            <span i-tabler-movie text-2xl></span>
+                        <hr class="h-5/6" mx-3 border-l-1 border-gray-500 border-dashed py-8>
+                        <button
+                            type="button" title="GIF Capture" aria-label="GIF Capture"
+                            h-full flex flex-1 flex-col items-center justify-center border-2 border-gray-500 rounded-xl border-dashed px-4 py-1 text-gray-300
+                            class="bg-zinc-800 hover:bg-zinc-700" @click="onChooseCaptureMode('GIF')"
+                        >
+                            <span i-tabler-movie text-2xl />
                             GIF Capture
                         </button>
                     </div>
                     <div class="w-1/3" pl-4>
-                        <div rounded-xl bg-zinc-700 w-full px-3 py-2>
-                            <h2 underline text-gray-300 mb-2>
+                        <div w-full rounded-xl bg-zinc-700 px-3 py-2>
+                            <h2 mb-2 text-gray-300 underline>
                                 GIF Options :
                             </h2>
                             <Input v-model="captureFPS" :debounce="0" mb-1>
                                 <template #customLabel>
-                                    <div text-sm flex-1>FPS</div>
+                                    <div flex-1 text-sm>
+                                        FPS
+                                    </div>
                                 </template>
                             </Input>
                             <Input v-model="captureDuration" :debounce="0">
                                 <template #customLabel>
-                                    <div text-sm flex-1>Time (s)</div>
+                                    <div flex-1 text-sm>
+                                        Time (s)
+                                    </div>
                                 </template>
                             </Input>
                         </div>
@@ -76,9 +93,10 @@ export default defineComponent({
     props: {
         getSelectedAreaImageData: {
             type: Function as PropType<(x: number, y: number, width: number, height: number) => ImageData>,
-            required: true
-        }
+            required: true,
+        },
     },
+    // eslint-disable-next-line unused-imports/no-unused-vars
     setup(props, { emit }) {
         const particleLife = useParticleLifeStore()
         const captureOverlay = ref(null)
@@ -126,11 +144,19 @@ export default defineComponent({
         }
         // -------------------------------------------------------------------------------------------------------------
         return {
-            particleLife, captureOverlay, isCaptureOverlayOpen, modalActive,
-            imageURL, captureFPS, captureDuration,
-            closeModal, onChooseCaptureMode, onCaptureComplete, downloadCapture
+            particleLife,
+            captureOverlay,
+            isCaptureOverlayOpen,
+            modalActive,
+            imageURL,
+            captureFPS,
+            captureDuration,
+            closeModal,
+            onChooseCaptureMode,
+            onCaptureComplete,
+            downloadCapture,
         }
-    }
+    },
 })
 </script>
 

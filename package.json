@@ -1,10 +1,10 @@
 {
     "name": "sandbox-science",
-    "description": "An interactive platform offering educational scientific simulations like Game of Life and Particle Life.",
     "type": "module",
     "private": true,
-    "license": "AGPL-3.0-or-later",
+    "description": "An interactive platform offering educational scientific simulations like Game of Life and Particle Life.",
     "author": "Charly Luzzi (DicSo92)",
+    "license": "AGPL-3.0-or-later",
     "homepage": "https://sandbox-science.com",
     "repository": {
         "type": "git",
@@ -23,24 +23,6 @@
         "lint:fix": "eslint . --fix",
         "typecheck": "vue-tsc --noEmit"
     },
-    "devDependencies": {
-        "@antfu/eslint-config": "^6.7.1",
-        "@iconify-json/carbon": "^1.1.37",
-        "@iconify-json/fad": "^1.1.10",
-        "@iconify-json/game-icons": "^1.1.10",
-        "@iconify-json/lets-icons": "^1.1.3",
-        "@iconify-json/streamline-flex": "^1.2.3",
-        "@iconify-json/tabler": "^1.1.120",
-        "@nuxt/eslint": "^1.12.1",
-        "@unocss/eslint-config": "^66.5.10",
-        "@unocss/nuxt": "^66.5.10",
-        "@webgpu/types": "^0.1.68",
-        "eslint": "^9.39.2",
-        "eslint-plugin-format": "^1.1.0",
-        "sass": "^1.97.0",
-        "unocss": "^66.5.10",
-        "vue-tsc": "^3.1.8"
-    },
     "dependencies": {
         "@nuxtjs/seo": "^3.3.0",
         "@pinia/nuxt": "^0.11.3",
@@ -54,5 +36,27 @@
         "vue": "^3.5.26",
         "vue-router": "^4.6.4",
         "zod": "^4.1.13"
+    },
+    "devDependencies": {
+        "@antfu/eslint-config": "^6.7.1",
+        "@iconify-json/carbon": "^1.1.37",
+        "@iconify-json/fad": "^1.1.10",
+        "@iconify-json/game-icons": "^1.1.10",
+        "@iconify-json/lets-icons": "^1.1.3",
+        "@iconify-json/streamline-flex": "^1.2.3",
+        "@iconify-json/tabler": "^1.1.120",
+        "@nuxt/eslint": "^1.12.1",
+        "@nuxt/test-utils": "^4.4.0",
+        "@unocss/eslint-config": "^66.5.10",
+        "@unocss/nuxt": "^66.5.10",
+        "@vue/test-utils": "^2.6.0",
+        "@webgpu/types": "^0.1.68",
+        "eslint": "^9.39.2",
+        "eslint-plugin-format": "^1.1.0",
+        "happy-dom": "^21.0.4",
+        "sass": "^1.97.0",
+        "unocss": "^66.5.10",
+        "vitest": "^4.1.12",
+        "vue-tsc": "^3.1.8"
     }
 }

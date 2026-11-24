@@ -1,7 +1,7 @@
 <template>
-    <section h-screen flex flex-col justify-center overflow-hidden relative>
-        <div flex-1 relative>
-            <canvas ref="canvas" id="canvas" @contextmenu.prevent h-full w-full></canvas>
+    <section relative h-screen flex flex-col justify-center overflow-hidden>
+        <div relative flex-1>
+            <canvas id="canvas" h-full w-full @contextmenu.prevent />
         </div>
     </section>
 </template>
@@ -10,7 +10,7 @@
 export default defineComponent({
     setup() {
         definePageMeta({
-            layout: 'life'
+            layout: 'life',
         })
         useSeoMeta({
             title: 'Hash Life',
@@ -27,8 +27,10 @@ export default defineComponent({
         let canvasWidth: number = 0
         let canvasHeight: number = 0
         let imageData: ImageData | undefined
+        // eslint-disable-next-line unused-imports/no-unused-vars
         let imageDataArray: Int32Array | number[]
-        let animationFrameId: number | null = null
+        // eslint-disable-next-line unused-imports/no-unused-vars
+        const animationFrameId: number | null = null
 
         const game = useQuadStore()
         const cellSize = ref<number>(16)
@@ -38,7 +40,7 @@ export default defineComponent({
         const isDragging = ref<boolean>(false)
 
         const MIN_GRID_CELL_SIZE = 8
-        let hasGrid: boolean = true
+        const hasGrid: boolean = true
         let pointerX: number = 0
         let pointerY: number = 0
 
@@ -55,7 +57,8 @@ export default defineComponent({
             return Math.floor(colx.value)
         })
         const cellWidth = computed(() => {
-            if (cellSize.value >= MIN_GRID_CELL_SIZE) return cellSize.value - 1
+            if (cellSize.value >= MIN_GRID_CELL_SIZE)
+                return cellSize.value - 1
             return Math.max(1, cellSize.value)
         })
         const rowOffset = computed(() => {
@@ -79,10 +82,12 @@ export default defineComponent({
                 if (e.buttons > 0) { // if mouse is pressed
                     isDragging.value = true
                     if (e.buttons === 1) { // if primary button is pressed (left click)
-                        if (!game.wasRunning) game.wasRunning = game.isRunning // store the running state
+                        if (!game.wasRunning)
+                            game.wasRunning = game.isRunning // store the running state
                         game.isRunning = false // pause the game
                         // toggleCell(e)
-                    } else if (e.buttons === 4) { // if wheel button is pressed
+                    }
+                    else if (e.buttons === 4) { // if wheel button is pressed
                         handleMove(e)
                     }
                 }
@@ -98,42 +103,47 @@ export default defineComponent({
             useEventListener(canvas, 'wheel', (e) => {
                 if (e.deltaY < 0) { // Zoom in
                     handleZoom(1, pointerX, pointerY)
-                } else { // Zoom out
+                }
+                else { // Zoom out
                     handleZoom(-1, pointerX, pointerY)
                 }
             })
         })
-        //--------------------------------------------------------------------------------------------------------------
-        //--------------------------------------------------------------------------------------------------------------
+        // --------------------------------------------------------------------------------------------------------------
+        // --------------------------------------------------------------------------------------------------------------
         function handleZoom(delta: number, x: number, y: number) {
-            if (zoom.value + delta > 8 || zoom.value + delta < -8) return
+            if (zoom.value + delta > 8 || zoom.value + delta < -8)
+                return
             zoom.value += delta
             console.log(zoom.value)
 
             const cx = colx.value + x / cellSize.value
             const cy = rowx.value + y / cellSize.value
-            cellSize.value *= Math.pow(2, delta)
+            cellSize.value *= 2 ** delta
             colx.value = cx - x / cellSize.value
             rowx.value = cy - y / cellSize.value
-            if (!game.isRunning) requestAnimationFrame(draw) // redraw
+            if (!game.isRunning)
+                requestAnimationFrame(draw) // redraw
         }
-        function handleMove(e: { movementY: number; movementX: number; }) {
+        function handleMove(e: { movementY: number, movementX: number }) {
             console.log('handleMove')
             rowx.value -= e.movementY / cellSize.value
             colx.value -= e.movementX / cellSize.value
-            if (!game.isRunning) requestAnimationFrame(draw) // redraw
+            if (!game.isRunning)
+                requestAnimationFrame(draw) // redraw
         }
         function handleResize() {
             canvasWidth = canvas!.width = canvas!.clientWidth
             canvasHeight = canvas!.height = canvas!.clientHeight
-            if (!game.isRunning) requestAnimationFrame(draw) // redraw
+            if (!game.isRunning)
+                requestAnimationFrame(draw) // redraw
         }
         function center() {
             rowx.value = -canvasHeight / cellSize.value / 2
             colx.value = -canvasWidth / cellSize.value / 2
         }
-        //--------------------------------------------------------------------------------------------------------------
-        //--------------------------------------------------------------------------------------------------------------
+        // --------------------------------------------------------------------------------------------------------------
+        // --------------------------------------------------------------------------------------------------------------
         function initCanvas() {
             handleResize() // resize and draw the grid
             center() // center the grid on the canvas view
@@ -166,23 +176,23 @@ export default defineComponent({
             ctx!.stroke()
         }
 
-
+        // eslint-disable-next-line unused-imports/no-unused-vars
         class Node {
-            nw: Node | null;
-            ne: Node | null;
-            sw: Node | null;
-            se: Node | null;
-            level: number;
+            nw: Node | null
+            ne: Node | null
+            sw: Node | null
+            se: Node | null
+            level: number
 
             constructor(level: number) {
-                this.nw = null;
-                this.ne = null;
-                this.sw = null;
-                this.se = null;
-                this.level = level;
+                this.nw = null
+                this.ne = null
+                this.sw = null
+                this.se = null
+                this.level = level
             }
         }
-    }
+    },
 })
 </script>
 

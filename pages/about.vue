@@ -1,15 +1,19 @@
 <template>
-    <div flex-1 flex flex-col items-center>
+    <div flex flex-1 flex-col items-center>
         <section container class="mb-24 mt-24 sm:mt-36">
-            <div flex class="px-0 xl:px-16 2xl:px-24 flex-col sm:flex-row">
-                <div class="mr-0 sm:mr-2 mb-4 sm:mb-0 flex justify-center">
-                    <div text-5xl font-bold>🧐</div>
+            <div flex class="flex-col px-0 sm:flex-row 2xl:px-24 xl:px-16">
+                <div class="mb-4 mr-0 flex justify-center sm:mb-0 sm:mr-2">
+                    <div text-5xl font-bold>
+                        🧐
+                    </div>
                 </div>
                 <div class="text-center sm:text-start">
                     <h1 text-5xl font-bold text="#2A9D8F">
                         About
                     </h1>
-                    <h2 text-2xl font-bold mt-3>🚧 Site currently in development 🚧</h2>
+                    <h2 mt-3 text-2xl font-bold>
+                        🚧 Site currently in development 🚧
+                    </h2>
                     <p mt-5>
                         Welcome to Sandbox Science, an interactive platform designed to make learning and exploring scientific
                         concepts fun and accessible. Our site offers a variety of simulations, from cellular automata like
@@ -23,7 +27,9 @@
                     </p>
                     <p mt-4>
                         Sandbox Science is open-source and licensed under the
-                        <NuxtLink to="https://github.com/DicSo92/SandboxScience/blob/master/LICENSE" target="_blank" class="text-#2A9D8F hover:underline">GNU Affero General Public License v3.0 (AGPL-3.0)</NuxtLink>.
+                        <NuxtLink to="https://github.com/DicSo92/SandboxScience/blob/master/LICENSE" target="_blank" class="text-#2A9D8F hover:underline">
+                            GNU Affero General Public License v3.0 (AGPL-3.0)
+                        </NuxtLink>.
                         We invite everyone to contribute to its development. Whether you're a developer, a designer, or simply passionate about
                         science, you can join us in shaping the future of this project.
                     </p>
@@ -34,16 +40,16 @@
                 </div>
             </div>
         </section>
-        <section mb-12 flex-1 flex flex-col justify-end>
+        <section mb-12 flex flex-1 flex-col justify-end>
             <div w-full flex>
-                <NuxtLink to="https://discord.com/invite/z5yuzkFpCA" title="Discord" aria-label="Discord" target="_blank" flex items-center py-0 mx-2>
+                <NuxtLink to="https://discord.com/invite/z5yuzkFpCA" title="Discord" aria-label="Discord" target="_blank" mx-2 flex items-center py-0>
                     <button type="button" name="Discord" aria-label="Discord" text="zinc-3 hover:zinc-1" flex>
-                        <span i-carbon-logo-discord text-5xl></span>
+                        <span i-carbon-logo-discord text-5xl />
                     </button>
                 </NuxtLink>
-                <NuxtLink to="https://github.com/DicSo92/SandboxScience" title="Github" aria-label="Github" target="_blank" flex items-center py-0 mx-2>
+                <NuxtLink to="https://github.com/DicSo92/SandboxScience" title="Github" aria-label="Github" target="_blank" mx-2 flex items-center py-0>
                     <button type="button" name="Github" aria-label="Github" text="zinc-3 hover:zinc-1" flex>
-                        <span i-carbon-logo-github text-5xl></span>
+                        <span i-carbon-logo-github text-5xl />
                     </button>
                 </NuxtLink>
             </div>
@@ -53,7 +59,7 @@
 
 <script setup lang="ts">
 definePageMeta({
-    layout: 'life'
+    layout: 'life',
 })
 useSeoMeta({
     title: 'About',

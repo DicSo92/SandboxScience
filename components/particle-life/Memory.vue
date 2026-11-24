@@ -17,7 +17,8 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from "vue";
+import { defineComponent } from "vue"
+
 export default defineComponent({
     setup() {
         const { isSupported, memory } = useMemory()
@@ -27,7 +28,7 @@ export default defineComponent({
         }
 
         return { isSupported, memory, getSimplifiedMemory }
-    }
+    },
 })
 </script>
 

@@ -1,16 +1,16 @@
+import fs from 'node:fs/promises'
+
+import { createLocalFontProcessor } from '@unocss/preset-web-fonts/local'
+
 import {
     defineConfig,
     presetAttributify,
     presetIcons,
-    presetWind3,
     presetWebFonts,
+    presetWind3,
     transformerDirectives,
     transformerVariantGroup,
 } from 'unocss'
-
-import { createLocalFontProcessor } from '@unocss/preset-web-fonts/local'
-
-import fs from 'node:fs/promises'
 
 export default defineConfig({
     shortcuts: [
@@ -23,10 +23,10 @@ export default defineConfig({
         // },
         container: {
             padding: {
-                DEFAULT: '1rem',
-                sm: '1rem',
-                lg: '8rem',
-                xl: '12rem',
+                "DEFAULT": '1rem',
+                "sm": '1rem',
+                "lg": '8rem',
+                "xl": '12rem',
                 '2xl': '16rem',
             },
         },
@@ -49,16 +49,16 @@ export default defineConfig({
         presetIcons({
             scale: 1.2,
             collections: {
-                carbon: () => import('@iconify-json/carbon/icons.json').then(i => i.default as any),
-                fad: () => import('@iconify-json/fad/icons.json').then(i => i.default as any),
+                "carbon": () => import('@iconify-json/carbon/icons.json').then(i => i.default as any),
+                "fad": () => import('@iconify-json/fad/icons.json').then(i => i.default as any),
                 'game-icons': () => import('@iconify-json/game-icons/icons.json').then(i => i.default as any),
-                tabler: () => import('@iconify-json/tabler/icons.json').then(i => i.default as any),
+                "tabler": () => import('@iconify-json/tabler/icons.json').then(i => i.default as any),
                 'lets-icons': () => import('@iconify-json/lets-icons/icons.json').then(i => i.default as any),
                 'streamline-flex': () => import('@iconify-json/streamline-flex/icons.json').then(i => i.default as any),
-                custom: {
+                "custom": {
                     icon: () => fs.readFile('./public/icon.svg', 'utf-8'),
-                }
-            }
+                },
+            },
         }),
         presetWebFonts({
             provider: {
@@ -96,11 +96,11 @@ export default defineConfig({
                 cacheDir: 'node_modules/.cache/unocss/fonts', // Directory to cache the fonts
                 fontAssetsDir: 'public/assets/fonts', // Directory to save the fonts assets
                 fontServeBaseUrl: '/assets/fonts', // Base URL to serve the fonts from the client
-            })
+            }),
         }),
     ],
     transformers: [
         transformerDirectives(),
-        transformerVariantGroup()
-    ]
+        transformerVariantGroup(),
+    ],
 })

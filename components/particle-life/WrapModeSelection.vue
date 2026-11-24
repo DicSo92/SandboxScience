@@ -1,20 +1,22 @@
 <template>
     <main class="flex">
-        <SelectButton id="normal" label="Normal" v-model="currentValue" mr-2 />
-        <SelectButton id="edges" label="Edges" v-model="currentValue" mr-2 />
-        <SelectButton id="infinite" label="Infinite" v-model="currentValue" />
+        <SelectButton id="normal" v-model="currentValue" label="Normal" mr-2 />
+        <SelectButton id="edges" v-model="currentValue" label="Edges" mr-2 />
+        <SelectButton id="infinite" v-model="currentValue" label="Infinite" />
     </main>
 </template>
 
 <script lang="ts">
 import { defineComponent } from 'vue'
+
 export default defineComponent({
     props: {
         store: {
             type: Object,
             required: true,
-        }
+        },
     },
+    // eslint-disable-next-line unused-imports/no-unused-vars
     setup(props, { emit }) {
         const currentValue = ref('normal')
         const particleLife = props.store
@@ -22,9 +24,11 @@ export default defineComponent({
         onMounted(() => {
             if (particleLife.isMirrorWrap) {
                 currentValue.value = 'edges'
-            } else if (particleLife.isInfiniteMirrorWrap) {
+            }
+            else if (particleLife.isInfiniteMirrorWrap) {
                 currentValue.value = 'infinite'
-            } else {
+            }
+            else {
                 currentValue.value = 'normal'
             }
         })
@@ -32,9 +36,11 @@ export default defineComponent({
         watch(() => currentValue.value, (value) => {
             if (value === 'edges') {
                 particleLife.isMirrorWrap = true
-            } else if (value === 'infinite') {
+            }
+            else if (value === 'infinite') {
                 particleLife.isInfiniteMirrorWrap = true
-            } else {
+            }
+            else {
                 particleLife.isMirrorWrap = false
                 particleLife.isInfiniteMirrorWrap = false
             }
@@ -43,15 +49,17 @@ export default defineComponent({
         watch([() => particleLife.isMirrorWrap, () => particleLife.isInfiniteMirrorWrap], () => {
             if (particleLife.isMirrorWrap) {
                 currentValue.value = 'edges'
-            } else if (particleLife.isInfiniteMirrorWrap) {
+            }
+            else if (particleLife.isInfiniteMirrorWrap) {
                 currentValue.value = 'infinite'
-            } else {
+            }
+            else {
                 currentValue.value = 'normal'
             }
         })
 
         return { currentValue }
-    }
+    },
 })
 </script>
 

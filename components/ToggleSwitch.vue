@@ -4,16 +4,14 @@
             {{ inactiveLabel }}
             <TooltipInfo v-if="tooltip" container="#mainContainer" :tooltip="tooltip!" />
         </p>
-        <label class="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" class="sr-only peer" @change="toggle" :value="modelValue" :checked="modelValue" :disabled="disabled">
-            <span :class="disabled && 'cursor-not-allowed'"
-                  class="peer w-10 h-5.5 rounded-full peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full after:content-['']
-                  bg-#07404B peer-checked:bg-#0C7489 after:bg-gray-200 peer-checked:after:bg-white
-                  after:border-gray-300 peer-checked:after:border-white
-                  after:absolute after:top-0.5 after:start-[2px] after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all">
-            </span>
+        <label class="relative inline-flex cursor-pointer items-center">
+            <input type="checkbox" class="peer sr-only" :value="modelValue" :checked="modelValue" :disabled="disabled" @change="toggle">
+            <span
+                :class="disabled && 'cursor-not-allowed'"
+                class="peer h-5.5 w-10 rounded-full bg-#07404B after:absolute after:start-[2px] after:top-0.5 after:h-4.5 after:w-4.5 after:border after:border-gray-300 after:rounded-full after:bg-gray-200 peer-checked:bg-#0C7489 after:transition-all after:content-[''] peer-checked:after:translate-x-full peer-checked:after:border-white peer-checked:after:bg-white rtl:peer-checked:after:-translate-x-full"
+            />
         </label>
-        <p v-if="label"  class="ml-2 pt-0.5 text-2sm" :class="(colorfulLabel && modelValue) ? 'text-white font-600' : (colorfulLabel && !modelValue) ? 'text-zinc-400 font-400' : ''">
+        <p v-if="label" class="ml-2 pt-0.5 text-2sm" :class="(colorfulLabel && modelValue) ? 'text-white font-600' : (colorfulLabel && !modelValue) ? 'text-zinc-400 font-400' : ''">
             {{ label }}
             <TooltipInfo v-if="tooltip" container="#mainContainer" :tooltip="tooltip!" />
         </p>
@@ -22,39 +20,41 @@
 
 <script lang="ts">
 import { defineComponent } from 'vue'
+
 export default defineComponent({
     props: {
         inactiveLabel: {
             type: String,
-            required: false
+            required: false,
         },
         label: {
             type: String,
-            required: false
+            required: false,
         },
         modelValue: {
             type: Boolean,
-            required: true
+            required: true,
         },
         disabled: {
             type: Boolean,
-            default: false
+            default: false,
         },
         colorfulLabel: {
             type: Boolean,
-            default: false
+            default: false,
         },
         tooltip: {
             type: String,
-            required: false
-        }
+            required: false,
+        },
     },
+    emits: ['update:modelValue'],
     setup(props, { emit }) {
         function toggle() {
             emit("update:modelValue", !props.modelValue)
         }
         return { toggle }
-    }
+    },
 })
 </script>
 

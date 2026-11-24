@@ -1,11 +1,13 @@
 <template>
     <div>
-<!--        <label id="listbox-label" class="block text-sm font-medium leading-6">{{ label }}</label>-->
+        <!--        <label id="listbox-label" class="block text-sm font-medium leading-6">{{ label }}</label> -->
         <div class="relative mt-1">
-            <button type="button" @click="opened = !opened"
-                    class="relative w-full cursor-default rounded-md bg-white py-1.5 pl-3 pr-10 text-left text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm sm:leading-6" aria-haspopup="listbox" aria-expanded="true" aria-labelledby="listbox-label">
+            <button
+                type="button" class="relative w-full cursor-default rounded-md bg-white py-1.5 pl-3 pr-10 text-left text-gray-900 shadow-sm ring-1 ring-gray-300 ring-inset sm:text-sm sm:leading-6 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                aria-haspopup="listbox" aria-expanded="true" aria-labelledby="listbox-label" @click="opened = !opened"
+            >
                 <span class="flex items-center">
-                    <span w-4 :class="selectedIcon"></span>
+                    <span w-4 :class="selectedIcon" />
                     <span class="ml-3 block truncate">{{ selectedName }}</span>
                 </span>
                 <span class="pointer-events-none absolute inset-y-0 right-0 ml-3 flex items-center pr-2">
@@ -15,14 +17,18 @@
                 </span>
             </button>
 
-            <transition leave-active-class="transition ease-out duration-200" leave-from-class="opacity-100" leave-to-class="opacity-0"
-                        enter-active-class="transition ease-in duration-200" enter-from-class="opacity-0" enter-to-class="opacity-100">
-                <ul v-if="opened" class="absolute z-100 mt-1 max-h-56 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm" tabindex="-1" role="listbox" aria-labelledby="listbox-label" aria-activedescendant="listbox-option-3">
-                    <li v-for="(option, index) in options" @click.capture="select(option.id)"
-                        class="text-gray-900 hover:text-white hover:bg-indigo-600 relative cursor-default select-none py-2 pl-3 pr-9"
-                        :id="`listbox-option-${index}`" role="option">
+            <transition
+                leave-active-class="transition ease-out duration-200" leave-from-class="opacity-100" leave-to-class="opacity-0"
+                enter-active-class="transition ease-in duration-200" enter-from-class="opacity-0" enter-to-class="opacity-100"
+            >
+                <ul v-if="opened" class="absolute z-100 mt-1 max-h-56 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 sm:text-sm focus:outline-none" tabindex="-1" role="listbox" aria-labelledby="listbox-label" aria-activedescendant="listbox-option-3">
+                    <li
+                        v-for="(option, index) in options" :id="`listbox-option-${index}`" :key="index"
+                        class="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900 hover:bg-indigo-600 hover:text-white"
+                        role="option" @click.capture="select(option.id)"
+                    >
                         <div class="flex items-center">
-                            <span w-4 :class="option.icon"></span>
+                            <span w-4 :class="option.icon" />
                             <span class="ml-3 block truncate">{{ option.name }}</span>
                         </div>
 
@@ -36,7 +42,6 @@
             </transition>
         </div>
     </div>
-
 </template>
 
 <script lang="ts">
@@ -46,18 +51,19 @@ export default defineComponent({
     props: {
         label: {
             type: String,
-            required: false
+            required: false,
         },
         options: {
             // type array of objects
             type: Array<any>,
-            required: true
+            required: true,
         },
         selected: {
             type: [Number, String],
-            required: true
-        }
+            required: true,
+        },
     },
+    emits: ['selected'],
     setup(props, { emit }) {
         const selectedName = computed(() => props.options.find((option: any) => option.id === props.selected)?.name)
         const selectedIcon = computed(() => props.options.find((option: any) => option.id === props.selected)?.icon)
@@ -70,10 +76,9 @@ export default defineComponent({
         }
 
         return { selectedName, selectedIcon, opened, select }
-    }
+    },
 
 })
-
 </script>
 
 <style scoped>

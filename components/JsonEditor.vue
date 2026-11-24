@@ -1,25 +1,28 @@
 <template>
     <div relative text-xs font-mono>
-        <div flex rounded overflow-hidden border class="bg-slate-950/75" :class="hasError ? 'border-red-800/80' : 'border-slate-700'">
-            <div ref="lineNumbers" h-64 w-8 pl-1 pr-2 py-2 select-none text-right bg-transparent text-slate-500 overflow-hidden translate-y-px
-                 :style="{ height: editorHeight + 'px' }">
-                <pre leading-5 flex flex-col>
+        <div flex overflow-hidden border rounded class="bg-slate-950/75" :class="hasError ? 'border-red-800/80' : 'border-slate-700'">
+            <div
+                ref="lineNumbers" h-64 w-8 translate-y-px select-none overflow-hidden bg-transparent py-2 pl-1 pr-2 text-right text-slate-500
+                :style="{ height: `${editorHeight}px` }"
+            >
+                <pre flex flex-col leading-5>
                     <span v-for="n in lineCount" :key="n" block>{{ n }}</span>
                 </pre>
             </div>
 
-            <textarea ref="jsonTextarea" v-model="jsonText" @input="onInput" @scroll="onScroll" spellcheck="false" placeholder="Paste JSON here..."
-                      h-64 min-h-28 w-full leading-5 px-3 py-2 rounded-r text-xs font-mono
-                      bg-transparent text-slate-100 border-l border-slate-700
-                      whitespace-pre overflow-auto resize-y class="thin-scrollbar" style="outline: none;">
-            </textarea>
+            <textarea
+                ref="jsonTextarea" v-model="jsonText" spellcheck="false" placeholder="Paste JSON here..." h-64 min-h-28
+
+                w-full resize-y overflow-auto whitespace-pre border-l border-slate-700 rounded-r bg-transparent px-3 py-2 text-xs text-slate-100 leading-5 font-mono class="thin-scrollbar" style="outline: none;" @input="onInput" @scroll="onScroll"
+            />
         </div>
     </div>
 </template>
 
 <script lang="ts">
-import { defineComponent } from "vue";
-import type { PresetValidationError } from "~/composables/usePresetManager";
+import type { PresetValidationError } from "~/composables/usePresetManager"
+import { defineComponent } from "vue"
+
 export default defineComponent({
     name: 'JsonEditor',
     props: {
@@ -73,7 +76,8 @@ export default defineComponent({
                 }
                 JSON.parse(jsonText.value)
                 emit("update:internalError", null)
-            } catch (e: any) {
+            }
+            catch (e: any) {
                 const msg = e?.message ?? "Invalid JSON"
                 emit("update:internalError", msg)
             }
@@ -85,7 +89,8 @@ export default defineComponent({
         }
         const syncHeight = () => {
             const el = jsonTextarea.value
-            if (!el) return
+            if (!el)
+                return
 
             const totalHeight = el.offsetHeight
             const innerHeight = el.clientHeight // without scrollbar
@@ -109,9 +114,14 @@ export default defineComponent({
         })
 
         return {
-            jsonText, hasError, lineCount, editorHeight,
-            onScroll, onInput,
-            jsonTextarea, lineNumbers,
+            jsonText,
+            hasError,
+            lineCount,
+            editorHeight,
+            onScroll,
+            onInput,
+            jsonTextarea,
+            lineNumbers,
         }
     },
 })

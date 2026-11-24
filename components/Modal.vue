@@ -2,12 +2,14 @@
     <transition name="modal-overlay-animation">
         <div v-if="modalActive" class="modal-overlay" :class="[overlayColor]">
             <transition name="modal-container-animation" appear mode="out-in">
-                <div v-show="modalActive" class="modal-container scrollableArea max-w-[640px]" :class="[modalClass]" ref="modalContainer">
-                    <button type="button" title="Close" aria-label="Close"
-                            btn absolute top-5 right-5 w-10 aspect-square rounded-full p1 flex items-center justify-center
-                            class="text-gray-300 hover:text-gray-100"
-                            @click="close()">
-                        <span i-tabler-x text-xl></span>
+                <div v-show="modalActive" ref="modalContainer" class="modal-container scrollableArea max-w-[640px]" :class="[modalClass]">
+                    <button
+                        type="button" title="Close" aria-label="Close"
+                        btn absolute right-5 top-5 aspect-square w-10 flex items-center justify-center rounded-full p1
+                        class="text-gray-300 hover:text-gray-100"
+                        @click="close()"
+                    >
+                        <span i-tabler-x text-xl />
                     </button>
                     <slot />
                 </div>
@@ -17,23 +19,25 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue'
 import { onClickOutside } from '@vueuse/core'
+import { defineComponent } from 'vue'
+
 export default defineComponent({
     props: {
         modalActive: {
             type: Boolean,
-            required: true
+            required: true,
         },
         overlayColor: { // Define mask background, must be a bg color class
             type: String,
-            default: "bg-gray-950/40 backdrop-blur-xs"
+            default: "bg-gray-950/40 backdrop-blur-xs",
         },
         modalClass: {
             type: String,
-            default: ""
+            default: "",
         },
     },
+    emits: ['close'],
     setup(props, { emit }) {
         const modalContainer = ref(null)
 
@@ -45,12 +49,14 @@ export default defineComponent({
         watch(() => props.modalActive, (active) => {
             if (active) {
                 nextTick(() => {
+                    // eslint-disable-next-line unused-imports/no-unused-vars
                     stopClickOutside = onClickOutside(modalContainer, (event) => {
                         // console.log("Click Outside Modal !", event)
                         close()
                     })
                 })
-            } else if (stopClickOutside) {
+            }
+            else if (stopClickOutside) {
                 // console.log("Removing click outside listener")
                 stopClickOutside()
                 stopClickOutside = null
@@ -62,7 +68,7 @@ export default defineComponent({
         })
 
         return { close, modalContainer }
-    }
+    },
 })
 </script>
 

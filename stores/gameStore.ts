@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+
 export const useGameStore = defineStore('game', () => {
     const size = ref<number>(12) // the size of every cell
     const rows = ref<number>(256) // number of rows
@@ -11,7 +12,7 @@ export const useGameStore = defineStore('game', () => {
     const SPEED = ref<number>(16) // the speed of the animation (ms)
     const EDGEMODE = ref<number>(0) // dead, alive, mirror
     const BORN = shallowRef<number[]>([3]) // the number of neighbours for a dead cell to born
-    const SURVIVES =  shallowRef<number[]>([2, 3]) // the number of neighbours for a living cell to survive
+    const SURVIVES = shallowRef<number[]>([2, 3]) // the number of neighbours for a living cell to survive
 
     const grid = ref<boolean>(true)
     const linkProportions = ref<boolean>(true)
@@ -25,12 +26,14 @@ export const useGameStore = defineStore('game', () => {
     const sidebarLeftOpen = ref<boolean>(false)
     const sidebarRightOpen = ref<boolean>(false)
 
-    const maxNeighbours = computed(() => Math.max.apply(Math, BORN.value.concat(SURVIVES.value))) // the maximum number of neighbours
+    const maxNeighbours = computed(() => Math.max(...BORN.value.concat(SURVIVES.value))) // the maximum number of neighbours
 
     const sliderMin = ref<number>(1000)
     const sliderMax = ref<number>(8000)
 
+    // eslint-disable-next-line unused-imports/no-unused-vars
     const twoStateTheme = ref({})
+    // eslint-disable-next-line unused-imports/no-unused-vars
     const multiStateTheme = ref({})
 
     function $reset() {
@@ -50,12 +53,28 @@ export const useGameStore = defineStore('game', () => {
     }
 
     return {
-        size, rows, cols,
-        isRunning, wasRunning, hoveredSide,
-        SPEED, EDGEMODE, BORN, SURVIVES,
-        grid, themeId, linkProportions, aliveSteps, deadSteps,
-        population, generation, sidebarLeftOpen, sidebarRightOpen,
-        maxNeighbours, $reset,
-        sliderMin, sliderMax,
+        size,
+        rows,
+        cols,
+        isRunning,
+        wasRunning,
+        hoveredSide,
+        SPEED,
+        EDGEMODE,
+        BORN,
+        SURVIVES,
+        grid,
+        themeId,
+        linkProportions,
+        aliveSteps,
+        deadSteps,
+        population,
+        generation,
+        sidebarLeftOpen,
+        sidebarRightOpen,
+        maxNeighbours,
+        $reset,
+        sliderMin,
+        sliderMax,
     }
 })
