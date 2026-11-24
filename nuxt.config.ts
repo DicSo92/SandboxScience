@@ -1,4 +1,9 @@
-import { appURL, appName, appDescription } from './constants/index'
+import { appDescription, appName, appURL } from './constants/index'
+
+// Compute the base path for static assets (GitHub Pages project site).
+// NUXT_APP_BASE_URL is set in CI (e.g. "/particle-life/"); defaults to "/" locally.
+const appBase = (process.env.NUXT_APP_BASE_URL || '/').replace(/\/+$/, '')
+const assetPath = (file: string) => `${appBase}/${file}`
 
 export default defineNuxtConfig({
     devtools: {
@@ -16,9 +21,9 @@ export default defineNuxtConfig({
         '@unocss/nuxt',
         '@pinia/nuxt',
         "@nuxtjs/seo",
-        // "@nuxt/eslint",
+        "@nuxt/eslint",
         'floating-vue/nuxt',
-        'nuxt-gtag'
+        'nuxt-gtag',
     ],
 
     site: {
@@ -37,13 +42,13 @@ export default defineNuxtConfig({
                 lang: 'en',
             },
             link: [
-                { rel: 'icon', href: '/favicon.ico?v=1', sizes: 'any' },
-                { rel: 'icon', type: 'image/png', sizes: '16x16', href: '/favicon-16x16.png?v=1' },
-                { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/favicon-32x32.png?v=1' },
-                { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png?v=1' },
-                { rel: 'manifest', href: '/site.webmanifest?v=1' },
-                { rel: 'mask-icon', type: 'image/svg+xml', href: '/safari-pinned-tab.svg?v=1', color: '#264653' },
-                { rel: 'shortcut icon', href: '/favicon.ico?v=1' },
+                { rel: 'icon', href: assetPath('favicon.ico?v=1'), sizes: 'any' },
+                { rel: 'icon', type: 'image/png', sizes: '16x16', href: assetPath('favicon-16x16.png?v=1') },
+                { rel: 'icon', type: 'image/png', sizes: '32x32', href: assetPath('favicon-32x32.png?v=1') },
+                { rel: 'apple-touch-icon', sizes: '180x180', href: assetPath('apple-touch-icon.png?v=1') },
+                { rel: 'manifest', href: assetPath('site.webmanifest?v=1') },
+                { rel: 'mask-icon', type: 'image/svg+xml', href: assetPath('safari-pinned-tab.svg?v=1'), color: '#264653' },
+                { rel: 'shortcut icon', href: assetPath('favicon.ico?v=1') },
             ],
             meta: [
                 { name: 'author', content: 'DicSo92' },
@@ -72,7 +77,7 @@ export default defineNuxtConfig({
         // },
     },
     seo: {
-        redirectToCanonicalSiteUrl: false
+        redirectToCanonicalSiteUrl: false,
     },
     schemaOrg: {
         identity: {
@@ -85,13 +90,13 @@ export default defineNuxtConfig({
                 'https://github.com/DicSo92',
                 'https://sandbox-science.com',
             ],
-        }
+        },
     },
     ogImage: {
         enabled: false,
         defaults: {
-            cacheMaxAgeSeconds: 60 * 60 * 24 * 7 // 7 days
-        }
+            cacheMaxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
+        },
     },
 
     experimental: {
@@ -100,11 +105,17 @@ export default defineNuxtConfig({
 
     linkChecker: {
         enabled: true,
-        debug: true
+        debug: true,
     },
 
     sitemap: {
-        zeroRuntime: true
+        zeroRuntime: true,
+    },
+
+    robots: {
+        // @nuxtjs/seo cannot auto-generate robots.txt when app.baseURL is set
+        // (GitHub Pages project site). Serve a static public/robots.txt instead.
+        robotsTxt: false,
     },
 
     nitro: {
@@ -122,29 +133,31 @@ export default defineNuxtConfig({
             gzip: true,
             brotli: true,
         },
-        publicAssets: process.env.NODE_ENV === 'production' ? [
-            {
-                baseURL: '/assets/fonts',
-                dir: 'public/assets/fonts',
-                maxAge: 60 * 60 * 24 * 365,
-            },
-        ] : [],
+        publicAssets: process.env.NODE_ENV === 'production'
+            ? [
+                    {
+                        baseURL: '/assets/fonts',
+                        dir: 'public/assets/fonts',
+                        maxAge: 60 * 60 * 24 * 365,
+                    },
+                ]
+            : [],
     },
 
     css: [
         '@unocss/reset/tailwind.css', // Maybe need @unocss/reset package
-        '~/assets/scss/main.scss'
+        '~/assets/scss/main.scss',
     ],
 
     features: {
         inlineStyles: false, // For UnoCSS
     },
 
-    // eslint: {
-    //     config: {
-    //         standalone: false,
-    //     },
-    // },
+    eslint: {
+        config: {
+            standalone: false,
+        },
+    },
 
-    compatibilityDate: '2025-12-18'
+    compatibilityDate: '2025-12-18',
 })

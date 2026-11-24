@@ -18,17 +18,20 @@
 // }
 
 let aliveNeighbours: (x: number, y: number, maxNeighbours: number, cellsArray: Int32Array[], rows: number, cols: number) => number
-const aliveNeighboursDead = (x: number, y: number, maxNeighbours: number, cellsArray: Int32Array[], rows: number, cols: number): number => {
-    let numNeighbours = 0;
+function aliveNeighboursDead(x: number, y: number, maxNeighbours: number, cellsArray: Int32Array[], rows: number, cols: number): number {
+    let numNeighbours = 0
     for (let dy = -1; dy <= 1; dy++) {
         const newY = y + dy
-        if (newY < 0 || newY >= rows) continue
+        if (newY < 0 || newY >= rows)
+            continue
         for (let dx = -1; dx <= 1; dx++) {
-            if (dx === 0 && dy === 0) continue
+            if (dx === 0 && dy === 0)
+                continue
             const newX = x + dx
             if (newX >= 0 && newX < cols && cellsArray[newX][newY] > 0) {
                 numNeighbours++
-                if (numNeighbours > maxNeighbours) return numNeighbours
+                if (numNeighbours > maxNeighbours)
+                    return numNeighbours
             }
         }
     }
@@ -44,30 +47,33 @@ const aliveNeighboursDead = (x: number, y: number, maxNeighbours: number, cellsA
     //         }
     //     }
     // }
-    return numNeighbours;
+    return numNeighbours
 }
-const aliveNeighboursAlive = (x: number, y: number, maxNeighbours: number, cellsArray: Int32Array[], rows: number, cols: number): number => {
-    let numNeighbours = 0;
+function aliveNeighboursAlive(x: number, y: number, maxNeighbours: number, cellsArray: Int32Array[], rows: number, cols: number): number {
+    let numNeighbours = 0
     for (let dy = -1; dy <= 1; dy++) {
         for (let dx = -1; dx <= 1; dx++) {
-            if (dx === 0 && dy === 0) continue
+            if (dx === 0 && dy === 0)
+                continue
             const newX = x + dx
             const newY = y + dy
             if (newX < 0 || newX >= cols || newY < 0 || newY >= rows || cellsArray[newX][newY] > 0) { // if outside the grid or alive
                 numNeighbours++
-                if (numNeighbours > maxNeighbours) return numNeighbours
+                if (numNeighbours > maxNeighbours)
+                    return numNeighbours
             }
         }
     }
     return numNeighbours
 }
 
-const aliveNeighboursMirror = (x: number, y: number, maxNeighbours: number, cellsArray: Int32Array[], rows: number, cols: number): number => {
-    let numNeighbours = 0;
+function aliveNeighboursMirror(x: number, y: number, maxNeighbours: number, cellsArray: Int32Array[], rows: number, cols: number): number {
+    let numNeighbours = 0
     for (let dy = -1; dy <= 1; dy++) {
         // const newY: number = (y + dy + rows) % rows // maybe faster here (not really noticeable)
         for (let dx = -1; dx <= 1; dx++) {
-            if (dx === 0 && dy === 0) continue
+            if (dx === 0 && dy === 0)
+                continue
 
             // modulo operator is slower than bitwise operator (5-9% slower) but works with any number (rows and cols)
             const newX: number = (x + dx + cols) % cols // opposite x on the grid
@@ -79,29 +85,33 @@ const aliveNeighboursMirror = (x: number, y: number, maxNeighbours: number, cell
 
             if (cellsArray[newX][newY] > 0) {
                 numNeighbours++
-                if (numNeighbours > maxNeighbours) return numNeighbours
+                if (numNeighbours > maxNeighbours)
+                    return numNeighbours
             }
         }
     }
     return numNeighbours
 }
-const initAliveNeighboursFunc = (EDGEMODE: number) => {
+function initAliveNeighboursFunc(EDGEMODE: number) {
     if (EDGEMODE === 0) { // Dead Mode
         aliveNeighbours = aliveNeighboursDead
-    } else if (EDGEMODE === 1) { // Alive Mode
+    }
+    else if (EDGEMODE === 1) { // Alive Mode
         aliveNeighbours = aliveNeighboursAlive
-    } else if (EDGEMODE === 2) { // Mirror Mode
+    }
+    else if (EDGEMODE === 2) { // Mirror Mode
         aliveNeighbours = aliveNeighboursMirror
-    } else {
+    }
+    else {
         console.log('EDGEMODE not found')
     }
 }
 
-const pixelToCell = (x: number, y: number, colx: number, rowx: number, size: number) => {
+function pixelToCell(x: number, y: number, colx: number, rowx: number, size: number) {
     return {
         x: Math.floor((x - colx) / size),
-        y: Math.floor((y - rowx) / size)
+        y: Math.floor((y - rowx) / size),
     }
 }
 
-export { aliveNeighbours, pixelToCell, initAliveNeighboursFunc }
+export { aliveNeighbours, initAliveNeighboursFunc, pixelToCell }

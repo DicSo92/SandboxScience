@@ -1,30 +1,38 @@
 <template>
     <div class="group pointer-events-auto relative">
         <!-- Main center view button -->
-        <button type="button" name="Center View" aria-label="Center View" title="Center View"
-                btn rounded-full flex items-center justify-center p-2
-                class="backdrop-blur-sm bg-cyan-900/80 hover:bg-cyan-800/80 z-10 relative"
-                @click="$emit('centerAll')" :disabled="disabled">
-            <span i-tabler-object-scan class="text-cyan-300"></span>
+        <button
+            type="button" name="Center View" aria-label="Center View" title="Center View"
+            btn flex items-center justify-center rounded-full p-2
+            class="relative z-10 bg-cyan-900/80 backdrop-blur-sm hover:bg-cyan-800/80"
+            :disabled="disabled" @click="$emit('centerAll')"
+        >
+            <span i-tabler-object-scan class="text-cyan-300" />
         </button>
-        <div v-show="!disabled" class="p-1 absolute left-1/2 top-1/2 -translate-y-1/2 flex items-center h-8 rounded-r-full bg-slate-800/95 backdrop-blur-sm ring-1 ring-slate-600/50 transition-all duration-200 ease-out delay-500 group-hover:delay-0 w-0 opacity-0 group-hover:pl-5 group-hover:pr-1 group-hover:opacity-100" :class="is3D ? 'group-hover:w-28' : 'group-hover:w-21'">
+        <div v-show="!disabled" class="absolute left-1/2 top-1/2 h-8 w-0 flex items-center rounded-r-full bg-slate-800/95 p-1 opacity-0 ring-1 ring-slate-600/50 backdrop-blur-sm transition-all duration-200 delay-500 ease-out -translate-y-1/2 group-hover:pl-5 group-hover:pr-1 group-hover:opacity-100 group-hover:delay-0" :class="is3D ? 'group-hover:w-28' : 'group-hover:w-21'">
             <!-- Center position -->
-            <button type="button" title="Center Position" aria-label="Center Position"
-                    class="aspect-square h-full flex items-center justify-center p-1 rounded-full ml-1.5 transition-all shrink-0 bg-cyan-600 hover:bg-cyan-500 text-white"
-                    @click="$emit('centerPosition')">
-                <span i-tabler-location text-sm class="-mb-0.5"></span>
+            <button
+                type="button" title="Center Position" aria-label="Center Position"
+                class="ml-1.5 aspect-square h-full flex shrink-0 items-center justify-center rounded-full bg-cyan-600 p-1 text-white transition-all hover:bg-cyan-500"
+                @click="$emit('centerPosition')"
+            >
+                <span i-tabler-location text-sm class="-mb-0.5" />
             </button>
             <!-- Reset zoom -->
-            <button type="button" title="Reset Zoom" aria-label="Reset Zoom"
-                    class="flex items-center justify-center p-1 rounded-full ml-1 transition-all shrink-0 bg-violet-600 hover:bg-violet-500 text-white"
-                    @click="$emit('resetZoom')">
-                <span i-tabler-zoom text-sm></span>
+            <button
+                type="button" title="Reset Zoom" aria-label="Reset Zoom"
+                class="ml-1 flex shrink-0 items-center justify-center rounded-full bg-violet-600 p-1 text-white transition-all hover:bg-violet-500"
+                @click="$emit('resetZoom')"
+            >
+                <span i-tabler-zoom text-sm />
             </button>
             <!-- Reset rotation (3D only) -->
-            <button v-if="is3D" type="button" title="Reset Rotation" aria-label="Reset Rotation"
-                    class="flex items-center justify-center p-1 rounded-full ml-1 transition-all shrink-0 bg-amber-600 hover:bg-amber-500 text-white"
-                    @click="$emit('resetRotation')">
-                <span i-tabler-rotate-3d text-sm></span>
+            <button
+                v-if="is3D" type="button" title="Reset Rotation" aria-label="Reset Rotation"
+                class="ml-1 flex shrink-0 items-center justify-center rounded-full bg-amber-600 p-1 text-white transition-all hover:bg-amber-500"
+                @click="$emit('resetRotation')"
+            >
+                <span i-tabler-rotate-3d text-sm />
             </button>
         </div>
     </div>

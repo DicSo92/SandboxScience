@@ -4,9 +4,11 @@
     </div>
 
     <Teleport to="body">
-        <div v-if="isOpen" ref="popupRef" @click.stop :style="popupStyle" class="bg-slate-800/80"
-             fixed z-1000 w-64 p-3 rounded-xl border border-slate-600 backdrop-blur-md shadow-2xl>
-            <ColorPicker :value="value" @change="onChange" :storage-key="storageKey" />
+        <div
+            v-if="isOpen" ref="popupRef" :style="popupStyle" class="bg-slate-800/80" fixed
+            z-1000 w-64 border border-slate-600 rounded-xl p-3 shadow-2xl backdrop-blur-md @click.stop
+        >
+            <ColorPicker :value="value" :storage-key="storageKey" @change="onChange" />
         </div>
     </Teleport>
 </template>
@@ -14,11 +16,11 @@
 <script setup lang="ts">
 import { onClickOutside } from '@vueuse/core'
 
-type Placement =
-    | 'bottom' | 'bottom-start' | 'bottom-end'
-    | 'top' | 'top-start' | 'top-end'
-    | 'left' | 'left-start' | 'left-end'
-    | 'right' | 'right-start' | 'right-end'
+type Placement
+    = | 'bottom' | 'bottom-start' | 'bottom-end'
+        | 'top' | 'top-start' | 'top-end'
+        | 'left' | 'left-start' | 'left-end'
+        | 'right' | 'right-start' | 'right-end'
 
 const props = withDefaults(defineProps<{
     value: string
@@ -43,7 +45,8 @@ const popupRef = ref<HTMLElement>()
 const popupStyle = ref<Record<string, string>>({})
 
 function toggle() {
-    if (isOpen.value) close()
+    if (isOpen.value)
+        close()
     else open()
 }
 function open() {
@@ -58,7 +61,8 @@ function onChange(hex: string) {
 }
 
 function updatePosition() {
-    if (!triggerRef.value || !popupRef.value) return
+    if (!triggerRef.value || !popupRef.value)
+        return
     const rect = triggerRef.value.getBoundingClientRect()
     const popupRect = popupRef.value.getBoundingClientRect()
     const popupW = popupRect.width
@@ -124,10 +128,14 @@ function updatePosition() {
 
     const vw = window.innerWidth
     const vh = window.innerHeight
-    if (left + popupW > vw - 8) left = vw - popupW - 8
-    if (left < 8) left = 8
-    if (top + popupH > vh - 8) top = vh - popupH - 8
-    if (top < 8) top = 8
+    if (left + popupW > vw - 8)
+        left = vw - popupW - 8
+    if (left < 8)
+        left = 8
+    if (top + popupH > vh - 8)
+        top = vh - popupH - 8
+    if (top < 8)
+        top = 8
 
     popupStyle.value = {
         top: `${top}px`,
@@ -143,7 +151,8 @@ watch(isOpen, (open) => {
                 stopClickOutside = onClickOutside(popupRef.value, close, { ignore: [triggerRef] })
             }
         })
-    } else {
+    }
+    else {
         stopClickOutside?.()
         stopClickOutside = null
     }

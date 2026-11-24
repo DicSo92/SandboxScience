@@ -1,7 +1,7 @@
 <template>
     <main class="h-auto min-h-screen flex flex-col">
-        <NavBar v-show="!route.meta.hideNavBar"></NavBar>
-        <slot/>
+        <NavBar v-show="!route.meta.hideNavBar" />
+        <slot />
     </main>
 </template>
 

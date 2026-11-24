@@ -1,16 +1,17 @@
 <template>
     <ClientOnly>
         <Teleport to="body">
-            <div class="fixed inset-0 pointer-events-none z-[9999]">
+            <div class="pointer-events-none fixed inset-0 z-[9999]">
                 <div class="absolute bottom-15 right-2 flex flex-col gap-2">
                     <TransitionGroup name="toast" tag="div" class="flex flex-col gap-2">
-                        <div v-for="toast in toasts" :key="toast.id"
-                             class="pointer-events-auto flex items-center gap-3 rounded-lg px-4 py-3 shadow-lg border text-sm"
-                             :class="toastTypes[toast.type].classes"
+                        <div
+                            v-for="toast in toasts" :key="toast.id"
+                            class="pointer-events-auto flex items-center gap-3 border rounded-lg px-4 py-3 text-sm shadow-lg"
+                            :class="toastTypes[toast.type].classes"
                         >
-                            <span class="text-sm" :class="toastTypes[toast.type].icon"></span>
-                            <p class="flex-1" v-html="toast.message"></p>
-                            <button type="button" @click="removeToast(toast.id)" class="ml-2 text-xs opacity-70 hover:opacity-100">
+                            <span class="text-sm" :class="toastTypes[toast.type].icon" />
+                            <p class="flex-1" v-html="toast.message" />
+                            <button type="button" class="ml-2 text-xs opacity-70 hover:opacity-100" @click="removeToast(toast.id)">
                                 ✕
                             </button>
                         </div>
@@ -22,8 +23,9 @@
 </template>
 
 <script setup lang="ts">
-import type { ToastType } from '~/composables/useToasts';
-const { toasts, removeToast } = useToasts();
+import type { ToastType } from '~/composables/useToasts'
+
+const { toasts, removeToast } = useToasts()
 
 const toastTypes: Record<ToastType, { classes: string, icon: string }> = {
     success: {

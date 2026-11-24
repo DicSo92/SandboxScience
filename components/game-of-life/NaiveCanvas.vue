@@ -1,13 +1,13 @@
 <template>
     <div h-full>
-        <canvas ref="canvas" id="canvas" z-1 @contextmenu.prevent></canvas>
-        <canvas ref="overlayCanvas" absolute top-0 z-2 id="overlayCanvas" @contextmenu.prevent></canvas>
+        <canvas id="canvas" ref="canvas" z-1 @contextmenu.prevent />
+        <canvas id="overlayCanvas" ref="overlayCanvas" absolute top-0 z-2 @contextmenu.prevent />
     </div>
 </template>
 
 <script lang="ts">
-import { aliveNeighbours, initAliveNeighboursFunc, pixelToCell } from "~/helpers/utils/naiveLife";
-import { generateColorRange, hexToBgr, bgrToHex, themes } from "~/helpers/utils/themes";
+import { aliveNeighbours, initAliveNeighboursFunc, pixelToCell } from "~/helpers/utils/naiveLife"
+import { bgrToHex, generateColorRange, hexToBgr, themes } from "~/helpers/utils/themes"
 
 export default defineComponent({
     setup() {
@@ -34,14 +34,14 @@ export default defineComponent({
 
         let aliveSteps = 0
         let deadSteps = 0
-        let themeColors = {
-            background: <number | null>null,
-            alive: <number | null>null,
-            aliveRamp: <number | null>null,
-            dead: <number | null>null,
-            deadRamp: <number | null>null,
-            aliveColors: <number[] | null>null,
-            deadColors: <number[] | null>null
+        const themeColors = {
+            background: null as number | null,
+            alive: null as number | null,
+            aliveRamp: null as number | null,
+            dead: null as number | null,
+            deadRamp: null as number | null,
+            aliveColors: null as number[] | null,
+            deadColors: null as number[] | null,
         }
 
         onMounted(() => {
@@ -60,8 +60,10 @@ export default defineComponent({
             // Prevent cells from having more steps than the new aliveSteps value
             for (let x = 0; x < cellsArray.length; x++) {
                 for (let y = 0; y < cellsArray[x].length; y++) {
-                    if (cellsArray[x][y] > newSteps) cellsArray[x][y] = newSteps
-                    if (cellsArrayNext[x][y] > newSteps) cellsArrayNext[x][y] = newSteps
+                    if (cellsArray[x][y] > newSteps)
+                        cellsArray[x][y] = newSteps
+                    if (cellsArrayNext[x][y] > newSteps)
+                        cellsArrayNext[x][y] = newSteps
                 }
             }
             initThemeAndRules()
@@ -70,8 +72,10 @@ export default defineComponent({
             // Prevent cells from having more steps than the new deadSteps value
             for (let x = 0; x < cellsArray.length; x++) {
                 for (let y = 0; y < cellsArray[x].length; y++) {
-                    if (cellsArray[x][y] < -newSteps) cellsArray[x][y] = -newSteps
-                    if (cellsArrayNext[x][y] < -newSteps) cellsArrayNext[x][y] = -newSteps
+                    if (cellsArray[x][y] < -newSteps)
+                        cellsArray[x][y] = -newSteps
+                    if (cellsArrayNext[x][y] < -newSteps)
+                        cellsArrayNext[x][y] = -newSteps
                 }
             }
             initThemeAndRules()
@@ -80,16 +84,20 @@ export default defineComponent({
         function toggleCell(cursorX: number, cursorY: number, type?: "draw" | "erase" | "toggle") {
             const cell: { x: number, y: number } = pixelToCell(cursorX, cursorY, colx, rowx, game.size) // get the cell x and y from the cursor position
 
-            if (cell.x < 0 || cell.x > game.cols - 1 || cell.y < 0 || cell.y > game.rows - 1) return // return if cell is outside the grid
-            if (prevChangedCell.value && prevChangedCell.value.x === cell.x && prevChangedCell.value.y === cell.y) return // return if same cell as last time
+            if (cell.x < 0 || cell.x > game.cols - 1 || cell.y < 0 || cell.y > game.rows - 1)
+                return // return if cell is outside the grid
+            if (prevChangedCell.value && prevChangedCell.value.x === cell.x && prevChangedCell.value.y === cell.y)
+                return // return if same cell as last time
 
             if (type === "draw") {
                 cellsArray[cell.x][cell.y] = 1 // makeAlive(true)
                 cellsArrayNext[cell.x][cell.y] = 1
-            } else if (type === "erase") {
+            }
+            else if (type === "erase") {
                 cellsArray[cell.x][cell.y] = 0 // kill(true)
                 cellsArrayNext[cell.x][cell.y] = 0
-            } else {
+            }
+            else {
                 // toggle()
                 const newState = cellsArray[cell.x][cell.y] === 1 ? 0 : 1
                 cellsArray[cell.x][cell.y] = newState
@@ -117,45 +125,56 @@ export default defineComponent({
             colx = cursorX - (cursorX - colx) * ratio
             rowx = cursorY - (cursorY - rowx) * ratio
 
-            if (!game.isRunning) requestAnimationFrame(drawCellsFromCellsArray) // redraw
+            if (!game.isRunning)
+                requestAnimationFrame(drawCellsFromCellsArray) // redraw
         }
-        function handleMove(e: { movementY: number; movementX: number; }) {
+        function handleMove(e: { movementY: number, movementX: number }) {
             rowx += e.movementY
             colx += e.movementX
-            if (!game.isRunning) requestAnimationFrame(drawCellsFromCellsArray) // redraw
+            if (!game.isRunning)
+                requestAnimationFrame(drawCellsFromCellsArray) // redraw
         }
         function handleResize() {
             canvasWidth = canvas.value!.width = overlayCanvas.value!.width = canvas.value!.clientWidth
             canvasHeight = canvas.value!.height = overlayCanvas.value!.height = canvas.value!.clientHeight
 
-            if (!game.isRunning) requestAnimationFrame(drawCellsFromCellsArray) // redraw
+            if (!game.isRunning)
+                requestAnimationFrame(drawCellsFromCellsArray) // redraw
         }
         function handleSideHover(pointerX: number, pointerY: number) {
-            let activeRange = Math.max(16, cellSize)
+            const activeRange = Math.max(16, cellSize)
 
             if (pointerY > (rowx - activeRange) && pointerY < (rowx + activeRange)) {
                 game.hoveredSide = 1
-            } else if (pointerY > (rowx + game.rows * game.size - activeRange) && pointerY < (rowx + game.rows * game.size + activeRange)) {
+            }
+            else if (pointerY > (rowx + game.rows * game.size - activeRange) && pointerY < (rowx + game.rows * game.size + activeRange)) {
                 game.hoveredSide = 2
-            } else if (pointerX > (colx - activeRange) && pointerX < (colx + activeRange)) {
+            }
+            else if (pointerX > (colx - activeRange) && pointerX < (colx + activeRange)) {
                 game.hoveredSide = 3
-            } else if (pointerX > (colx + game.cols * game.size - activeRange) && pointerX < (colx + game.cols * game.size + activeRange)) {
+            }
+            else if (pointerX > (colx + game.cols * game.size - activeRange) && pointerX < (colx + game.cols * game.size + activeRange)) {
                 game.hoveredSide = 4
-            } else {
+            }
+            else {
                 game.hoveredSide = null
             }
         }
         function handleGridResize(pointerX: number, pointerY: number) {
             const cell: { x: number, y: number } = pixelToCell(pointerX, pointerY, colx, rowx, game.size) // get the cell x and y from the cursor position
 
-            if (game.hoveredSide === null) return
+            if (game.hoveredSide === null)
+                return
             if (game.hoveredSide === 1 && cell.y !== 0 && cell.y < game.rows) {
                 expandGrid("top", -cell.y)
-            } else if (game.hoveredSide === 2 && cell.y !== game.rows - 1 && cell.y >= 0) {
+            }
+            else if (game.hoveredSide === 2 && cell.y !== game.rows - 1 && cell.y >= 0) {
                 expandGrid("bottom", -(game.rows - 1 - cell.y))
-            } else if (game.hoveredSide === 3 && cell.x !== 0 && cell.x < game.cols) {
+            }
+            else if (game.hoveredSide === 3 && cell.x !== 0 && cell.x < game.cols) {
                 expandGrid("left", -cell.x)
-            } else if (game.hoveredSide === 4 && cell.x !== game.cols - 1 && cell.x >= 0) {
+            }
+            else if (game.hoveredSide === 4 && cell.x !== game.cols - 1 && cell.x >= 0) {
                 expandGrid("right", -(game.cols - 1 - cell.x))
             }
         }
@@ -163,8 +182,8 @@ export default defineComponent({
         function initCanvas() {
             grid = game.grid
             initThemeAndRules(undefined, true)
-            cellsArrayNext = Array(game.cols).fill(null).map(() => new Int32Array(game.rows).fill(0))
-            cellsArray = Array(game.cols).fill(null).map(() => new Int32Array(game.rows).fill(0))
+            cellsArrayNext = new Array(game.cols).fill(null).map(() => new Int32Array(game.rows).fill(0))
+            cellsArray = new Array(game.cols).fill(null).map(() => new Int32Array(game.rows).fill(0))
 
             console.log(cellsArray)
             console.table(cellsArray)
@@ -246,16 +265,19 @@ export default defineComponent({
                 if (prevTheme !== undefined && themes[prevTheme].type === 'history') {
                     cellsArray = cellsArray.map(row => row.map(cell => cell < 0 ? -1 : cell > 0 ? 1 : 0))
                 }
-            } else if (theme.type === 'history') { // Alive Mode
+            }
+            else if (theme.type === 'history') { // Alive Mode
                 processRules = processRulesColors
                 processCell = processCellColors
                 if (prevTheme !== undefined && themes[prevTheme].type === 'simple') {
                     cellsArray = cellsArray.map(row => row.map(cell => cell < 0 ? -deadSteps : cell))
                 }
-            } else {
+            }
+            else {
                 console.log('EDGEMODE not found')
             }
-            if (!isInit) drawCellsFromCellsArray()
+            if (!isInit)
+                drawCellsFromCellsArray()
         }
 
         let processRules: (x: number, y: number, SURVIVES: any, BORN: any, aliveNeighbours: number) => number
@@ -263,10 +285,13 @@ export default defineComponent({
             const cell = cellsArray[x][y]
             if (cell === 1 && SURVIVES.includes(aliveNeighbours)) { // Survives
                 return 1
-            } else if (cell !== 1 && BORN.includes(aliveNeighbours)) { // Born
+            }
+            else if (cell !== 1 && BORN.includes(aliveNeighbours)) { // Born
                 return 1
-            } else { // Dies
-                if (cell === 0) return 0
+            }
+            else { // Dies
+                if (cell === 0)
+                    return 0
                 else return -1 // cell was alive and dies
             }
         }
@@ -274,13 +299,18 @@ export default defineComponent({
             const cell = cellsArray[x][y]
             if (cell > 0 && SURVIVES.includes(aliveNeighbours)) { // Survives
                 return Math.min(aliveSteps, cell + 1)
-            } else if (cell <= 0 && BORN.includes(aliveNeighbours)) { // Born
+            }
+            else if (cell <= 0 && BORN.includes(aliveNeighbours)) { // Born
                 return 1
-            } else { // Dies or stays dead
-                if (cell > 0) return -1
+            }
+            else { // Dies or stays dead
+                if (cell > 0) {
+                    return -1
+                }
                 else if (cell < 0) {
                     return Math.max(-deadSteps, cell - 1)
-                } else {
+                }
+                else {
                     return 0
                 }
             }
@@ -297,7 +327,8 @@ export default defineComponent({
                 pop++
                 // console.log('Applying alive color:', themeColors.aliveColors![cellState - 1]);
                 fillSquare(x, y, size, colx, rowx, themeColors.aliveColors![cellState - 1])
-            } else if (cellState < 0) {
+            }
+            else if (cellState < 0) {
                 // console.log('Applying dead color:', themeColors.deadColors![Math.abs(cellState) - 1])
                 fillSquare(x, y, size, colx, rowx, themeColors.deadColors![Math.abs(cellState) - 1])
             }
@@ -308,17 +339,22 @@ export default defineComponent({
             let startY = Math.floor(rowx + cellY * floatCellSize)
             let endY = Math.floor(rowx + (cellY + 1) * floatCellSize)
 
-            if (startX < 0) startX = 0
-            if (endX > canvasWidth) endX = canvasWidth
-            if (startY < 0) startY = 0
-            if (endY > canvasHeight) endY = canvasHeight
+            if (startX < 0)
+                startX = 0
+            if (endX > canvasWidth)
+                endX = canvasWidth
+            if (startY < 0)
+                startY = 0
+            if (endY > canvasHeight)
+                endY = canvasHeight
 
             const width = endX - startX
             const height = endY - startY
-            if (width <= 0 || height <= 0) return // if cell is outside the canvas
+            if (width <= 0 || height <= 0)
+                return // if cell is outside the canvas
 
             let imageDataIndex = startY * canvasWidth + startX // Get the index of the first pixel of the cell
-            const widthOffset = canvasWidth - width  // Offset to jump to the next row
+            const widthOffset = canvasWidth - width // Offset to jump to the next row
             for (let i = 0; i < height; i++) {
                 for (let j = 0; j < width; j++) { // fill a row
                     imageDataArray![imageDataIndex++] = cellColor
@@ -334,7 +370,8 @@ export default defineComponent({
                 drawHorizontalLine(rows, cols, size, ctx)
                 drawVerticalLine(0, rows, size, ctx)
                 drawVerticalLine(cols, rows, size, ctx)
-            } else {
+            }
+            else {
                 if (grid) {
                     for (let row = 0; row <= rows; row++) {
                         drawHorizontalLine(row, cols, size, ctx)
@@ -354,11 +391,14 @@ export default defineComponent({
                 overlayCtx!.beginPath()
                 if (hoveredSide === 1) {
                     drawHorizontalLine(0, cols, size, overlayCtx)
-                } else if (hoveredSide === 2) {
+                }
+                else if (hoveredSide === 2) {
                     drawHorizontalLine(rows, cols, size, overlayCtx)
-                } else if (hoveredSide === 3) {
+                }
+                else if (hoveredSide === 3) {
                     drawVerticalLine(0, rows, size, overlayCtx)
-                } else if (hoveredSide === 4) {
+                }
+                else if (hoveredSide === 4) {
                     drawVerticalLine(cols, rows, size, overlayCtx)
                 }
                 overlayCtx!.strokeStyle = '#c31313'
@@ -382,12 +422,12 @@ export default defineComponent({
             ctx!.moveTo(x, y1)
             ctx!.lineTo(x, y2)
         }
-        function expandGrid(side:  string, factor: number = 1) {
+        function expandGrid(side: string, factor: number = 1) {
             const newCols = side === "left" || side === "right" ? game.cols.valueOf() + factor : game.cols.valueOf()
             const newRows = side === "top" || side === "bottom" ? game.rows.valueOf() + factor : game.rows.valueOf()
 
-            const newCellsArray = Array(newCols).fill(null).map(() => new Int32Array(newRows).fill(0))
-            cellsArrayNext = Array(newCols).fill(null).map(() => new Int32Array(newRows).fill(0))
+            const newCellsArray = new Array(newCols).fill(null).map(() => new Int32Array(newRows).fill(0))
+            cellsArrayNext = new Array(newCols).fill(null).map(() => new Int32Array(newRows).fill(0))
 
             if (side === "top") {
                 for (let i = 0; i < game.cols.valueOf(); i++) {
@@ -395,22 +435,27 @@ export default defineComponent({
                         newCellsArray[i][j + factor] = cellsArray[i][j]
                     }
                 }
-            } else if (side === "bottom") {
+            }
+            else if (side === "bottom") {
                 for (let i = 0; i < game.cols.valueOf(); i++) {
                     for (let j = 0; j < game.rows.valueOf(); j++) {
                         newCellsArray[i][j] = cellsArray[i][j]
                     }
                 }
-            } else if (side === "left") {
+            }
+            else if (side === "left") {
                 for (let i = 0; i < game.cols.valueOf(); i++) {
-                    if (i + factor < 0) continue
+                    if (i + factor < 0)
+                        continue
                     for (let j = 0; j < game.rows.valueOf(); j++) {
                         newCellsArray[i + factor][j] = cellsArray[i][j]
                     }
                 }
-            } else if (side === "right") {
+            }
+            else if (side === "right") {
                 for (let i = 0; i < game.cols.valueOf(); i++) {
-                    if (i >= newCols) continue
+                    if (i >= newCols)
+                        continue
                     for (let j = 0; j < game.rows.valueOf(); j++) {
                         newCellsArray[i][j] = cellsArray[i][j]
                     }
@@ -421,7 +466,8 @@ export default defineComponent({
             game.rows = newRows
             colx += side === "left" ? -factor * game.size.valueOf() : 0
             rowx += side === "top" ? -factor * game.size.valueOf() : 0
-            if (!game.isRunning) requestAnimationFrame(drawCellsFromCellsArray) // redraw
+            if (!game.isRunning)
+                requestAnimationFrame(drawCellsFromCellsArray) // redraw
             drawOverlayGrid(game.cols, game.rows, game.size) // redraw overlay grid
         }
         // -------------------------------------------------------------------------------------------------------------
@@ -454,24 +500,24 @@ export default defineComponent({
             const diff = Math.max(1, Math.round(value)) - game.cols
             const halfLeft = Math.floor(diff / 2)
             const halfRight = diff - halfLeft
-            if (halfLeft !== 0) expandGrid('left', halfLeft)
-            if (halfRight !== 0) expandGrid('right', halfRight)
+            if (halfLeft !== 0)
+                expandGrid('left', halfLeft)
+            if (halfRight !== 0)
+                expandGrid('right', halfRight)
         }
         function updateRows(value: number) {
             const diff = Math.max(1, Math.round(value)) - game.rows
             const halfTop = Math.floor(diff / 2)
             const halfBottom = diff - halfTop
-            if (halfTop !== 0) expandGrid('top', halfTop)
-            if (halfBottom !== 0) expandGrid('bottom', halfBottom)
+            if (halfTop !== 0)
+                expandGrid('top', halfTop)
+            if (halfBottom !== 0)
+                expandGrid('bottom', halfBottom)
         }
         // -------------------------------------------------------------------------------------------------------------
-        return { canvas, ctx, prevChangedCell, overlayCanvas,
-            handleSideHover, handleZoom, handleResize, handleGridResize, handleMove,
-            drawOverlayGrid, expandGrid, toggleGrid, toggleCell, setCell,
-            newCycle, drawCellsFromCellsArray, getCellsArray,
-            updateCols, updateRows
+        return { canvas, ctx, prevChangedCell, overlayCanvas, handleSideHover, handleZoom, handleResize, handleGridResize, handleMove, drawOverlayGrid, expandGrid, toggleGrid, toggleCell, setCell, newCycle, drawCellsFromCellsArray, getCellsArray, updateCols, updateRows,
         }
-    }
+    },
 })
 </script>
 

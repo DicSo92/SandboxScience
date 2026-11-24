@@ -1,27 +1,33 @@
 <template>
-    <div ref="container" class="relative inline-block w-full max-w-64">
-        <button type="button" class="flex items-center gap-2 w-full select-none rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-1 text-left text-sm shadow-sm outline-none disabled:cursor-not-allowed disabled:opacity-60"
-                @click="toggle()" :aria-expanded="isOpen" aria-haspopup="listbox" :aria-controls="`listbox-${name}`" :disabled="disabled">
-                <span v-if="selectedOption?.icon" :class="selectedOption.icon"></span>
-                <span class="truncate" v-text="selectedOption ? selectedOption.name : placeholder"/>
-                <span class="ml-auto i-tabler-chevron-up transition-transform" :class="!isOpen && 'rotate-180'" />
+    <div ref="container" class="relative inline-block max-w-64 w-full">
+        <button
+            type="button" class="w-full flex select-none items-center gap-2 border border-slate-700 rounded-lg bg-slate-800/80 px-3 py-1 text-left text-sm shadow-sm outline-none disabled:cursor-not-allowed disabled:opacity-60"
+            :aria-expanded="isOpen" aria-haspopup="listbox" :aria-controls="`listbox-${name}`" :disabled="disabled" @click="toggle()"
+        >
+            <span v-if="selectedOption?.icon" :class="selectedOption.icon" />
+            <span class="truncate" v-text="selectedOption ? selectedOption.name : placeholder" />
+            <span class="i-tabler-chevron-up ml-auto transition-transform" :class="!isOpen && 'rotate-180'" />
         </button>
 
         <transition name="fade" appear>
-            <div v-if="isOpen" class="absolute z-100 mt-2 w-full overflow-hidden rounded-lg border border-slate-700 bg-slate-800/90 backdrop-blur-sm shadow-lg">
-                <ul :id="`listbox-${name}`" role="listbox" tabindex="-1" ref="listboxEl" @keydown.esc.prevent="close()"
-                    class="max-h-128 overflow-auto py-1 text-sm outline-none">
+            <div v-if="isOpen" class="absolute z-100 mt-2 w-full overflow-hidden border border-slate-700 rounded-lg bg-slate-800/90 shadow-lg backdrop-blur-sm">
+                <ul
+                    :id="`listbox-${name}`" ref="listboxEl" role="listbox" tabindex="-1" class="max-h-128 overflow-auto py-1 text-sm outline-none"
+                    @keydown.esc.prevent="close()"
+                >
                     <template v-for="(group, groupId) in groupedOptions" :key="groupId">
-                        <li class="px-3 py-1.5 text-xs font-semibold text-slate-400 select-none" aria-hidden="true">
+                        <li class="select-none px-3 py-1.5 text-xs text-slate-400 font-semibold" aria-hidden="true">
                             {{ group.category || defaultCategoryLabel }}
                         </li>
-                        <li v-for="option in group.items" :key="option.id" role="option"
-                            :data-index="option.id" :aria-selected="isSelected(option.id)" @click="select(option)"
-                            class="cursor-pointer select-none px-3 py-2 flex items-center gap-2 hover:bg-slate-700"
-                            :class="[isSelected(option.id) && 'font-medium bg-slate-600']">
-                            <span v-if="option.icon" :class="option.icon"></span>
+                        <li
+                            v-for="option in group.items" :key="option.id" role="option"
+                            :data-index="option.id" :aria-selected="isSelected(option.id)" class="flex cursor-pointer select-none items-center gap-2 px-3 py-2 hover:bg-slate-700"
+                            :class="[isSelected(option.id) && 'font-medium bg-slate-600']"
+                            @click="select(option)"
+                        >
+                            <span v-if="option.icon" :class="option.icon" />
                             <span class="truncate">{{ option.name }}</span>
-                            <span v-if="isSelected(option.id)" class="ml-auto i-tabler-check" aria-hidden="true" />
+                            <span v-if="isSelected(option.id)" class="i-tabler-check ml-auto" aria-hidden="true" />
                         </li>
                         <li v-if="groupId < groupedOptions.length - 1" class="my-1 border-t border-slate-500" aria-hidden="true" />
                     </template>
@@ -32,10 +38,10 @@
 </template>
 
 <script lang="ts">
+import { onClickOutside } from "@vueuse/core"
 import { defineComponent } from 'vue'
-import { onClickOutside } from "@vueuse/core";
 
-export type SelectOption = {
+export interface SelectOption {
     id: string | number
     name: string
     icon?: string
@@ -98,7 +104,7 @@ export default defineComponent({
             close()
         }
         const isSelected = (id: string | number) => id === props.modelValue
-        let stopClickOutside: () => void = () => {};
+        let stopClickOutside: () => void = () => {}
         const toggle = () => {
             isOpen.value = !isOpen.value
             if (isOpen.value) {
@@ -109,7 +115,8 @@ export default defineComponent({
                     })
                     scrollSelectedIntoView()
                 })
-            } else {
+            }
+            else {
                 stopClickOutside()
             }
         }
@@ -123,9 +130,15 @@ export default defineComponent({
         }
 
         return {
-            isOpen, container, listboxEl,
-            groupedOptions, selectedOption,
-            isSelected, toggle, close, select,
+            isOpen,
+            container,
+            listboxEl,
+            groupedOptions,
+            selectedOption,
+            isSelected,
+            toggle,
+            close,
+            select,
         }
     },
 })

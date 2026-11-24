@@ -1,25 +1,25 @@
 <template>
-    <div w-full h-full>
-        <canvas id="captureCanvas" @contextmenu.prevent w-full h-full cursor-crosshair></canvas>
+    <div h-full w-full>
+        <canvas id="captureCanvas" h-full w-full cursor-crosshair @contextmenu.prevent />
 
-        <div v-if="particleLife.isCapturingGIF" class="absolute top-16 left-1/2 transform -translate-x-1/2" w-64 h-6 rounded-full border-2 border-gray-500 flex justify-center items-center>
+        <div v-if="particleLife.isCapturingGIF" class="absolute left-1/2 top-16 transform -translate-x-1/2" h-6 w-64 flex items-center justify-center border-2 border-gray-500 rounded-full>
             <div absolute left-0 h-4 class="px-[2px]" :style="{ width: `${GIFCaptureProgress}%` }">
-                <div rounded-full w-full h-full class="bg-[#E45C3A]"></div>
+                <div h-full w-full rounded-full class="bg-[#E45C3A]" />
             </div>
-            <span text-gray-300 absolute font-semibold class="drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Capturing GIF... {{ GIFCaptureProgress }}%</span>
+            <span absolute text-gray-300 font-semibold class="drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Capturing GIF... {{ GIFCaptureProgress }}%</span>
         </div>
     </div>
 </template>
 
 <script lang="ts">
+import { applyPalette, GIFEncoder, quantize } from "gifenc"
 import { defineComponent } from 'vue'
-import { GIFEncoder, quantize, applyPalette } from "gifenc";
 
 export default defineComponent({
     props: {
         getSelectedAreaImageData: {
             type: Function as PropType<(x: number, y: number, width: number, height: number) => ImageData>,
-            required: true
+            required: true,
         },
         captureFPS: {
             type: Number,
@@ -28,17 +28,18 @@ export default defineComponent({
         captureDuration: {
             type: Number,
             required: true,
-        }
+        },
     },
+    emits: ['captureComplete'],
     setup(props, { emit }) {
         const particleLife = useParticleLifeStore()
         let captureCanvas: HTMLCanvasElement | undefined
         let ctx: CanvasRenderingContext2D | undefined
 
         const GIFCaptureProgress = ref<number>(0)
-        let captureAreaBorderSize: number = 4
-        let captureAreaBorderColor: string = '#1b50a8'
-        let canvasColor: string = 'rgba(80,80,80,0.2)'
+        const captureAreaBorderSize: number = 4
+        const captureAreaBorderColor: string = '#1b50a8'
+        const canvasColor: string = 'rgba(80,80,80,0.2)'
 
         let canSelectCaptureArea: boolean = true
         let isHandlingCaptureArea: boolean = false
@@ -67,7 +68,8 @@ export default defineComponent({
 
                 if (e.buttons > 0) { // if mouse is pressed
                     if (e.buttons === 1) { // if primary button is pressed (left click)
-                        if (canSelectCaptureArea) handleSelectCaptureArea()
+                        if (canSelectCaptureArea)
+                            handleSelectCaptureArea()
                     }
                 }
             })
@@ -86,8 +88,8 @@ export default defineComponent({
         }
 
         function handleSelectCaptureArea() {
-            startingCaptureArea = startingCaptureArea || {x: pointerX, y: pointerY}
-            endingCaptureArea = {x: pointerX, y: pointerY}
+            startingCaptureArea = startingCaptureArea || { x: pointerX, y: pointerY }
+            endingCaptureArea = { x: pointerX, y: pointerY }
             isHandlingCaptureArea = true
             drawCaptureArea()
         }
@@ -96,13 +98,15 @@ export default defineComponent({
             canSelectCaptureArea = false
             if (particleLife.captureType === 'screenshot') {
                 takeScreenshot()
-            } else if (particleLife.captureType === 'GIF') {
+            }
+            else if (particleLife.captureType === 'GIF') {
                 takeGIF()
             }
         }
         // -------------------------------------------------------------------------------------------------------------
         function takeScreenshot() {
-            if (!currentCaptureArea) return
+            if (!currentCaptureArea)
+                return
             // Define capture zone
             const x = currentCaptureArea.x + captureAreaBorderSize / 2
             const y = currentCaptureArea.y + captureAreaBorderSize / 2
@@ -133,7 +137,8 @@ export default defineComponent({
         }
         // -------------------------------------------------------------------------------------------------------------
         function takeGIF() {
-            if (!currentCaptureArea) return
+            if (!currentCaptureArea)
+                return
             const fps = props.captureFPS
             const duration = props.captureDuration // seconds
             GIFOptions = {
@@ -142,7 +147,7 @@ export default defineComponent({
                 width: currentCaptureArea.width - captureAreaBorderSize,
                 height: currentCaptureArea.height - captureAreaBorderSize,
                 delay: 1 / fps * 1000,
-                frames: Math.ceil(duration * fps)
+                frames: Math.ceil(duration * fps),
             }
             GIFFrames = []
             GIFCaptureCount = 0
@@ -187,7 +192,8 @@ export default defineComponent({
         }
         // -------------------------------------------------------------------------------------------------------------
         function drawCaptureArea() {
-            if (!startingCaptureArea || !endingCaptureArea) return
+            if (!startingCaptureArea || !endingCaptureArea)
+                return
             const x = startingCaptureArea.x
             const y = startingCaptureArea.y
             const width = endingCaptureArea.x - x
@@ -208,7 +214,7 @@ export default defineComponent({
         }
         // -------------------------------------------------------------------------------------------------------------
         return { captureFrame, particleLife, GIFCaptureProgress }
-    }
+    },
 })
 </script>
 

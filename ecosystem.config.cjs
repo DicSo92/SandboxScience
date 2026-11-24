@@ -9,12 +9,12 @@ module.exports = {
             args: 'start',
             env: {
                 NODE_ENV: "production",
-                NITRO_TRUST_PROXY: "1"
+                NITRO_TRUST_PROXY: "1",
             },
             log_file: '/var/log/pm2/sandbox-science.log',
             error_file: '/var/log/pm2/sandbox-science-error.log',
             out_file: '/var/log/pm2/sandbox-science-out.log',
             merge_logs: true,
-        }
-    ]
+        },
+    ],
 }

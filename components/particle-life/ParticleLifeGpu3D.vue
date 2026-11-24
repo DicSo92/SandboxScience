@@ -1,319 +1,400 @@
 <template>
-    <section h-screen flex flex-col justify-center overflow-hidden relative ref="mainContainer" id="mainContainer">
+    <section id="mainContainer" relative h-screen flex flex-col justify-center overflow-hidden>
         <SidebarLeft v-model="particleLife.sidebarLeftOpen">
-            <template #controls>
-            </template>
+            <template #controls />
             <template #default>
-                <div h-full px-2 flex flex-col>
-                    <div flex justify-between items-end mb-1.5 px-1>
+                <div h-full flex flex-col px-2>
+                    <div mb-1.5 flex items-end justify-between px-1>
                         <div flex items-center>
-                            <div i-lets-icons-bubble text-2xl mr-2 class="text-[#2a9d8f] -mt-0.5"></div>
-                            <h1 font-800 text-lg tracking-widest class="text-[#dff6f3] drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">Particle Life</h1>
-                            <p class="ml-2 px-2 py-0.5 rounded-lg ring-1 uppercase justify-center font-mono font-bold bg-fuchsia-600/20 text-fuchsia-400 ring-fuchsia-500/30">
+                            <div i-lets-icons-bubble mr-2 text-2xl class="text-[#2a9d8f] -mt-0.5" />
+                            <h1 text-lg font-800 tracking-widest class="text-[#dff6f3] drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">
+                                Particle Life
+                            </h1>
+                            <p class="ml-2 justify-center rounded-lg bg-fuchsia-600/20 px-2 py-0.5 text-fuchsia-400 font-bold font-mono uppercase ring-1 ring-fuchsia-500/30">
                                 GPU
                             </p>
-                            <p ml-1.5 px-2 py-0.5 rounded-lg ring-1 uppercase justify-center font-mono font-bold class="bg-amber-600/20 text-amber-400 ring-amber-500/30">
+                            <p ml-1.5 justify-center rounded-lg px-2 py-0.5 font-bold font-mono uppercase ring-1 class="bg-amber-600/20 text-amber-400 ring-amber-500/30">
                                 3D
                             </p>
                         </div>
-                        <button @click="switchTo2D" px-2 h-full rounded-lg flex items-center font-semibold class="bg-cyan-500/15 hover:bg-cyan-500/25 transition-all ring-1 ring-cyan-300/45 text-cyan-100" title="Switch to 2D version">
-                            <span class="i-tabler-cube-off text-sm mr-1"></span>
-                            <span class="-mb-px text-xs">Try 2D</span>
+                        <button h-full flex items-center rounded-lg px-2 font-semibold class="bg-cyan-500/15 text-cyan-100 ring-1 ring-cyan-300/45 transition-all hover:bg-cyan-500/25" title="Switch to 2D version" @click="switchTo2D">
+                            <span class="i-tabler-cube-off mr-1 text-sm" />
+                            <span class="text-xs -mb-px">Try 2D</span>
                         </button>
-                        <!--                        <ToggleSwitch inactive-label="2D" label="3D" colorful-label v-model="particleLife.is3D" />-->
+                        <!--                        <ToggleSwitch inactive-label="2D" label="3D" colorful-label v-model="particleLife.is3D" /> -->
                     </div>
                     <hr border-slate-500>
-                    <div overflow-auto flex-1 flex flex-col gap-2 mt-2 pb-12 class="scrollableArea">
-                        <Collapse label="Presets" icon="i-tabler-sparkles text-amber-500"
-                                  tooltip="Choose predefined configurations to quickly set up your simulation.">
-                            <PresetPanel :store="particleLife"
-                                         @updateColors="updateColors"
-                                         @updateRulesMatrix="updateRulesMatrix"
-                                         @updateParticlePositions="updateParticlePositions"
-                                         @loadPreset="loadPreset">
-                            </PresetPanel>
+                    <div mt-2 flex flex-1 flex-col gap-2 overflow-auto pb-12 class="scrollableArea">
+                        <Collapse
+                            label="Presets" icon="i-tabler-sparkles text-amber-500"
+                            tooltip="Choose predefined configurations to quickly set up your simulation."
+                        >
+                            <PresetPanel
+                                :store="particleLife"
+                                @update-colors="updateColors"
+                                @update-rules-matrix="updateRulesMatrix"
+                                @update-particle-positions="updateParticlePositions"
+                                @load-preset="loadPreset"
+                            />
                         </Collapse>
-                        <Collapse label="Matrix Settings" icon="i-tabler-grid-4x4 text-indigo-500"
-                                  tooltip="Modify matrix values by clicking on cells in the grid. <br>
+                        <Collapse
+                            label="Matrix Settings" icon="i-tabler-grid-4x4 text-indigo-500"
+                            tooltip="Modify matrix values by clicking on cells in the grid. <br>
                                   Adjust individual cell values with the slider, or click and drag to change them directly. <br>
                                   Use Ctrl + Click to select multiple cells for group adjustments. <br>
-                                  If no cells are selected, the slider will adjust all values.">
-                            <MatrixSettings :store="particleLife"
-                                            @updateRulesMatrix="updateRulesMatrixValue"
-                                            @randomRulesMatrix="newRandomRulesMatrix"
-                                            @updateMinMatrix="updateMinMatrixValue"
-                                            @updateMaxMatrix="updateMaxMatrixValue"
-                                            @updateColor="updateSingleColor">
-                            </MatrixSettings>
+                                  If no cells are selected, the slider will adjust all values."
+                        >
+                            <MatrixSettings
+                                :store="particleLife"
+                                @update-rules-matrix="updateRulesMatrixValue"
+                                @random-rules-matrix="newRandomRulesMatrix"
+                                @update-min-matrix="updateMinMatrixValue"
+                                @update-max-matrix="updateMaxMatrixValue"
+                                @update-color="updateSingleColor"
+                            />
                         </Collapse>
-                        <Collapse label="Randomizer Settings" icon="i-game-icons-perspective-dice-six-faces-random text-teal-500"
-                                  tooltip="Adjust the parameters for randomizing particle attributes. <br> Configure the ranges for minimum and maximum interaction radii.">
-                            <RadiusVisualizer v-model:min-radius-range="particleLife.minRadiusRange"
-                                              v-model:max-radius-range="particleLife.maxRadiusRange"
-                                              @randomize-radius="randomizeRadius"
-                                              @randomize-rules-and-radius="randomizeRulesAndRadius"
-                                              @randomize-all="regenerateLife">
-                            </RadiusVisualizer>
+                        <Collapse
+                            label="Randomizer Settings" icon="i-game-icons-perspective-dice-six-faces-random text-teal-500"
+                            tooltip="Adjust the parameters for randomizing particle attributes. <br> Configure the ranges for minimum and maximum interaction radii."
+                        >
+                            <RadiusVisualizer
+                                v-model:min-radius-range="particleLife.minRadiusRange"
+                                v-model:max-radius-range="particleLife.maxRadiusRange"
+                                @randomize-radius="randomizeRadius"
+                                @randomize-rules-and-radius="randomizeRulesAndRadius"
+                                @randomize-all="regenerateLife"
+                            />
                         </Collapse>
                         <Collapse label="World Settings" icon="i-tabler-world-cog text-cyan-500" opened>
-                            <RangeInput input label="Particle Count"
-                                        tooltip="Adjust the total number of particles. <br> More particles may reveal complex interactions but can increase computational demand."
-                                        :min="16" :max="1048576" :step="16" v-model="particleLife.numParticles" @update:modelValue="setNewNumParticles">
-                            </RangeInput>
-                            <RangeInput input label="Species Count"
-                                        tooltip="Specify the number of particle colors. <br> Each color interacts with all others, with distinct forces and interaction ranges."
-                                        :min="1" :max="16" :step="1" v-model="particleLife.numColors" @update:modelValue="setNewNumTypes" mt-2>
-                            </RangeInput>
+                            <RangeInput
+                                v-model="particleLife.numParticles" input
+                                label="Particle Count"
+                                tooltip="Adjust the total number of particles. <br> More particles may reveal complex interactions but can increase computational demand." :min="16" :max="1048576" :step="16" @update:model-value="setNewNumParticles"
+                            />
+                            <RangeInput
+                                v-model="particleLife.numColors" input
+                                label="Species Count"
+                                tooltip="Specify the number of particle colors. <br> Each color interacts with all others, with distinct forces and interaction ranges." :min="1" :max="16" :step="1" mt-2 @update:model-value="setNewNumTypes"
+                            />
                             <div flex items-center class="mt-0.5">
-                                <p class="w-2/3 text-2sm mt-1">
+                                <p class="mt-1 w-2/3 text-2sm">
                                     World Size
                                     <TooltipInfo container="#mainContainer" tooltip="Adjust the size of the area where particles are contained." />
                                 </p>
-                                <Input label="x" v-model="particleLife.simWidth" @change="updateSimWidth" inputClass="w-12!" mr-2 />
-                                <Input label="y" v-model="particleLife.simHeight" @change="updateSimHeight" inputClass="w-12!" mr-2 />
-                                <Input label="z" v-model="particleLife.simDepth" @change="updateSimDepth" inputClass="w-12!" mr-2 />
-                                <button type="button" btn rounded-full p2 flex items-center bg="slate-950/90 hover:slate-950/50" @click="particleLife.linkProportions = !particleLife.linkProportions">
-                                    <span :class="particleLife.linkProportions ? 'i-tabler-link' : 'i-tabler-unlink'" text-sm></span>
+                                <Input v-model="particleLife.simWidth" label="x" input-class="w-12!" mr-2 @change="updateSimWidth" />
+                                <Input v-model="particleLife.simHeight" label="y" input-class="w-12!" mr-2 @change="updateSimHeight" />
+                                <Input v-model="particleLife.simDepth" label="z" input-class="w-12!" mr-2 @change="updateSimDepth" />
+                                <button type="button" btn flex items-center rounded-full p2 bg="slate-950/90 hover:slate-950/50" @click="particleLife.linkProportions = !particleLife.linkProportions">
+                                    <span :class="particleLife.linkProportions ? 'i-tabler-link' : 'i-tabler-unlink'" text-sm />
                                 </button>
                             </div>
 
-                            <hr border-gray-500 mt-1 mb-2>
-                            <p underline text-gray-300 class="-mt-0.5" mb-2>Boundary Settings :</p>
+                            <hr mb-2 mt-1 border-gray-500>
+                            <p class="-mt-0.5" mb-2 text-gray-300 underline>
+                                Boundary Settings :
+                            </p>
 
-                            <OptionBar name="wallStateGpu3D" v-model="particleLife.wallState" :options="[
-                                { id: 'none', label: 'None' },
-                                { id: 'repel', label: 'Repel' },
-                                { id: 'wrap', label: 'Wrap' }]">
-                            </OptionBar>
+                            <OptionBar
+                                v-model="particleLife.wallState" name="wallStateGpu3D" :options="[
+                                    { id: 'none', label: 'None' },
+                                    { id: 'repel', label: 'Repel' },
+                                    { id: 'wrap', label: 'Wrap' }]"
+                            />
                         </Collapse>
                         <Collapse label="Physics Settings" icon="i-tabler-atom text-fuchsia-500" opened>
-                            <RangeInput input label="Repel Force"
-                                        tooltip="Adjust the force that repels particles from each other. <br> Higher values increase the separation distance."
-                                        :min="0.01" :max="4" :step="0.01" v-model="particleLife.repel">
-                            </RangeInput>
-                            <RangeInput input label="Force Multiplier"
-                                        tooltip="Scales the interaction forces between particles. <br> Higher values make forces stronger and particles move faster."
-                                        :min="0.01" :max="4" :step="0.01" v-model="particleLife.forceFactor" mt-2>
-                            </RangeInput>
-                            <RangeInput input label="Friction"
-                                        tooltip="Controls how much friction slows particles down. <br> Higher values reduce speed and help stabilize the system."
-                                        :min="0" :max="1" :step="0.01" v-model="particleLife.frictionFactor" mt-2>
-                            </RangeInput>
+                            <RangeInput
+                                v-model="particleLife.repel" input
+                                label="Repel Force"
+                                tooltip="Adjust the force that repels particles from each other. <br> Higher values increase the separation distance." :min="0.01" :max="4" :step="0.01"
+                            />
+                            <RangeInput
+                                v-model="particleLife.forceFactor" input
+                                label="Force Multiplier"
+                                tooltip="Scales the interaction forces between particles. <br> Higher values make forces stronger and particles move faster." :min="0.01" :max="4" :step="0.01" mt-2
+                            />
+                            <RangeInput
+                                v-model="particleLife.frictionFactor" input
+                                label="Friction"
+                                tooltip="Controls how much friction slows particles down. <br> Higher values reduce speed and help stabilize the system." :min="0" :max="1" :step="0.01" mt-2
+                            />
                         </Collapse>
                         <Collapse label="Graphics Settings" icon="i-tabler-photo-cog text-emerald-500">
-                            <RangeInput input label="Particle Size"
-                                        tooltip="Controls the overall size of the particles in the simulation, allowing you to make them larger or smaller depending on your preference. This setting does not impact performance."
-                                        :min="0.1" :max="6" :step="0.1" v-model="particleLife.particleSize">
-                            </RangeInput>
-                            <RangeInput input label="Particle Opacity"
-                                        tooltip="Adjust the opacity of the particles in the simulation. <br> This setting allows you to control how transparent or opaque the particles appear."
-                                        :min="0" :max="1" :step="0.01" v-model="particleLife.particleOpacity" mt-2>
-                            </RangeInput>
+                            <RangeInput
+                                v-model="particleLife.particleSize" input
+                                label="Particle Size"
+                                tooltip="Controls the overall size of the particles in the simulation, allowing you to make them larger or smaller depending on your preference. This setting does not impact performance." :min="0.1" :max="6" :step="0.1"
+                            />
+                            <RangeInput
+                                v-model="particleLife.particleOpacity" input
+                                label="Particle Opacity"
+                                tooltip="Adjust the opacity of the particles in the simulation. <br> This setting allows you to control how transparent or opaque the particles appear." :min="0" :max="1" :step="0.01" mt-2
+                            />
 
-                            <hr border-gray-500 my-2>
+                            <hr my-2 border-gray-500>
                             <div flex justify-between gap-2>
-                                <ToggleSwitch label="Bounding Box" v-model="particleLife.isBoundingBoxActive" />
-                                <ToggleSwitch label="Particle Border"
-                                              tooltip="Draw a subtle dark border around each particle. Helps individual particles stand out in dense clusters. Disable for solid discs that blend together more."
-                                              v-model="particleLife.isParticleBorder">
-                                </ToggleSwitch>
+                                <ToggleSwitch v-model="particleLife.isBoundingBoxActive" label="Bounding Box" />
+                                <ToggleSwitch
+                                    v-model="particleLife.isParticleBorder"
+                                    label="Particle Border"
+                                    tooltip="Draw a subtle dark border around each particle. Helps individual particles stand out in dense clusters. Disable for solid discs that blend together more."
+                                />
                             </div>
-                            <hr border-gray-500 my-2>
+                            <hr my-2 border-gray-500>
 
-                            <div flex items-start justify-between mb-1>
-                                <p underline text-gray-300 mb-1>Sphere Shading :</p>
-                                <ToggleSwitch label="Sphere Shading" colorful-label v-model="particleLife.isSphereShading" />
+                            <div mb-1 flex items-start justify-between>
+                                <p mb-1 text-gray-300 underline>
+                                    Sphere Shading :
+                                </p>
+                                <ToggleSwitch v-model="particleLife.isSphereShading" label="Sphere Shading" colorful-label />
                             </div>
                             <div v-show="particleLife.isSphereShading">
                                 <div flex items-center justify-between gap-2>
-                                    <p class="w-1/3 text-2sm shrink-0">
+                                    <p class="w-1/3 shrink-0 text-2sm">
                                         Material
                                         <TooltipInfo container="#mainContainer" tooltip="Preset combinations of ambient, diffuse, specular and shininess that emulate common materials (matte, plastic, metal…). <br> Pick one as a starting point, then fine-tune the sliders below." />
                                     </p>
-                                    <SelectInput name="sphere-shading-preset" class="max-w-full!"
-                                                 v-model="sphereShadingPreset"
-                                                 :options="sphereShadingPresetOptions">
-                                    </SelectInput>
+                                    <SelectInput
+                                        v-model="sphereShadingPreset" name="sphere-shading-preset"
+                                        class="max-w-full!"
+                                        :options="sphereShadingPresetOptions"
+                                    />
                                 </div>
-                                <RangeInput input label="Ambient" mt-1
-                                            tooltip="Constant ambient term added to the diffuse contribution. Raises overall brightness on dark sides."
-                                            :min="0" :max="1" :step="0.01" v-model="particleLife.sphereAmbient">
-                                </RangeInput>
-                                <RangeInput input label="Diffuse" mt-2
-                                            tooltip="Lambert diffuse strength. Controls how strongly the lit hemisphere reads as the base color."
-                                            :min="0" :max="2" :step="0.01" v-model="particleLife.sphereDiffuseStrength">
-                                </RangeInput>
-                                <RangeInput input label="Specular" mt-2
-                                            tooltip="Blinn-Phong specular strength (white highlight). 0 disables the highlight."
-                                            :min="0" :max="2" :step="0.01" v-model="particleLife.sphereSpecularStrength">
-                                </RangeInput>
-                                <RangeInput input label="Shininess" mt-2
-                                            tooltip="Specular exponent. Higher values produce a smaller, sharper highlight."
-                                            :min="1" :max="128" :step="1" v-model="particleLife.sphereShininess">
-                                </RangeInput>
-                                <div flex items-center justify-between mt-2>
+                                <RangeInput
+                                    v-model="particleLife.sphereAmbient" input label="Ambient"
+                                    mt-1
+                                    tooltip="Constant ambient term added to the diffuse contribution. Raises overall brightness on dark sides." :min="0" :max="1" :step="0.01"
+                                />
+                                <RangeInput
+                                    v-model="particleLife.sphereDiffuseStrength" input label="Diffuse"
+                                    mt-2
+                                    tooltip="Lambert diffuse strength. Controls how strongly the lit hemisphere reads as the base color." :min="0" :max="2" :step="0.01"
+                                />
+                                <RangeInput
+                                    v-model="particleLife.sphereSpecularStrength" input label="Specular"
+                                    mt-2
+                                    tooltip="Blinn-Phong specular strength (white highlight). 0 disables the highlight." :min="0" :max="2" :step="0.01"
+                                />
+                                <RangeInput
+                                    v-model="particleLife.sphereShininess" input label="Shininess"
+                                    mt-2
+                                    tooltip="Specular exponent. Higher values produce a smaller, sharper highlight." :min="1" :max="128" :step="1"
+                                />
+                                <div mt-2 flex items-center justify-between>
                                     <p class="w-2/3 text-2sm">
                                         Light Direction
                                         <TooltipInfo container="#mainContainer" tooltip="Position of the light source illuminating each particle. <br> X = left/right <br> Y = up/down <br> Z = front/back <br> Negative values flip the direction on that axis." />
                                     </p>
                                     <div flex items-center gap-2>
-                                        <Input label="x" :model-value="particleLife.sphereLightDir[0]" @update:model-value="particleLife.sphereLightDir[0] = $event" inputClass="w-12!" />
-                                        <Input label="y" :model-value="particleLife.sphereLightDir[1]" @update:model-value="particleLife.sphereLightDir[1] = $event" inputClass="w-12!" />
-                                        <Input label="z" :model-value="particleLife.sphereLightDir[2]" @update:model-value="particleLife.sphereLightDir[2] = $event" inputClass="w-12!" />
+                                        <Input label="x" :model-value="particleLife.sphereLightDir[0]" input-class="w-12!" @update:model-value="particleLife.sphereLightDir[0] = $event" />
+                                        <Input label="y" :model-value="particleLife.sphereLightDir[1]" input-class="w-12!" @update:model-value="particleLife.sphereLightDir[1] = $event" />
+                                        <Input label="z" :model-value="particleLife.sphereLightDir[2]" input-class="w-12!" @update:model-value="particleLife.sphereLightDir[2] = $event" />
                                     </div>
                                 </div>
                             </div>
 
-                            <hr border-gray-500 my-2>
-                            <div flex items-start justify-between mb-2>
-                                <p underline text-gray-300 mb-1>Glow Settings :</p>
-                                <ToggleSwitch label="Particle Glowing" colorful-label v-model="particleLife.isParticleGlow" />
+                            <hr my-2 border-gray-500>
+                            <div mb-2 flex items-start justify-between>
+                                <p mb-1 text-gray-300 underline>
+                                    Glow Settings :
+                                </p>
+                                <ToggleSwitch v-model="particleLife.isParticleGlow" label="Particle Glowing" colorful-label />
                             </div>
                             <div v-show="particleLife.isParticleGlow">
-                                <RangeInput input label="Glow Threshold" mt-2
-                                            tooltip="Luminance threshold above which pixels contribute to the glow (soft-knee around this value)."
-                                            :min="0" :max="2" :step="0.01" v-model="particleLife.bloomThreshold">
-                                </RangeInput>
-                                <RangeInput input label="Glow Intensity" mt-2
-                                            tooltip="Strength of the glow mixed back into the final image (final = hdr + glow * intensity)."
-                                            :min="0" :max="2" :step="0.01" v-model="particleLife.bloomIntensity">
-                                </RangeInput>
-                                <RangeInput input label="Glow Knee" mt-2
-                                            tooltip="Soft-knee width around the threshold. 0 = hard cutoff, 1 = very smooth ramp."
-                                            :min="0" :max="1" :step="0.01" v-model="particleLife.bloomKnee">
-                                </RangeInput>
-                                <div flex items-center justify-between gap-2 mt-1>
-                                    <p class="w-1/3 text-2sm shrink-0">
+                                <RangeInput
+                                    v-model="particleLife.bloomThreshold" input label="Glow Threshold"
+                                    mt-2
+                                    tooltip="Luminance threshold above which pixels contribute to the glow (soft-knee around this value)." :min="0" :max="2" :step="0.01"
+                                />
+                                <RangeInput
+                                    v-model="particleLife.bloomIntensity" input label="Glow Intensity"
+                                    mt-2
+                                    tooltip="Strength of the glow mixed back into the final image (final = hdr + glow * intensity)." :min="0" :max="2" :step="0.01"
+                                />
+                                <RangeInput
+                                    v-model="particleLife.bloomKnee" input label="Glow Knee"
+                                    mt-2
+                                    tooltip="Soft-knee width around the threshold. 0 = hard cutoff, 1 = very smooth ramp." :min="0" :max="1" :step="0.01"
+                                />
+                                <div mt-1 flex items-center justify-between gap-2>
+                                    <p class="w-1/3 shrink-0 text-2sm">
                                         Tonemap
                                         <TooltipInfo container="#mainContainer" tooltip="Tone mapping operator applied to the HDR buffer before display. <br> Controls how bright glowing pixels are compressed into the visible range." />
                                     </p>
-                                    <SelectInput name="tonemap-mode" class="max-w-full!"
-                                                 v-model="particleLife.tonemapMode"
-                                                 :options="tonemapOptions">
-                                    </SelectInput>
+                                    <SelectInput
+                                        v-model="particleLife.tonemapMode" name="tonemap-mode"
+                                        class="max-w-full!"
+                                        :options="tonemapOptions"
+                                    />
                                 </div>
                             </div>
                         </Collapse>
                         <Collapse label="Camera Settings" icon="i-tabler-camera-cog text-violet-500">
-                            <RangeInput input label="Zoom Smoothing"
-                                        tooltip="Adjusts the smoothness of the zoom. <br> Lower values result in a slower, more fluid zoom, while higher values make it faster and more abrupt."
-                                        :min="0.01" :max="0.5" :step="0.01" v-model="particleLife.zoomSmoothing">
-                            </RangeInput>
-                            <RangeInput input label="Pan Smoothing"
-                                        tooltip="Adjusts the smoothness of camera panning. <br> Lower values create more inertia for a gliding effect, while higher values make the movement stop more abruptly."
-                                        :min="0.01" :max="0.5" :step="0.01" v-model="particleLife.panSmoothing" mt-2>
-                            </RangeInput>
+                            <RangeInput
+                                v-model="particleLife.zoomSmoothing" input
+                                label="Zoom Smoothing"
+                                tooltip="Adjusts the smoothness of the zoom. <br> Lower values result in a slower, more fluid zoom, while higher values make it faster and more abrupt." :min="0.01" :max="0.5" :step="0.01"
+                            />
+                            <RangeInput
+                                v-model="particleLife.panSmoothing" input
+                                label="Pan Smoothing"
+                                tooltip="Adjusts the smoothness of camera panning. <br> Lower values create more inertia for a gliding effect, while higher values make the movement stop more abruptly." :min="0.01" :max="0.5" :step="0.01" mt-2
+                            />
                         </Collapse>
-                        <Collapse label="Performance" icon="i-tabler-gauge text-rose-500"
-                                  tooltip="Tune how the simulation finds neighboring particles. <br> Different algorithms and storage layouts suit different particle counts and interaction radii. <br> Enable GPU Timings to measure each pass and pick the fastest combination for your scene.">
+                        <Collapse
+                            label="Performance" icon="i-tabler-gauge text-rose-500"
+                            tooltip="Tune how the simulation finds neighboring particles. <br> Different algorithms and storage layouts suit different particle counts and interaction radii. <br> Enable GPU Timings to measure each pass and pick the fastest combination for your scene."
+                        >
                             <div flex items-center justify-between gap-2>
-                                <p class="w-1/3 text-2sm shrink-0">
+                                <p class="w-1/3 shrink-0 text-2sm">
                                     Algorithm
                                     <TooltipInfo container="#mainContainer" tooltip="How each particle finds its neighbors. <br> <b>Spatial Binning</b>: groups particles into cells, only checks nearby cells. Fastest for large radii or many particles. <br> <b>Brute Force</b>: every particle checks every other one. Simpler, only faster with very few particles." />
                                 </p>
-                                <SelectInput name="algorithm-mode" class="max-w-full!"
-                                             :model-value="particleLife.useBinning ? 'spatial' : 'brute'"
-                                             @update:model-value="particleLife.useBinning = $event === 'spatial'"
-                                             :options="[
-                                                 { id: 'spatial', name: 'Spatial Binning', icon: 'i-tabler-topology-ring-3', category: 'Method' },
-                                                 { id: 'brute', name: 'Brute Force', icon: 'i-tabler-cpu', category: 'Method' },
-                                             ]">
-                                </SelectInput>
+                                <SelectInput
+                                    name="algorithm-mode" class="max-w-full!"
+                                    :model-value="particleLife.useBinning ? 'spatial' : 'brute'"
+                                    :options="[
+                                        { id: 'spatial', name: 'Spatial Binning', icon: 'i-tabler-topology-ring-3', category: 'Method' },
+                                        { id: 'brute', name: 'Brute Force', icon: 'i-tabler-cpu', category: 'Method' },
+                                    ]"
+                                    @update:model-value="particleLife.useBinning = $event === 'spatial'"
+                                />
                             </div>
-                            <div v-show="particleLife.useBinning" flex items-center justify-between gap-2 mt-1.5>
-                                <p class="w-1/3 text-2sm shrink-0">
+                            <div v-show="particleLife.useBinning" mt-1.5 flex items-center justify-between gap-2>
+                                <p class="w-1/3 shrink-0 text-2sm">
                                     Binning
                                     <TooltipInfo container="#mainContainer" tooltip="How spatial cells are stored in GPU memory. <br> <b>Dense Grid</b>: 3D array indexed by cell coordinates. Fast lookup, more memory. <br> <b>Hash Grid</b>: cells stored in a hash table. Constant memory, slight lookup overhead. Recommended for very large simulation spaces." />
                                 </p>
-                                <SelectInput name="binning-mode" class="max-w-full!"
-                                             v-model="particleLife.binningMode"
-                                             :options="[
-                                                 { id: 'grid', name: 'Dense Grid', icon: 'i-tabler-grid-4x4', category: 'Binning' },
-                                                 { id: 'hash', name: 'Hash Grid', icon: 'i-tabler-hash', category: 'Binning' },
-                                             ]">
-                                </SelectInput>
+                                <SelectInput
+                                    v-model="particleLife.binningMode" name="binning-mode"
+                                    class="max-w-full!"
+                                    :options="[
+                                        { id: 'grid', name: 'Dense Grid', icon: 'i-tabler-grid-4x4', category: 'Binning' },
+                                        { id: 'hash', name: 'Hash Grid', icon: 'i-tabler-hash', category: 'Binning' },
+                                    ]"
+                                />
                             </div>
-                            <RangeInput v-show="particleLife.useBinning" input label="Cell Subdivisions" mt-1.5
-                                        tooltip="Splits each bin cell into smaller sub-cells. <br> Default: 1 (fastest in almost every scene). <br> Higher values rarely help: fewer particles per cell, but many more cells to scan around each particle. <br> Can help with very large interaction radii on dense clusters."
-                                        :min="1" :max="5" :step="1" v-model="particleLife.cellSubdivisions">
-                            </RangeInput>
-                            <RangeInput v-show="particleLife.useBinning && particleLife.binningMode === 'grid' && particleLife.wallState === 'none'"
-                                        input label="Grid Extension" mt-2
-                                        tooltip="How many times larger than the simulation box the dense grid extends in each axis. <br> Higher values let particles drift further before being clamped at the borders, at a cubic memory cost. <br> Automatically clamped to what fits the device's max bin count."
-                                        :min="1" :max="particleLife.maxGridExtensionFactor" :step="1"
-                                        v-model="particleLife.gridExtensionFactor">
-                            </RangeInput>
-                            <hr border-gray-500 my-2>
-                            <ToggleSwitch label="Show GPU Timings" colorful-label mb-0.5
-                                          tooltip="Display per-pass GPU execution times (binning, forces, advance, render) in the top-right HUD. <br> Uses WebGPU timestamp queries. <br> Has a tiny performance cost (allocations + potential driver pipeline stalls), so it's off by default."
-                                          v-model="particleLife.isGpuTimingsEnabled">
-                            </ToggleSwitch>
+                            <RangeInput
+                                v-show="particleLife.useBinning" v-model="particleLife.cellSubdivisions" input label="Cell Subdivisions"
+                                mt-1.5
+                                tooltip="Splits each bin cell into smaller sub-cells. <br> Default: 1 (fastest in almost every scene). <br> Higher values rarely help: fewer particles per cell, but many more cells to scan around each particle. <br> Can help with very large interaction radii on dense clusters." :min="1" :max="5" :step="1"
+                            />
+                            <RangeInput
+                                v-show="particleLife.useBinning && particleLife.binningMode === 'grid' && particleLife.wallState === 'none'"
+                                v-model="particleLife.gridExtensionFactor" input label="Grid Extension"
+                                mt-2
+                                tooltip="How many times larger than the simulation box the dense grid extends in each axis. <br> Higher values let particles drift further before being clamped at the borders, at a cubic memory cost. <br> Automatically clamped to what fits the device's max bin count." :min="1" :max="particleLife.maxGridExtensionFactor"
+                                :step="1"
+                            />
+                            <hr my-2 border-gray-500>
+                            <ToggleSwitch
+                                v-model="particleLife.isGpuTimingsEnabled" label="Show GPU Timings" colorful-label
+                                mb-0.5
+                                tooltip="Display per-pass GPU execution times (binning, forces, advance, render) in the top-right HUD. <br> Uses WebGPU timestamp queries. <br> Has a tiny performance cost (allocations + potential driver pipeline stalls), so it's off by default."
+                            />
                         </Collapse>
                     </div>
                     <div absolute bottom-2 right-0 z-100 class="-mr-px">
-                        <button rounded-l-lg border border-slate-600 flex items-center p-1 bg="slate-900/85 hover:slate-950/85" @click="particleLife.sidebarLeftOpen = false">
-                            <span i-tabler-chevron-left text-2xl></span>
+                        <button flex items-center border border-slate-600 rounded-l-lg p-1 bg="slate-900/85 hover:slate-950/85" @click="particleLife.sidebarLeftOpen = false">
+                            <span i-tabler-chevron-left text-2xl />
                         </button>
                     </div>
                 </div>
             </template>
             <template #bottom-actions>
-                <button type="button" name="Toggle Camera Target" title="Toggle Camera Target" aria-label="Toggle Camera Target"
-                        btn rounded-full flex items-center justify-center p-2 class="backdrop-blur-sm z-10 relative"
-                        :class="particleLife.isCameraTargetVisible ? 'bg-red-700/80 hover:bg-red-600/80' : 'bg-red-900/80  hover:bg-red-700/80'"
-                        @click="particleLife.isCameraTargetVisible = !particleLife.isCameraTargetVisible" :disabled="particleLife.isHudLocked">
-                    <span i-streamline-flex-3d-coordinate-axis class="-mt-px" :class="particleLife.isCameraTargetVisible ? 'text-red-200' : 'text-red-300/80'"></span>
+                <button
+                    type="button" name="Toggle Camera Target" title="Toggle Camera Target" aria-label="Toggle Camera Target"
+                    btn flex items-center justify-center rounded-full p-2 class="relative z-10 backdrop-blur-sm"
+                    :class="particleLife.isCameraTargetVisible ? 'bg-red-700/80 hover:bg-red-600/80' : 'bg-red-900/80  hover:bg-red-700/80'"
+                    :disabled="particleLife.isHudLocked" @click="particleLife.isCameraTargetVisible = !particleLife.isCameraTargetVisible"
+                >
+                    <span i-streamline-flex-3d-coordinate-axis class="-mt-px" :class="particleLife.isCameraTargetVisible ? 'text-red-200' : 'text-red-300/80'" />
                 </button>
-                <CenterViewButton :disabled="particleLife.isHudLocked" :is3D="true"
-                                  @centerAll="smoothCenterView()"
-                                  @centerPosition="smoothCenterView(true, false, false)"
-                                  @resetZoom="smoothCenterView(false, true, false)" 
-                                  @resetRotation="smoothCenterView(false, false, true)">
-                </CenterViewButton>
-                <button type="button" name="Randomize" aria-label="Randomize" title="Randomize simulation"
-                        btn rounded-full flex items-center justify-center p-2 pointer-events-auto
-                        class="backdrop-blur-sm bg-[#094F5D]/90 hover:bg-[#0B5F6F]/90"
-                        @click="regenerateLife" :disabled="particleLife.isHudLocked">
-                    <span i-game-icons-perspective-dice-six-faces-random text-2xl></span>
+                <CenterViewButton
+                    :disabled="particleLife.isHudLocked" :is3-d="true"
+                    @center-all="smoothCenterView()"
+                    @center-position="smoothCenterView(true, false, false)"
+                    @reset-zoom="smoothCenterView(false, true, false)"
+                    @reset-rotation="smoothCenterView(false, false, true)"
+                />
+                <button
+                    type="button" name="Randomize" aria-label="Randomize" title="Randomize simulation"
+                    btn pointer-events-auto flex items-center justify-center rounded-full p-2
+                    class="bg-[#094F5D]/90 backdrop-blur-sm hover:bg-[#0B5F6F]/90"
+                    :disabled="particleLife.isHudLocked" @click="regenerateLife"
+                >
+                    <span i-game-icons-perspective-dice-six-faces-random text-2xl />
                 </button>
             </template>
         </SidebarLeft>
 
-        <canvas ref="canvasRef" id="canvasRef" @contextmenu.prevent w-full h-full cursor-crosshair></canvas>
+        <canvas id="canvasRef" ref="canvasRef" h-full w-full cursor-crosshair @contextmenu.prevent />
 
-        <SaveModal :store="particleLife"></SaveModal>
+        <SaveModal :store="particleLife" />
 
-        <div absolute top-0 right-0 flex flex-col items-end text-right pointer-events-none>
-            <div flex items-center text-start text-xs pl-4 pr-1 bg-slate-800 rounded-bl-xl style="padding-bottom: 1px; opacity: 75%" >
-                <div flex>Fps: <div ml-1 min-w-8>{{ fps }}</div></div>
-                <!--                <div flex ml-3>Process: <div ml-1 min-w-7>{{ Math.round(executionTime) }}</div></div>-->
+        <div pointer-events-none absolute right-0 top-0 flex flex-col items-end text-right>
+            <div flex items-center rounded-bl-xl bg-slate-800 pl-4 pr-1 text-start text-xs style="padding-bottom: 1px; opacity: 75%">
+                <div flex>
+                    Fps: <div ml-1 min-w-8>
+                        {{ fps }}
+                    </div>
+                </div>
+                <!--                <div flex ml-3>Process: <div ml-1 min-w-7>{{ Math.round(executionTime) }}</div></div> -->
             </div>
-            <div v-if="particleLife.isGpuTimingsEnabled" flex flex-col items-end text-start text-xs pl-2.5 pr-2 py-1.5 bg-slate-800 rounded-l-xl style="opacity: 75%; font-family: monospace" mt-1>
-                <div v-if="particleLife.useBinning" flex>bin <div ml-1 min-w-15 text-end>{{ gpuTimings.binning.toFixed(2) }} ms</div></div>
-                <div flex>force <div ml-1 min-w-15 text-end>{{ gpuTimings.forces.toFixed(2) }} ms</div></div>
-                <div flex>adv <div ml-1 min-w-15 text-end>{{ gpuTimings.advance.toFixed(2) }} ms</div></div>
-                <div flex>rend <div ml-1 min-w-15 text-end>{{ gpuTimings.render.toFixed(2) }} ms</div></div>
-                <div v-if="particleLife.isParticleGlow" flex>bloom <div ml-1 min-w-15 text-end>{{ gpuTimings.bloom.toFixed(2) }} ms</div></div>
-                <div v-if="particleLife.isParticleGlow" flex>comp <div ml-1 min-w-15 text-end>{{ gpuTimings.compose.toFixed(2) }} ms</div></div>
-                <div flex border-t-px border-gray-500 pt-0.5 mt-px>total <div ml-1 min-w-15 text-end>{{ gpuTimings.total.toFixed(2) }} ms</div></div>
+            <div v-if="particleLife.isGpuTimingsEnabled" style="opacity: 75%; font-family: monospace" mt-1 flex flex-col items-end rounded-l-xl bg-slate-800 py-1.5 pl-2.5 pr-2 text-start text-xs>
+                <div v-if="particleLife.useBinning" flex>
+                    bin <div ml-1 min-w-15 text-end>
+                        {{ gpuTimings.binning.toFixed(2) }} ms
+                    </div>
+                </div>
+                <div flex>
+                    force <div ml-1 min-w-15 text-end>
+                        {{ gpuTimings.forces.toFixed(2) }} ms
+                    </div>
+                </div>
+                <div flex>
+                    adv <div ml-1 min-w-15 text-end>
+                        {{ gpuTimings.advance.toFixed(2) }} ms
+                    </div>
+                </div>
+                <div flex>
+                    rend <div ml-1 min-w-15 text-end>
+                        {{ gpuTimings.render.toFixed(2) }} ms
+                    </div>
+                </div>
+                <div v-if="particleLife.isParticleGlow" flex>
+                    bloom <div ml-1 min-w-15 text-end>
+                        {{ gpuTimings.bloom.toFixed(2) }} ms
+                    </div>
+                </div>
+                <div v-if="particleLife.isParticleGlow" flex>
+                    comp <div ml-1 min-w-15 text-end>
+                        {{ gpuTimings.compose.toFixed(2) }} ms
+                    </div>
+                </div>
+                <div mt-px flex border-t-px border-gray-500 pt-0.5>
+                    total <div ml-1 min-w-15 text-end>
+                        {{ gpuTimings.total.toFixed(2) }} ms
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div fixed z-10 bottom-2 flex justify-center items-end pointer-events-none class="left-1/2 transform -translate-x-1/2"> <!-- faded-hover-effect -->
-            <button type="button" name="Toggle Fullscreen" aria-label="Toggle Fullscreen" btn p2 rounded-full mx-1 flex items-center backdrop-blur-sm bg="slate-800/80 hover:slate-700/80" :disabled="particleLife.isHudLocked" @click="toggleFullscreen">
-                <span :class="isFullscreen ? 'i-tabler-maximize-off' : 'i-tabler-maximize'"></span>
+        <div pointer-events-none fixed bottom-2 z-10 flex items-end justify-center class="left-1/2 transform -translate-x-1/2">
+            <!-- faded-hover-effect -->
+            <button type="button" name="Toggle Fullscreen" aria-label="Toggle Fullscreen" btn mx-1 flex items-center rounded-full p2 backdrop-blur-sm bg="slate-800/80 hover:slate-700/80" :disabled="particleLife.isHudLocked" @click="toggleFullscreen">
+                <span :class="isFullscreen ? 'i-tabler-maximize-off' : 'i-tabler-maximize'" />
             </button>
-            <button type="button" name="Zoom Out" aria-label="Zoom Out" btn p2 rounded-full mx-1 flex items-center backdrop-blur-sm bg="slate-800/80 hover:slate-700/80" :disabled="particleLife.isHudLocked" @click="handleZoom(-1, true)">
-                <span i-tabler-zoom-out></span>
+            <button type="button" name="Zoom Out" aria-label="Zoom Out" btn mx-1 flex items-center rounded-full p2 backdrop-blur-sm bg="slate-800/80 hover:slate-700/80" :disabled="particleLife.isHudLocked" @click="handleZoom(-1, true)">
+                <span i-tabler-zoom-out />
             </button>
-            <button type="button" name="Play/Pause" aria-label="Play/Pause" btn p3 rounded-full mx-1 flex items-center backdrop-blur-sm bg="slate-800/80 hover:slate-700/80" :disabled="particleLife.isHudLocked" @click="particleLife.isRunning = !particleLife.isRunning">
-                <span text-xl :class="particleLife.isRunning ? 'i-tabler-player-pause-filled' : 'i-tabler-player-play-filled'"></span>
+            <button type="button" name="Play/Pause" aria-label="Play/Pause" btn mx-1 flex items-center rounded-full p3 backdrop-blur-sm bg="slate-800/80 hover:slate-700/80" :disabled="particleLife.isHudLocked" @click="particleLife.isRunning = !particleLife.isRunning">
+                <span text-xl :class="particleLife.isRunning ? 'i-tabler-player-pause-filled' : 'i-tabler-player-play-filled'" />
             </button>
-            <button type="button" name="Step" aria-label="Step" btn p2 rounded-full mx-1 flex items-center backdrop-blur-sm bg="slate-800/80 hover:slate-700/80" :disabled="particleLife.isRunning || particleLife.isHudLocked" @click="step">
-                <span i-tabler-player-skip-forward-filled></span>
+            <button type="button" name="Step" aria-label="Step" btn mx-1 flex items-center rounded-full p2 backdrop-blur-sm bg="slate-800/80 hover:slate-700/80" :disabled="particleLife.isRunning || particleLife.isHudLocked" @click="step">
+                <span i-tabler-player-skip-forward-filled />
             </button>
-            <button type="button" name="Zoom In" aria-label="Zoom In" btn p2 rounded-full mx-1 flex items-center backdrop-blur-sm bg="slate-800/80 hover:slate-700/80" :disabled="particleLife.isHudLocked" @click="handleZoom(1, true)">
-                <span i-tabler-zoom-in></span>
+            <button type="button" name="Zoom In" aria-label="Zoom In" btn mx-1 flex items-center rounded-full p2 backdrop-blur-sm bg="slate-800/80 hover:slate-700/80" :disabled="particleLife.isHudLocked" @click="handleZoom(1, true)">
+                <span i-tabler-zoom-in />
             </button>
         </div>
         <SocialLinks />
@@ -321,55 +402,54 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onMounted, reactive, ref } from 'vue';
-import MatrixSettings from "~/components/particle-life/MatrixSettings.vue";
-import BrushSettings from "~/components/particle-life/BrushSettings.vue";
-import RadiusVisualizer from "~/components/particle-life/RadiusVisualizer.vue";
-import { RULES_OPTIONS, generateRules } from '~/helpers/utils/rulesGenerator';
-import { PALETTE_OPTIONS, generateColors } from "~/helpers/utils/colorsGenerator";
-import { POSITION_OPTIONS, generatePositions } from "~/helpers/utils/positionsGenerator3D";
-import { mat4Perspective, mat4LookAt, mat4Mul } from "~/helpers/utils/camera3D";
-import { hexToRgb } from '~/helpers/utils/colorConversion';
+import bloomShaderCode from 'assets/particle-life-gpu-3d/shaders/compose/bloom.wgsl?raw'
+import composeHdrShaderCode from 'assets/particle-life-gpu-3d/shaders/compose/compose_hdr.wgsl?raw'
+import binAddOffsetsShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/binAddOffsets.wgsl?raw'
+import binFillSizeShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/binFillSize.wgsl?raw'
+import binFillSizeHashShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/binFillSize_hash.wgsl?raw'
+import binScanAuxShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/binScanAux.wgsl?raw'
+import binScanLocalShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/binScanLocal.wgsl?raw'
+import bruteForceShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/compute_bruteForce.wgsl?raw'
+import particleAdvanceShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/particleAdvance.wgsl?raw'
 
-import binFillSizeShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/binFillSize.wgsl?raw';
-import binScanLocalShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/binScanLocal.wgsl?raw';
-import binScanAuxShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/binScanAux.wgsl?raw';
-import binAddOffsetsShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/binAddOffsets.wgsl?raw';
-import particleSortShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/particleSort.wgsl?raw';
-import particleComputeForcesShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/particleComputeForces.wgsl?raw';
-import binFillSizeHashShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/binFillSize_hash.wgsl?raw';
-import particleSortHashShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/particleSort_hash.wgsl?raw';
-import particleComputeForcesHashShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/particleComputeForces_hash.wgsl?raw';
+import particleComputeForcesShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/particleComputeForces.wgsl?raw'
+import particleComputeForcesHashShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/particleComputeForces_hash.wgsl?raw'
+import particleSortShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/particleSort.wgsl?raw'
+import particleSortHashShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/particleSort_hash.wgsl?raw'
+import cameraTargetShaderCode from 'assets/particle-life-gpu-3d/shaders/render/camera_target.wgsl?raw'
+import renderGlowShaderCode from 'assets/particle-life-gpu-3d/shaders/render/particle_render_glow.wgsl?raw'
+import boxShaderCode from 'assets/particle-life-gpu-3d/shaders/render/render_box.wgsl?raw'
+import renderShaderCode from 'assets/particle-life-gpu-3d/shaders/render/render_normal.wgsl?raw'
+import { computed, defineComponent, onMounted, reactive, ref } from 'vue'
 
-import bruteForceShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/compute_bruteForce.wgsl?raw';
-import particleAdvanceShaderCode from 'assets/particle-life-gpu-3d/shaders/compute/particleAdvance.wgsl?raw';
-import renderShaderCode from 'assets/particle-life-gpu-3d/shaders/render/render_normal.wgsl?raw';
-import renderGlowShaderCode from 'assets/particle-life-gpu-3d/shaders/render/particle_render_glow.wgsl?raw';
-import boxShaderCode from 'assets/particle-life-gpu-3d/shaders/render/render_box.wgsl?raw';
-import cameraTargetShaderCode from 'assets/particle-life-gpu-3d/shaders/render/camera_target.wgsl?raw';
-import composeHdrShaderCode from 'assets/particle-life-gpu-3d/shaders/compose/compose_hdr.wgsl?raw';
-import bloomShaderCode from 'assets/particle-life-gpu-3d/shaders/compose/bloom.wgsl?raw';
-import PresetPanel from "~/components/particle-life/PresetPanel.vue";
-import SaveModal from "~/components/particle-life/SaveModal.vue";
-import CenterViewButton from "~/components/particle-life/CenterViewButton.vue";
+import CenterViewButton from "~/components/particle-life/CenterViewButton.vue"
+import MatrixSettings from "~/components/particle-life/MatrixSettings.vue"
+import PresetPanel from "~/components/particle-life/PresetPanel.vue"
+import RadiusVisualizer from "~/components/particle-life/RadiusVisualizer.vue"
+import SaveModal from "~/components/particle-life/SaveModal.vue"
+import { mat4LookAt, mat4Mul, mat4Perspective } from "~/helpers/utils/camera3D"
+import { hexToRgb } from '~/helpers/utils/colorConversion'
+import { generateColors, PALETTE_OPTIONS } from "~/helpers/utils/colorsGenerator"
+import { generatePositions, POSITION_OPTIONS } from "~/helpers/utils/positionsGenerator3D"
+import { generateRules, RULES_OPTIONS } from '~/helpers/utils/rulesGenerator'
 
 const tonemapOptions = [
-    { id: 0, name: 'None (raw)',           category: 'Raw' },
-    { id: 1, name: 'ACES (Narkowicz)',     category: 'Stylized' },
-    { id: 2, name: 'ACES (Fitted)',        category: 'Stylized' },
-    { id: 3, name: 'Lottes',               category: 'Stylized' },
-    { id: 4, name: 'Reinhard-Jodie',       category: 'Filmic' },
+    { id: 0, name: 'None (raw)', category: 'Raw' },
+    { id: 1, name: 'ACES (Narkowicz)', category: 'Stylized' },
+    { id: 2, name: 'ACES (Fitted)', category: 'Stylized' },
+    { id: 3, name: 'Lottes', category: 'Stylized' },
+    { id: 4, name: 'Reinhard-Jodie', category: 'Filmic' },
     { id: 5, name: 'Uncharted 2 (Filmic)', category: 'Filmic' },
-    { id: 6, name: 'AgX',                  category: 'Realistic' },
+    { id: 6, name: 'AgX', category: 'Realistic' },
 ]
 const SPHERE_SHADING_PRESETS = [
-    { id: 'matte',    name: 'Matte',    category: 'Diffuse',  ambient: 0.45, diffuse: 0.95, specular: 0.00, shininess: 1 },
-    { id: 'chalk',    name: 'Chalk',    category: 'Diffuse',  ambient: 0.35, diffuse: 0.80, specular: 0.05, shininess: 4 },
-    { id: 'rubber',   name: 'Rubber',   category: 'Soft',     ambient: 0.20, diffuse: 0.90, specular: 0.20, shininess: 8 },
-    { id: 'plastic',  name: 'Plastic',  category: 'Soft',     ambient: 0.25, diffuse: 0.85, specular: 0.45, shininess: 24 },
-    { id: 'glossy',   name: 'Glossy',   category: 'Glossy',   ambient: 0.15, diffuse: 0.80, specular: 0.75, shininess: 48 },
-    { id: 'ceramic',  name: 'Ceramic',  category: 'Glossy',   ambient: 0.10, diffuse: 0.70, specular: 1.10, shininess: 96 },
-    { id: 'chrome',   name: 'Chrome',   category: 'Metallic', ambient: 0.05, diffuse: 0.55, specular: 1.50, shininess: 128},
+    { id: 'matte', name: 'Matte', category: 'Diffuse', ambient: 0.45, diffuse: 0.95, specular: 0.00, shininess: 1 },
+    { id: 'chalk', name: 'Chalk', category: 'Diffuse', ambient: 0.35, diffuse: 0.80, specular: 0.05, shininess: 4 },
+    { id: 'rubber', name: 'Rubber', category: 'Soft', ambient: 0.20, diffuse: 0.90, specular: 0.20, shininess: 8 },
+    { id: 'plastic', name: 'Plastic', category: 'Soft', ambient: 0.25, diffuse: 0.85, specular: 0.45, shininess: 24 },
+    { id: 'glossy', name: 'Glossy', category: 'Glossy', ambient: 0.15, diffuse: 0.80, specular: 0.75, shininess: 48 },
+    { id: 'ceramic', name: 'Ceramic', category: 'Glossy', ambient: 0.10, diffuse: 0.70, specular: 1.10, shininess: 96 },
+    { id: 'chrome', name: 'Chrome', category: 'Metallic', ambient: 0.05, diffuse: 0.55, specular: 1.50, shininess: 128 },
 ] as const
 const sphereShadingPresetOptions = [
     ...SPHERE_SHADING_PRESETS.map(p => ({ id: p.id, name: p.name, category: p.category })),
@@ -378,12 +458,13 @@ const sphereShadingPresetOptions = [
 
 export default defineComponent({
     name: 'ParticleLifeGpu',
-    components: { SaveModal, PresetPanel, CenterViewButton, RadiusVisualizer, BrushSettings, MatrixSettings },
+    components: { SaveModal, PresetPanel, CenterViewButton, RadiusVisualizer, MatrixSettings },
     emits: ['switch-renderer'],
     setup(props, { emit }) {
         // Define refs and variables
         const mainContainer = ref<HTMLElement | null>(null)
         const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(mainContainer)
+        // eslint-disable-next-line unused-imports/no-unused-vars
         const { success, error } = useToasts()
         const particleLife = useParticleLifeGPU3DStore()
         const fps = useFps()
@@ -397,6 +478,7 @@ export default defineComponent({
         let isUpdatingParticles: boolean = false // Flag to prevent multiple additions at once
         let isUpdateNumParticlesPending: boolean = false
         let isUpdateNumTypesPending: boolean = false
+        // eslint-disable-next-line unused-imports/no-unused-vars
         let hasUpdateNumParticles: boolean = false
 
         let smoothedDeltaTime: number = 0.0083 // Initial value (1/120s)
@@ -407,8 +489,11 @@ export default defineComponent({
         let SIM_WIDTH: number = 0
         let SIM_HEIGHT: number = 0
         let SIM_DEPTH: number = 0
+        // eslint-disable-next-line unused-imports/no-unused-vars
         let SIM_WIDTH_HALF: number = 0
+        // eslint-disable-next-line unused-imports/no-unused-vars
         let SIM_HEIGHT_HALF: number = 0
+        // eslint-disable-next-line unused-imports/no-unused-vars
         let SIM_DEPTH_HALF: number = 0
         let CELL_SIZE: number = 0
         let CELL_SUBDIVISIONS: number = particleLife.cellSubdivisions
@@ -424,7 +509,9 @@ export default defineComponent({
         let SCAN_BLOCK_SIZE: number = 2048
         let scanBlockCount: number = 0 // ceil((binCount + 1) / SCAN_BLOCK_SIZE)
         let auxBlockCount: number = 0 // ceil(scanBlockCount / SCAN_BLOCK_SIZE)
+        // eslint-disable-next-line unused-imports/no-unused-vars
         let binDispatchX: number = 0
+        // eslint-disable-next-line unused-imports/no-unused-vars
         let binDispatchY: number = 0
         let scanTwoLevels: boolean = false // true if scanBlockCount > SCAN_BLOCK_SIZE
 
@@ -464,6 +551,7 @@ export default defineComponent({
         let colors: Float32Array // Particle colors
 
         // Define the properties for dragging and zooming
+        // eslint-disable-next-line unused-imports/no-unused-vars
         let isDragging: boolean = false // Flag to check if the mouse is being dragged
         let lastPointerX: number = 0 // For dragging
         let lastPointerY: number = 0 // For dragging
@@ -490,8 +578,8 @@ export default defineComponent({
         const targetCameraTarget: [number, number, number] = [0, 0, 0]
 
         const cameraRight: [number, number, number] = [1, 0, 0]
-        const cameraUp: [number, number, number]    = [0, 1, 0]
-        const cameraFwd: [number, number, number]   = [0, 0, -1]
+        const cameraUp: [number, number, number] = [0, 1, 0]
+        const cameraFwd: [number, number, number] = [0, 0, -1]
         let cameraRotationChanged: boolean = true
 
         const CAMERA_BUFFER_SIZE = 96 // 96 bytes = 64 (mat4) + 16 (vec4 params) + 16 (vec4 focus point), aligned to 16
@@ -628,8 +716,8 @@ export default defineComponent({
         let bloomSampler: GPUSampler | undefined
 
         const BLOOM_MIPS: number = 4
-        const bloomTextures: (GPUTexture | undefined)[] = new Array(BLOOM_MIPS).fill(undefined)
-        const bloomTextureViews: (GPUTextureView | undefined)[] = new Array(BLOOM_MIPS).fill(undefined)
+        const bloomTextures: (GPUTexture | undefined)[] = Array.from({ length: BLOOM_MIPS }, () => undefined as GPUTexture | undefined)
+        const bloomTextureViews: (GPUTextureView | undefined)[] = Array.from({ length: BLOOM_MIPS }, () => undefined as GPUTextureView | undefined)
 
         const DEPTH_FORMAT: GPUTextureFormat = 'depth24plus'
         const HDR_FORMAT: GPUTextureFormat = 'rgba16float'
@@ -654,8 +742,10 @@ export default defineComponent({
 
                 if (e.buttons & 3) { // if mouse is pressed, ignoring wheel click event (bit 4)
                     isDragging = true
-                    if (e.buttons & 1) handleMove() // if left-click or left+right click
-                    if (e.buttons & 2) handleRotate() // if right-click or left+right click
+                    if (e.buttons & 1)
+                        handleMove() // if left-click or left+right click
+                    if (e.buttons & 2)
+                        handleRotate() // if right-click or left+right click
                     lastPointerX = pointerX
                     lastPointerY = pointerY
                 }
@@ -671,7 +761,8 @@ export default defineComponent({
             })
             useEventListener(canvasRef.value, 'wheel', (e) => {
                 e.preventDefault()
-                if (e.deltaY < 0) handleZoom(1) // Zoom in
+                if (e.deltaY < 0)
+                    handleZoom(1) // Zoom in
                 else handleZoom(-1) // Zoom out
             })
         })
@@ -726,7 +817,8 @@ export default defineComponent({
                 GRID_OFFSET_Y = 0
                 GRID_OFFSET_Z = 0
                 binCount = 1 << Math.ceil(Math.log2(NUM_PARTICLES)) // Smallest power of 2 ≥ NUM_PARTICLES so the modulo becomes a free bitmask in shaders.
-            } else if (!isWallWrap && !isWallRepel) {
+            }
+            else if (!isWallWrap && !isWallRepel) {
                 const requestedFactor = particleLife.gridExtensionFactor // Default: 12
                 const PERF_CAP = 30_000_000 // Arbitrary upper limit to avoid trying to use an excessive number of bins even if the device caps are very high. Based on preliminary tests showing that performance degrades significantly beyond this point on current hardware, even if the device limits would allow it.
                 const targetBinCount = Math.min(MAX_BIN_COUNT, PERF_CAP)
@@ -751,7 +843,8 @@ export default defineComponent({
                 GRID_OFFSET_Y = Math.ceil(extensionY / CELL_SIZE)
                 GRID_OFFSET_Z = Math.ceil(extensionZ / CELL_SIZE)
                 binCount = EXTENDED_GRID_WIDTH * EXTENDED_GRID_HEIGHT * EXTENDED_GRID_DEPTH
-            } else {
+            }
+            else {
                 EXTENDED_SIM_WIDTH = SIM_WIDTH
                 EXTENDED_SIM_HEIGHT = SIM_HEIGHT
                 EXTENDED_SIM_DEPTH = SIM_DEPTH
@@ -822,9 +915,12 @@ export default defineComponent({
             targetCameraYaw -= dx * radPerPixel
             targetCameraPitch += dy * radPerPixel
             const lim = Math.PI * 0.5
-            if (targetCameraPitch > lim) targetCameraPitch = lim
-            if (targetCameraPitch < -lim) targetCameraPitch = -lim
+            if (targetCameraPitch > lim)
+                targetCameraPitch = lim
+            if (targetCameraPitch < -lim)
+                targetCameraPitch = -lim
         }
+        // eslint-disable-next-line unused-imports/no-unused-vars
         function handleZoom(delta: number, isCentered: boolean = false) {
             const zoomIntensity = 0.1
             targetZoomFactor = Math.max(0.2, Math.min(20.0, targetZoomFactor * (1 - delta * zoomIntensity)))
@@ -834,7 +930,8 @@ export default defineComponent({
             const dy = targetCameraTarget[1] - cameraTarget[1]
             const dz = targetCameraTarget[2] - cameraTarget[2]
             // Cheap squared-magnitude test (avoids Math.abs x3 and a costly sqrt)
-            if (dx * dx + dy * dy + dz * dz < 0.000001) return // 0.001²
+            if (dx * dx + dy * dy + dz * dz < 0.000001)
+                return // 0.001²
             cameraTarget[0] += dx * panSmoothing
             cameraTarget[1] += dy * panSmoothing
             cameraTarget[2] += dz * panSmoothing
@@ -843,7 +940,8 @@ export default defineComponent({
         const handleRotateSmoothing = () => {
             const dyaw = targetCameraYaw - cameraYaw
             const dpitch = targetCameraPitch - cameraPitch
-            if (dyaw * dyaw + dpitch * dpitch < 0.000001) return // 0.001² rad
+            if (dyaw * dyaw + dpitch * dpitch < 0.000001)
+                return // 0.001² rad
             cameraYaw += dyaw * panSmoothing
             cameraPitch += dpitch * panSmoothing
             cameraRotationChanged = true
@@ -851,7 +949,8 @@ export default defineComponent({
         }
         const handleZoomSmoothing = () => {
             const d = targetZoomFactor - zoomFactor
-            if (d < 0.001 && d > -0.001) return
+            if (d < 0.001 && d > -0.001)
+                return
             zoomFactor += d * zoomSmoothing
             cameraChanged = true
         }
@@ -859,12 +958,13 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         function updateCameraAxes() {
-            if (!cameraRotationChanged) return
-            const cp = Math.cos(cameraPitch), sp = Math.sin(cameraPitch)
-            const cy = Math.cos(cameraYaw),   sy = Math.sin(cameraYaw)
+            if (!cameraRotationChanged)
+                return
+            const cp = Math.cos(cameraPitch); const sp = Math.sin(cameraPitch)
+            const cy = Math.cos(cameraYaw); const sy = Math.sin(cameraYaw)
 
-            const fx = -sy * cp, fy = -sp, fz = -cy * cp
-            let rx = -fz, rz = fx
+            const fx = -sy * cp; const fy = -sp; const fz = -cy * cp
+            let rx = -fz; let rz = fx
             const rl = Math.hypot(rx, rz) || 1
             rx /= rl; rz /= rl
 
@@ -875,8 +975,8 @@ export default defineComponent({
             cameraRotationChanged = false
         }
         function computeCameraEye(): [number, number, number] {
-            const cp = Math.cos(cameraPitch), sp = Math.sin(cameraPitch)
-            const cy = Math.cos(cameraYaw),   sy = Math.sin(cameraYaw)
+            const cp = Math.cos(cameraPitch); const sp = Math.sin(cameraPitch)
+            const cy = Math.cos(cameraYaw); const sy = Math.sin(cameraYaw)
             // eye = target + R * (0,0,distance)
             const dirX = sy * cp
             const dirY = sp
@@ -884,7 +984,7 @@ export default defineComponent({
             return [
                 cameraTarget[0] + dirX * zoomFactor,
                 cameraTarget[1] + dirY * zoomFactor,
-                cameraTarget[2] + dirZ * zoomFactor
+                cameraTarget[2] + dirZ * zoomFactor,
             ]
         }
         // -------------------------------------------------------------------------------------------------------------
@@ -910,7 +1010,12 @@ export default defineComponent({
             const maxBinCount = Math.min(binsByMemory, binsByScanDispatch, binsByClearDispatch)
 
             console.log('[GPU caps]', {
-                SCAN_THREADS, SCAN_BLOCK_SIZE, maxBinCount, binsByMemory, binsByScanDispatch, binsByClearDispatch
+                SCAN_THREADS,
+                SCAN_BLOCK_SIZE,
+                maxBinCount,
+                binsByMemory,
+                binsByScanDispatch,
+                binsByClearDispatch,
             })
 
             return maxBinCount
@@ -918,7 +1023,8 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         const initWebGPU = async () => {
             const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' })
-            if (!adapter) throw new Error("WebGPU adapter not found")
+            if (!adapter)
+                throw new Error("WebGPU adapter not found")
 
             const { scanThreads, scanBlockSize } = selectScanWorkgroupSize(adapter)
             SCAN_THREADS = scanThreads
@@ -950,7 +1056,8 @@ export default defineComponent({
                         usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
                     }))
                 }
-            } else {
+            }
+            else {
                 console.warn('[GPU profiler] timestamp-query feature not available on this adapter')
             }
             // -----------------
@@ -969,12 +1076,13 @@ export default defineComponent({
             setMinRadiusMatrix(makeRandomMinRadiusMatrix())
             setMaxRadiusMatrix(makeRandomMaxRadiusMatrix())
 
-            console.log("Rules Matrix:", rulesMatrix);
-            console.log("Min Radius Matrix:", minRadiusMatrix);
-            console.log("Max Radius Matrix:", maxRadiusMatrix);
+            console.log("Rules Matrix:", rulesMatrix)
+            console.log("Min Radius Matrix:", minRadiusMatrix)
+            console.log("Max Radius Matrix:", maxRadiusMatrix)
 
             await nextTick()
-            if (autoCenter) centerView()
+            if (autoCenter)
+                centerView()
 
             initColors()
             initParticles()
@@ -997,8 +1105,10 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         const tsWrites = (slot: number): GPUComputePassTimestampWrites | undefined => {
-            if (!isGpuTimingsEnabled) return undefined
-            if (!timestampQuerySupported || !timestampQuerySet) return undefined
+            if (!isGpuTimingsEnabled)
+                return undefined
+            if (!timestampQuerySupported || !timestampQuerySet)
+                return undefined
             return {
                 querySet: timestampQuerySet,
                 beginningOfPassWriteIndex: slot * 2,
@@ -1006,18 +1116,25 @@ export default defineComponent({
             }
         }
         const tsRenderWrites = (slot: number, mode: 'full' | 'begin' | 'end' = 'full'): GPURenderPassTimestampWrites | undefined => {
-            if (!isGpuTimingsEnabled) return undefined
-            if (!timestampQuerySupported || !timestampQuerySet) return undefined
+            if (!isGpuTimingsEnabled)
+                return undefined
+            if (!timestampQuerySupported || !timestampQuerySet)
+                return undefined
             const writes: GPURenderPassTimestampWrites = { querySet: timestampQuerySet }
-            if (mode !== 'end') writes.beginningOfPassWriteIndex = slot * 2
-            if (mode !== 'begin') writes.endOfPassWriteIndex = slot * 2 + 1
+            if (mode !== 'end')
+                writes.beginningOfPassWriteIndex = slot * 2
+            if (mode !== 'begin')
+                writes.endOfPassWriteIndex = slot * 2 + 1
             return writes
         }
         const resolveAndReadTimestamps = (encoder: GPUCommandEncoder) => {
-            if (!isGpuTimingsEnabled) return
-            if (!timestampQuerySupported || !timestampQuerySet || !timestampResolveBuffer) return
+            if (!isGpuTimingsEnabled)
+                return
+            if (!timestampQuerySupported || !timestampQuerySet || !timestampResolveBuffer)
+                return
             const staging = timestampStagingPool.find(b => b.mapState === 'unmapped')
-            if (!staging || timestampStagingInFlight >= timestampStagingPool.length) return
+            if (!staging || timestampStagingInFlight >= timestampStagingPool.length)
+                return
             encoder.resolveQuerySet(timestampQuerySet, 0, TIMESTAMP_COUNT, timestampResolveBuffer, 0)
             encoder.copyBufferToBuffer(timestampResolveBuffer, 0, staging, 0, TIMESTAMP_COUNT * 8)
             timestampStagingInFlight++
@@ -1027,27 +1144,29 @@ export default defineComponent({
                     staging.unmap()
                     timestampStagingInFlight--
                     const ns2ms = (a: bigint, b: bigint) => Number(b - a) / 1e6
-                    const binning = ns2ms(data[0],  data[1])
-                    const forces  = ns2ms(data[2],  data[3])
-                    const advance = ns2ms(data[4],  data[5])
-                    const render  = ns2ms(data[6],  data[7])
-                    const bloom   = ns2ms(data[8],  data[9])
+                    const binning = ns2ms(data[0], data[1])
+                    const forces = ns2ms(data[2], data[3])
+                    const advance = ns2ms(data[4], data[5])
+                    const render = ns2ms(data[6], data[7])
+                    const bloom = ns2ms(data[8], data[9])
                     const compose = ns2ms(data[10], data[11])
                     const k = 0.15
                     gpuTimings.binning = gpuTimings.binning * (1 - k) + binning * k
-                    gpuTimings.forces  = gpuTimings.forces  * (1 - k) + forces  * k
+                    gpuTimings.forces = gpuTimings.forces * (1 - k) + forces * k
                     gpuTimings.advance = gpuTimings.advance * (1 - k) + advance * k
-                    gpuTimings.render  = gpuTimings.render  * (1 - k) + render  * k
-                    gpuTimings.bloom   = gpuTimings.bloom   * (1 - k) + bloom   * k
+                    gpuTimings.render = gpuTimings.render * (1 - k) + render * k
+                    gpuTimings.bloom = gpuTimings.bloom * (1 - k) + bloom * k
                     gpuTimings.compose = gpuTimings.compose * (1 - k) + compose * k
-                    gpuTimings.total   = gpuTimings.binning + gpuTimings.forces + gpuTimings.advance + gpuTimings.render + gpuTimings.bloom + gpuTimings.compose
+                    gpuTimings.total = gpuTimings.binning + gpuTimings.forces + gpuTimings.advance + gpuTimings.render + gpuTimings.bloom + gpuTimings.compose
                 }).catch(() => { timestampStagingInFlight-- })
             })
         }
         // -------------------------------------------------------------------------------------------------------------
         const frame = async () => {
-            if (isUpdateNumParticlesPending) await updateNumParticles(NEW_NUM_PARTICLES)
-            else if (isUpdateNumTypesPending) await updateNumTypes(NEW_NUM_TYPES)
+            if (isUpdateNumParticlesPending)
+                await updateNumParticles(NEW_NUM_PARTICLES)
+            else if (isUpdateNumTypesPending)
+                await updateNumTypes(NEW_NUM_TYPES)
 
             handleMoveSmoothing()
             handleRotateSmoothing()
@@ -1057,7 +1176,8 @@ export default defineComponent({
             if (isRunning) {
                 handleDeltaTime(startExecutionTime)
                 step()
-            } else {
+            }
+            else {
                 const encoder = device.createCommandEncoder()
                 renderParticles(encoder)
                 resolveAndReadTimestamps(encoder)
@@ -1072,7 +1192,9 @@ export default defineComponent({
         const step = () => {
             const encoder = device.createCommandEncoder()
 
-            if (useBinning) computeBinning(encoder)
+            if (useBinning) {
+                computeBinning(encoder)
+            }
             else {
                 encoder.copyBufferToBuffer(particleBuffer!, 0, particleTempBuffer!, 0, particleBuffer!.size)
                 computeBruteForce(encoder)
@@ -1136,7 +1258,8 @@ export default defineComponent({
                 binningComputePass.setPipeline(binAddOffsetsPipeline)
                 binningComputePass.setBindGroup(0, addOffsetsAuxBindGroup)
                 binningComputePass.dispatchWorkgroups(auxBlockCount)
-            } else {
+            }
+            else {
                 binningComputePass.setPipeline(binScanAuxPipeline)
                 binningComputePass.setBindGroup(0, scanAuxBindGroup)
                 binningComputePass.dispatchWorkgroups(1)
@@ -1195,8 +1318,10 @@ export default defineComponent({
                 hdrPass.setBindGroup(3, renderOptionsBindGroup)
                 hdrPass.draw(4, NUM_PARTICLES)
 
-                if (isBoundingBoxActive) renderHdrBoundingBox(hdrPass)
-                if (isCameraTargetVisible) renderHdrCameraTarget(hdrPass)
+                if (isBoundingBoxActive)
+                    renderHdrBoundingBox(hdrPass)
+                if (isCameraTargetVisible)
+                    renderHdrCameraTarget(hdrPass)
                 hdrPass.end()
 
                 // --- Bloom chain (dual filter Bjørge 2015) -----------------------------------------------------------
@@ -1243,7 +1368,8 @@ export default defineComponent({
                 composePass.setBindGroup(0, composeHdrBindGroup)
                 composePass.draw(3)
                 composePass.end()
-            } else {
+            }
+            else {
                 const renderPass = encoder.beginRenderPass({
                     colorAttachments: [{
                         view: ctx.getCurrentTexture().createView(),
@@ -1266,8 +1392,10 @@ export default defineComponent({
                 renderPass.setBindGroup(3, renderOptionsBindGroup)
                 renderPass.draw(4, NUM_PARTICLES)
 
-                if (isBoundingBoxActive) renderBoundingBox(renderPass)
-                if (isCameraTargetVisible) renderCameraTarget(renderPass)
+                if (isBoundingBoxActive)
+                    renderBoundingBox(renderPass)
+                if (isCameraTargetVisible)
+                    renderCameraTarget(renderPass)
 
                 renderPass.end()
             }
@@ -1307,7 +1435,7 @@ export default defineComponent({
             initialParticles = generatePositions(particleLife.selectedSpawnPositionOption, NUM_PARTICLES, NUM_TYPES, SIM_WIDTH, SIM_HEIGHT, SIM_DEPTH)
         }
         function makeRandomMinRadiusMatrix() {
-            let matrix: number[][] = []
+            const matrix: number[][] = []
             const min: number = particleLife.minRadiusRange[0]
             const max: number = particleLife.minRadiusRange[1]
             for (let i = 0; i < NUM_TYPES; i++) {
@@ -1320,7 +1448,7 @@ export default defineComponent({
             return matrix
         }
         function makeRandomMaxRadiusMatrix() {
-            let matrix: number[][] = []
+            const matrix: number[][] = []
             const min: number = particleLife.maxRadiusRange[0]
             const max: number = particleLife.maxRadiusRange[1]
             for (let i = 0; i < NUM_TYPES; i++) {
@@ -1346,7 +1474,8 @@ export default defineComponent({
 
         const updateColors = async (useRandomGenerator: boolean | Event = false) => {
             const shouldRandom = typeof useRandomGenerator === 'boolean' ? useRandomGenerator : false
-            if (shouldRandom) particleLife.selectedColorPaletteOption = PALETTE_OPTIONS[Math.floor(Math.random() * PALETTE_OPTIONS.length)].id
+            if (shouldRandom)
+                particleLife.selectedColorPaletteOption = PALETTE_OPTIONS[Math.floor(Math.random() * PALETTE_OPTIONS.length)].id
 
             colors = generateColors(particleLife.selectedColorPaletteOption, NUM_TYPES)
             particleLife.currentColors = colors
@@ -1354,14 +1483,16 @@ export default defineComponent({
         }
         const updateRulesMatrix = async (useRandomGenerator: boolean | Event = false) => {
             const shouldRandom = typeof useRandomGenerator === 'boolean' ? useRandomGenerator : false
-            if (shouldRandom) particleLife.selectedRulesOption = RULES_OPTIONS[Math.floor(Math.random() * RULES_OPTIONS.length)].id
+            if (shouldRandom)
+                particleLife.selectedRulesOption = RULES_OPTIONS[Math.floor(Math.random() * RULES_OPTIONS.length)].id
 
             setRulesMatrix(generateRules(particleLife.selectedRulesOption, NUM_TYPES))
             updateInteractionMatrixBuffer()
         }
         const updateParticlePositions = async (useRandomGenerator: boolean | Event = false) => {
             const shouldRandom = typeof useRandomGenerator === 'boolean' ? useRandomGenerator : false
-            if (shouldRandom) particleLife.selectedSpawnPositionOption = POSITION_OPTIONS[Math.floor(Math.random() * POSITION_OPTIONS.length)].id
+            if (shouldRandom)
+                particleLife.selectedSpawnPositionOption = POSITION_OPTIONS[Math.floor(Math.random() * POSITION_OPTIONS.length)].id
 
             initialParticles = generatePositions(particleLife.selectedSpawnPositionOption, NUM_PARTICLES, NUM_TYPES, SIM_WIDTH, SIM_HEIGHT, SIM_DEPTH)
             device.queue.writeBuffer(particleBuffer!, 0, initialParticles.buffer)
@@ -1370,7 +1501,8 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         const updateSimWidth = (newWidth: number | Event) => {
-            if (typeof(newWidth) !== 'number') return // Prevent input event like unfocus
+            if (typeof (newWidth) !== 'number')
+                return // Prevent input event like unfocus
             if (particleLife.linkProportions) {
                 particleLife.simHeight = SIM_HEIGHT = baseSimHeight = Math.round(SIM_HEIGHT * (newWidth / SIM_WIDTH))
                 particleLife.simDepth = SIM_DEPTH = baseSimDepth = Math.round(SIM_DEPTH * (newWidth / SIM_WIDTH))
@@ -1379,7 +1511,8 @@ export default defineComponent({
             applySimResize()
         }
         const updateSimHeight = (newHeight: number | Event) => {
-            if (typeof(newHeight) !== 'number') return // Prevent input event like unfocus
+            if (typeof (newHeight) !== 'number')
+                return // Prevent input event like unfocus
             if (particleLife.linkProportions) {
                 particleLife.simWidth = SIM_WIDTH = baseSimWidth = Math.round(SIM_WIDTH * (newHeight / SIM_HEIGHT))
                 particleLife.simDepth = SIM_DEPTH = baseSimDepth = Math.round(SIM_DEPTH * (newHeight / SIM_HEIGHT))
@@ -1388,7 +1521,8 @@ export default defineComponent({
             applySimResize()
         }
         const updateSimDepth = (newDepth: number | Event) => {
-            if (typeof(newDepth) !== 'number') return // Prevent input event like unfocus
+            if (typeof (newDepth) !== 'number')
+                return // Prevent input event like unfocus
             if (particleLife.linkProportions) {
                 particleLife.simWidth = SIM_WIDTH = baseSimWidth = Math.round(SIM_WIDTH * (newDepth / SIM_DEPTH))
                 particleLife.simHeight = SIM_HEIGHT = baseSimHeight = Math.round(SIM_HEIGHT * (newDepth / SIM_DEPTH))
@@ -1436,9 +1570,10 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         const updateSingleColor = (colorId: number, hex: string) => {
             const rgb = hexToRgb(hex)
-            if (!rgb) return
+            if (!rgb)
+                return
             const idx = colorId * 4
-            colors[idx]     = rgb[0] / 255
+            colors[idx] = rgb[0] / 255
             colors[idx + 1] = rgb[1] / 255
             colors[idx + 2] = rgb[2] / 255
             particleLife.currentColors = new Float32Array(colors) // New reference to trigger reactivity
@@ -1465,13 +1600,15 @@ export default defineComponent({
             let maxRandom = 0
             for (let i = 0; i < NUM_TYPES; i++) {
                 for (let j = 0; j < NUM_TYPES; j++) {
-                    if (maxRadiusMatrix[i][j] > maxRandom) maxRandom = maxRadiusMatrix[i][j]
+                    if (maxRadiusMatrix[i][j] > maxRandom)
+                        maxRandom = maxRadiusMatrix[i][j]
                 }
             }
             return maxRandom
         }
         const setCurrentMaxRadius = (value: number) => {
-            if (currentMaxRadius === value) return
+            if (currentMaxRadius === value)
+                return
             currentMaxRadius = value
             particleLife.currentMaxRadius = value
             CELL_SIZE = Math.max(1, Math.ceil(currentMaxRadius / CELL_SUBDIVISIONS))
@@ -1483,10 +1620,14 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         const updateBinningBuffers = () => {
-            if (binOffsetBuffer) binOffsetBuffer.destroy(); binOffsetBuffer = undefined;
-            if (binSortCounterBuffer) binSortCounterBuffer.destroy(); binSortCounterBuffer = undefined;
-            if (binAuxBuffer) binAuxBuffer.destroy(); binAuxBuffer = undefined;
-            if (binAux2Buffer) binAux2Buffer.destroy(); binAux2Buffer = undefined;
+            if (binOffsetBuffer)
+                binOffsetBuffer.destroy(); binOffsetBuffer = undefined
+            if (binSortCounterBuffer)
+                binSortCounterBuffer.destroy(); binSortCounterBuffer = undefined
+            if (binAuxBuffer)
+                binAuxBuffer.destroy(); binAuxBuffer = undefined
+            if (binAux2Buffer)
+                binAux2Buffer.destroy(); binAux2Buffer = undefined
 
             binOffsetBuffer = device.createBuffer({
                 size: (binCount + 1) * 4,
@@ -1528,41 +1669,42 @@ export default defineComponent({
                 cameraBuffer = device.createBuffer({
                     size: CAMERA_BUFFER_SIZE,
                     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-                    mappedAtCreation: true
+                    mappedAtCreation: true,
                 })
                 new Float32Array(cameraBuffer.getMappedRange()).set(cameraData)
                 cameraBuffer.unmap()
-            } else {
+            }
+            else {
                 device.queue.writeBuffer(cameraBuffer, 0, cameraData)
             }
         }
         const updateSimOptionsBuffer = () => {
             const simOptionsData = new ArrayBuffer(92)
             const simOptionsView = new DataView(simOptionsData)
-            simOptionsView.setFloat32(0,  SIM_WIDTH, true)
-            simOptionsView.setFloat32(4,  SIM_HEIGHT, true)
-            simOptionsView.setFloat32(8,  SIM_DEPTH, true)
-            simOptionsView.setUint32(12,  GRID_WIDTH, true)
-            simOptionsView.setUint32(16,  GRID_HEIGHT, true)
-            simOptionsView.setUint32(20,  GRID_DEPTH, true)
+            simOptionsView.setFloat32(0, SIM_WIDTH, true)
+            simOptionsView.setFloat32(4, SIM_HEIGHT, true)
+            simOptionsView.setFloat32(8, SIM_DEPTH, true)
+            simOptionsView.setUint32(12, GRID_WIDTH, true)
+            simOptionsView.setUint32(16, GRID_HEIGHT, true)
+            simOptionsView.setUint32(20, GRID_DEPTH, true)
             simOptionsView.setFloat32(24, CELL_SIZE, true)
-            simOptionsView.setUint32(28,  NUM_PARTICLES, true)
-            simOptionsView.setUint32(32,  NUM_TYPES, true)
+            simOptionsView.setUint32(28, NUM_PARTICLES, true)
+            simOptionsView.setUint32(32, NUM_TYPES, true)
             simOptionsView.setFloat32(36, PARTICLE_SIZE, true)
             simOptionsView.setFloat32(40, PARTICLE_OPACITY, true)
-            simOptionsView.setUint32(44,  isWallRepel ? 1 : 0, true)
-            simOptionsView.setUint32(48,  isWallWrap ? 1 : 0, true)
+            simOptionsView.setUint32(44, isWallRepel ? 1 : 0, true)
+            simOptionsView.setUint32(48, isWallWrap ? 1 : 0, true)
             simOptionsView.setFloat32(52, forceFactor, true)
             simOptionsView.setFloat32(56, frictionFactor, true)
             simOptionsView.setFloat32(60, repel, true)
             // Extended grid parameters for spatial hashing no walls
-            simOptionsView.setUint32(64,  EXTENDED_GRID_WIDTH, true)
-            simOptionsView.setUint32(68,  EXTENDED_GRID_HEIGHT, true)
-            simOptionsView.setUint32(72,  EXTENDED_GRID_DEPTH, true)
-            simOptionsView.setUint32(76,  GRID_OFFSET_X, true)
-            simOptionsView.setUint32(80,  GRID_OFFSET_Y, true)
-            simOptionsView.setUint32(84,  GRID_OFFSET_Z, true)
-            simOptionsView.setUint32(88,  CELL_SUBDIVISIONS, true)
+            simOptionsView.setUint32(64, EXTENDED_GRID_WIDTH, true)
+            simOptionsView.setUint32(68, EXTENDED_GRID_HEIGHT, true)
+            simOptionsView.setUint32(72, EXTENDED_GRID_DEPTH, true)
+            simOptionsView.setUint32(76, GRID_OFFSET_X, true)
+            simOptionsView.setUint32(80, GRID_OFFSET_Y, true)
+            simOptionsView.setUint32(84, GRID_OFFSET_Z, true)
+            simOptionsView.setUint32(88, CELL_SUBDIVISIONS, true)
 
             if (!simOptionsBuffer) {
                 simOptionsBuffer = device.createBuffer({
@@ -1572,7 +1714,8 @@ export default defineComponent({
                 })
                 new Uint8Array(simOptionsBuffer.getMappedRange()).set(new Uint8Array(simOptionsData))
                 simOptionsBuffer.unmap()
-            } else {
+            }
+            else {
                 device.queue.writeBuffer(simOptionsBuffer, 0, simOptionsData)
             }
         }
@@ -1591,7 +1734,8 @@ export default defineComponent({
                 })
                 new Uint8Array(bloomOptionsBuffer.getMappedRange()).set(new Uint8Array(bloomOptionsData))
                 bloomOptionsBuffer.unmap()
-            } else {
+            }
+            else {
                 device.queue.writeBuffer(bloomOptionsBuffer, 0, bloomOptionsData)
             }
         }
@@ -1616,21 +1760,22 @@ export default defineComponent({
                 })
                 new Uint8Array(renderOptionsBuffer.getMappedRange()).set(new Uint8Array(renderData))
                 renderOptionsBuffer.unmap()
-            } else {
+            }
+            else {
                 device.queue.writeBuffer(renderOptionsBuffer, 0, renderData)
             }
         }
         const updateInteractionMatrixBuffer = () => {
-            const stride = 4; // 4 octets par couple
-            const interactionData = new Uint8Array(NUM_TYPES * NUM_TYPES * stride);
+            const stride = 4 // 4 octets par couple
+            const interactionData = new Uint8Array(NUM_TYPES * NUM_TYPES * stride)
             for (let a = 0; a < NUM_TYPES; a++) {
                 for (let b = 0; b < NUM_TYPES; b++) {
-                    const index = (a * NUM_TYPES + b) * stride;
-                    interactionData[index] = Math.round((rulesMatrix[a][b] + 1) * 0.5 * 255); // rule u8
-                    interactionData[index + 1] = Math.round(minRadiusMatrix[a][b]); // minR u8
-                    const maxR = maxRadiusMatrix[a][b];
-                    interactionData[index + 2] = maxR & 0xFF; // maxR low byte
-                    interactionData[index + 3] = (maxR >> 8) & 0xFF; // maxR high byte
+                    const index = (a * NUM_TYPES + b) * stride
+                    interactionData[index] = Math.round((rulesMatrix[a][b] + 1) * 0.5 * 255) // rule u8
+                    interactionData[index + 1] = Math.round(minRadiusMatrix[a][b]) // minR u8
+                    const maxR = maxRadiusMatrix[a][b]
+                    interactionData[index + 2] = maxR & 0xFF // maxR low byte
+                    interactionData[index + 3] = (maxR >> 8) & 0xFF // maxR high byte
                 }
             }
 
@@ -1639,22 +1784,27 @@ export default defineComponent({
             paddedInteractionData.set(interactionData)
 
             if (!interactionMatrixBuffer || interactionMatrixBuffer.size !== paddedSize) {
-                if (interactionMatrixBuffer) interactionMatrixBuffer.destroy(); interactionMatrixBuffer = undefined;
+                if (interactionMatrixBuffer)
+                    interactionMatrixBuffer.destroy(); interactionMatrixBuffer = undefined
                 interactionMatrixBuffer = device.createBuffer({
                     size: paddedSize,
                     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-                    mappedAtCreation: true
+                    mappedAtCreation: true,
                 })
                 new Uint8Array(interactionMatrixBuffer.getMappedRange()).set(paddedInteractionData)
                 interactionMatrixBuffer.unmap()
-            } else {
+            }
+            else {
                 device.queue.writeBuffer(interactionMatrixBuffer, 0, paddedInteractionData)
             }
         }
         const updateParticleBuffers = (hasInitialParticles: boolean = false) => {
-            if (particleBuffer) particleBuffer?.destroy(); particleBuffer = undefined;
-            if (particleTempBuffer) particleTempBuffer?.destroy(); particleTempBuffer = undefined;
-            if (cellSignatureBuffer) cellSignatureBuffer.destroy(); cellSignatureBuffer = undefined;
+            if (particleBuffer)
+                particleBuffer?.destroy(); particleBuffer = undefined
+            if (particleTempBuffer)
+                particleTempBuffer?.destroy(); particleTempBuffer = undefined
+            if (cellSignatureBuffer)
+                cellSignatureBuffer.destroy(); cellSignatureBuffer = undefined
 
             particleBuffer = device.createBuffer({
                 size: NUM_PARTICLES * 28,
@@ -1677,15 +1827,17 @@ export default defineComponent({
         const updateColorBuffer = () => {
             const paddedSize = Math.ceil(colors.byteLength / 16) * 16 // Ensure padded to 16 bytes
             if (!colorBuffer || colorBuffer.size !== paddedSize) {
-                if (colorBuffer) colorBuffer?.destroy(); colorBuffer = undefined;
+                if (colorBuffer)
+                    colorBuffer?.destroy(); colorBuffer = undefined
                 colorBuffer = device.createBuffer({
                     size: paddedSize,
                     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-                    mappedAtCreation: true
+                    mappedAtCreation: true,
                 })
                 new Float32Array(colorBuffer.getMappedRange()).set(colors)
                 colorBuffer.unmap()
-            } else {
+            }
+            else {
                 const paddedColors = new Float32Array(paddedSize / 4)
                 paddedColors.set(colors)
                 device.queue.writeBuffer(colorBuffer!, 0, paddedColors)
@@ -1716,19 +1868,20 @@ export default defineComponent({
                     initialParticles.set(oldParticles)
                     for (let i = oldCount; i < newCount; i++) {
                         const baseIndex = i * 7
-                        initialParticles[baseIndex]     = Math.random() * SIM_WIDTH  // x
+                        initialParticles[baseIndex] = Math.random() * SIM_WIDTH // x
                         initialParticles[baseIndex + 1] = Math.random() * SIM_HEIGHT // y
-                        initialParticles[baseIndex + 2] = Math.random() * SIM_DEPTH  // z
+                        initialParticles[baseIndex + 2] = Math.random() * SIM_DEPTH // z
                         initialParticles[baseIndex + 6] = Math.floor(Math.random() * NUM_TYPES) // type
                     }
-                } else { // If decreasing the number of particles
+                }
+                else { // If decreasing the number of particles
                     initialParticles.set(oldParticles.subarray(0, newCount * 7))
                     for (let i = newCount; i < oldCount; i++) {
                         const j = Math.floor(Math.random() * (i + 1))
                         if (j < newCount) {
                             const oldStartIndex = i * 7
                             const newIndex = j * 7
-                            initialParticles[newIndex]     = oldParticles[oldStartIndex]     // x
+                            initialParticles[newIndex] = oldParticles[oldStartIndex] // x
                             initialParticles[newIndex + 1] = oldParticles[oldStartIndex + 1] // y
                             initialParticles[newIndex + 2] = oldParticles[oldStartIndex + 2] // z
                             initialParticles[newIndex + 3] = oldParticles[oldStartIndex + 3] // vx
@@ -1744,7 +1897,8 @@ export default defineComponent({
                 updateParticleBindGroups() // Recreate bind groups that depend on particle buffers
                 updateSimOptionsBuffer() // Update simulation options buffer
                 hasUpdateNumParticles = true
-            } finally {
+            }
+            finally {
                 isUpdatingParticles = false
                 isUpdateNumParticlesPending = NEW_NUM_PARTICLES !== NUM_PARTICLES
             }
@@ -1782,7 +1936,8 @@ export default defineComponent({
                 updateSimOptionsBuffer()
                 updateColorBuffer()
                 updateParticleBindGroups()
-            } finally {
+            }
+            finally {
                 isUpdatingParticles = false
                 isUpdateNumTypesPending = NEW_NUM_TYPES !== NUM_TYPES
             }
@@ -1790,26 +1945,34 @@ export default defineComponent({
         const loadPreset = async (options: { presetRules?: number[][], presetMinRadius?: number[][], presetMaxRadius?: number[][], presetColors?: Float32Array }, presetTypeCount: number, matchPresetCount: boolean) => {
             const { presetRules, presetMinRadius, presetMaxRadius, presetColors } = options
 
-            if (isUpdatingParticles) return
+            if (isUpdatingParticles)
+                return
             isUpdatingParticles = true
             await device.queue.onSubmittedWorkDone()
 
             try {
                 const oldNumTypes = NUM_TYPES
                 const newNumTypes = presetTypeCount
-                if (newNumTypes === 0) return
+                if (newNumTypes === 0)
+                    return
 
                 if (!matchPresetCount) {
                     const typesToUpdate = Math.min(NUM_TYPES, newNumTypes)
-                    if (presetColors) await adjustColors(presetColors, NUM_TYPES, typesToUpdate, true) // Update only the colors that fit within the current NUM_TYPES
-                    if (presetRules) setRulesMatrix(applyPresetSubMatrix(rulesMatrix, presetRules, NUM_TYPES, typesToUpdate))
-                    if (presetMinRadius) setMinRadiusMatrix(applyPresetSubMatrix(minRadiusMatrix, presetMinRadius, NUM_TYPES, typesToUpdate))
-                    if (presetMaxRadius) setMaxRadiusMatrix(applyPresetSubMatrix(maxRadiusMatrix, presetMaxRadius, NUM_TYPES, typesToUpdate))
-                } else {
+                    if (presetColors)
+                        await adjustColors(presetColors, NUM_TYPES, typesToUpdate, true) // Update only the colors that fit within the current NUM_TYPES
+                    if (presetRules)
+                        setRulesMatrix(applyPresetSubMatrix(rulesMatrix, presetRules, NUM_TYPES, typesToUpdate))
+                    if (presetMinRadius)
+                        setMinRadiusMatrix(applyPresetSubMatrix(minRadiusMatrix, presetMinRadius, NUM_TYPES, typesToUpdate))
+                    if (presetMaxRadius)
+                        setMaxRadiusMatrix(applyPresetSubMatrix(maxRadiusMatrix, presetMaxRadius, NUM_TYPES, typesToUpdate))
+                }
+                else {
                     if (presetColors) {
                         colors = presetColors
                         particleLife.currentColors = colors
-                    } else if (newNumTypes !== oldNumTypes) {
+                    }
+                    else if (newNumTypes !== oldNumTypes) {
                         await adjustColors(colors, oldNumTypes, newNumTypes)
                     }
 
@@ -1819,37 +1982,55 @@ export default defineComponent({
 
                         await adjustParticleTypes(oldNumTypes, newNumTypes)
 
-                        if (presetRules) setRulesMatrix(presetRules)
-                        else setRulesMatrix(resizeMatrix(rulesMatrix, oldNumTypes, newNumTypes, () => {
-                            return Math.round((Math.random() * 2 - 1) * 100) / 100
-                        }))
-                        if (presetMinRadius) setMinRadiusMatrix(presetMinRadius)
-                        else setMinRadiusMatrix(resizeMatrix(minRadiusMatrix, oldNumTypes, newNumTypes, () => {
-                            return Math.floor(Math.random() * (particleLife.minRadiusRange[1] - particleLife.minRadiusRange[0] + 1) + particleLife.minRadiusRange[0])
-                        }))
-                        if (presetMaxRadius) setMaxRadiusMatrix(presetMaxRadius)
-                        else setMaxRadiusMatrix(resizeMatrix(maxRadiusMatrix, oldNumTypes, newNumTypes, () => {
-                            return Math.floor(Math.random() * (particleLife.maxRadiusRange[1] - particleLife.maxRadiusRange[0] + 1) + particleLife.maxRadiusRange[0])
-                        }))
+                        if (presetRules) {
+                            setRulesMatrix(presetRules)
+                        }
+                        else {
+                            setRulesMatrix(resizeMatrix(rulesMatrix, oldNumTypes, newNumTypes, () => {
+                                return Math.round((Math.random() * 2 - 1) * 100) / 100
+                            }))
+                        }
+                        if (presetMinRadius) {
+                            setMinRadiusMatrix(presetMinRadius)
+                        }
+                        else {
+                            setMinRadiusMatrix(resizeMatrix(minRadiusMatrix, oldNumTypes, newNumTypes, () => {
+                                return Math.floor(Math.random() * (particleLife.minRadiusRange[1] - particleLife.minRadiusRange[0] + 1) + particleLife.minRadiusRange[0])
+                            }))
+                        }
+                        if (presetMaxRadius) {
+                            setMaxRadiusMatrix(presetMaxRadius)
+                        }
+                        else {
+                            setMaxRadiusMatrix(resizeMatrix(maxRadiusMatrix, oldNumTypes, newNumTypes, () => {
+                                return Math.floor(Math.random() * (particleLife.maxRadiusRange[1] - particleLife.maxRadiusRange[0] + 1) + particleLife.maxRadiusRange[0])
+                            }))
+                        }
 
                         updateSimOptionsBuffer()
-                    } else {
-                        if (presetRules) setRulesMatrix(presetRules)
-                        if (presetMinRadius) setMinRadiusMatrix(presetMinRadius)
-                        if (presetMaxRadius) setMaxRadiusMatrix(presetMaxRadius)
+                    }
+                    else {
+                        if (presetRules)
+                            setRulesMatrix(presetRules)
+                        if (presetMinRadius)
+                            setMinRadiusMatrix(presetMinRadius)
+                        if (presetMaxRadius)
+                            setMaxRadiusMatrix(presetMaxRadius)
                     }
                 }
 
                 updateColorBuffer()
                 updateInteractionMatrixBuffer()
-                if (matchPresetCount && (newNumTypes !== oldNumTypes)) updateParticleBindGroups()
-            } finally {
+                if (matchPresetCount && (newNumTypes !== oldNumTypes))
+                    updateParticleBindGroups()
+            }
+            finally {
                 isUpdatingParticles = false
                 success("Preset loaded.")
             }
         }
         // -------------------------------------------------------------------------------------------------------------
-        const applyPresetSubMatrix = (current: number[][], preset: number[][], numTypes: number, typesToUpdate: number,): number[][] => {
+        const applyPresetSubMatrix = (current: number[][], preset: number[][], numTypes: number, typesToUpdate: number): number[][] => {
             const result = current.map(row => row.slice())
             for (let i = 0; i < numTypes; i++) {
                 for (let j = 0; j < numTypes; j++) {
@@ -1862,11 +2043,12 @@ export default defineComponent({
         }
         const adjustColors = async (oldColors: Float32Array, oldNumTypes: number, newNumTypes: number, keepExtraColors: boolean = false) => {
             const newColors = new Float32Array((keepExtraColors ? oldNumTypes : newNumTypes) * 4)
-            if (keepExtraColors) newColors.set(colors)
+            if (keepExtraColors)
+                newColors.set(colors)
 
             for (let i = 0; i < newNumTypes; i++) {
                 const idx = i * 4
-                newColors[idx]     = oldColors[idx]     ?? Math.random()
+                newColors[idx] = oldColors[idx] ?? Math.random()
                 newColors[idx + 1] = oldColors[idx + 1] ?? Math.random()
                 newColors[idx + 2] = oldColors[idx + 2] ?? Math.random()
                 newColors[idx + 3] = oldColors[idx + 3] ?? 1
@@ -1885,7 +2067,8 @@ export default defineComponent({
                         particles[typeIndex] = Math.floor(Math.random() * newNumTypes)
                     }
                 }
-            } else if (newNumTypes > oldNumTypes) {
+            }
+            else if (newNumTypes > oldNumTypes) {
                 for (let i = 0; i < NUM_PARTICLES; i++) {
                     if (Math.random() < (newNumTypes - oldNumTypes) / newNumTypes) {
                         const typeIndex = i * 7 + 6
@@ -1917,7 +2100,8 @@ export default defineComponent({
                 for (let j = 0; j < newNumTypes; j++) {
                     if (i < oldNumTypes && j < oldNumTypes) {
                         row.push(matrix[i][j])
-                    } else {
+                    }
+                    else {
                         row.push(randomFn())
                     }
                 }
@@ -1941,7 +2125,7 @@ export default defineComponent({
             deltaTimeBuffer = device.createBuffer({
                 size: 4,
                 usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-                mappedAtCreation: true
+                mappedAtCreation: true,
             })
             new Float32Array(deltaTimeBuffer.getMappedRange()).set([smoothedDeltaTime])
             deltaTimeBuffer.unmap()
@@ -1979,13 +2163,13 @@ export default defineComponent({
             })
         }
         const updateParticleBindGroups = () => {
-            particleBufferBindGroup = undefined as any;
-            particleBufferReadOnlyBindGroup = undefined as any;
-            particleSortBindGroup = undefined as any;
-            particleComputeForcesBindGroup = undefined as any;
-            particleSortHashBindGroup = undefined as any;
-            particleComputeForcesHashBindGroup = undefined as any;
-            bruteForceBindGroup = undefined as any;
+            particleBufferBindGroup = undefined as any
+            particleBufferReadOnlyBindGroup = undefined as any
+            particleSortBindGroup = undefined as any
+            particleComputeForcesBindGroup = undefined as any
+            particleSortHashBindGroup = undefined as any
+            particleComputeForcesHashBindGroup = undefined as any
+            bruteForceBindGroup = undefined as any
 
             particleBufferBindGroup = device.createBindGroup({
                 layout: particleBufferBindGroupLayout,
@@ -1998,7 +2182,7 @@ export default defineComponent({
                 layout: particleBufferReadOnlyBindGroupLayout,
                 entries: [
                     { binding: 0, resource: { buffer: particleBuffer! } },
-                    { binding: 1, resource: { buffer: colorBuffer! } }
+                    { binding: 1, resource: { buffer: colorBuffer! } },
                 ],
             })
             particleSortBindGroup = device.createBindGroup({
@@ -2052,23 +2236,24 @@ export default defineComponent({
         const refreshActiveBinning = () => {
             if (binningMode === 'hash') {
                 activeFillSizePipeline = binFillSizeHashPipeline
-                activeSortPipeline     = particleSortHashPipeline
-                activeForcesPipeline   = particleComputeForcesHashPipeline
-                activeSortBindGroup    = particleSortHashBindGroup
-                activeForcesBindGroup  = particleComputeForcesHashBindGroup
-            } else {
+                activeSortPipeline = particleSortHashPipeline
+                activeForcesPipeline = particleComputeForcesHashPipeline
+                activeSortBindGroup = particleSortHashBindGroup
+                activeForcesBindGroup = particleComputeForcesHashBindGroup
+            }
+            else {
                 activeFillSizePipeline = binFillSizePipeline
-                activeSortPipeline     = particleSortPipeline
-                activeForcesPipeline   = particleComputeForcesPipeline
-                activeSortBindGroup    = particleSortBindGroup
-                activeForcesBindGroup  = particleComputeForcesBindGroup
+                activeSortPipeline = particleSortPipeline
+                activeForcesPipeline = particleComputeForcesPipeline
+                activeSortBindGroup = particleSortBindGroup
+                activeForcesBindGroup = particleComputeForcesBindGroup
             }
         }
         const updateBinningBindGroups = () => {
             binFillSizeBindGroup = device.createBindGroup({
                 layout: binFillSizeBindGroupLayout,
                 entries: [
-                    { binding: 0, resource: { buffer: binOffsetBuffer! } }
+                    { binding: 0, resource: { buffer: binOffsetBuffer! } },
                 ],
             })
             scanLocalBinOffsetBindGroup = device.createBindGroup({
@@ -2223,7 +2408,7 @@ export default defineComponent({
                 entries: [
                     { binding: 0, visibility: GPUShaderStage.COMPUTE | GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
                 ],
-            });
+            })
             deltaTimeBindGroupLayout = device.createBindGroupLayout({
                 entries: [
                     { binding: 0, visibility: GPUShaderStage.COMPUTE | GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } }, // deltaTimeBuffer
@@ -2271,33 +2456,33 @@ export default defineComponent({
                         binFillSizeBindGroupLayout,
                     ],
                 }),
-                compute: { module: binFillSizeShader, entryPoint: 'fillBinSize' }
+                compute: { module: binFillSizeShader, entryPoint: 'fillBinSize' },
             })
 
             const binScanConstants: Record<string, number> = {
                 THREADS: SCAN_THREADS,
-                BLOCK_SIZE: SCAN_BLOCK_SIZE
+                BLOCK_SIZE: SCAN_BLOCK_SIZE,
             }
             const binScanLocalShader = device.createShaderModule({ code: binScanLocalShaderCode })
             binScanLocalPipeline = device.createComputePipeline({
                 layout: device.createPipelineLayout({
                     bindGroupLayouts: [scanLocalBindGroupLayout],
                 }),
-                compute: { module: binScanLocalShader, entryPoint: 'scanLocal', constants: binScanConstants }
+                compute: { module: binScanLocalShader, entryPoint: 'scanLocal', constants: binScanConstants },
             })
             const binScanAuxShader = device.createShaderModule({ code: binScanAuxShaderCode })
             binScanAuxPipeline = device.createComputePipeline({
                 layout: device.createPipelineLayout({
                     bindGroupLayouts: [scanAuxBindGroupLayout],
                 }),
-                compute: { module: binScanAuxShader, entryPoint: 'scanAux', constants: binScanConstants }
+                compute: { module: binScanAuxShader, entryPoint: 'scanAux', constants: binScanConstants },
             })
             const binAddOffsetsShader = device.createShaderModule({ code: binAddOffsetsShaderCode })
             binAddOffsetsPipeline = device.createComputePipeline({
                 layout: device.createPipelineLayout({
                     bindGroupLayouts: [addOffsetsBindGroupLayout],
                 }),
-                compute: { module: binAddOffsetsShader, entryPoint: 'addOffsets', constants: binScanConstants }
+                compute: { module: binAddOffsetsShader, entryPoint: 'addOffsets', constants: binScanConstants },
             })
 
             const particleSortShader = device.createShaderModule({ code: particleSortShaderCode })
@@ -2308,7 +2493,7 @@ export default defineComponent({
                         simOptionsBindGroupLayout,
                     ],
                 }),
-                compute: { module: particleSortShader, entryPoint: 'sortParticles' }
+                compute: { module: particleSortShader, entryPoint: 'sortParticles' },
             })
             const particleComputeForcesShader = device.createShaderModule({ code: particleComputeForcesShaderCode })
             particleComputeForcesPipeline = device.createComputePipeline({
@@ -2318,7 +2503,7 @@ export default defineComponent({
                         simOptionsBindGroupLayout,
                     ],
                 }),
-                compute: { module: particleComputeForcesShader, entryPoint: 'computeForces' }
+                compute: { module: particleComputeForcesShader, entryPoint: 'computeForces' },
             })
             // -------------------------------------------------------------------------------------------------
             const binFillSizeHashShader = device.createShaderModule({ code: binFillSizeHashShaderCode })
@@ -2330,7 +2515,7 @@ export default defineComponent({
                         binFillSizeBindGroupLayout,
                     ],
                 }),
-                compute: { module: binFillSizeHashShader, entryPoint: 'fillBinSize' }
+                compute: { module: binFillSizeHashShader, entryPoint: 'fillBinSize' },
             })
             const particleSortHashShader = device.createShaderModule({ code: particleSortHashShaderCode })
             particleSortHashPipeline = device.createComputePipeline({
@@ -2340,7 +2525,7 @@ export default defineComponent({
                         simOptionsBindGroupLayout,
                     ],
                 }),
-                compute: { module: particleSortHashShader, entryPoint: 'sortParticles' }
+                compute: { module: particleSortHashShader, entryPoint: 'sortParticles' },
             })
             const particleComputeForcesHashShader = device.createShaderModule({ code: particleComputeForcesHashShaderCode })
             particleComputeForcesHashPipeline = device.createComputePipeline({
@@ -2350,7 +2535,7 @@ export default defineComponent({
                         simOptionsBindGroupLayout,
                     ],
                 }),
-                compute: { module: particleComputeForcesHashShader, entryPoint: 'computeForces' }
+                compute: { module: particleComputeForcesHashShader, entryPoint: 'computeForces' },
             })
             const bruteForceShader = device.createShaderModule({ code: bruteForceShaderCode })
             bruteForceComputePipeline = device.createComputePipeline({
@@ -2360,7 +2545,7 @@ export default defineComponent({
                         simOptionsBindGroupLayout,
                     ],
                 }),
-                compute: { module: bruteForceShader, entryPoint: 'main' }
+                compute: { module: bruteForceShader, entryPoint: 'main' },
             })
             const particleAdvanceShader = device.createShaderModule({ code: particleAdvanceShaderCode })
             particleAdvancePipeline = device.createComputePipeline({
@@ -2371,7 +2556,7 @@ export default defineComponent({
                         deltaTimeBindGroupLayout,
                     ],
                 }),
-                compute: { module: particleAdvanceShader, entryPoint: 'particleAdvance' }
+                compute: { module: particleAdvanceShader, entryPoint: 'particleAdvance' },
             })
         }
         const particleNormalBlending: GPUBlendState = {
@@ -2383,19 +2568,21 @@ export default defineComponent({
             alpha: { operation: 'add', srcFactor: 'one', dstFactor: 'one' },
         }
         const createRenderPipelines = () => {
-            const renderShader = device.createShaderModule({code: renderShaderCode})
+            const renderShader = device.createShaderModule({ code: renderShaderCode })
             renderPipeline = device.createRenderPipeline({
                 layout: device.createPipelineLayout({
                     bindGroupLayouts: [particleBufferReadOnlyBindGroupLayout, simOptionsBindGroupLayout, cameraBindGroupLayout, renderOptionsBindGroupLayout],
                 }),
                 vertex: { module: renderShader, entryPoint: 'vertexMain' },
                 fragment: {
-                    module: renderShader, entryPoint: 'fragmentMain', targets: [{
+                    module: renderShader,
+                    entryPoint: 'fragmentMain',
+                    targets: [{
                         format: navigator.gpu.getPreferredCanvasFormat(),
-                        blend: particleNormalBlending
-                    }]
+                        blend: particleNormalBlending,
+                    }],
                 },
-                primitive: {topology: 'triangle-strip'},
+                primitive: { topology: 'triangle-strip' },
                 depthStencil: {
                     format: DEPTH_FORMAT,
                     depthWriteEnabled: true,
@@ -2410,7 +2597,9 @@ export default defineComponent({
                 }),
                 vertex: { module: boxShader, entryPoint: 'vertexMain' },
                 fragment: {
-                    module: boxShader, entryPoint: 'fragmentMain', targets: [{
+                    module: boxShader,
+                    entryPoint: 'fragmentMain',
+                    targets: [{
                         format: navigator.gpu.getPreferredCanvasFormat(),
                         blend: particleNormalBlending,
                     }],
@@ -2430,7 +2619,9 @@ export default defineComponent({
                 }),
                 vertex: { module: cameraTargetShader, entryPoint: 'vertexMain' },
                 fragment: {
-                    module: cameraTargetShader, entryPoint: 'fragmentMain', targets: [{
+                    module: cameraTargetShader,
+                    entryPoint: 'fragmentMain',
+                    targets: [{
                         format: navigator.gpu.getPreferredCanvasFormat(),
                         blend: particleNormalBlending,
                     }],
@@ -2451,7 +2642,9 @@ export default defineComponent({
                 }),
                 vertex: { module: renderGlowShader, entryPoint: 'vertexCircle' },
                 fragment: {
-                    module: renderGlowShader, entryPoint: 'fragmentCircle', targets: [{
+                    module: renderGlowShader,
+                    entryPoint: 'fragmentCircle',
+                    targets: [{
                         format: HDR_FORMAT,
                         blend: particleNormalBlending,
                     }],
@@ -2474,7 +2667,8 @@ export default defineComponent({
                     layout: composeLayout,
                     vertex: { module: composeShader, entryPoint: 'vertexMain' },
                     fragment: {
-                        module: composeShader, entryPoint: 'fragmentMain',
+                        module: composeShader,
+                        entryPoint: 'fragmentMain',
                         constants: { TONEMAP_ID: tonemap.id },
                         targets: [{ format: navigator.gpu.getPreferredCanvasFormat() }],
                     },
@@ -2489,7 +2683,9 @@ export default defineComponent({
                 }),
                 vertex: { module: boxShader, entryPoint: 'vertexMain' },
                 fragment: {
-                    module: boxShader, entryPoint: 'fragmentMain', targets: [{
+                    module: boxShader,
+                    entryPoint: 'fragmentMain',
+                    targets: [{
                         format: HDR_FORMAT,
                         blend: particleNormalBlending,
                     }],
@@ -2509,7 +2705,9 @@ export default defineComponent({
                 }),
                 vertex: { module: cameraTargetShader, entryPoint: 'vertexMain' },
                 fragment: {
-                    module: cameraTargetShader, entryPoint: 'fragmentMain', targets: [{
+                    module: cameraTargetShader,
+                    entryPoint: 'fragmentMain',
+                    targets: [{
                         format: HDR_FORMAT,
                         blend: particleNormalBlending,
                     }],
@@ -2565,7 +2763,8 @@ export default defineComponent({
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
         function updateDepthTexture() {
-            if (depthTexture) depthTexture.destroy(); depthTexture = undefined;
+            if (depthTexture)
+                depthTexture.destroy(); depthTexture = undefined
             depthTexture = device.createTexture({
                 size: [CANVAS_WIDTH, CANVAS_HEIGHT, 1],
                 format: DEPTH_FORMAT,
@@ -2574,7 +2773,8 @@ export default defineComponent({
             depthTextureView = depthTexture.createView()
         }
         function updateHdrTexture() {
-            if (hdrTexture) hdrTexture.destroy(); hdrTexture = undefined;
+            if (hdrTexture)
+                hdrTexture.destroy(); hdrTexture = undefined
 
             hdrTexture = device.createTexture({
                 size: [CANVAS_WIDTH, CANVAS_HEIGHT, 1],
@@ -2670,15 +2870,19 @@ export default defineComponent({
         watchAndUpdateSimOptions(() => particleLife.frictionFactor, (value: number) => frictionFactor = value)
 
         watch(() => particleLife.minRadiusRange, (value: number[]) => {
-            if (value[0] > value[1]) particleLife.minRadiusRange[0] = value[1]
-            if (value[1] > particleLife.maxRadiusRange[0]) particleLife.maxRadiusRange[0] = value[1]
+            if (value[0] > value[1])
+                particleLife.minRadiusRange[0] = value[1]
+            if (value[1] > particleLife.maxRadiusRange[0])
+                particleLife.maxRadiusRange[0] = value[1]
         }, { deep: true })
         watch(() => particleLife.maxRadiusRange, (value: number[]) => {
-            if (value[0] > value[1]) particleLife.maxRadiusRange[1] = value[0]
-            if (value[0] < particleLife.minRadiusRange[1]) particleLife.minRadiusRange[1] = value[0]
+            if (value[0] > value[1])
+                particleLife.maxRadiusRange[1] = value[0]
+            if (value[0] < particleLife.minRadiusRange[1])
+                particleLife.minRadiusRange[1] = value[0]
         }, { deep: true })
 
-        watch([() => particleLife.isWallRepel, () => particleLife.isWallWrap,], () => {
+        watch([() => particleLife.isWallRepel, () => particleLife.isWallWrap], () => {
             isWallRepel = particleLife.isWallRepel
             isWallWrap = particleLife.isWallWrap
             setSimSize()
@@ -2698,15 +2902,16 @@ export default defineComponent({
         const sphereShadingPreset = computed<string>({
             get() {
                 const preset = SPHERE_SHADING_PRESETS.find(p =>
-                    Math.abs(p.ambient - particleLife.sphereAmbient) < 0.0001 &&
-                    Math.abs(p.diffuse - particleLife.sphereDiffuseStrength) < 0.0001 &&
-                    Math.abs(p.specular - particleLife.sphereSpecularStrength) < 0.0001 &&
-                    Math.abs(p.shininess - particleLife.sphereShininess) < 0.0001)
+                    Math.abs(p.ambient - particleLife.sphereAmbient) < 0.0001
+                    && Math.abs(p.diffuse - particleLife.sphereDiffuseStrength) < 0.0001
+                    && Math.abs(p.specular - particleLife.sphereSpecularStrength) < 0.0001
+                    && Math.abs(p.shininess - particleLife.sphereShininess) < 0.0001)
                 return preset ? preset.id : 'custom'
             },
             set(id: string) {
                 const preset = SPHERE_SHADING_PRESETS.find(p => p.id === id)
-                if (!preset) return // custom
+                if (!preset)
+                    return // custom
                 particleLife.sphereAmbient = preset.ambient
                 particleLife.sphereDiffuseStrength = preset.diffuse
                 particleLife.sphereSpecularStrength = preset.specular
@@ -2724,27 +2929,27 @@ export default defineComponent({
         }
         // -------------------------------------------------------------------------------------------------------------
         const destroyBuffers = async (keepTexture: boolean = false) => {
-            currentPositionBuffer?.destroy(); currentPositionBuffer = undefined;
-            nextPositionBuffer?.destroy(); nextPositionBuffer = undefined;
-            velocityBuffer?.destroy(); velocityBuffer = undefined;
-            typeBuffer?.destroy(); typeBuffer = undefined;
-            typeBufferPacked?.destroy(); typeBufferPacked = undefined;
-            colorBuffer?.destroy(); colorBuffer = undefined;
-            deltaTimeBuffer?.destroy(); deltaTimeBuffer = undefined;
-            cameraBuffer?.destroy(); cameraBuffer = undefined;
-            interactionMatrixBuffer?.destroy(); interactionMatrixBuffer = undefined;
-            simOptionsBuffer?.destroy(); simOptionsBuffer = undefined;
-            bloomOptionsBuffer?.destroy(); bloomOptionsBuffer = undefined;
-            renderOptionsBuffer?.destroy(); renderOptionsBuffer = undefined;
+            currentPositionBuffer?.destroy(); currentPositionBuffer = undefined
+            nextPositionBuffer?.destroy(); nextPositionBuffer = undefined
+            velocityBuffer?.destroy(); velocityBuffer = undefined
+            typeBuffer?.destroy(); typeBuffer = undefined
+            typeBufferPacked?.destroy(); typeBufferPacked = undefined
+            colorBuffer?.destroy(); colorBuffer = undefined
+            deltaTimeBuffer?.destroy(); deltaTimeBuffer = undefined
+            cameraBuffer?.destroy(); cameraBuffer = undefined
+            interactionMatrixBuffer?.destroy(); interactionMatrixBuffer = undefined
+            simOptionsBuffer?.destroy(); simOptionsBuffer = undefined
+            bloomOptionsBuffer?.destroy(); bloomOptionsBuffer = undefined
+            renderOptionsBuffer?.destroy(); renderOptionsBuffer = undefined
 
-            particleBuffer?.destroy(); particleBuffer = undefined;
-            particleTempBuffer?.destroy(); particleTempBuffer = undefined;
+            particleBuffer?.destroy(); particleBuffer = undefined
+            particleTempBuffer?.destroy(); particleTempBuffer = undefined
 
             if (!keepTexture) {
-                depthTexture?.destroy(); depthTexture = undefined;
-                depthTextureView = undefined;
-                hdrTexture?.destroy(); hdrTexture = undefined;
-                hdrTextureView = undefined;
+                depthTexture?.destroy(); depthTexture = undefined
+                depthTextureView = undefined
+                hdrTexture?.destroy(); hdrTexture = undefined
+                hdrTextureView = undefined
                 for (let i = 0; i < BLOOM_MIPS; i++) {
                     bloomTextures[i]?.destroy()
                     bloomTextures[i] = undefined
@@ -2755,28 +2960,28 @@ export default defineComponent({
             await nextTick() // Ensure GPU resources are cleaned up before creating new ones
         }
         const destroyPipelinesAndBindGroups = () => {
-            bruteForceComputePipeline = undefined as any;
-            particleAdvancePipeline = undefined as any;
-            renderPipeline = undefined as any;
-            boxRenderPipeline = undefined as any;
-            boxRenderHdrPipeline = undefined as any;
-            cameraTargetRenderPipeline = undefined as any;
-            cameraTargetHdrPipeline = undefined as any;
-            renderCirclePipeline = undefined as any;
-            composeHdrPipelines.length = 0;
-            bloomPrefilterPipeline = undefined as any;
-            bloomDownsamplePipeline = undefined as any;
-            bloomUpsamplePipeline = undefined as any;
-            composeHdrBindGroup = undefined as any;
+            bruteForceComputePipeline = undefined as any
+            particleAdvancePipeline = undefined as any
+            renderPipeline = undefined as any
+            boxRenderPipeline = undefined as any
+            boxRenderHdrPipeline = undefined as any
+            cameraTargetRenderPipeline = undefined as any
+            cameraTargetHdrPipeline = undefined as any
+            renderCirclePipeline = undefined as any
+            composeHdrPipelines.length = 0
+            bloomPrefilterPipeline = undefined as any
+            bloomDownsamplePipeline = undefined as any
+            bloomUpsamplePipeline = undefined as any
+            composeHdrBindGroup = undefined as any
             bloomDownBindGroups.length = 0
             bloomUpBindGroups.length = 0
 
-            particleBufferReadOnlyBindGroup = undefined as any;
-            bruteForceBindGroup = undefined as any;
-            particleBufferBindGroup = undefined as any;
-            simOptionsBindGroup = undefined as any;
-            deltaTimeBindGroup = undefined as any;
-            cameraBindGroup = undefined as any;
+            particleBufferReadOnlyBindGroup = undefined as any
+            bruteForceBindGroup = undefined as any
+            particleBufferBindGroup = undefined as any
+            simOptionsBindGroup = undefined as any
+            deltaTimeBindGroup = undefined as any
+            cameraBindGroup = undefined as any
         }
         // -------------------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------------------
@@ -2790,19 +2995,27 @@ export default defineComponent({
         })
 
         const releaseGpuDevice = () => {
-            if (!device && !ctx) return
+            if (!device && !ctx)
+                return
             cancelAnimationLoop()
             // if (device) device.onuncapturederror = null
 
-            try { timestampQuerySet?.destroy?.() } catch {}
-            try { timestampResolveBuffer?.destroy?.() } catch {}
-            for (const b of timestampStagingPool) { try { b?.destroy?.() } catch {} }
+            try { timestampQuerySet?.destroy?.() }
+            catch {}
+            try { timestampResolveBuffer?.destroy?.() }
+            catch {}
+            for (const b of timestampStagingPool) {
+                try { b?.destroy?.() }
+                catch {}
+            }
             timestampStagingPool.length = 0
             timestampQuerySet = null
             timestampResolveBuffer = null
 
-            try { ctx?.unconfigure?.() } catch {}
-            try { device?.destroy?.() } catch {}
+            try { ctx?.unconfigure?.() }
+            catch {}
+            try { device?.destroy?.() }
+            catch {}
             device = undefined as any
             ctx = undefined as any
         }
@@ -2812,16 +3025,39 @@ export default defineComponent({
         }
 
         return {
-            particleLife, canvasRef, fps, executionTime, gpuTimings,
-            handleZoom, toggleFullscreen, isFullscreen, smoothCenterView, regenerateLife, step,
-            updateSimWidth, updateSimHeight, updateSimDepth,
-            updateRulesMatrixValue, updateMinMatrixValue, updateMaxMatrixValue, newRandomRulesMatrix, updateSingleColor,
-            randomizeRadius, randomizeRulesAndRadius, updateColors, updateRulesMatrix, updateParticlePositions, loadPreset,
-            setNewNumParticles, setNewNumTypes,
+            particleLife,
+            canvasRef,
+            fps,
+            executionTime,
+            gpuTimings,
+            handleZoom,
+            toggleFullscreen,
+            isFullscreen,
+            smoothCenterView,
+            regenerateLife,
+            step,
+            updateSimWidth,
+            updateSimHeight,
+            updateSimDepth,
+            updateRulesMatrixValue,
+            updateMinMatrixValue,
+            updateMaxMatrixValue,
+            newRandomRulesMatrix,
+            updateSingleColor,
+            randomizeRadius,
+            randomizeRulesAndRadius,
+            updateColors,
+            updateRulesMatrix,
+            updateParticlePositions,
+            loadPreset,
+            setNewNumParticles,
+            setNewNumTypes,
             tonemapOptions,
-            sphereShadingPresetOptions, sphereShadingPreset, switchTo2D,
+            sphereShadingPresetOptions,
+            sphereShadingPreset,
+            switchTo2D,
         }
-    }
+    },
 })
 </script>
 

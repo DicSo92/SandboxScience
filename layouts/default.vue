@@ -1,5 +1,5 @@
 <template>
-    <main class="px-10 pt-20 pb-12 text-center h-full max-h-screen flex flex-col">
+    <main class="h-full max-h-screen flex flex-col px-10 pb-12 pt-20 text-center">
         <slot />
     </main>
 </template>
@@ -7,8 +7,6 @@
 <script setup lang="ts">
 
 </script>
-
-
 
 <style scoped>
 
